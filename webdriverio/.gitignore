@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.wdio-logs/
+logs/
+allure-results/
+allure-report/
+*.log
+
+# Apps compilées (générées par just)
+apps/
+
+# Variables d'environnement locales
+.env
+.env.local
+
+# macOS
+.DS_Store

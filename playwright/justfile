@@ -1,0 +1,54 @@
+import '../justfile'
+
+set dotenv-path := '../.env'
+
+# Appwright exige ANDROID_HOME ; le projet racine utilise ANDROID_SDK_ROOT — on fait le pont.
+export ANDROID_HOME := env_var_or_default("ANDROID_HOME", env_var_or_default("ANDROID_SDK_ROOT", ""))
+
+# ─── Setup ──────────────────────────────────────────────────────────────────
+
+# Afficher les dépendances dépassées (sans modifier package.json)
+deps-check:
+    npx npm-check-updates
+
+# Mettre à jour package.json vers les dernières versions puis réinstaller
+deps-upgrade:
+    npx npm-check-updates --upgrade
+    @just setup
+
+# Installer les dépendances Node et les drivers Appium
+setup:
+    @echo "📥 Installation des dépendances…"
+    npm install
+    @echo "📥 Installation des drivers Appium…"
+    npm run appium:install
+    @echo "✅ Setup terminé. Lance 'just test-android' ou 'just test-ios'."
+
+# ─── Qualité ────────────────────────────────────────────────────────────────
+
+# Vérification statique TypeScript
+build-test:
+    npm run typecheck
+
+# ─── Tests ──────────────────────────────────────────────────────────────────
+
+# Lancer les tests E2E Android
+test-android: build-android
+    @echo "🤖 Tests E2E Android (Appwright)…"
+    npm run test:android
+
+# Lancer les tests E2E iOS
+test-ios: build-ios
+    @echo "🍎 Tests E2E iOS (Appwright)…"
+    npm run test:ios
+
+# Lancer les tests sur les deux plateformes
+test: test-android test-ios
+
+# Tests Android sans rebuild
+test-android-fast:
+    npm run test:android
+
+# Tests iOS sans rebuild
+test-ios-fast:
+    npm run test:ios

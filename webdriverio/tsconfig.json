@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@pages/*": ["src/pages/*"],
+      "@locators/*": ["src/pages/locators/*"],
+      "@driver/*": ["src/driver/*"],
+      "@helpers/*": ["src/helpers/*"]
+    },
+    "types": ["node", "@wdio/globals/types", "@wdio/mocha-framework"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "wdio.*.conf.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
