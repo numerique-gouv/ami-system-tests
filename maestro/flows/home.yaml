@@ -1,0 +1,38 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - home
+---
+- runFlow: ../elements/loadElements.yaml
+- runFlow: ../subflows/_launch.yaml
+- runFlow: ../subflows/_login.yaml
+
+- assertVisible:
+    id: ${output.home.screen}
+
+- assertVisible:
+    id: ${output.home.welcomeMessage}
+
+- assertVisible:
+    id: ${output.home.partnersSection}
+
+- assertVisible:
+    id: ${output.home.activitySection}
+
+- tapOn:
+    id: ${output.home.partnersSection}
+
+- assertVisible:
+    id: ${output.partner.listScreen}
+
+- runFlow:
+    when:
+      platform: Android
+    file: ../subflows/_back-android.yaml
+- runFlow:
+    when:
+      platform: iOS
+    file: ../subflows/_back-ios.yaml
+
+- assertVisible:
+    id: ${output.home.screen}

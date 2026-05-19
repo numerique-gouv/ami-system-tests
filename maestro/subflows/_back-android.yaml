@@ -1,0 +1,4 @@
+appId: ${APP_ID}
+# Subflow : retour arrière natif Android (bouton système)
+---
+- pressKey: Back

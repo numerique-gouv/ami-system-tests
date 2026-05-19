@@ -1,0 +1,60 @@
+appId: ${APP_ID}
+tags:
+  - webview
+  - smoke
+---
+- runFlow: ../elements/loadElements.yaml
+- runFlow: ../subflows/_launch.yaml
+- runFlow: ../subflows/_login.yaml
+
+- tapOn:
+    id: ${output.home.partnersSection}
+
+- tapOn:
+    id: ${output.partner.firstItem}
+
+- tapOn:
+    id: ${output.partner.websiteButton}
+
+- extendedWaitUntil:
+    visible:
+      text: "En savoir plus"
+    timeout: 12000
+
+- assertVisible:
+    text: "En savoir plus"
+
+- tapOn:
+    id: ${output.partner.webview.ctaContact}
+
+- extendedWaitUntil:
+    visible:
+      id: ${output.partner.webview.contactForm}
+    timeout: 8000
+
+- tapOn:
+    id: ${output.partner.webview.nameInput}
+- inputText: "Test Maestro"
+
+# `optional: true` — résistance à la compat N-2 : présent seulement dans les versions récentes de la page
+- tapOn:
+    id: ${output.partner.webview.rgpdCheckbox}
+    optional: true
+
+- tapOn:
+    id: ${output.partner.webview.submitButton}
+
+- assertVisible:
+    text: "Message envoyé"
+
+- runFlow:
+    when:
+      platform: Android
+    file: ../subflows/_back-android.yaml
+- runFlow:
+    when:
+      platform: iOS
+    file: ../subflows/_back-ios.yaml
+
+- assertVisible:
+    id: ${output.partner.detailScreen}

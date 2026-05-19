@@ -1,0 +1,61 @@
+appId: ${APP_ID}
+tags:
+  - partner
+---
+- runFlow: ../elements/loadElements.yaml
+- runFlow: ../subflows/_launch.yaml
+- runFlow: ../subflows/_login.yaml
+
+- tapOn:
+    id: ${output.home.partnersSection}
+
+- assertVisible:
+    id: ${output.partner.listScreen}
+
+- scrollUntilVisible:
+    element:
+      id: ${output.partner.firstItem}
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: ${output.partner.firstItem}
+
+- assertVisible:
+    id: ${output.partner.detailScreen}
+
+- assertVisible:
+    id: ${output.partner.name}
+
+- assertVisible:
+    id: ${output.partner.contactButton}
+
+# ── WebView intégrée ─────────────────────────────────────────────────────────
+- tapOn:
+    id: ${output.partner.websiteButton}
+
+- extendedWaitUntil:
+    visible:
+      id: ${output.partner.webview.loadedMarker}
+    timeout: 10000
+
+- assertVisible:
+    text: "En savoir plus"
+
+- tapOn:
+    text: "En savoir plus"
+
+- assertVisible:
+    id: ${output.partner.webview.ctaContact}
+
+- runFlow:
+    when:
+      platform: Android
+    file: ../subflows/_back-android.yaml
+- runFlow:
+    when:
+      platform: iOS
+    file: ../subflows/_back-ios.yaml
+
+- assertVisible:
+    id: ${output.partner.detailScreen}

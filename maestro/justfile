@@ -1,0 +1,76 @@
+import '../justfile'
+
+export PATH := env_var("PATH") + ":" + env_var("HOME") + "/.maestro/bin"
+
+# IDs applicatifs (à ajuster si flavor différente)
+android_app_id := "fr.gouv.ami.staging"
+ios_app_id     := "fr.gouv.ami.staging"
+
+# Devices cibles (surchargeable via variable d'environnement)
+android_device := env_var_or_default("ANDROID_DEVICE_ID", "emulator-5554")
+ios_device     := env_var_or_default("IOS_DEVICE_ID",     "")
+
+_device_flag_android := "--device " + android_device
+_device_flag_ios     := if ios_device != "" { "--device " + ios_device } else { "" }
+
+# ─── Setup ──────────────────────────────────────────────────────────────────
+
+# Installer Maestro CLI (idempotent)
+setup:
+    @command -v maestro > /dev/null 2>&1 \
+        && echo "✅ Maestro $(maestro --version) déjà installé" \
+        || (echo "📦 Installation de Maestro…" && curl -Ls "https://get.maestro.mobile.dev" | bash)
+
+# ─── Tests ──────────────────────────────────────────────────────────────────
+
+# Lancer tous les tests sur Android
+test-android: build-android
+    maestro {{_device_flag_android}} test \
+        --env APP_ID={{android_app_id}} \
+        flows/
+
+# Lancer tous les tests sur iOS
+test-ios: build-ios
+    maestro {{_device_flag_ios}} test \
+        --env APP_ID={{ios_app_id}} \
+        flows/
+
+# Lancer les tests sur les deux plateformes (Android puis iOS)
+test: test-android test-ios
+
+# Tests @smoke uniquement — boucle de feedback rapide
+test-android-fast:
+    maestro {{_device_flag_android}} test \
+        --include-tags smoke \
+        --env APP_ID={{android_app_id}} \
+        flows/
+
+test-ios-fast:
+    maestro {{_device_flag_ios}} test \
+        --include-tags smoke \
+        --env APP_ID={{ios_app_id}} \
+        flows/
+
+# ─── Multi-appareils ────────────────────────────────────────────────────────
+
+# Scenario multi-devices : device 1 configure, device 2 vérifie
+# Nécessite ANDROID_DEVICE_ID et ANDROID_DEVICE2_ID définis
+test-multi-device-android:
+    MAESTRO_DEVICE_ID={{android_device}} \
+        maestro test --env APP_ID={{android_app_id}} multi-device/device1-configure.yaml
+    MAESTRO_DEVICE_ID={{env_var_or_default("ANDROID_DEVICE2_ID", "emulator-5556")}} \
+        maestro test --env APP_ID={{android_app_id}} multi-device/device2-verify.yaml
+
+# ─── Outils de développement ────────────────────────────────────────────────
+
+# Ouvrir Maestro Studio (inspecteur visuel interactif)
+studio:
+    maestro {{_device_flag_android}} studio
+
+# Relancer un flow automatiquement à chaque modification (TDD)
+watch flow:
+    maestro {{_device_flag_android}} test --watch {{flow}}
+
+# Exécuter un flow isolé (ex: just run flows/home.yaml)
+run flow:
+    maestro {{_device_flag_android}} test --env APP_ID={{android_app_id}} {{flow}}

@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+# Subflow : lancement propre de l'app
+# Usage : runFlow: ../subflows/_launch.yaml
+---
+- clearState                    # repart d'un état vierge (base de données locale effacée)
+- launchApp:
+    clearKeychain: true         # iOS : vide le keychain entre les tests
+- extendedWaitUntil:
+    visible:
+      id: "splash_screen"       # attendre que le splash disparaisse
+    timeout: 10000
+  optional: true                # le splash peut ne pas exister en mode dev

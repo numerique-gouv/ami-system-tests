@@ -64,6 +64,7 @@ check:
     @command -v xcpretty  > /dev/null && echo "✅ xcpretty"  || echo "⚠️  xcpretty absent (gem install xcpretty — optionnel)"
     @command -v node      > /dev/null && echo "✅ node"      || echo "❌ node manquant"
     @command -v appium    > /dev/null && echo "✅ appium"    || echo "❌ appium manquant (npm i -g appium)"
+    @command -v maestro   > /dev/null && echo "✅ maestro"   || echo "❌ maestro manquant (cd maestro && just setup)"
     @command -v just      > /dev/null && echo "✅ just"      || echo "❌ just manquant"
 
 # Afficher l'aide

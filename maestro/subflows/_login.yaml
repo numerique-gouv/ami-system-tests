@@ -1,0 +1,20 @@
+appId: ${APP_ID}
+# Subflow : connexion avec un compte de test
+# Prérequis : loadElements.yaml chargé (output.auth disponible)
+# Variables optionnelles : EMAIL (défaut: test@ami.gouv.fr), PASSWORD (défaut: Test1234!)
+---
+- tapOn:
+    id: ${output.auth.emailInput}
+- inputText: ${EMAIL:-test@ami.gouv.fr}
+
+- tapOn:
+    id: ${output.auth.passwordInput}
+- inputText: ${PASSWORD:-Test1234!}
+
+- tapOn:
+    id: ${output.auth.loginButton}
+
+- extendedWaitUntil:
+    visible:
+      id: ${output.home.screen}
+    timeout: 8000

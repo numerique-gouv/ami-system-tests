@@ -1,0 +1,31 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - onboarding
+---
+- runFlow: ../elements/loadElements.yaml
+- runFlow: ../subflows/_launch.yaml
+
+- assertVisible:
+    id: ${output.onboarding.welcomeTitle}
+
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          direction: LEFT
+          duration: 300
+
+- tapOn:
+    id: ${output.onboarding.startButton}
+
+- assertVisible:
+    id: ${output.onboarding.authChoice}
+
+- tapOn:
+    id: ${output.onboarding.loginButton}
+
+- runFlow: ../subflows/_login.yaml
+
+- assertVisible:
+    id: ${output.home.screen}
