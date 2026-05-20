@@ -44,6 +44,7 @@ android_avd    := "Pixel_modern"
 android_sdk    := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
 
 # Démarrer l'émulateur Android en arrière-plan et attendre le boot complet
+#TODO: vérifie qu'il n'est pas déjà lancé avant de le démarrer.
 android-start:
     @echo "🤖 Démarrage de l'émulateur {{android_avd}}…"
     {{android_sdk}}/emulator/emulator -avd {{android_avd}} -no-snapshot-save &

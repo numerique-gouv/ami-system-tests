@@ -37,9 +37,10 @@ appId: ${APP_ID}
 
 # Attendre que le champ identifiant soit accessible par son resource-id HTML (plus stable
 # que par sa valeur pré-remplie, dont la visibilité dans l'arbre d'accessibilité est timing-dépendante).
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: "login"
+    direction: DOWN
     timeout: 30000
 
 # Identifiant : cibler par resource-id HTML, effacer la valeur pré-remplie et resaisir
@@ -47,6 +48,12 @@ appId: ${APP_ID}
     id: "login"
 - eraseText: 50
 - inputText: "${output.login_identifier}"
+
+- scrollUntilVisible:
+    element:
+      id: "password"
+    direction: DOWN
+    timeout: 30000
 
 # Mot de passe : cibler par resource-id HTML
 - tapOn:
