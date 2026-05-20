@@ -1,5 +1,0 @@
-appId: ${APP_ID}
-# Subflow : retour arrière iOS (bouton natif dans la navigation bar)
----
-- tapOn:
-    id: "navigation_back_button"
