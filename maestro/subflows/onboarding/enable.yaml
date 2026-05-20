@@ -1,0 +1,19 @@
+appId: ${APP_ID}
+# Subflow : active les notifications depuis l'onboarding.
+# Pré-condition : l'onboarding est visible.
+---
+- runFlow: ../../elements/_loadAll.yaml
+
+- extendedWaitUntil:
+    visible: "${output.onboarding_title}"
+    timeout: 20000
+- tapOn: "${output.onboarding_enable}"
+# Le système OS affiche la dialog de permission notifications → accepter
+- extendedWaitUntil:
+    visible:
+      text: "Autoriser"
+    timeout: 5000
+    optional: true
+- tapOn:
+    text: "Autoriser"
+    optional: true

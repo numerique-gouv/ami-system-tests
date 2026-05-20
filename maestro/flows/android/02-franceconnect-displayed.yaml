@@ -1,0 +1,13 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - android-only
+# Staging : ReviewAppsScreen apparaît au démarrage → franceconnect/open.yaml tape la première entrée.
+# Local : franceconnect/open.yaml ignore le picker (optional) et attend directement fc_button.
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../subflows/franceconnect/open.yaml
+
+- assertVisible: "${output.fc_button}"
+- assertVisible: "${output.fc_info}"
+- assertVisible: "${output.fc_tchap}"

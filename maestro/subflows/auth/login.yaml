@@ -1,0 +1,75 @@
+appId: ${APP_ID}
+# Subflow : authentification via FranceConnect (staging).
+# 1. Tap sur le bouton FC natif → WebView OIDC s'ouvre
+# 2. Écran de sélection eiDAS → taper "faible" (mot unique dans "Démonstration eiDAS faible")
+# 3. Mire de login mock → saisir test / 123 → soumettre
+# 4. Fin : la mire disparaît (WebView revient sur la SPA authentifiée)
+# Pré-condition : FranceConnexionScreen est visible (appeler franceconnect/open.yaml avant).
+---
+- runFlow: ../../elements/_loadAll.yaml
+
+- tapOn: "${output.fc_button}"
+
+# Sélection du niveau eiDAS — ".*faible.*" matche "Démonstration eiDAS faible" uniquement
+- extendedWaitUntil:
+    visible:
+      text: ".*faible.*"
+    timeout: 15000
+- tapOn:
+    text: ".*faible.*"
+
+# Attendre que l'écran eiDAS disparaisse avant de chercher le formulaire FCP-LOW.
+# Sans cette étape, Maestro peut interroger l'ancien arbre d'accessibilité pendant la transition.
+- extendedWaitUntil:
+    notVisible:
+      text: ".*faible.*"
+    timeout: 15000
+
+# Attendre que le titre de la page FCP-LOW soit accessible (heading robuste vs inputs/boutons).
+- extendedWaitUntil:
+    visible:
+      text: ".*FCP-LOW.*"
+    timeout: 60000
+
+# Scroll bas aveugle → déclenche le mode accessibilité complet de la WebView Android
+# (les inputs/boutons ne sont pas publiés tant qu'il n'y a pas eu d'interaction physique).
+- scroll
+
+# Attendre que le champ identifiant soit accessible par son resource-id HTML (plus stable
+# que par sa valeur pré-remplie, dont la visibilité dans l'arbre d'accessibilité est timing-dépendante).
+- extendedWaitUntil:
+    visible:
+      id: "login"
+    timeout: 30000
+
+# Identifiant : cibler par resource-id HTML, effacer la valeur pré-remplie et resaisir
+- tapOn:
+    id: "login"
+- eraseText: 50
+- inputText: "${output.login_identifier}"
+
+# Mot de passe : cibler par resource-id HTML
+- tapOn:
+    id: "password"
+- eraseText: 50
+- inputText: "${output.login_password}"
+
+# Fermer le clavier (Android : pressKey Back — iOS : hideKeyboard cross-platform)
+- hideKeyboard
+
+- tapOn:
+    text: "${output.login_submit_label}"
+
+# Attendre que le formulaire disparaisse (soumission acceptée)
+- extendedWaitUntil:
+    notVisible:
+      text: "${output.login_submit_label}"
+    timeout: 30000
+
+# Attendre la fin du redirect OIDC — la page de confirmation FCP-LOW disparaît
+# quand le WebView suit la redirect_uri vers la SPA.
+# "Retour" reste visible (bouton natif persistant), "FCP-LOW" disparaît lui.
+- extendedWaitUntil:
+    notVisible:
+      text: ".*FCP-LOW.*"
+    timeout: 60000

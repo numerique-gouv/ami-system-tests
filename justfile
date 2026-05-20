@@ -3,7 +3,7 @@
 
 set dotenv-load := true
 
-root := justfile_directory()
+root := source_directory()
 
 android_project := root / "../ami-app-android"
 ios_project     := root / "../ami-app-ios"
@@ -15,9 +15,10 @@ ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI.app"
 # ─── Build ──────────────────────────────────────────────────────────────────
 
 # Builder l'APK Android (flavor staging, debug)
+# JDK 21 requis : Kotlin/Gradle ne supporte pas JDK 22+
 build-android:
     @echo "📦 Build Android (staging/debug)…"
-    cd {{android_project}} && ./gradlew assembleStagingDebug
+    cd {{android_project}} && JAVA_HOME=$(/usr/libexec/java_home -v 21 -a arm64) ./gradlew assembleStagingDebug
     @echo "✅ APK généré : {{android_apk}}"
 
 # Builder l'app iOS pour simulateur (scheme AMI-Staging)
@@ -39,7 +40,7 @@ build: build-android build-ios
 
 # ─── Émulateurs / Simulateurs ───────────────────────────────────────────────
 
-android_avd    := "Pixel_oldest"
+android_avd    := "Pixel_modern"
 android_sdk    := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
 
 # Démarrer l'émulateur Android en arrière-plan et attendre le boot complet

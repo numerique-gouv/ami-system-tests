@@ -1,0 +1,35 @@
+appId: ${APP_ID}
+tags:
+  - ios-only
+# iOS spécifique : SwiftUIIntrospect réactive le geste swipe-back depuis PartnerView.
+# On vérifie que le geste horizontal retourne bien vers HomeView.
+# PartnerView s'ouvre quand la WebView navigue vers une URL externe (non rootUrl).
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../elements/_loadAll.yaml
+
+# Sélectionner la review app (staging)
+- extendedWaitUntil:
+    visible: "${output.reviewPicker_title}"
+    timeout: 10000
+- tapOn:
+    index: 0
+    childOf:
+      text: "${output.reviewPicker_title}"
+
+# TODO : login iOS (sélecteurs WebView à découvrir via `just studio platform=ios`)
+# TODO : naviguer vers une URL de partenaire dans la SPA pour ouvrir PartnerView
+# PartnerView est une NavigationStack destination avec sa propre WKWebView
+
+# Geste swipe-back depuis le centre-gauche de l'écran (pas depuis le bord pour éviter le back système)
+- swipe:
+    startX: 20
+    startY: 400
+    endX: 300
+    endY: 400
+
+# Vérifier le retour à HomeView (la WebView principale est de nouveau visible)
+- extendedWaitUntil:
+    notVisible:
+      text: "Retour"  # bouton back de PartnerView disparaît
+    timeout: 10000

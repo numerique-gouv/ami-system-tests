@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - ios-only
+# L'onboarding est une SwiftUI sheet modale — même textes qu'Android.
+# Pré-requis : login complet dans la WebView (review picker → FC → formulaire test/123).
+# TODO : factoriser le login iOS dans un subflow dédié (ios/03 doit être résolu en premier).
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../elements/_loadAll.yaml
+
+# Sélectionner la review app (staging)
+- extendedWaitUntil:
+    visible: "${output.reviewPicker_title}"
+    timeout: 10000
+- tapOn:
+    index: 0
+    childOf:
+      text: "${output.reviewPicker_title}"
+
+# TODO : taper le bouton FranceConnect dans la WebView SPA (sélecteur à découvrir via `just studio platform=ios`)
+# TODO : remplir le formulaire de login mock (login: test, password: 123)
+
+- runFlow: ../../elements/_loadAll.yaml
+
+- assertVisible: "${output.onboarding_title}"
+- runFlow: ../../subflows/onboarding/dismiss.yaml

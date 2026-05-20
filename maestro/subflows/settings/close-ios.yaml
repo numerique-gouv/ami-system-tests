@@ -1,0 +1,11 @@
+appId: ${APP_ID}
+# Subflow iOS-spécifique : ferme le sheet SettingsView via le bouton "Fermer".
+# Sur Android, on utilise _back-android.yaml (bouton système).
+# Sur iOS, SettingsView est une sheet modale avec un ToolbarItem "Fermer" (AMIL10n.commonClose).
+---
+- tapOn:
+    text: "Fermer"
+- extendedWaitUntil:
+    notVisible:
+      text: "Paramètres"
+    timeout: 10000

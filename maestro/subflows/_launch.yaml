@@ -9,4 +9,4 @@ appId: ${APP_ID}
     visible:
       id: "splash_screen"       # attendre que le splash disparaisse
     timeout: 10000
-  optional: true                # le splash peut ne pas exister en mode dev
+    optional: true              # le splash peut ne pas exister en mode dev

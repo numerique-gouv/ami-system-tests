@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+# Charge le fichier de sélecteurs correspondant à la plateforme réelle du device.
+# La condition when: platform: est évaluée nativement par Maestro — aucun JS impliqué.
+---
+- runScript:
+    file: android.js
+    when:
+      platform: Android
+- runScript:
+    file: ios.js
+    when:
+      platform: iOS

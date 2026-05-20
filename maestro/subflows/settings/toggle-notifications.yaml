@@ -1,0 +1,8 @@
+appId: ${APP_ID}
+# Subflow : bascule le toggle notifications dans SettingsScreen/SettingsView.
+# Pré-condition : l'écran Paramètres est ouvert.
+---
+- runFlow: ../../elements/_loadAll.yaml
+
+- assertVisible: "${output.settings_notif_label}"
+- tapOn: "${output.settings_notif_label}"

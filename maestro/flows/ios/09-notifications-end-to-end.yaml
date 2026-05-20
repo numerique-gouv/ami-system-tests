@@ -1,0 +1,37 @@
+appId: ${APP_ID}
+tags:
+  - notifications
+  - ios-only
+---
+# Scénario : réception de notifications avant et après activation (iOS).
+# 1. Login FC sandbox test/123 → décline notifs à l'onboarding
+# 2. Publie notif n°1 → vérifie qu'elle n'arrive PAS en heads-up (pas de Registration APNs)
+# 3. Active les notifs depuis Paramètres → accepte dialog UNUserNotificationCenter
+# 4. Publie notif n°2 → vérifie qu'elle arrive en heads-up
+#
+# Pré-requis iOS : xcrun simctl privacy <device> reset notifications fr.gouv.ami.staging
+# (si le simulateur a déjà une décision mémorisée, l'onboarding ne s'affichera pas)
+
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../subflows/franceconnect/open.yaml
+- runFlow: ../../subflows/auth/login.yaml
+- runFlow: ../../subflows/webview/wait-loaded.yaml
+- runFlow: ../../subflows/onboarding/dismiss.yaml
+
+- runFlow:
+    file: ../../subflows/notifications/publish.yaml
+    env:
+      NOTIF_TITLE: "Test Maestro avant activation"
+      NOTIF_BODY: "Cette notification ne doit pas arriver en heads-up"
+- runFlow: ../../subflows/notifications/assert-not-received.yaml
+
+- runFlow: ../../subflows/settings/open.yaml
+- runFlow: ../../subflows/settings/enable-notifications.yaml
+- runFlow: ../../subflows/settings/close-ios.yaml
+
+- runFlow:
+    file: ../../subflows/notifications/publish.yaml
+    env:
+      NOTIF_TITLE: "Test Maestro après activation"
+      NOTIF_BODY: "Cette notification doit arriver en heads-up"
+- runFlow: ../../subflows/notifications/assert-received.yaml

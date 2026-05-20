@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+  - ios-only
+# Note : iOS n'a pas de FranceConnexionScreen natif.
+# Après sélection de la review app, HomeView charge la SPA dans la WebView.
+# Ce flow vérifie que la SPA se charge et affiche son interface d'auth.
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../elements/_loadAll.yaml
+
+# Sélectionner la première review app
+- extendedWaitUntil:
+    visible: "${output.reviewPicker_title}"
+    timeout: 10000
+- tapOn:
+    index: 0
+    childOf:
+      text: "${output.reviewPicker_title}"
+
+# TODO : attendre un élément stable de la SPA visible dans la WebView.
+# À découvrir via `just studio platform=ios` après avoir sélectionné une review app.
+# Exemples probables : "FranceConnect" (bouton web), "S'identifier", ou un titre de page.
+- extendedWaitUntil:
+    visible:
+      text: "FranceConnect"
+    timeout: 30000

@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+# Publie une notification push via l'API partenaire AMI et mémorise le titre dans output.
+# Variables Maestro attendues (passées par le flow appelant via runFlow: env:) :
+#   NOTIF_TITLE — titre de la notification
+#   NOTIF_BODY  — corps de la notification
+# Variables process.env (depuis maestro/.env, chargé par just dotenv-load) :
+#   NOTIF_API_URL, NOTIF_PARTNER_ID, NOTIF_PARTNER_SECRET, NOTIF_RECIPIENT_FC_HASH
+---
+- runScript:
+    file: ../../scripts/notification-publish.js
+    env:
+      NOTIF_TITLE: ${NOTIF_TITLE}
+      NOTIF_BODY: ${NOTIF_BODY}
+      NOTIF_API_URL: ${NOTIF_API_URL}
+      NOTIF_PARTNER_ID: ${NOTIF_PARTNER_ID}
+      NOTIF_PARTNER_SECRET: ${NOTIF_PARTNER_SECRET}
+      NOTIF_RECIPIENT_FC_HASH: ${NOTIF_RECIPIENT_FC_HASH}

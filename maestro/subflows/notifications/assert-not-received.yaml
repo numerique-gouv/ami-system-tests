@@ -1,0 +1,11 @@
+appId: ${APP_ID}
+# Vérifie qu'aucun push n'est arrivé pendant le délai d'observation.
+# Pré-condition : output.last_notif_title défini (par notifications/publish.yaml).
+---
+- extendedWaitUntil:
+    notVisible:
+      text: "${output.last_notif_title}"
+    timeout: 8000
+    optional: true
+- assertNotVisible:
+    text: "${output.last_notif_title}"

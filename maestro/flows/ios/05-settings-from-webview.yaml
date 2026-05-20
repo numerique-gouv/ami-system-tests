@@ -1,0 +1,25 @@
+appId: ${APP_ID}
+tags:
+  - ios-only
+# Sur iOS, SettingsView est une sheet modale (pas un écran full-screen comme Android).
+# Fermeture via le bouton "Fermer" (AMIL10n.commonClose) dans la toolbar.
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../elements/_loadAll.yaml
+
+# Sélectionner la review app (staging)
+- extendedWaitUntil:
+    visible: "${output.reviewPicker_title}"
+    timeout: 10000
+- tapOn:
+    index: 0
+    childOf:
+      text: "${output.reviewPicker_title}"
+
+# TODO : login iOS (sélecteurs WebView à découvrir via `just studio platform=ios`)
+# TODO : naviguer vers /#/settings dans la SPA pour déclencher l'ouverture de SettingsView
+- runFlow: ../../subflows/settings/open.yaml
+
+- assertVisible: "${output.settings_notif_label}"
+
+- runFlow: ../../subflows/settings/close-ios.yaml

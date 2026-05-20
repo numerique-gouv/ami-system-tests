@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+# Subflow : attend que la WebView home soit chargée après authentification.
+# Indicateur : le bouton FranceConnect disparaît (token valide → route vers Home).
+---
+- runFlow: ../../elements/_loadAll.yaml
+
+- extendedWaitUntil:
+    notVisible: "${output.fc_button}"
+    timeout: 30000

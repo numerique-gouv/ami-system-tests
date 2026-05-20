@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+tags:
+  - auth
+  - android-only
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../subflows/franceconnect/open.yaml
+- runFlow: ../../subflows/auth/login.yaml
+- runFlow: ../../subflows/onboarding/dismiss.yaml
+- runFlow: ../../elements/_loadAll.yaml
+
+# TODO : déclencher le logout via le bouton de déconnexion de la SPA dans la WebView
+# NativeBridge.onEvent("user_logged_out") → clearState + route vers FranceConnection
+- extendedWaitUntil:
+    visible: "${output.fc_button}"
+    timeout: 30000
+- assertVisible: "${output.fc_info}"
