@@ -1,0 +1,8 @@
+.maestro/
+
+# Variables d'environnement locales
+.env
+.env.local
+
+# macOS
+.DS_Store
