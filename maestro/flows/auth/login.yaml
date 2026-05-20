@@ -6,8 +6,6 @@ tags:
 - runFlow: ../../subflows/_launch.yaml
 
 - runFlow:
-    file: ../../subflows/franceconnect/open.yaml
-- runFlow:
     file: ../../subflows/auth/login.yaml
 - runFlow:
     file: ../../subflows/webview/wait-loaded.yaml

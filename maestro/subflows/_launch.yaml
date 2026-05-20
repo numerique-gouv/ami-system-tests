@@ -1,8 +1,13 @@
 appId: ${APP_ID}
 # Subflow : lancement propre de l'app
 # Usage : runFlow: ../subflows/_launch.yaml
+
+# résoud les problème d'arbre d'accessiblité non chargé par les webviews sur android, le problème reste sur ios.
+androidWebViewHierarchy: devtools
 ---
+
 - clearState                    # repart d'un état vierge (base de données locale effacée)
+
 - launchApp:
     clearKeychain: true         # iOS : vide le keychain entre les tests
 - extendedWaitUntil:

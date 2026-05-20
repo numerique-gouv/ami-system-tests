@@ -1,12 +1,29 @@
 appId: ${APP_ID}
-# Subflow : authentification via FranceConnect (staging).
-# 1. Tap sur le bouton FC natif → WebView OIDC s'ouvre
-# 2. Écran de sélection eiDAS → taper "faible" (mot unique dans "Démonstration eiDAS faible")
-# 3. Mire de login mock → saisir test / 123 → soumettre
-# 4. Fin : la mire disparaît (WebView revient sur la SPA authentifiée)
-# Pré-condition : FranceConnexionScreen est visible (appeler franceconnect/open.yaml avant).
+# Subflow : navigue jusqu'à l'écran FranceConnect puis s'authentifie (staging).
+# 1. Si review-picker visible (staging) → sélectionner l'environnement par défaut
+# 2. Attendre l'écran FranceConnexionScreen
+# 3. Tap sur le bouton FC natif → WebView OIDC s'ouvre
+# 4. Écran de sélection eiDAS → taper "faible" (mot unique dans "Démonstration eiDAS faible")
+# 5. Mire de login mock → saisir test / 123 → soumettre
+# 6. Fin : la mire disparaît (le redirect OIDC ramène vers la SPA)
+# Pré-condition : _launch.yaml a été appelé.
 ---
 - runFlow: ../../elements/_loadAll.yaml
+
+# Sur staging uniquement : attendre que les items du LazyColumn soient chargés,
+# puis sélectionner l'environnement "Staging".
+- extendedWaitUntil:
+    visible:
+      text: "${output.reviewPicker_default}"
+    timeout: 8000
+    optional: true
+- tapOn:
+    text: "${output.reviewPicker_default}"
+    optional: true
+
+- extendedWaitUntil:
+    visible: "${output.fc_button}"
+    timeout: 15000
 
 - tapOn: "${output.fc_button}"
 
@@ -33,24 +50,38 @@ appId: ${APP_ID}
 
 # Scroll bas aveugle → déclenche le mode accessibilité complet de la WebView Android
 # (les inputs/boutons ne sont pas publiés tant qu'il n'y a pas eu d'interaction physique).
-- scroll
+#- tapOn:
+#    point: "50%, 2%"
 
-# Attendre que le bouton Valider soit visible — preuve que tout le formulaire est dans l'arbre.
-- extendedWaitUntil:
-    visible:
-      text: "${output.login_submit_label}"
-    timeout: 30000
+#- scroll
 
-- tapOn:
+- swipe:
+    direction: UP
+
+#id: "login", element: "Identifiant"
+#- scrollUntilVisible:
+#    element:
+#      text: "Identifiant"
+#    direction: UP
+#    timeout: 5000
+
+- scrollUntilVisible:
+    element:
+      id: "login"
+    direction: UP
+    timeout: 5000
+
+- tapOn: 
     id: "login"
 - eraseText: 50
 - inputText: "${output.login_identifier}"
 
+# id: "password", element: "Mot de passe"
 - scrollUntilVisible:
     element:
       id: "password"
-    direction: DOWN
-    timeout: 15000
+    direction: UP
+    timeout: 5000
 
 - tapOn:
     id: "password"

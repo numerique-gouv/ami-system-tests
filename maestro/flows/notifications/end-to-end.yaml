@@ -8,7 +8,6 @@ tags:
 # 4. Publie notif n°2 → vérifie qu'elle arrive en heads-up
 ---
 - runFlow: ../../subflows/_launch.yaml
-- runFlow: ../../subflows/franceconnect/open.yaml
 - runFlow: ../../subflows/auth/login.yaml
 - runFlow: ../../subflows/webview/wait-loaded.yaml
 - runFlow: ../../subflows/onboarding/dismiss.yaml

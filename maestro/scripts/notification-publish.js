@@ -34,6 +34,7 @@ var response = http.post(apiUrl + '/api/v1/notifications', {
 });
 
 if (response.status !== 201 && response.status !== 200) {
+  console.error(response.statusText + ' for POST /api/v1/notifications HTTP ' + response.status + ': ' + response.body);
   throw new Error('POST /api/v1/notifications HTTP ' + response.status + ': ' + response.body);
 }
 
