@@ -3,26 +3,17 @@ import '../justfile'
 export PATH := env_var("PATH") + ":" + env_var("HOME") + "/.maestro/bin" + ":" + android_sdk + "/platform-tools"
 
 # IDs applicatifs (à ajuster si flavor différente)
-android_app_id := "fr.gouv.ami.staging"
-ios_app_id     := "fr.gouv.ami.staging"
+app_id := "fr.gouv.ami.staging"
 
 # Device Android Maestro — modèle et OS (voir : maestro list-devices)
 android_device_model := env_var_or_default("ANDROID_DEVICE_MODEL", "pixel_9")
 android_device_os    := env_var_or_default("ANDROID_DEVICE_OS", "android-36")
 
 # ID adb du device pour adb install (emulator-5554 = premier émulateur Maestro)
-android_device := env_var_or_default("ANDROID_DEVICE_ID", "emulator-5554")
-ios_device     := env_var_or_default("IOS_DEVICE_ID", "")
+device := env_var_or_default("DEVICE_ID", "emulator-5554")
 
-[private]
-_device_flag_android := "--device " + android_device
-[private]
-_device_flag_ios := if ios_device != "" { "--device " + ios_device } else { "" }
-
-[private]
 _notif_env := "--env NOTIF_API_URL=" + env_var_or_default("NOTIF_API_URL", "") + " --env NOTIF_PARTNER_ID=" + env_var_or_default("NOTIF_PARTNER_ID", "") + " --env NOTIF_PARTNER_SECRET=" + env_var_or_default("NOTIF_PARTNER_SECRET", "") + " --env NOTIF_RECIPIENT_FC_HASH=" + env_var_or_default("NOTIF_RECIPIENT_FC_HASH", "")
 
-[private]
 _reports_dir := "reports"
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
@@ -45,42 +36,27 @@ setup:
 #         just test-android smoke        → tag smoke uniquement
 #         just test-android notifications → flows notifications E2E
 #         just test-android smoke,auth   → smoke OU auth (séparés par virgule, sans espace)
+#        --output "{{ _reports_dir }}/{{platform}}/results-detailed.html" \
 [private]
 _test platform tags="":
     #!/usr/bin/env bash
     set -euo pipefail
-    device_flag="{{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }}"
-    app_id="{{ if platform == "ios" { ios_app_id } else { android_app_id } }}"
     include_arg=""
     [ -n "{{tags}}" ] && include_arg="--include-tags {{tags}}"
-    mkdir -p "{{ _reports_dir }}/{{platform}}"
-    maestro $device_flag test \
-        --env APP_ID="$app_id" \
+    maestro --device {{ device }} --verbose test \
+        --env APP_ID="{{ app_id }}" \
         {{ _notif_env }} \
         $include_arg \
         --format "HTML-DETAILED" \
-        --output "{{ _reports_dir }}/{{platform}}/results-detailed.html" \
+        --debug-output="." \
         .
 
 test-android tags="":
     maestro start-device --platform=android \
         --device-model={{ android_device_model }} \
         --device-os={{ android_device_os }}
-    adb -s {{ android_device }} install -r {{ android_apk }}
-    just _driver-start
+    adb -s {{ device }} install -r {{ android_apk }}
     just _test android "{{tags}}"
-
-# Installe les APKs du driver Maestro, ouvre le port gRPC et démarre l'instrumentation.
-# --reinstall-driver de maestro test nécessite une connexion gRPC préalable pour fonctionner
-# → bootstrap impossible depuis zéro, cette recette le fait manuellement.
-[private]
-_driver-start:
-    unzip -o -d /tmp "$HOME/.maestro/lib/maestro-client.jar" maestro-app.apk maestro-server.apk
-    adb -s {{ android_device }} install -r -g /tmp/maestro-app.apk
-    adb -s {{ android_device }} install -r -g /tmp/maestro-server.apk
-    adb -s {{ android_device }} forward tcp:7001 tcp:7001
-    adb -s {{ android_device }} shell am instrument -w -r dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &
-    @until nc -z 127.0.0.1 7001 2>/dev/null; do sleep 1; done
 
 # Construit un APK staging avant de lancer les tests
 test-android-builded tags="": build-android (test-android tags)
@@ -96,15 +72,15 @@ test-offline-android:
     maestro start-device --platform=android \
         --device-model={{ android_device_model }} \
         --device-os={{ android_device_os }}
-    adb -s {{ android_device }} install -r {{ android_apk }}
+    adb -s {{ device }} install -r {{ android_apk }}
     just _driver-start
-    adb -s {{ android_device }} shell svc data disable
-    adb -s {{ android_device }} shell svc wifi disable
-    maestro {{ _device_flag_android }} test \
-        --env APP_ID={{ android_app_id }} \
+    adb -s {{ device }} shell svc data disable
+    adb -s {{ device }} shell svc wifi disable
+    maestro --device {{ device }} test \
+        --env APP_ID={{ app_id }} \
         flows/offline/banner.yaml; \
-    adb -s {{ android_device }} shell svc data enable; \
-    adb -s {{ android_device }} shell svc wifi enable
+    adb -s {{ device }} shell svc data enable; \
+    adb -s {{ device }} shell svc wifi enable
 
 # ─── Outils de développement ────────────────────────────────────────────────
 
@@ -112,22 +88,27 @@ test-offline-android:
 # Usage : just studio            → Android (défaut)
 #         just studio platform=ios → iOS
 studio platform="android":
-    maestro {{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }} studio
+    maestro studio
 
 # Relancer un flow automatiquement à chaque modification (TDD)
 # Usage : just watch flows/auth/login.yaml
 #         just watch flows/auth/login.yaml platform=ios
 watch flow platform="android":
-    maestro {{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }} \
+    maestro --device {{ device }} \
         test --watch \
-        --env APP_ID={{ if platform == "ios" { ios_app_id } else { android_app_id } }} \
+        --env APP_ID={{ app_id }} \
         {{ flow }}
 
 # Exécuter un flow isolé (prérequis : émulateur démarré + app installée)
 # Usage : just run flows/auth/login.yaml
 #         just run flows/auth/login.yaml platform=ios
 run flow platform="android":
-    maestro {{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }} \
+    maestro --device {{ device }} \
         test \
-        --env APP_ID={{ if platform == "ios" { ios_app_id } else { android_app_id } }} \
+        --env APP_ID={{ app_id }} \
         {{ flow }}
+
+clean-test-logs:
+    rm -rvf .maestro/tests/*
+    
+    
