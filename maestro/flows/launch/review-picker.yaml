@@ -1,0 +1,10 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+# Android (flavor staging) : ReviewAppsScreen apparaît au démarrage.
+# iOS : ReviewAppView — mêmes textes, même comportement.
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow: ../../elements/_loadAll.yaml
+
+- assertVisible: "${output.reviewPicker_title}"

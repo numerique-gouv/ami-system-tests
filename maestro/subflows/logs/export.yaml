@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+# Subflow : navigue vers /#/contact et vérifie l'export des logs (Android).
+# Pré-condition : utilisateur authentifié, onboarding fermé.
+---
+# TODO : naviguer vers /#/contact dans la SPA pour faire apparaître le bouton logs
+- extendedWaitUntil:
+    visible: "${output.logs_button}"
+    timeout: 30000
+- tapOn: "${output.logs_button}"
+- extendedWaitUntil:
+    visible: "${output.logs_share_hint}"
+    timeout: 10000

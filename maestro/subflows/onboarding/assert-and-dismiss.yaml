@@ -1,0 +1,6 @@
+appId: ${APP_ID}
+# Subflow : vérifie l'affichage de l'onboarding et le ferme (Android + iOS).
+# Pré-condition : utilisateur vient de se connecter pour la première fois.
+---
+- assertVisible: "${output.onboarding_title}"
+- runFlow: dismiss.yaml

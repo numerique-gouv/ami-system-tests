@@ -1,0 +1,23 @@
+appId: ${APP_ID}
+tags:
+  - settings
+# Android : SettingsScreen full-screen, fermeture via le bouton système Back.
+# iOS : SettingsView sheet modale, fermeture via le bouton "Fermer" (AMIL10n.commonClose).
+---
+- runFlow: ../../subflows/_launch.yaml
+
+- runFlow:
+    file: ../../subflows/franceconnect/open.yaml
+- runFlow:
+    file: ../../subflows/auth/login.yaml
+- runFlow:
+    file: ../../subflows/onboarding/dismiss.yaml
+- runFlow:
+    file: ../../subflows/settings/open.yaml
+- runFlow:
+    file: ../../subflows/settings/assert-and-close.yaml
+
+- runFlow:
+    file: ../../subflows/settings/close-ios.yaml
+    when:
+      platform: iOS

@@ -4,40 +4,39 @@ export PATH := env_var("PATH") + ":" + env_var("HOME") + "/.maestro/bin" + ":" +
 
 # IDs applicatifs (à ajuster si flavor différente)
 android_app_id := "fr.gouv.ami.staging"
-ios_app_id := "fr.gouv.ami.staging"
+ios_app_id     := "fr.gouv.ami.staging"
 
-# Devices cibles (surchargeable via variable d'environnement)
+# Device Android Maestro — modèle et OS (voir : maestro list-devices)
+android_device_model := env_var_or_default("ANDROID_DEVICE_MODEL", "pixel_9")
+android_device_os    := env_var_or_default("ANDROID_DEVICE_OS", "android-36")
+
+# ID adb du device pour adb install (emulator-5554 = premier émulateur Maestro)
 android_device := env_var_or_default("ANDROID_DEVICE_ID", "emulator-5554")
-ios_device := env_var_or_default("IOS_DEVICE_ID", "")
+ios_device     := env_var_or_default("IOS_DEVICE_ID", "")
 
 [private]
 _device_flag_android := "--device " + android_device
 [private]
 _device_flag_ios := if ios_device != "" { "--device " + ios_device } else { "" }
 
+[private]
+_notif_env := "--env NOTIF_API_URL=" + env_var_or_default("NOTIF_API_URL", "") + " --env NOTIF_PARTNER_ID=" + env_var_or_default("NOTIF_PARTNER_ID", "") + " --env NOTIF_PARTNER_SECRET=" + env_var_or_default("NOTIF_PARTNER_SECRET", "") + " --env NOTIF_RECIPIENT_FC_HASH=" + env_var_or_default("NOTIF_RECIPIENT_FC_HASH", "")
+
+[private]
+_reports_dir := "reports"
+
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
-# Installer Maestro CLI (idempotent)
+# Installer Maestro CLI + Android SDK cmdline-tools (requis par maestro start-device)
 setup:
     @command -v maestro > /dev/null 2>&1 \
         && echo "✅ Maestro $(maestro --version) déjà installé" \
         || (echo "📦 Installation de Maestro…" && curl -Ls "https://get.maestro.mobile.dev" | bash)
-
-# Installer les APKs Maestro driver et démarrer l'instrumentation gRPC sur port 7001.
-# Maestro 2.x embarque les APKs dans maestro-client.jar mais ne les installe pas lui-même.
-# Ordre critique : forward → instrument & → nc (le nc passe par le forward).
-# TODO: vérifie que le port tcp 7001 n'est pas déjà forwardé, que l'instrument JUnitRunner n'est pas déjà lancé.
-android-driver-start: android-start
-    @adb -s {{ android_device }} shell pm list packages 2>/dev/null | grep -q dev.mobile.maestro \
-        || (unzip -o -d /tmp "$HOME/.maestro/lib/maestro-client.jar" maestro-app.apk maestro-server.apk \
-            && adb -s {{ android_device }} install -r -g /tmp/maestro-app.apk \
-            && adb -s {{ android_device }} install -r -g /tmp/maestro-server.apk \
-            && echo "✅ APKs Maestro driver installées")
-    adb -s {{ android_device }} forward tcp:7001 tcp:7001
-    adb -s {{ android_device }} shell am instrument -w -r dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &
-    @echo "⏳ Attente du driver Maestro (port 7001)…"
-    @until nc -z 127.0.0.1 7001 2>/dev/null; do sleep 1; done
-    @echo "✅ Driver Maestro prêt sur {{ android_device }}."
+    @test -d "{{ android_sdk }}/cmdline-tools" \
+        && echo "✅ Android cmdline-tools déjà installé" \
+        || (echo "📦 Installation de Android SDK cmdline-tools…" \
+            && {{ android_sdk }}/tools/bin/sdkmanager "cmdline-tools;latest" \
+            && echo "✅ Android cmdline-tools installé")
 
 # ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -47,50 +46,63 @@ android-driver-start: android-start
 #         just test-android notifications → flows notifications E2E
 #         just test-android smoke,auth   → smoke OU auth (séparés par virgule, sans espace)
 [private]
-_notif_env := "--env NOTIF_API_URL=" + env_var_or_default("NOTIF_API_URL", "") + " --env NOTIF_PARTNER_ID=" + env_var_or_default("NOTIF_PARTNER_ID", "") + " --env NOTIF_PARTNER_SECRET=" + env_var_or_default("NOTIF_PARTNER_SECRET", "") + " --env NOTIF_RECIPIENT_FC_HASH=" + env_var_or_default("NOTIF_RECIPIENT_FC_HASH", "")
-
-# Maestro ne supporte qu'un format par exécution — les tests sont relancés pour chaque format.
-[private]
-_reports_dir := "reports"
-
-#        --output "{{ _reports_dir }}/android/results-detailed.html" \
-#        --debug-output "{{ _reports_dir }}/android/" \
-test-android tags="": android-driver-start
-    adb -s {{ android_device }} install -r {{ android_apk }}
-    mkdir -p {{ _reports_dir }}/android
-    maestro {{ _device_flag_android }} test \
-        --env APP_ID={{ android_app_id }} \
+_test platform tags="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    device_flag="{{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }}"
+    app_id="{{ if platform == "ios" { ios_app_id } else { android_app_id } }}"
+    include_arg=""
+    [ -n "{{tags}}" ] && include_arg="--include-tags {{tags}}"
+    mkdir -p "{{ _reports_dir }}/{{platform}}"
+    maestro $device_flag test \
+        --env APP_ID="$app_id" \
         {{ _notif_env }} \
-        {{ if tags != "" { "--include-tags " + tags } else { "" } }} \
-        --exclude-tags ios-only \
+        $include_arg \
         --format "HTML-DETAILED" \
-        flows/android/; \
+        --output "{{ _reports_dir }}/{{platform}}/results-detailed.html" \
+        .
 
-# construit un apk staging avant de lancer les tests
+test-android tags="":
+    maestro start-device --platform=android \
+        --device-model={{ android_device_model }} \
+        --device-os={{ android_device_os }}
+    adb -s {{ android_device }} install -r {{ android_apk }}
+    just _driver-start
+    just _test android "{{tags}}"
+
+# Installe les APKs du driver Maestro, ouvre le port gRPC et démarre l'instrumentation.
+# --reinstall-driver de maestro test nécessite une connexion gRPC préalable pour fonctionner
+# → bootstrap impossible depuis zéro, cette recette le fait manuellement.
+[private]
+_driver-start:
+    unzip -o -d /tmp "$HOME/.maestro/lib/maestro-client.jar" maestro-app.apk maestro-server.apk
+    adb -s {{ android_device }} install -r -g /tmp/maestro-app.apk
+    adb -s {{ android_device }} install -r -g /tmp/maestro-server.apk
+    adb -s {{ android_device }} forward tcp:7001 tcp:7001
+    adb -s {{ android_device }} shell am instrument -w -r dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &
+    @until nc -z 127.0.0.1 7001 2>/dev/null; do sleep 1; done
+
+# Construit un APK staging avant de lancer les tests
 test-android-builded tags="": build-android (test-android tags)
 
-# Lancer les tests iOS — même logique de filtrage par tags
 test-ios tags="": build-ios
-    mkdir -p {{ _reports_dir }}/ios
-    maestro {{ _device_flag_ios }} test \
-        --env APP_ID={{ ios_app_id }} \
-        {{ _notif_env }} \
-        {{ if tags != "" { "--include-tags " + tags } else { "" } }} \
-        --exclude-tags android-only \
-        --format "HTML-DETAILED" \
-        --output "{{ _reports_dir }}/ios/results-detailed.html" \
-        flows/ios/; \
+    just _test ios "{{tags}}"
 
 # Lancer les tests sur les deux plateformes (Android puis iOS)
 test tags="": (test-android tags) (test-ios tags)
 
 # Test hors-ligne : coupe le réseau, lance le flow offline, rétablit le réseau
 test-offline-android:
+    maestro start-device --platform=android \
+        --device-model={{ android_device_model }} \
+        --device-os={{ android_device_os }}
+    adb -s {{ android_device }} install -r {{ android_apk }}
+    just _driver-start
     adb -s {{ android_device }} shell svc data disable
     adb -s {{ android_device }} shell svc wifi disable
     maestro {{ _device_flag_android }} test \
         --env APP_ID={{ android_app_id }} \
-        flows/android/06-offline-banner.yaml; \
+        flows/offline/banner.yaml; \
     adb -s {{ android_device }} shell svc data enable; \
     adb -s {{ android_device }} shell svc wifi enable
 
@@ -98,22 +110,22 @@ test-offline-android:
 
 # Ouvrir Maestro Studio (inspecteur visuel interactif)
 # Usage : just studio            → Android (défaut)
-# just studio platform=ios → iOS
+#         just studio platform=ios → iOS
 studio platform="android":
     maestro {{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }} studio
 
 # Relancer un flow automatiquement à chaque modification (TDD)
-# Usage : just watch flows/android/01-launch-review-picker.yaml
-# just watch flows/ios/01-launch-review-picker.yaml platform=ios
+# Usage : just watch flows/auth/login.yaml
+#         just watch flows/auth/login.yaml platform=ios
 watch flow platform="android":
     maestro {{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }} \
         test --watch \
         --env APP_ID={{ if platform == "ios" { ios_app_id } else { android_app_id } }} \
         {{ flow }}
 
-# Exécuter un flow isolé (prérequis : émulateur démarré + driver actif + app installée)
-# Usage : just run flows/android/02-franceconnect-displayed.yaml
-# just run flows/ios/01-launch-review-picker.yaml platform=ios
+# Exécuter un flow isolé (prérequis : émulateur démarré + app installée)
+# Usage : just run flows/auth/login.yaml
+#         just run flows/auth/login.yaml platform=ios
 run flow platform="android":
     maestro {{ if platform == "ios" { _device_flag_ios } else { _device_flag_android } }} \
         test \

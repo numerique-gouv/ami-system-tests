@@ -1,0 +1,8 @@
+appId: ${APP_ID}
+# Subflow : vérifie le retour à l'écran FranceConnect après logout (Android).
+# Pré-condition : l'événement user_logged_out a été déclenché via la SPA.
+---
+- extendedWaitUntil:
+    visible: "${output.fc_button}"
+    timeout: 30000
+- assertVisible: "${output.fc_info}"

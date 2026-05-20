@@ -35,15 +35,12 @@ appId: ${APP_ID}
 # (les inputs/boutons ne sont pas publiés tant qu'il n'y a pas eu d'interaction physique).
 - scroll
 
-# Attendre que le champ identifiant soit accessible par son resource-id HTML (plus stable
-# que par sa valeur pré-remplie, dont la visibilité dans l'arbre d'accessibilité est timing-dépendante).
-- scrollUntilVisible:
-    element:
-      id: "login"
-    direction: DOWN
+# Attendre que le bouton Valider soit visible — preuve que tout le formulaire est dans l'arbre.
+- extendedWaitUntil:
+    visible:
+      text: "${output.login_submit_label}"
     timeout: 30000
 
-# Identifiant : cibler par resource-id HTML, effacer la valeur pré-remplie et resaisir
 - tapOn:
     id: "login"
 - eraseText: 50
@@ -53,9 +50,8 @@ appId: ${APP_ID}
     element:
       id: "password"
     direction: DOWN
-    timeout: 30000
+    timeout: 15000
 
-# Mot de passe : cibler par resource-id HTML
 - tapOn:
     id: "password"
 - eraseText: 50

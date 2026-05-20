@@ -1,0 +1,7 @@
+appId: ${APP_ID}
+tags:
+  - navigation
+# SwiftUIIntrospect réactive le geste swipe-back depuis PartnerView (iOS uniquement).
+# TODO iOS : implémenter une fois le login iOS disponible.
+---
+- runFlow: ../../subflows/_launch.yaml

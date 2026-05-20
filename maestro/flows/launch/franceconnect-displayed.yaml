@@ -1,0 +1,10 @@
+appId: ${APP_ID}
+tags:
+  - smoke
+---
+- runFlow: ../../subflows/_launch.yaml
+
+- runFlow:
+    file: ../../subflows/franceconnect/open.yaml
+- runFlow:
+    file: ../../subflows/franceconnect/assert-displayed.yaml

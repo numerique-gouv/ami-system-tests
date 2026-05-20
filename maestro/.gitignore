@@ -1,4 +1,5 @@
 .maestro/
+reports/
 
 # Variables d'environnement locales
 .env

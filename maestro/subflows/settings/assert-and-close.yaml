@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+# Subflow : vérifie l'écran Paramètres et le ferme via le bouton Back (Android).
+# Pré-condition : settings/open.yaml a été appelé.
+---
+- assertVisible: "${output.settings_notif_label}"
+- runFlow: ../_back-android.yaml
+- extendedWaitUntil:
+    notVisible: "${output.settings_title}"
+    timeout: 10000
