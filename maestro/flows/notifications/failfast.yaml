@@ -1,0 +1,16 @@
+appId: ${APP_ID}
+tags:
+  - failfast
+# Scénario : réception de notifications avant et après activation.
+# 1. Login FC sandbox test/123 → décline notifs à l'onboarding
+# 2. Publie notif n°1 → vérifie qu'elle n'arrive PAS en heads-up (pas de Registration FCM/APNs)
+# 3. Active les notifs depuis Paramètres → accepte dialog OS
+# 4. Publie notif n°2 → vérifie qu'elle arrive en heads-up
+---
+- runFlow: ../../subflows/_launch.yaml
+- runFlow:
+    file: ../../subflows/notifications/publish.yaml
+    env:
+      NOTIF_TITLE: "Test Maestro avant activation"
+      NOTIF_BODY: "Cette notification ne doit pas arriver en heads-up"
+- runFlow: ../../subflows/notifications/assert-not-received.yaml

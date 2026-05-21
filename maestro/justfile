@@ -106,8 +106,9 @@ watch flow platform="android":
 #         just run flows/auth/login.yaml platform=ios
 run flow platform="android":
     maestro --device {{ device }} \
-        test \
+        --verbose test \
         --env APP_ID={{ app_id }} \
+        {{ _notif_env }} \
         {{ flow }}
 
 clean-test-logs:

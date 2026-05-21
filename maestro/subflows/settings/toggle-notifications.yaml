@@ -5,16 +5,19 @@ appId: ${APP_ID}
 ---
 - runFlow: ../../elements/_loadAll.yaml
 
-# ouvre le menu depuis l'avatar et clique sur préférences
-- runFlow: ../../subflows/settings/open.yaml
-
 # ouvre les notifications
 - extendedWaitUntil:
-      visible:
-          text: "${output.settings_menu_prefs_notif}"
-      timeout: 5000
+    visible:
+      id: "notification-icon"
+    timeout: 5000
+- tapOn:
+    id: "notification-icon"
 
-- tapOn: "${output.settings_menu_prefs_notif}"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gérer"
+    timeout: 5000
+- tapOn: ".*Gérer"
 
 # clique sur le toggle de notification
 - extendedWaitUntil:

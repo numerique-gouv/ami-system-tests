@@ -1,0 +1,50 @@
+appId: fr.gouv.ami.staging
+---
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: "Ic\u00f4ne de param\u00e9trage G\u00e9rer"
+
+- tapOn:
+    point: 48%,9%
+- tapOn:
+    point: 2%,13%
+
+- tapOn: "franceConnect button"
+
+- tapOn: ".*eIDAS faible "
+
+- tapOn: 
+    id: "login"
+- eraseText: 50
+- inputText: "avec_nom_dusage"
+
+- tapOn: 
+    id: "password"
+- eraseText: 50
+- inputText: "123"
+
+- hideKeyboard
+- tapOn:
+    text: "Valider"
+
+- tapOn:
+    text: ".*plus tard.*"
+
+- tapOn: "P"
+- tapOn: "Notifications"
+- tapOn:
+    point: 4%,18%
+- tapOn: "Retour \u00e0 la page pr\u00e9c\u00e9dente"
+- tapOn: "Retour \u00e0 la page pr\u00e9c\u00e9dente"
+
+- scroll
+
+- swipe:
+    direction: DOWN
+- tapOn:
+    point: 4%,18%
+- scrollUntilVisible:
+    element:
+      point: 4%,18%
+- tapOn: "Recevoir les notifications sur mon appareil mobile"
