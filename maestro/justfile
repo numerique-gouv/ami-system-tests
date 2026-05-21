@@ -9,8 +9,12 @@ app_id := "fr.gouv.ami.staging"
 android_device_model := env_var_or_default("ANDROID_DEVICE_MODEL", "pixel_9")
 android_device_os    := env_var_or_default("ANDROID_DEVICE_OS", "android-36")
 
-# ID adb du device pour adb install (emulator-5554 = premier émulateur Maestro)
-device := env_var_or_default("DEVICE_ID", "emulator-5554")
+# IDs des devices/émulateurs (surchargeables par variable d'environnement)
+# Android : ID ADB de l'émulateur (emulator-5554 = premier émulateur démarré)
+# iOS     : UDID du simulateur (voir : xcrun simctl list | grep Booted)
+#           ou "auto" pour laisser Maestro choisir le simulateur actif
+android_device_id := env_var_or_default("ANDROID_DEVICE_ID", "emulator-5554")
+ios_device_id     := env_var_or_default("IOS_DEVICE_ID",     "iPhone 17 Pro")
 
 _notif_env := "--env NOTIF_API_URL=" + env_var_or_default("NOTIF_API_URL", "") + " --env NOTIF_PARTNER_ID=" + env_var_or_default("NOTIF_PARTNER_ID", "") + " --env NOTIF_PARTNER_SECRET=" + env_var_or_default("NOTIF_PARTNER_SECRET", "") + " --env NOTIF_RECIPIENT_FC_HASH=" + env_var_or_default("NOTIF_RECIPIENT_FC_HASH", "")
 
@@ -43,7 +47,7 @@ _test platform tags="":
     set -euo pipefail
     include_arg=""
     [ -n "{{tags}}" ] && include_arg="--include-tags {{tags}}"
-    maestro --device {{ device }} --verbose test \
+    maestro --device {{ if platform == "android" { android_device_id } else { ios_device_id } }} --verbose test \
         --env APP_ID="{{ app_id }}" \
         {{ _notif_env }} \
         $include_arg \
@@ -56,7 +60,7 @@ test-android tags="":
         --device-model={{ android_device_model }} \
         --device-os={{ android_device_os }} \
         --device-locale=fr_FR
-    adb -s {{ device }} install -r {{ android_apk }}
+    adb -s {{ android_device_id }} install -r {{ android_apk }}
     just _test android "{{tags}}"
 
 # Construit un APK staging avant de lancer les tests
@@ -74,15 +78,15 @@ test-offline-android:
         --device-model={{ android_device_model }} \
         --device-os={{ android_device_os }} \
         --device-locale=fr_FR
-    adb -s {{ device }} install -r {{ android_apk }}
+    adb -s {{ android_device_id }} install -r {{ android_apk }}
     just _driver-start
-    adb -s {{ device }} shell svc data disable
-    adb -s {{ device }} shell svc wifi disable
-    maestro --device {{ device }} test \
+    adb -s {{ android_device_id }} shell svc data disable
+    adb -s {{ android_device_id }} shell svc wifi disable
+    maestro --device {{ android_device_id }} test \
         --env APP_ID={{ app_id }} \
         flows/offline/banner.yaml; \
-    adb -s {{ device }} shell svc data enable; \
-    adb -s {{ device }} shell svc wifi enable
+    adb -s {{ android_device_id }} shell svc data enable; \
+    adb -s {{ android_device_id }} shell svc wifi enable
 
 # ─── Outils de développement ────────────────────────────────────────────────
 
@@ -96,7 +100,7 @@ studio platform="android":
 # Usage : just watch flows/auth/login.yaml
 #         just watch flows/auth/login.yaml platform=ios
 watch flow platform="android":
-    maestro --device {{ device }} \
+    maestro --device {{ if platform == "android" { android_device_id } else { ios_device_id } }} \
         test --watch \
         --env APP_ID={{ app_id }} \
         {{ flow }}
@@ -105,7 +109,7 @@ watch flow platform="android":
 # Usage : just run flows/auth/login.yaml
 #         just run flows/auth/login.yaml platform=ios
 run flow platform="android":
-    maestro --device {{ device }} \
+    maestro --device {{ if platform == "android" { android_device_id } else { ios_device_id } }} \
         --verbose test \
         --env APP_ID={{ app_id }} \
         {{ _notif_env }} \
