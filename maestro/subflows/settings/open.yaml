@@ -3,6 +3,7 @@ appId: ${APP_ID}
 # Android : avatar "A" → menu → "Préférences" → URL /#/settings → WebViewScreen l'intercepte → SettingsScreen.
 # iOS : même menu → sheet SettingsView.
 # Pré-condition : la WebView home est chargée (avatar profil "A" visible).
+androidWebViewHierarchy: devtools
 ---
 - runFlow: ../../elements/_loadAll.yaml
 
@@ -12,11 +13,11 @@ appId: ${APP_ID}
 # Les items du menu dropdown WebView ne remontent pas dans l'arbre d'accessibilité Android
 # (essais text:, extendedWaitUntil, pressKey: Tab échouent tous).
 # Tap par coordonnées : "Préférences" est toujours au même endroit car l'avatar
-# est fixé en haut à gauche de la SPA (position stable sur le Pixel_modern).
-# x≈20% (menu drawer à gauche), y≈17% (2e item du menu).
-- tapOn:
-    point: "20%, 17%"
+# ne fonctionne pas si le bandeau notifications activées est présent.
+# point: x≈20% (menu drawer à gauche), y≈17% (2e item du menu).
 
+- tapOn: "${output.settings_menu_prefs}"
+  
 - extendedWaitUntil:
-    visible: "${output.settings_title}"
+    visible: "${output.settings_menu_prefs}"
     timeout: 15000

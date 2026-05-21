@@ -13,5 +13,5 @@ androidWebViewHierarchy: devtools
 - extendedWaitUntil:
     visible:
       id: "splash_screen"       # attendre que le splash disparaisse
-    timeout: 10000
+    timeout: 5000
     optional: true              # le splash peut ne pas exister en mode dev

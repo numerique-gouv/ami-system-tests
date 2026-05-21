@@ -11,9 +11,9 @@ appId: ${APP_ID}
 # Le système OS affiche la dialog de permission notifications → accepter
 - extendedWaitUntil:
     visible:
-      text: "Autoriser"
+      text: "${output.onboarding_enable}"
     timeout: 5000
     optional: true
 - tapOn:
-    text: "Autoriser"
+    text: "${output.onboarding_enable}"
     optional: true

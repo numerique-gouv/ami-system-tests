@@ -19,10 +19,11 @@ output.onboarding_enable = 'Activer';
 output.onboarding_later = 'Peut-être plus tard';
 
 // SettingsScreen (plein écran natif Android)
-output.settings_open_button = '^A$';          // avatar profil SPA (initiale utilisateur, regex exact)
-output.settings_menu_first = 'Mon profil';    // 1er item du menu — sentinel d'accessibilité WebView
-output.settings_menu_prefs = 'Préférences';   // entrée du menu profil → déclenche /#/settings
+output.settings_open_button = '^[A-Z]$';        // avatar profil SPA (initiale utilisateur, regex exact)
+output.settings_menu_first = 'Mon profil';      // 1er item du menu — sentinel d'accessibilité WebView
+output.settings_menu_prefs = 'Préférences';     // entrée du menu profil → déclenche /#/settings
 output.settings_menu_logout = 'Me déconnecter'; // entrée du menu profil → logout
+output.settings_menu_prefs_notif = 'Notifications';     // entrée du menu profil → déclenche /#/settings
 output.settings_title = 'Paramètres';
 output.settings_notif_label = 'Recevoir les notifications sur mon appareil mobile';
 output.settings_back = 'back'; // contentDescription (BackBar.kt:37)
@@ -37,8 +38,9 @@ output.offline_desc = 'Vérifiez votre réseau';
 // Identifiant pré-rempli → clearText + réécriture. Password ciblé par coordonnées.
 output.login_identifier_label = 'Identifiant';
 output.login_password_label = 'Mot de passe';
-output.login_identifier = 'test';
+output.login_identifier = 'avec_nom_dusage';
 output.login_password = '123';
+output.fc_hash = 'b09ba1d3248ce7dcaf159b271923545bc5ea977ff50919e5244861cfdf4b2ddb';
 output.login_submit_label = 'Valider';
 
 // Bouton export logs (page contact, WebViewScreen.kt)

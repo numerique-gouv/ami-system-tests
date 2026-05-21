@@ -1,8 +1,52 @@
 appId: ${APP_ID}
-# Subflow : bascule le toggle notifications dans SettingsScreen/SettingsView.
-# Pré-condition : l'écran Paramètres est ouvert.
+# Active les notifications depuis l'écran Paramètres natif.
+# Bascule le toggle puis accepte la dialog de permission OS si elle apparaît (premier tap).
+# Pré-condition : SettingsScreen/SettingsView est ouvert (settings/open.yaml appelé avant).
 ---
 - runFlow: ../../elements/_loadAll.yaml
 
-- assertVisible: "${output.settings_notif_label}"
+# ouvre le menu depuis l'avatar et clique sur préférences
+- runFlow: ../../subflows/settings/open.yaml
+
+# ouvre les notifications
+- extendedWaitUntil:
+      visible:
+          text: "${output.settings_menu_prefs_notif}"
+      timeout: 5000
+
+- tapOn: "${output.settings_menu_prefs_notif}"
+
+# clique sur le toggle de notification
+- extendedWaitUntil:
+      visible:
+          text: "${output.settings_notif_label}"
+      timeout: 5000
+
 - tapOn: "${output.settings_notif_label}"
+
+# Dialog système de permission notifications (Android 13+ et iOS)
+- extendedWaitUntil:
+    visible:
+      text: "${output.os_allow_button}"
+    timeout: 5000
+    optional: true
+- tapOn:
+    text: "${output.os_allow_button}"
+    optional: true
+- extendedWaitUntil:
+      notVisible:
+          text: "${output.os_allow_button}"
+      timeout: 5000
+      optional: true
+
+# fermer les écrans de préférence
+- extendedWaitUntil:
+      visible:
+          text: "${output.settings_notif_label}"
+      timeout: 5000
+- tapOn: "Retour.*"
+- extendedWaitUntil:
+      visible:
+          text: "${output.settings_menu_prefs_notif}"
+      timeout: 5000
+- tapOn: "Retour.*"

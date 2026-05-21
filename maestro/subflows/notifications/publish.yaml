@@ -6,6 +6,8 @@ appId: ${APP_ID}
 # Variables process.env (depuis maestro/.env, chargé par just dotenv-load) :
 #   NOTIF_API_URL, NOTIF_PARTNER_ID, NOTIF_PARTNER_SECRET, NOTIF_RECIPIENT_FC_HASH
 ---
+- runFlow: ../../elements/_loadAll.yaml
+
 - runScript:
     file: ../../scripts/notification-publish.js
     env:
@@ -14,4 +16,4 @@ appId: ${APP_ID}
       NOTIF_API_URL: ${NOTIF_API_URL}
       NOTIF_PARTNER_ID: ${NOTIF_PARTNER_ID}
       NOTIF_PARTNER_SECRET: ${NOTIF_PARTNER_SECRET}
-      NOTIF_RECIPIENT_FC_HASH: ${NOTIF_RECIPIENT_FC_HASH}
+      NOTIF_RECIPIENT_FC_HASH: ${output.fc_hash}

@@ -54,9 +54,9 @@ appId: ${APP_ID}
 #    point: "50%, 2%"
 
 #- scroll
-
-- swipe:
-    direction: UP
+    
+#- swipe:
+#    direction: UP
 
 #id: "login", element: "Identifiant"
 #- scrollUntilVisible:

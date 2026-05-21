@@ -1,5 +1,9 @@
 # Texte visible mais non trouvé par Maestro dans une WebView
 
+## le test de webview est oppérationnel, mais en béta au 2026/05
+https://docs.maestro.dev/get-started/supported-platform/web-browser
+
+
 ## Pourquoi ça arrive : l'arbre d'accessibilité paresseux
 
 Le problème vient d'une discontinuité fondamentale entre le rendu visuel et l'arbre d'accessibilité dans les WebViews :

@@ -10,21 +10,20 @@ tags:
 - runFlow: ../../subflows/_launch.yaml
 - runFlow: ../../subflows/auth/login.yaml
 - runFlow: ../../subflows/webview/wait-loaded.yaml
-- runFlow: ../../subflows/onboarding/dismiss.yaml
+- runFlow: ../../subflows/onboarding/enable.yaml
 
 - runFlow:
     file: ../../subflows/notifications/publish.yaml
     env:
       NOTIF_TITLE: "Test Maestro avant activation"
       NOTIF_BODY: "Cette notification ne doit pas arriver en heads-up"
-- runFlow: ../../subflows/notifications/assert-not-received.yaml
+- runFlow: ../../subflows/notifications/assert-received.yaml
 
-- runFlow: ../../subflows/settings/open.yaml
-- runFlow: ../../subflows/settings/enable-notifications.yaml
+- runFlow: ../../subflows/settings/toggle-notifications.yaml
 
 - runFlow:
     file: ../../subflows/notifications/publish.yaml
     env:
       NOTIF_TITLE: "Test Maestro après activation"
       NOTIF_BODY: "Cette notification doit arriver en heads-up"
-- runFlow: ../../subflows/notifications/assert-received.yaml
+- runFlow: ../../subflows/notifications/assert-not-received.yaml

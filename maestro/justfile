@@ -54,7 +54,8 @@ _test platform tags="":
 test-android tags="":
     maestro start-device --platform=android \
         --device-model={{ android_device_model }} \
-        --device-os={{ android_device_os }}
+        --device-os={{ android_device_os }} \
+        --device-locale=fr_FR
     adb -s {{ device }} install -r {{ android_apk }}
     just _test android "{{tags}}"
 
@@ -71,7 +72,8 @@ test tags="": (test-android tags) (test-ios tags)
 test-offline-android:
     maestro start-device --platform=android \
         --device-model={{ android_device_model }} \
-        --device-os={{ android_device_os }}
+        --device-os={{ android_device_os }} \
+        --device-locale=fr_FR
     adb -s {{ device }} install -r {{ android_apk }}
     just _driver-start
     adb -s {{ device }} shell svc data disable

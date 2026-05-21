@@ -36,10 +36,11 @@ output.offline_desc      = 'Vérifiez votre réseau';
 
 // Mire de login FranceConnect mock (WebView OIDC, même contenu sur les deux plateformes)
 // Formulaire FCP-LOW mock (WebView) : labels HTML non accessibles via l'arbre d'accessibilité.
-output.login_identifier   = 'test';
+output.login_identifier   = 'avec_nom_dusage';
 output.login_password     = '123';
 output.login_submit_label = 'Valider';
-
+output.fc_hash = 'b09ba1d3248ce7dcaf159b271923545bc5ea977ff50919e5244861cfdf4b2ddb';
+    
 // Bouton export logs (HomeView.swift:88)
 output.logs_button     = 'Télécharger les logs';
 output.logs_share_hint = 'Copier'; // UIActivityViewController iOS
