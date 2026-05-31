@@ -1,6 +1,12 @@
 .maestro/
 reports/
 
+# Paramètres locaux Claude Code (non partagés)
+.claude/
+
+# Rapport HTML généré par maestro test --format html
+report.html
+
 # Variables d'environnement locales
 .env
 .env.local
