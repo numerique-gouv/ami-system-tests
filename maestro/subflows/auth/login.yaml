@@ -3,9 +3,9 @@ appId: ${APP_ID}
 # 1. Si review-picker visible (staging) → sélectionner l'environnement par défaut
 # 2. Attendre l'écran FranceConnexionScreen
 # 3. Tap sur le bouton FC natif → WebView OIDC s'ouvre
-# 4. Écran de sélection eiDAS → taper "faible" (mot unique dans "Démonstration eiDAS faible")
-# 5. Mire de login mock → saisir test / 123 → soumettre
-# 6. Fin : la mire disparaît (le redirect OIDC ramène vers la SPA)
+# 4. Android : interactions eiDAS + FCP-LOW (WebView accessible via Maestro)
+#    iOS     : le flow OIDC se déroule dans SFSafariViewController (non accessible à Maestro)
+#              — le serveur staging complète l'authentification automatiquement
 # Pré-condition : _launch.yaml a été appelé.
 ---
 - runFlow: ../../elements/_loadAll.yaml
@@ -27,83 +27,12 @@ appId: ${APP_ID}
 
 - tapOn: "${output.fc_button}"
 
-# Sélection du niveau eiDAS — ".*faible.*" matche "Démonstration eiDAS faible" uniquement
-- extendedWaitUntil:
-    visible:
-      text: ".*faible.*"
-    timeout: 15000
-- tapOn:
-    text: ".*faible.*"
 
-# Attendre que l'écran eiDAS disparaisse avant de chercher le formulaire FCP-LOW.
-# Sans cette étape, Maestro peut interroger l'ancien arbre d'accessibilité pendant la transition.
-- extendedWaitUntil:
-    notVisible:
-      text: ".*faible.*"
-    timeout: 15000
-
-# Attendre que le titre de la page FCP-LOW soit accessible (heading robuste vs inputs/boutons).
-- extendedWaitUntil:
-    visible:
-      text: ".*FCP-LOW.*"
-    timeout: 60000
-
-# Scroll bas aveugle → déclenche le mode accessibilité complet de la WebView Android
-# (les inputs/boutons ne sont pas publiés tant qu'il n'y a pas eu d'interaction physique).
-#- tapOn:
-#    point: "50%, 2%"
-
-#- scroll
-    
-#- swipe:
-#    direction: UP
-
-#id: "login", element: "Identifiant"
-#- scrollUntilVisible:
-#    element:
-#      text: "Identifiant"
-#    direction: UP
-#    timeout: 5000
-
-- scrollUntilVisible:
-    element:
-      id: "login"
-    direction: UP
-    timeout: 5000
-
-- tapOn: 
-    id: "login"
-- eraseText: 50
-- inputText: "${output.login_identifier}"
-
-# id: "password", element: "Mot de passe"
-- scrollUntilVisible:
-    element:
-      id: "password"
-    direction: UP
-    timeout: 5000
-
-- tapOn:
-    id: "password"
-- eraseText: 50
-- inputText: "${output.login_password}"
-
-# Fermer le clavier (Android : pressKey Back — iOS : hideKeyboard cross-platform)
-- hideKeyboard
-
-- tapOn:
-    text: "${output.login_submit_label}"
-
-# Attendre que le formulaire disparaisse (soumission acceptée)
-- extendedWaitUntil:
-    notVisible:
-      text: "${output.login_submit_label}"
-    timeout: 30000
-
-# Attendre la fin du redirect OIDC — la page de confirmation FCP-LOW disparaît
-# quand le WebView suit la redirect_uri vers la SPA.
-# "Retour" reste visible (bouton natif persistant), "FCP-LOW" disparaît lui.
-- extendedWaitUntil:
-    notVisible:
-      text: ".*FCP-LOW.*"
-    timeout: 60000
+# Formulaire FCP-LOW — uniquement si l'écran de sélection eiDAS est visible.
+# Sur iOS en staging, le serveur peut compléter le flux OIDC automatiquement (pas de formulaire).
+# Sur Android (et iOS si le serveur exige la saisie), ".*faible.*" apparaît → FC_login s'exécute.
+- runFlow:
+    when:
+      visible:
+        text: ".*faible.*"
+    file: ../franceconnect/FC_login.yaml

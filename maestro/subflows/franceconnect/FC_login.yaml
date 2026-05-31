@@ -1,0 +1,63 @@
+appId: ${APP_ID}
+# Subflow : sélectionne le niveau eiDAS "faible" puis remplit et soumet le formulaire FCP-LOW.
+# Pré-condition : l'écran de sélection eiDAS est visible (texte ".*faible.*" présent).
+# Post-condition : le redirect OIDC est suivi, la page FCP-LOW a disparu.
+# Aucune commande n'est optionnelle — toute étape manquante fait échouer le flow immédiatement.
+---
+- tapOn:
+    text: ".*faible.*"
+
+# Attendre que le titre de la page FCP-LOW soit accessible (heading robuste vs inputs/boutons).
+- extendedWaitUntil:
+    visible:
+      text: ".*FCP-LOW.*"
+    timeout: 10000
+
+- scrollUntilVisible:
+    element:
+      text: "${output.login_identifier_label}"
+    direction: UP
+    timeout: 5000
+
+- tapOn:
+    text: "${output.login_identifier_label}"
+- eraseText: 50
+- inputText: "${output.login_identifier}"
+
+- scrollUntilVisible:
+    element:
+      text: "${output.login_password_label}"
+    direction: UP
+    timeout: 5000
+
+- tapOn:
+    text: "${output.login_password_label}"
+- eraseText: 50
+- inputText: "${output.login_password}"
+
+## Fermer le clavier puis faire défiler jusqu'au bouton Valider avant de taper.
+#### Ne fonctionne que sur Android ###
+#- scrollUntilVisible:
+#    element:
+#      text: "${output.login_submit_label}"
+#    direction: DOWN
+#    timeout: 1000
+#
+#- tapOn:
+#    text: "${output.login_submit_label}"
+#
+# Soumet le formulaire via le bouton "→" (Go) du clavier iOS / Entrée Android.
+### Fonctionne sur ios, mais a tester sur Android
+- pressKey: Enter
+
+# Attendre que le formulaire disparaisse (soumission acceptée).
+- extendedWaitUntil:
+    notVisible:
+      text: "${output.login_submit_label}"
+    timeout: 10000
+
+# Attendre la fin du redirect OIDC — FCP-LOW disparaît quand la redirect_uri est suivie.
+- extendedWaitUntil:
+    notVisible:
+      text: ".*FCP-LOW.*"
+    timeout: 15000
