@@ -13,4 +13,4 @@ tags:
     env:
       NOTIF_TITLE: "Test Maestro avant activation"
       NOTIF_BODY: "Cette notification ne doit pas arriver en heads-up"
-- runFlow: ../../subflows/notifications/assert-not-received.yaml
+- runFlow: ../../subflows/notifications/assert-push-not-received.yaml

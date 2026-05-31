@@ -1,6 +1,6 @@
 appId: ${APP_ID}
 tags:
-  - notifications
+  - push
 # Scénario : réception de notifications avant et après activation.
 # 1. Login FC sandbox test/123 → décline notifs à l'onboarding
 # 2. Publie notif n°1 → vérifie qu'elle n'arrive PAS en heads-up (pas de Registration FCM/APNs)
@@ -17,8 +17,9 @@ tags:
     env:
       NOTIF_TITLE: "Test Maestro avant activation"
       NOTIF_BODY: "Cette notification ne doit pas arriver en heads-up"
-- runFlow: ../../subflows/notifications/assert-received.yaml
+- runFlow: ../../subflows/notifications/assert-push-received.yaml
 
+- runFlow: ../../subflows/settings/open.yaml
 - runFlow: ../../subflows/settings/toggle-notifications.yaml
 
 - runFlow:
@@ -26,4 +27,4 @@ tags:
     env:
       NOTIF_TITLE: "Test Maestro après activation"
       NOTIF_BODY: "Cette notification doit arriver en heads-up"
-- runFlow: ../../subflows/notifications/assert-not-received.yaml
+- runFlow: ../../subflows/notifications/assert-push-not-received.yaml
