@@ -49,5 +49,6 @@ output.logs_share_hint = 'Partager'; // Android Intent chooser
 
 // Notifications push
 output.notifications_enabled_banner = 'Les notifications ont été activées'; // strings.xml:notification_permission_granted
-output.os_allow_button = 'Autoriser'; // dialog système permission notifications Android 13+
-output.inbox_url_hash = '/#/notifications'; // fragment SPA Svelte — inbox notifications
+output.os_allow_button   = 'Autoriser'; // dialog système permission notifications Android 13+
+output.inbox_url_hash    = '/#/notifications'; // fragment SPA Svelte — inbox notifications
+output.notification_icon = 'Icône de notification.*'; // icône cloche header SPA Svelte (WebView partagée)
