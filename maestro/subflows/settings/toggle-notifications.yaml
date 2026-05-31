@@ -1,11 +1,11 @@
 appId: ${APP_ID}
-# Active les notifications depuis l'écran Paramètres natif.
-# Bascule le toggle puis accepte la dialog de permission OS si elle apparaît (premier tap).
-# Pré-condition : SettingsScreen/SettingsView est ouvert (settings/open.yaml appelé avant).
+# Subflow Android : active les notifications depuis l'écran Paramètres natif.
+# Extrait de toggle-notifications.yaml — appelé par le dispatcher when: platform: Android.
+# Pré-condition : SettingsScreen est ouvert (settings/open.yaml appelé avant).
 ---
 - runFlow: ../../elements/_loadAll.yaml
 
-# ouvre les notifications
+# Ouvre le sous-menu notifications
 - extendedWaitUntil:
     visible:
       id: "notification-icon"
@@ -19,15 +19,14 @@ appId: ${APP_ID}
     timeout: 5000
 - tapOn: ".*Gérer"
 
-# clique sur le toggle de notification
+# Toggle la notification
 - extendedWaitUntil:
-      visible:
-          text: "${output.settings_notif_label}"
-      timeout: 5000
-
+    visible:
+      text: "${output.settings_notif_label}"
+    timeout: 5000
 - tapOn: "${output.settings_notif_label}"
 
-# Dialog système de permission notifications (Android 13+ et iOS)
+# Dialog système de permission notifications (Android 13+)
 - extendedWaitUntil:
     visible:
       text: "${output.os_allow_button}"
@@ -37,19 +36,19 @@ appId: ${APP_ID}
     text: "${output.os_allow_button}"
     optional: true
 - extendedWaitUntil:
-      notVisible:
-          text: "${output.os_allow_button}"
-      timeout: 5000
-      optional: true
+    notVisible:
+      text: "${output.os_allow_button}"
+    timeout: 5000
+    optional: true
 
-# fermer les écrans de préférence
+# Ferme les écrans de préférence (remontée via Retour)
 - extendedWaitUntil:
-      visible:
-          text: "${output.settings_notif_label}"
-      timeout: 5000
+    visible:
+      text: "${output.settings_notif_label}"
+    timeout: 5000
 - tapOn: "Retour.*"
 - extendedWaitUntil:
-      visible:
-          text: "${output.settings_menu_prefs_notif}"
-      timeout: 5000
+    visible:
+      text: "${output.settings_menu_prefs_notif}"
+    timeout: 5000
 - tapOn: "Retour.*"

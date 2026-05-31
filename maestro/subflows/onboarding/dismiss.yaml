@@ -16,3 +16,7 @@ appId: ${APP_ID}
     notVisible: "${output.onboarding_title}"
     timeout: 10000
     optional: true
+- extendedWaitUntil:
+    notVisible: "${output.onboarding_title}"
+    timeout: 10000
+    optional: true

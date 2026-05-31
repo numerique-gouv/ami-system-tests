@@ -8,12 +8,14 @@ appId: ${APP_ID}
     visible: "${output.onboarding_title}"
     timeout: 20000
 - tapOn: "${output.onboarding_enable}"
-# Le système OS affiche la dialog de permission notifications → accepter
+# Le système OS affiche la dialog de permission notifications → accepter via os_allow_button.
+# iOS : "Autoriser" (UNUserNotificationCenter dialog)
+# Android : "Autoriser" (Android 13+ permission dialog)
 - extendedWaitUntil:
     visible:
-      text: "${output.onboarding_enable}"
+      text: "${output.os_allow_button}"
     timeout: 5000
     optional: true
 - tapOn:
-    text: "${output.onboarding_enable}"
+    text: "${output.os_allow_button}"
     optional: true
