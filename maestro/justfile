@@ -7,14 +7,12 @@ app_id := "fr.gouv.ami.staging"
 
 # Device Android Maestro — modèle et OS (voir : maestro list-devices)
 android_device_model := env_var_or_default("ANDROID_DEVICE_MODEL", "pixel_9")
-android_device_os    := env_var_or_default("ANDROID_DEVICE_OS", "android-36")
+android_device_os    := env_var_or_default("ANDROID_DEVICE_OS",    "android-36")
 
-# IDs des devices/émulateurs (surchargeables par variable d'environnement)
-# Android : ID ADB de l'émulateur (emulator-5554 = premier émulateur démarré)
-# iOS     : UDID du simulateur (voir : xcrun simctl list | grep Booted)
-#           ou "auto" pour laisser Maestro choisir le simulateur actif
-android_device_id := env_var_or_default("ANDROID_DEVICE_ID", "emulator-5554")
-ios_device_id     := env_var_or_default("IOS_DEVICE_ID",     "iPhone 17 Pro")
+# Device iOS Maestro — modèle et OS (voir : maestro list-devices)
+# ios_device_id doit correspondre au nom xcrun simctl (espaces, pas tirets)
+ios_device_model := env_var_or_default("IOS_DEVICE_MODEL", "iPhone-17-Pro")
+ios_device_os    := env_var_or_default("IOS_DEVICE_OS",    "iOS-26-5")
 
 _notif_env := "--env NOTIF_API_URL=" + env_var_or_default("NOTIF_API_URL", "") + " --env NOTIF_PARTNER_ID=" + env_var_or_default("NOTIF_PARTNER_ID", "") + " --env NOTIF_PARTNER_SECRET=" + env_var_or_default("NOTIF_PARTNER_SECRET", "") + " --env NOTIF_RECIPIENT_FC_HASH=" + env_var_or_default("NOTIF_RECIPIENT_FC_HASH", "")
 
@@ -35,19 +33,24 @@ setup:
 
 # ─── Tests ──────────────────────────────────────────────────────────────────
 
-# Lancer les tests Android — filtrer par tag(s) optionnel(s)
-# Usage : just test-android              → tous les flows
-#         just test-android smoke        → tag smoke uniquement
-#         just test-android notifications → flows notifications E2E
-#         just test-android smoke,auth   → smoke OU auth (séparés par virgule, sans espace)
-#        --output "{{ _reports_dir }}/{{platform}}/results-detailed.html" \
+# Lancer tous les flows du répertoire courant — filtrer par tag(s) optionnel(s)
+# Usage : just _test                   → tous les flows
+#         just _test smoke             → tag smoke uniquement
+#         just _test smoke,auth        → smoke OU auth (séparés par virgule, sans espace)
+# Note just 1.51 : utiliser la forme POSITIONNELLE — just test-ios notifications
+#                  et non just test-ios tags=notifications (traité comme arg positionnel "tags=notifications")
 [private]
-_test platform tags="":
+_test tags="":
     #!/usr/bin/env bash
     set -euo pipefail
+    # Robustesse just 1.51 : si l'arg est passé sous forme "name=value" (ex: tags=notifications),
+    # extraire la valeur après "=" pour retrouver le tag réel.
+    raw_tags="{{tags}}"
+    include_tags="${raw_tags#*=}"
+    [ "$include_tags" = "$raw_tags" ] || true   # pas de "=", raw_tags == include_tags — no-op
     include_arg=""
-    [ -n "{{tags}}" ] && include_arg="--include-tags {{tags}}"
-    maestro --device {{ if platform == "android" { android_device_id } else { ios_device_id } }} --verbose test \
+    [ -n "$include_tags" ] && include_arg="--include-tags $include_tags"
+    maestro --verbose test \
         --env APP_ID="{{ app_id }}" \
         {{ _notif_env }} \
         $include_arg \
@@ -56,64 +59,157 @@ _test platform tags="":
         .
 
 test-android tags="":
+    #!/usr/bin/env bash
+    set -euo pipefail
     maestro start-device --platform=android \
         --device-model={{ android_device_model }} \
         --device-os={{ android_device_os }} \
         --device-locale=fr_FR
-    adb -s {{ android_device_id }} install -r {{ android_apk }}
-    just _test android "{{tags}}"
+    DEVICE=$(adb devices | awk '/\tdevice$/{print $1}' | head -1)
+    adb -s "$DEVICE" install -r {{ android_apk }}
+    just _test "{{tags}}"
 
 # Construit un APK staging avant de lancer les tests
 test-android-builded tags="": build-android (test-android tags)
 
-test-ios tags="": build-ios
-    just _test ios "{{tags}}"
+test-ios tags="":
+    #!/usr/bin/env bash
+    set -xeuo pipefail
+    maestro start-device --platform=ios \
+        --device-model={{ ios_device_model }} \
+        --device-os={{ ios_device_os }} \
+        --device-locale=fr_FR || true
+    xcrun simctl install booted {{ ios_app }}
+    # Maestro --device requiert l'UDID CoreSimulator (UUID), pas le nom du simulateur.
+    # grep -oE extrait uniquement l'UUID (format 8-4-4-4-12 hex) depuis la ligne "Booted".
+    BOOTED_UDID=$(xcrun simctl list devices booted | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1)
+    # Reset chirurgical entre chaque run : permission notifs + session FC (SFSafariViewController).
+    # Garantit que la mire FC s'affiche même si une session web persiste du run précédent.
+    #
+    # SFSafariViewController tourne dans le process OS com.apple.SafariViewService,
+    # hors sandbox de l'app — ni clearState ni clearKeychain n'y ont accès.
+    # Il faut effacer trois artefacts distincts :
+    #   1. Préférences du process SafariViewService (defaults)
+    #   2. Caches (images, ressources)
+    #   3. Cookie store binaire — c'est lui qui maintient la session OIDC/FC ← le plus important
+    xcrun simctl privacy "$BOOTED_UDID" reset notifications {{ app_id }} 2>/dev/null || true
+    # --- Reset session SFSafariViewController (cookies OIDC partagés avec Safari) ---
+    xcrun simctl spawn "$BOOTED_UDID" defaults delete com.apple.SafariViewService 2>/dev/null || true
+    xcrun simctl spawn "$BOOTED_UDID" rm -rf /Library/Caches/com.apple.SafariViewService 2>/dev/null || true
+    xcrun simctl spawn "$BOOTED_UDID" rm -f /var/mobile/Library/Cookies/com.apple.SafariViewService.binarycookies 2>/dev/null || true
+    # --- Reset session WKWebView AMI (localStorage + cookies AMI backend) ---
+    # Maestro clearState sur iOS n'efface pas Library/WebKit ni Library/Cookies.
+    # La SPA React stocke is_logged_in / id_token / user_data en localStorage (WKWebView).
+    # Ces répertoires sont dans le container de l'app — xcrun simctl get_app_container
+    # renvoie son chemin host sans avoir à connaître l'UUID qui change à chaque install.
+    APP_CONTAINER=$(xcrun simctl get_app_container "$BOOTED_UDID" {{ app_id }} data 2>/dev/null || true)
+    if [ -n "$APP_CONTAINER" ]; then
+        rm -rf "$APP_CONTAINER/Library/Cookies/"      2>/dev/null || true  # sc-sticky-session AMI
+        rm -rf "$APP_CONTAINER/Library/WebKit/"       2>/dev/null || true  # localStorage JWT
+        rm -rf "$APP_CONTAINER/Library/HTTPStorages/" 2>/dev/null || true  # cache HTTP
+    fi
+    just _test "{{tags}}"
+
+# Variante de test-ios avec désinstallation complète avant chaque run.
+# Garantit un container vierge (nouveau UUID) : Library/Cookies, Library/WebKit,
+# Library/HTTPStorages, Keychain simulator — tout est recréé from scratch.
+# Utiliser quand test-ios ne suffit pas à effacer la session.
+test-ios-fresh tags="":
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    maestro start-device --platform=ios \
+        --device-model={{ ios_device_model }} \
+        --device-os={{ ios_device_os }} \
+        --device-locale=fr_FR || true
+    BOOTED_UDID=$(xcrun simctl list devices booted | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1)
+    xcrun simctl privacy "$BOOTED_UDID" reset notifications {{ app_id }} 2>/dev/null || true
+    xcrun simctl spawn "$BOOTED_UDID" defaults delete com.apple.SafariViewService 2>/dev/null || true
+    xcrun simctl spawn "$BOOTED_UDID" rm -rf /Library/Caches/com.apple.SafariViewService 2>/dev/null || true
+    xcrun simctl spawn "$BOOTED_UDID" rm -f /var/mobile/Library/Cookies/com.apple.SafariViewService.binarycookies 2>/dev/null || true
+    xcrun simctl uninstall booted {{ app_id }} 2>/dev/null || true
+    xcrun simctl install booted {{ ios_app }}
+    just _test "{{tags}}"
+
+# Variante nucléaire : efface entièrement le simulateur (factory reset) avant chaque run.
+# xcrun simctl erase remet à zéro TOUT : apps, keychain, préférences système, tokens APNs.
+# Utiliser quand test-ios-fresh ne suffit pas (ex. permissions bloquées au niveau OS,
+# token de notification corrompu, état APNs/FCM incohérent).
+# Plus lent que test-ios-fresh car le simulateur redémarre from scratch.
+test-ios-erased tags="":
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    # Démarre le simulateur via Maestro pour garantir qu'il est créé et booté
+    maestro start-device --platform=ios \
+        --device-model={{ ios_device_model }} \
+        --device-os={{ ios_device_os }} \
+        --device-locale=fr_FR || true
+    # Récupère l'UDID du simulateur booté
+    UDID=$(xcrun simctl list devices booted \
+        | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' \
+        | head -1)
+    if [ -z "$UDID" ]; then
+        echo "❌ Aucun simulateur iOS démarré après maestro start-device"
+        exit 1
+    fi
+    # erase exige un simulateur éteint
+    xcrun simctl shutdown "$UDID" 2>/dev/null || true
+    xcrun simctl erase "$UDID"
+    xcrun simctl boot "$UDID"
+    open -a Simulator
+    until xcrun simctl list devices booted | grep -q "$UDID"; do sleep 1; done
+    xcrun simctl install "$UDID" {{ ios_app }}
+    just _test "{{tags}}"
+
+test-ios-builded tags="": build-ios (test-ios tags)
 
 # Lancer les tests sur les deux plateformes (Android puis iOS)
 test tags="": (test-android tags) (test-ios tags)
 
 # Test hors-ligne : coupe le réseau, lance le flow offline, rétablit le réseau
 test-offline-android:
+    #!/usr/bin/env bash
+    set -euo pipefail
     maestro start-device --platform=android \
         --device-model={{ android_device_model }} \
         --device-os={{ android_device_os }} \
         --device-locale=fr_FR
-    adb -s {{ android_device_id }} install -r {{ android_apk }}
-    just _driver-start
-    adb -s {{ android_device_id }} shell svc data disable
-    adb -s {{ android_device_id }} shell svc wifi disable
-    maestro --device {{ android_device_id }} test \
-        --env APP_ID={{ app_id }} \
-        flows/offline/banner.yaml; \
-    adb -s {{ android_device_id }} shell svc data enable; \
-    adb -s {{ android_device_id }} shell svc wifi enable
+    DEVICE=$(adb devices | awk '/\tdevice$/{print $1}' | head -1)
+    adb -s "$DEVICE" install -r {{ android_apk }}
+    adb -s "$DEVICE" shell svc data disable
+    adb -s "$DEVICE" shell svc wifi disable
+    maestro test --env APP_ID={{ app_id }} flows/offline/banner.yaml \
+        || true
+    adb -s "$DEVICE" shell svc data enable
+    adb -s "$DEVICE" shell svc wifi enable
 
 # ─── Outils de développement ────────────────────────────────────────────────
 
 # Ouvrir Maestro Studio (inspecteur visuel interactif)
-# Usage : just studio            → Android (défaut)
-#         just studio platform=ios → iOS
-studio platform="android":
+studio:
     maestro studio
 
 # Relancer un flow automatiquement à chaque modification (TDD)
 # Usage : just watch flows/auth/login.yaml
-#         just watch flows/auth/login.yaml platform=ios
-watch flow platform="android":
-    maestro --device {{ if platform == "android" { android_device_id } else { ios_device_id } }} \
-        test --watch \
+watch flow:
+    maestro test --watch \
         --env APP_ID={{ app_id }} \
         {{ flow }}
 
-# Exécuter un flow isolé (prérequis : émulateur démarré + app installée)
+# Exécuter un flow isolé (prérequis : simulateur/émulateur démarré + app installée)
 # Usage : just run flows/auth/login.yaml
-#         just run flows/auth/login.yaml platform=ios
-run flow platform="android":
-    maestro --device {{ if platform == "android" { android_device_id } else { ios_device_id } }} \
-        --verbose test \
-        --env APP_ID={{ app_id }} \
+run flow:
+    maestro --verbose test \
+        --env APP_ID="{{ app_id }}" \
         {{ _notif_env }} \
         {{ flow }}
+
+# Affiche la hiérarchie de l'écran courant, filtrée aux éléments utiles pour les tests
+# Utile pour identifier les sélecteurs Maestro (label:, text:, id:) avant d'écrire un flow
+# Usage : just hierarchy
+hierarchy:
+    maestro hierarchy \
+        | sed -n '/^{/,$p' \
+        | jq -f {{ justfile_directory() }}/hierarchy.jq
 
 clean-test-logs:
     rm -rvf .maestro/tests/*
