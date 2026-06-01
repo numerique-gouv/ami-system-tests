@@ -13,11 +13,15 @@ const IOS_APP_PATH = path.resolve(
 
 // ─── Android ────────────────────────────────────────────────────────────────
 
-export const androidCapabilities: WebdriverIO.Capabilities = {
+// `as WebdriverIO.Capabilities` plutôt qu'annotation `: WebdriverIO.Capabilities` —
+// les capabilities Appium non standard (ex. chromedriverAutodownload) ne sont pas dans
+// les types @wdio/types mais sont valides à l'exécution.
+export const androidCapabilities = {
   platformName: 'Android',
   'appium:automationName': 'UiAutomator2',
-  'appium:deviceName': 'Pixel_oldest',
-  'appium:platformVersion': '8.0',
+  // Nom de l'AVD défini dans le justfile racine (android_avd := "Pixel_modern").
+  // platformVersion volontairement absent : Appium détecte la version depuis l'appareil connecté.
+  'appium:deviceName': process.env.ANDROID_DEVICE_NAME ?? 'Pixel_modern',
   'appium:app': ANDROID_APP_PATH,
   'appium:appPackage': 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
@@ -27,7 +31,14 @@ export const androidCapabilities: WebdriverIO.Capabilities = {
   'appium:androidInstallTimeout': 90000,
   'appium:autoGrantPermissions': true,
   'appium:disableWindowAnimation': true,
-}
+  // Requis pour switchContext('WEBVIEW_*') — télécharge automatiquement le Chromedriver
+  // correspondant à la version du WebView Android embarqué dans l'app.
+  'appium:chromedriverAutodownload': true,
+  // Délais étendus pour les émulateurs qui chargent depuis un snapshot —
+  // UiAutomation peut mettre plus de 5 s à se connecter après le boot.
+  'appium:uiautomator2ServerLaunchTimeout': 60000,
+  'appium:uiautomator2ServerInstallTimeout': 60000,
+} as WebdriverIO.Capabilities
 
 // ─── iOS ────────────────────────────────────────────────────────────────────
 

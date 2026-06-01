@@ -9,8 +9,9 @@ android_project := root / "../ami-app-android"
 ios_project     := root / "../ami-app-ios"
 
 android_apk := android_project / "app/build/outputs/apk/staging/debug/app-staging-debug.apk"
-ios_derived := ios_project / "build"
-ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI.app"
+# derivedData hors du dossier ios_project : swiftlint ne scanne pas SourcePackages
+ios_derived := root / "build/ios"
+ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI-Production.app"
 
 # ─── Build ──────────────────────────────────────────────────────────────────
 
@@ -24,13 +25,13 @@ build-android:
 # Builder l'app iOS pour simulateur (scheme AMI-Staging)
 build-ios:
     @echo "🔨 Génération du projet Xcode via XcodeGen…"
-    cd {{ios_project}} && xcodegen generate
+    cd {{ios_project}} && xcodegen generate --spec ami-project.yml
     @echo "📦 Build iOS (AMI-Staging / simulateur)…"
     cd {{ios_project}} && xcodebuild \
         -scheme AMI-Staging \
         -configuration Debug \
-        -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0' \
-        -derivedDataPath build \
+        -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+        -derivedDataPath {{ ios_derived }} \
         build \
         | xcpretty || true
     @echo "✅ App générée : {{ios_app}}"
@@ -43,18 +44,60 @@ build: build-android build-ios
 android_avd    := "Pixel_modern"
 android_sdk    := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
 
-# Démarrer l'émulateur Android en arrière-plan et attendre le boot complet
-#TODO: vérifie qu'il n'est pas déjà lancé avant de le démarrer.
+# Démarrer l'émulateur Android si aucun appareil n'est déjà connecté via adb.
+# Si un émulateur est déjà actif (quelle que soit sa provenance), on le réutilise.
+# Attend que UiAutomation soit disponible (sys.boot_completed + package manager prêt).
 android-start:
-    @echo "🤖 Démarrage de l'émulateur {{android_avd}}…"
-    {{android_sdk}}/emulator/emulator -avd {{android_avd}} -no-snapshot-save &
-    {{android_sdk}}/platform-tools/adb wait-for-device
-    @until {{android_sdk}}/platform-tools/adb shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
-    @echo "✅ Émulateur prêt."
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ADB="{{ android_sdk }}/platform-tools/adb"
+    EMU="{{ android_sdk }}/emulator/emulator"
+    # Vérifie si un appareil est déjà connecté et booté
+    BOOTED=$("$ADB" devices | awk '/\tdevice$/{print $1}' | head -1)
+    if [ -n "$BOOTED" ]; then
+        echo "✅ Appareil déjà connecté : $BOOTED — réutilisé."
+        exit 0
+    fi
+    echo "🤖 Démarrage de l'émulateur {{ android_avd }}…"
+    "$EMU" -avd {{ android_avd }} -no-snapshot-save &
+    "$ADB" wait-for-device
+    until "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
+    # Attendre que le package manager soit opérationnel (requis par UiAutomator2)
+    until "$ADB" shell pm list packages > /dev/null 2>&1; do sleep 1; done
+    # Déverrouiller l'écran — UiAutomation exige l'écran allumé et déverrouillé.
+    # Le snapshot default_boot peut charger avec l'écran verrouillé.
+    "$ADB" shell input keyevent 82   # KEYCODE_MENU : réveille l'écran
+    "$ADB" shell input keyevent 4    # KEYCODE_BACK  : ferme tout dialog éventuel
+    sleep 2
+    echo "✅ Émulateur prêt."
 
 # Arrêter l'émulateur Android
 android-stop:
     {{android_sdk}}/platform-tools/adb emu kill || true
+
+# Nom du simulateur iOS tel qu'attendu par xcrun simctl (espaces, pas tirets)
+# Doit correspondre à la -destination utilisée dans build-ios
+ios_simulator := env_var_or_default("IOS_SIMULATOR", "iPhone 17 Pro")
+
+# Démarrer le simulateur iOS et attendre qu'il soit prêt
+ios-start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; then
+        echo "✅ Simulateur '{{ ios_simulator }}' déjà démarré."
+    else
+        echo "📱 Démarrage du simulateur '{{ ios_simulator }}'…"
+        xcrun simctl boot "{{ ios_simulator }}"
+        until xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; do sleep 1; done
+        echo "✅ Simulateur prêt."
+    fi
+    open -a Simulator
+
+# Arrêter le simulateur iOS (tous les simulateurs démarrés)
+ios-stop:
+    @echo "🛑 Arrêt du simulateur '{{ ios_simulator }}'…"
+    xcrun simctl shutdown "{{ ios_simulator }}" || true
+    @echo "✅ Simulateur arrêté."
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 

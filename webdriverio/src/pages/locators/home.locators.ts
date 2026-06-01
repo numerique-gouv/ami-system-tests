@@ -1,33 +1,31 @@
 import type { Locator } from './onboarding.locators'
 
+/**
+ * L'app AMI est 100% Svelte SPA rendue dans un android.webkit.WebView / WKWebView.
+ * Il n'existe aucun resource-id Android ni accessibilityIdentifier iOS côté natif
+ * (les écrans Compose/SwiftUI n'exposent pas de testTag).
+ *
+ * Stratégie :
+ *   screenRoot → sélecteur natif qui détecte la présence du conteneur WebView
+ *   userAvatarCss → sélecteur CSS DOM (dans WEBVIEW_*) qui confirme que la SPA
+ *                   home est authentifiée et chargée (#notification-icon toujours
+ *                   présent sur le home — confirmé par Appium Inspector).
+ */
 export interface HomeLocators {
-  screenRoot: Locator
-  pageTitle: Locator
-  notificationBell: Locator
-  partnerList: Locator
-  firstPartnerCard: Locator
-  settingsTabButton: Locator
-  homeTabButton: Locator
+  screenRoot:    Locator  // Natif : conteneur WebView
+  userAvatarCss: Locator  // WebView CSS : sentinel SPA home authentifiée
 }
 
 export const androidHomeLocators: HomeLocators = {
-  screenRoot:        'id:fr.gouv.ami.staging:id/home_screen',
-  pageTitle:         'id:fr.gouv.ami.staging:id/home_title',
-  notificationBell:  'id:fr.gouv.ami.staging:id/notification_bell',
-  partnerList:       'id:fr.gouv.ami.staging:id/partner_list',
-  firstPartnerCard:  'id:fr.gouv.ami.staging:id/partner_card_0',
-  settingsTabButton: 'id:fr.gouv.ami.staging:id/tab_settings',
-  homeTabButton:     'id:fr.gouv.ami.staging:id/tab_home',
+  // UiSelector sur la classe du conteneur WebView (seul identifiant natif disponible)
+  screenRoot:    'android=new UiSelector().className("android.webkit.WebView")',
+  userAvatarCss: '#notification-icon',
 }
 
 export const iosHomeLocators: HomeLocators = {
-  screenRoot:        '~home_screen',
-  pageTitle:         '~home_title',
-  notificationBell:  '~notification_bell',
-  partnerList:       '~partner_list',
-  firstPartnerCard:  '~partner_card_0',
-  settingsTabButton: '~tab_settings',
-  homeTabButton:     '~tab_home',
+  // XCUITest : type WebView natif
+  screenRoot:    '//XCUIElementTypeWebView',
+  userAvatarCss: '#notification-icon',
 }
 
 export function getHomeLocators(): HomeLocators {
