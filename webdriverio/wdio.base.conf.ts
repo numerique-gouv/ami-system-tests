@@ -33,7 +33,10 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   maxInstances: 1, // Appium ne supporte pas bien la parallélisation sur un même device
 
-  logLevel: 'info',
+  // 'warn' supprime les logs COMMAND/DATA/RESULT d'Appium (niveau info) qui
+  // parasitent la sortie console sans valeur ajoutée lors d'une exécution normale.
+  // Passer à 'info' ou 'debug' ponctuellement pour diagnostiquer un test flaky.
+  logLevel: 'warn',
 
   bail: 0,
 
@@ -51,10 +54,15 @@ export const baseConfig: Partial<Options.Testrunner> = {
     // ['allure', { outputDir: 'allure-results', disableWebdriverStepsReporting: false }],
   ],
 
+  // specFileRetries relance le fichier de spec entier dans un nouveau processus Appium
+  // (session fraîche, logs propres par tentative) contrairement à mochaOpts.retries
+  // qui réutilise la même session et répète les logs dans le même flux de sortie.
+  specFileRetries: 1,
+  specFileRetriesDelay: 0,
+
   mochaOpts: {
     ui: 'bdd',
     timeout: 120000, // 2 min par test — les apps natives peuvent être lentes au démarrage
-    retries: 1,
   },
 
   // Hooks globaux
