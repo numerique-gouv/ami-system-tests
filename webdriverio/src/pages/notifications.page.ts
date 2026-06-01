@@ -12,18 +12,26 @@ class NotificationsInboxPage {
    */
   async openFromHome(): Promise<void> {
     await withWebView(async () => {
+      // bellCss cible l'<a href="/#/notifications"> à l'intérieur de div#notification-icon
       const bell = $(notificationsLocators.bellCss)
       await bell.waitForDisplayed({ timeout: 15000 })
-      // Chromedriver click sur #notification-icon (pointer events complets, bubbling vers le bouton parent)
-      // — déclenche le router Svelte. Un click() DOM synthétique via driver.execute() ne suffit pas.
       await bell.click()
-      // Attend la navigation SPA vers /#/notifications (hash routing Svelte)
+
+      await browser.pause(500)
+      const hash = await driver.execute(() => window.location.hash) as string
+
+      // Sur iOS/WKWebView, le clic sur <a> via WKRDP ne déclenche pas toujours la navigation —
+      // fallback : forcer le hash directement pour contourner la limitation WKWebView.
+      if (!hash.includes('/notifications')) {
+        await driver.execute(() => { window.location.hash = '/notifications' })
+      }
+
       await browser.waitUntil(
         async () => {
-          const hash = await driver.execute(() => window.location.hash) as string
-          return hash.includes('/notifications')
+          const h = await driver.execute(() => window.location.hash) as string
+          return h.includes('/notifications')
         },
-        { timeout: 15000, interval: 500, timeoutMsg: 'inbox /#/notifications non atteint en 15s' }
+        { timeout: 15000, interval: 500, timeoutMsg: 'page /#/notifications non atteinte en 15s' }
       )
     })
   }

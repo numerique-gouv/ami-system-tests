@@ -36,8 +36,8 @@ export interface NotificationsLocators {
  *         firstItemAriaLabel cible le premier aria-label qui n'est pas un label de nav.
  */
 export const notificationsLocators: NotificationsLocators = {
-  // Span/SVG intérieur de la cloche — id stable dans le DOM Svelte (confirm Maestro inspect_screen)
-  bellCss:           '#notification-icon',
+  // L'<a href="/#/notifications"> est un enfant direct du div#notification-icon — on cible l'ancre, pas le div
+  bellCss:           '#notification-icon a',
   // normalize-space(.) inclut les descendants (couvre <h1><span>Notifications</span></h1>)
   inboxHeadingXpath: '//*[normalize-space(.)="Notifications"]',
   // Sentinel de rendu de l'inbox : présence de n'importe quel élément avec aria-label
