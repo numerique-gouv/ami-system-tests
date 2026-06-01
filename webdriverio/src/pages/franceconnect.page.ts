@@ -1,5 +1,5 @@
 import { fcpLocators } from './locators/franceconnect.locators'
-import { withWebView, refreshAxTree } from '../helpers/webview'
+import { withWebView, refreshAxTree, tl } from '../helpers/webview'
 
 const FC_IDENTIFIER = 'avec_nom_dusage'
 const FC_PASSWORD   = '123'
@@ -17,15 +17,15 @@ class FranceConnectPage {
     // Équivalent du `runFlow: when: visible: text: ".*faible.*"` de Maestro.
     try {
       await refreshAxTree()
-      const appeared = await $(fcpLocators.eidasFaibleLink)
-        .waitForDisplayed({ timeout: 8000 })
-        .catch(() => false)
+      // findByText(/faible/i) est l'équivalent sémantique du `text: ".*faible.*"` Maestro :
+      // il trouve le lien IDP eIDAS par son texte visible, sans dépendre de l'id DOM instable.
+      const eidasLink = await tl().findByText(/faible/i, {}, { timeout: 8000 }).catch(() => null)
 
-      if (!appeared) return  // serveur a sauté l'étape eIDAS (auto-complete)
+      if (!eidasLink) return  // serveur a sauté l'étape eIDAS (auto-complete)
 
       // Alignement maestro/FC_login.yaml : scrollUntilVisible UP avant de taper
       await driver.execute(() => window.scrollTo(0, 0))
-      await $(fcpLocators.eidasFaibleLink).click()
+      await eidasLink.click()
       await refreshAxTree()
       // Alignement maestro/FC_login.yaml : extendedWaitUntil FCP-LOW, timeout 10 s
       await $(fcpLocators.fcpLowHeading).waitForDisplayed({ timeout: 10000 })

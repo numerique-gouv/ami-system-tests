@@ -1,12 +1,12 @@
 import { getHomeLocators } from './locators/home.locators'
-import { withWebView } from '../helpers/webview'
+import { withWebView, tl } from '../helpers/webview'
 
 class HomePage {
   /** Retourne true si le conteneur WebView natif est affiché. */
   async isVisible(): Promise<boolean> {
     try {
       const loc = getHomeLocators()
-      return (await $(loc.screenRoot)).isDisplayed()
+      return $(loc.screenRoot).isDisplayed()
     } catch {
       return false
     }
@@ -29,9 +29,10 @@ class HomePage {
    */
   async waitForSpaReady(timeout = 60000): Promise<void> {
     await this.waitForVisible(timeout)
-    const loc = getHomeLocators()
     await withWebView(async () => {
-      await $(loc.userAvatarCss).waitForDisplayed({ timeout })
+      // Le lien "Notifications" dans le header confirme que la SPA home authentifiée
+      // est rendue — équivalent sémantique de '#notification-icon' (CSS structurel).
+      await tl().findByRole('link', { name: /notifications/i }, { timeout })
     })
   }
 
@@ -46,7 +47,7 @@ class HomePage {
   async isPartnerListVisible(): Promise<boolean> {
     try {
       return withWebView(async () => {
-        const el = await $('//*[contains(., "Mon agenda") or contains(., "Mes démarches")]')
+        const el = $('//*[contains(., "Mon agenda") or contains(., "Mes démarches")]')
         return el.isDisplayed()
       })
     } catch {
@@ -57,8 +58,7 @@ class HomePage {
   /** Ouvre le premier partenaire/item de la liste en tapant dessus dans la WebView. */
   async openFirstPartner(): Promise<void> {
     await withWebView(async () => {
-      // Cible le premier lien/item cliquable dans la zone "Mes démarches"
-      const item = await $('//*[@aria-label and @tabindex="0"][1]')
+      const item = $('//*[@aria-label and @tabindex="0"][1]')
       await item.click()
     })
   }
@@ -66,8 +66,7 @@ class HomePage {
   /** Navigue vers l'onglet Suivi/Paramètres via la nav WebView. */
   async goToSettings(): Promise<void> {
     await withWebView(async () => {
-      const btn = await $('//*[@aria-label="Icône de suivi Suivi"]')
-      await btn.click()
+      await (await tl().getByRole('link', { name: /suivi/i })).click()
     })
   }
 }

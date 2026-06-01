@@ -1,3 +1,23 @@
+import { setupBrowser } from '@testing-library/webdriverio'
+
+/**
+ * Retourne les requêtes Testing Library liées au contexte WebView courant.
+ * Doit être appelé à l'intérieur d'un callback withWebView() — les requêtes
+ * exécutent du JavaScript dans le DOM de la WebView, inutilisables en NATIVE_APP.
+ *
+ * Usage :
+ *   await withWebView(async () => {
+ *     const bell = await tl().findByRole('link', { name: /notifications/i })
+ *     await bell.click()
+ *   })
+ */
+export function tl() {
+  // Cast nécessaire : @testing-library/webdriverio@3 cible WDIO v7/v8 —
+  // les types ChainablePromiseElement ont divergé en v9 sans impact à l'exécution.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return setupBrowser(browser as any)
+}
+
 /**
  * Utilitaire de basculement de contexte Appium WebView.
  *

@@ -1,5 +1,4 @@
-import { notificationsLocators, notifItemXpath } from './locators/notifications.locators'
-import { withWebView } from '../helpers/webview'
+import { withWebView, tl } from '../helpers/webview'
 
 // Timeout pour l'assertion post-push (le backend peut mettre quelques secondes à délivrer)
 const NOTIF_DELIVERY_TIMEOUT_MS = 20000
@@ -12,8 +11,9 @@ class NotificationsInboxPage {
    */
   async openFromHome(): Promise<void> {
     await withWebView(async () => {
-      // bellCss cible l'<a href="/#/notifications"> à l'intérieur de div#notification-icon
-      const bell = $(notificationsLocators.bellCss)
+      // getByRole('link') cible l'<a href="/#/notifications"> par son rôle ARIA et son
+      // nom accessible — plus robuste que le sélecteur CSS structurel '#notification-icon a'.
+      const bell = await tl().getByRole('link', { name: /notifications/i })
       await bell.waitForDisplayed({ timeout: 15000 })
       await bell.click()
 
@@ -75,10 +75,13 @@ class NotificationsInboxPage {
   /**
    * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
    * Lance si le délai est dépassé (notification non reçue).
+   *
+   * findByText() est l'équivalent sémantique du XPath normalize-space(.) précédent :
+   * il trouve l'élément par son texte visible, indépendamment de la structure DOM.
    */
   async waitForNotification(title: string, timeoutMs = NOTIF_DELIVERY_TIMEOUT_MS): Promise<void> {
     await withWebView(async () => {
-      await $(notifItemXpath(title)).waitForDisplayed({ timeout: timeoutMs })
+      await tl().findByText(title, {}, { timeout: timeoutMs })
     })
   }
 }
