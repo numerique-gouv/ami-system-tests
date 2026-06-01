@@ -9,10 +9,11 @@ class LoginPage {
   async dismissStagingPicker(): Promise<void> {
     const loc = getLoginLocators()
     try {
-      const picker = await $(loc.stagingPicker)
-      if (await picker.isDisplayed()) {
-        await picker.click()
-      }
+      const picker = $(loc.stagingPicker)
+      // La liste des review apps est chargée via un appel réseau asynchrone —
+      // on attend qu'elle soit visible plutôt que de vérifier immédiatement.
+      await picker.waitForDisplayed({ timeout: 15000 })
+      await picker.click()
     } catch {
       // Élément absent — normal sur une review app sans picker
     }
@@ -27,12 +28,12 @@ class LoginPage {
     const loc = getLoginLocators()
     if (loc.fcButtonInWebView) {
       await withWebView(async () => {
-        await (await $(loc.fcButton)).waitForDisplayed({ timeout: 15000 })
-        await (await $(loc.fcButton)).click()
+        await $(loc.fcButton).waitForDisplayed({ timeout: 15000 })
+        await $(loc.fcButton).click()
       })
     } else {
       await $(loc.fcButton).waitForDisplayed({ timeout: 15000 })
-      await (await $(loc.fcButton)).click()
+      await $(loc.fcButton).click()
     }
   }
 }

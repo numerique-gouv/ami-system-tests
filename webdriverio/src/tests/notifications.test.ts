@@ -27,6 +27,13 @@ describe('Notifications', () => {
     // ── 2. Onboarding : décliner les notifications OS ───────────────────────
     await OnboardingNotificationsPage.dismiss()
 
+    try {
+      await LoginPage.tapFranceConnect()
+    } catch (e) {
+      //appear sometimes
+    }
+
+
     // ── 3. Attendre la home SPA chargée (avatar profil visible en WebView) ──
     await HomePage.waitForSpaReady()
 

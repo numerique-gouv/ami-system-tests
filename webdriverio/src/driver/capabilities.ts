@@ -57,4 +57,8 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   'appium:wdaConnectionTimeout': 120000,
   'appium:shouldTerminateApp': true,
   'appium:autoAcceptAlerts': false,  // géré manuellement dans les tests
+  // Réduit le délai par requête au débogueur WebKit (défaut ~10 s sur simulateur).
+  // Sans cette valeur, chaque appel à getContexts() bloque ~10 s, ce qui rend
+  // le polling de waitForWebViewContext() inefficace (une seule itération effective).
+  'appium:webkitResponseTimeout': 3000,
 }

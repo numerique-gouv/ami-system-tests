@@ -12,7 +12,9 @@
  * pour que le context switch réussisse (Chromedriver doit correspondre au WebView embarqué).
  */
 
-const WEBVIEW_WAIT_MS = 8000
+// 25 s : chaque appel getContexts() prend ~3 s avec webkitResponseTimeout=3000,
+// soit ~8 tentatives effectives avant timeout.
+const WEBVIEW_WAIT_MS = 25000
 const WEBVIEW_POLL_MS = 500
 
 /**
@@ -25,7 +27,7 @@ export async function withWebView<T>(callback: () => Promise<T>): Promise<T> {
   if (!webviewContext) {
     throw new Error(
       `Aucun contexte WEBVIEW_* trouvé après ${WEBVIEW_WAIT_MS}ms. Contextes disponibles : [${contexts.join(', ')}]. ` +
-      'Vérifier appium:chromedriverAutodownload (Android) ou que la WKWebView est bien chargée (iOS).'
+      'Vérifier appium:chromedriverAutodownload (Android) ou appium:webkitResponseTimeout / isInspectable=true (iOS).'
     )
   }
   await driver.switchContext(webviewContext)
@@ -41,6 +43,26 @@ export async function withWebView<T>(callback: () => Promise<T>): Promise<T> {
   } finally {
     await driver.switchContext('NATIVE_APP')
   }
+}
+
+/**
+ * Force le recalcul de l'arbre d'accessibilité WKWebView sur iOS.
+ *
+ * Symptôme corrigé : après un redirect OIDC (ex. page eIDAS → FCP-LOW), `$(selector)`
+ * retourne "not found" alors que la page est visuellement rendue — WKWebView en mode
+ * automation interroge un AX tree périmé jusqu'à ce qu'un trigger force la re-sync.
+ * Maestro évite ce bug en faisant un inspect implicite avant chaque commande.
+ *
+ * Stratégie primaire : `driver.execute(() => 0)` — round-trip WKRDP sans sérialiser le DOM.
+ * Si insuffisant : essayer dans l'ordre getPageSource() → screenshot → switch contexte.
+ * No-op sur Android (Chromedriver gère la sync automatiquement via CDP).
+ */
+export async function refreshAxTree(): Promise<void> {
+  if (!driver.isIOS) return
+  // getPageSource() sérialise le DOM courant via WKRDP et invalide le snapshot AX périmé.
+  // driver.execute(() => 0) seul est insuffisant — il fait un round-trip WKRDP sans forcer
+  // la re-sérialisation de l'arbre d'accessibilité après un redirect de page.
+  try { await driver.getPageSource() } catch { /* best-effort */ }
 }
 
 /**
