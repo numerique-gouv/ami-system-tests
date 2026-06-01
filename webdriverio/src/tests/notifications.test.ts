@@ -26,11 +26,12 @@ describe('Notifications', () => {
 
     // ── 2. Onboarding : décliner les notifications OS ───────────────────────
     await OnboardingNotificationsPage.dismiss()
-
+    
+    // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC
     try {
       await LoginPage.tapFranceConnect()
     } catch (e) {
-      //appear sometimes
+      // absent dans la majorité des cas
     }
 
 
@@ -55,6 +56,7 @@ describe('Notifications', () => {
     await NotificationsInboxPage.waitForNotification(title)
 
     // Le titre en tête a bien changé par rapport à l'état initial
-    await expect(title).not.toEqual(oldTop)
+    expect(title).not.toEqual(oldTop)
+    expect(await NotificationsInboxPage.getTopNotificationTitle()).toEqual(title)
   })
 })
