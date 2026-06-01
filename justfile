@@ -32,8 +32,8 @@ build-ios:
         -configuration Debug \
         -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
         -derivedDataPath {{ ios_derived }} \
-        build \
-        | xcpretty || true
+        -quiet \
+        build
     @echo "✅ App générée : {{ios_app}}"
 
 # Builder les deux plateformes
@@ -106,7 +106,6 @@ check:
     @echo "🔍 Vérification des pré-requis…"
     @command -v adb       > /dev/null && echo "✅ adb"       || echo "❌ adb manquant (Android SDK)"
     @command -v xcodegen  > /dev/null && echo "✅ xcodegen"  || echo "❌ xcodegen manquant (brew install xcodegen)"
-    @command -v xcpretty  > /dev/null && echo "✅ xcpretty"  || echo "⚠️  xcpretty absent (gem install xcpretty — optionnel)"
     @command -v node      > /dev/null && echo "✅ node"      || echo "❌ node manquant"
     @command -v appium    > /dev/null && echo "✅ appium"    || echo "❌ appium manquant (npm i -g appium)"
     @command -v maestro   > /dev/null && echo "✅ maestro"   || echo "❌ maestro manquant (cd maestro && just setup)"

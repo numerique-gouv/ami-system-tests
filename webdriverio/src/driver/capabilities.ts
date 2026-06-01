@@ -8,7 +8,7 @@ const ANDROID_APP_PATH = path.resolve(
 
 const IOS_APP_PATH = path.resolve(
   __dirname,
-  '../../../../ami-app-ios/build/Build/Products/Debug-iphonesimulator/AMI.app'
+  '../../../build/ios/Build/Products/Debug-iphonesimulator/AMI-Production.app'
 )
 
 // ─── Android ────────────────────────────────────────────────────────────────
@@ -45,8 +45,9 @@ export const androidCapabilities = {
 export const iosCapabilities: WebdriverIO.Capabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
-  'appium:deviceName': 'iPhone 15',
-  'appium:platformVersion': '17.0',
+  // Doit correspondre au simulateur booté par ios-start / ios_simulator dans le justfile racine.
+  // platformVersion absent : Appium détecte la version depuis le simulateur connecté.
+  'appium:deviceName': process.env.IOS_DEVICE_NAME ?? 'iPhone 17 Pro',
   'appium:app': IOS_APP_PATH,
   'appium:bundleId': 'fr.gouv.ami.staging',
   'appium:noReset': false,
