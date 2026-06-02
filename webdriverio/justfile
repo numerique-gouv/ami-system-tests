@@ -37,7 +37,7 @@ build-test:
 
 # Lancer les tests E2E Android — démarre l'émulateur, build, lance les tests
 # Usage : just test-android [grep]   — grep filtre par describe/it Mocha (optionnel)
-test-android grep="": android-start build-android
+test-android grep="": build-android android-start
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🤖 Tests E2E Android…"

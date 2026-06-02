@@ -6,7 +6,7 @@ class LoginPage {
    * Ferme le review-picker staging si visible (best-effort, no-op sinon).
    * Le picker apparaît uniquement sur les builds staging avec plusieurs review apps.
    */
-  async dismissStagingPicker(): Promise<void> {
+  async reviewEnvironmentPicker(): Promise<void> {
     const loc = getLoginLocators()
     try {
       const picker = $(loc.stagingPicker)

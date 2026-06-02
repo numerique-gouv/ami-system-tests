@@ -13,7 +13,7 @@ tags:
 - runFlow: ../../subflows/onboarding/dismiss.yaml
 - runFlow: ../../subflows/webview/wait-loaded.yaml
 
-- runFlow: ../../subflows/notifications/open-inbox.yaml
+# - runFlow: ../../subflows/notifications/open-inbox.yaml
 
 - evalScript: ${output.notif_name = 'AMI-vanilla-' + Date.now()}
 

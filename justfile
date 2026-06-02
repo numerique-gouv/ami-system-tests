@@ -99,6 +99,24 @@ ios-stop:
     xcrun simctl shutdown "{{ ios_simulator }}" || true
     @echo "✅ Simulateur arrêté."
 
+# ─── Présentation ────────────────────────────────────────────────────────────
+
+# Compiler la présentation en PDF (nécessite typst : brew install typst)
+pdf:
+    @mkdir -p presentation/build
+    typst compile presentation/slides.typ presentation/build/slides.pdf
+    @echo "✅ PDF généré : presentation/build/slides.pdf"
+
+# Générer le PPTX depuis le PDF (1 slide = 1 PNG embarqué, 16:9)
+# Nécessite : pdftoppm (brew install poppler) + python3-pptx (pip install python-pptx)
+pptx: pdf
+    @mkdir -p presentation/build/png
+    pdftoppm -png -r 200 presentation/build/slides.pdf presentation/build/png/slide
+    python3 presentation/make-pptx.py \
+        presentation/build/png \
+        presentation/build/slides.pptx
+    @echo "✅ PPTX généré : presentation/build/slides.pptx"
+
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
 # Vérifier que les outils nécessaires sont installés
