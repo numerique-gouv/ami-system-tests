@@ -145,7 +145,7 @@
 
 == Maestro — Limitations connues, toutes solvables
 
-*Le README Maestro est une liste de limitations... et de leurs solutions.*
+*Les scenario en YAML sont une promesse de simplicité* _et_ *une abstraction limitante.*
 
 #v(0.5em)
 #table(
@@ -159,10 +159,17 @@
 )
 
 #v(0.8em)
-*3 guidelines* dans `maestro/guidelines/` = post-mortems capturés dans le code :\
-preuve d'un processus de mise au point mûr, pas juste d'un framework stable.
+*3 guidelines* dans `maestro/guidelines/` = post-mortems capturés dans le code.\
+*3 contournements* dans `maestro/guidelines/`\
+Les conditions d'exécution d'un subFlow (un process, e.g. login) se déclarent sur l'appelant du subFlow et non à l'interieur.\
+```yaml
+ - runFlow:
+    - script: "login.yaml"
+    - when:
+        - visible: "$(élément de la page login)"
+ ```
 
-== Avantage 1 — Le déclaratif : tests qui lisent comme des checklists
+== Avantage — Le déclaratif : tests qui se lisent comme des checklists
 
 #grid(
   columns: (1fr, 1fr),
@@ -187,83 +194,6 @@ preuve d'un processus de mise au point mûr, pas juste d'un framework stable.
     #v(0.5em)
     Pas de `driver`, pas de `class`,\
     pas d'`import` — juste la *logique métier*.
-  ],
-)
-
-== Avantage 2 — Moins buggué : le refresh AX implicite
-
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 2em,
-  [
-    *Le problème WebView iOS — WDIO*
-
-    Après une redirection OIDC (HTTP 302), le snapshot d'accessibilité WKWebView reste actif. `isDisplayed()` retourne `false` même si l'élément est visuellement présent.
-
-    #v(0.5em)
-    Solution à coder côté WDIO :
-    ```typescript
-    // Forcer un refresh de l'AX tree
-    await driver.getPageSource()
-    // ou : switch context NATIVE ↔ WEBVIEW
-    // ou : driver.takeScreenshot()
-    ```
-    Coût : 2–10 s à chaque transition de page.
-  ],
-  [
-    *Comment Maestro évite ce problème*
-
-    Maestro effectue un `inspect` (équivalent screenshot) *avant chaque commande*. Cela force un refresh de l'AX tree WKWebView à chaque step — gratuitement.
-
-    #v(0.5em)
-    Solution Android :
-    ```yaml
-    androidWebViewHierarchy: devtools
-    ```
-    Chrome DevTools Protocol → arbre DOM complet et synchrone.
-
-    #v(0.5em)
-    #rect(fill: luma(235), inset: 0.6em, radius: 4pt)[
-      *Limite iOS* : pas encore d'équivalent `devtools` — WebView en bêta (05/2026).\
-      Maestro reste meilleur que WDIO\
-      grâce au refresh implicite.
-    ]
-  ],
-)
-
-== Processus — Amorcer un test au milieu d'un flow
-
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 1.5em,
-  [
-    *Le subflow d'amorçage* (`_launch.yaml`)
-    #text(size: 0.65em, raw(read("assets/maestro-launch.yaml"), lang: "yaml"))
-
-    #v(0.3em)
-    *Chaîne typique pour tester l'inbox :*
-    #text(size: 0.72em)[
-      ```yaml
-      - runFlow: subflows/_launch.yaml
-      - runFlow: subflows/auth/login.yaml
-      - runFlow: subflows/onboarding/dismiss.yaml
-      - runFlow: subflows/webview/wait-loaded.yaml
-      # ↑ 4 lignes → utilisateur authent. sur la home
-      ```
-    ]
-  ],
-  [
-    *Pourquoi c'est puissant*
-
-    - `optional: true` → le subflow est un *no-op* si sa condition n'est pas remplie
-    - `when: visible:` → exécution conditionnelle sans `if/else` impératif
-    - On peut démarrer au *milieu d'un flow long* en composant juste les bons amorces
-
-    #v(0.5em)
-    *Idempotence gratuite* : le même subflow peut être appelé plusieurs fois sans effet de bord. Pas de "déjà fait ?" à gérer.
-
-    #v(0.5em)
-    *Comparer avec WDIO* : même principe (`beforeAll`, login fixture), mais à écrire manuellement en TypeScript.
   ],
 )
 
@@ -394,25 +324,6 @@ preuve d'un processus de mise au point mûr, pas juste d'un framework stable.
   ],
 )
 
-== WebdriverIO — Un niveau d'abstraction qui ralentit
-
-*Ce qu'on doit coder à la main (et que Maestro fait gratuitement) :*
-
-#v(0.3em)
-#set text(size: 0.8em)
-#table(
-  columns: (1.3fr, 2fr, 1.5fr),
-  stroke: 0.5pt,
-  fill: (x, y) => if y == 0 { luma(210) } else if calc.odd(y) { luma(250) } else { none },
-  [*Point dur*], [*Code WDIO nécessaire*], [*Maestro*],
-  [Bascule WebView], [`withWebView(async () => { ... })`], [Implicite],
-  [AX tree périmé iOS], [`await driver.getPageSource()` avant chaque assertion], [Refresh avant chaque cmd],
-  [Android WebView], [`chromedriverAutodownload: true` (sinon échec silencieux)], [`devtools` dans header YAML],
-  [iOS SFSafariViewController], [Reset cookies + WKWebView container via `xcrun simctl` dans justfile], [`when: visible:` + `extendedWaitUntil`],
-  [Cross-plateforme], [`androidXxx` / `iosXxx` + `getXxxLocators()` selon `driver.isIOS`], [Dispatcher `when: platform:` YAML],
-)
-#set text(size: 1em)
-
 == WebdriverIO — Processus de mise au point
 
 #grid(
@@ -523,49 +434,11 @@ preuve d'un processus de mise au point mûr, pas juste d'un framework stable.
   [Format],           [YAML — ~30 lignes / scénario E2E],     [TypeScript — classes, driver, imports],
   [Composition],      [`runFlow` + `env:` (déclaratif)],      [Imports + appels de fonctions],
   [Conditions],       [`when: visible:` / `optional: true`],  [`if (await el.isDisplayed())`],
-  [État zéro],        [`clearState` + `clearKeychain: true`], [Manuel via capabilities + justfile],
-  [Cross-plateforme], [Dispatcher `when: platform:` YAML],    [Runners séparés — capabilities distinctes],
-  [Itération],        [`--watch`, `studio`, `hierarchy`],     [grep + skip-rebuild — `browser.debug()` inexploité],
   [Échappatoire],     [`runScript` (GraalVM — sans libs Node)],[TS natif, Node complet],
-  [WebView iOS],      [Refresh AX *implicite* avant chaque cmd],[`refreshAxTree()` helper manuel],
   [Écosystème],       [1 binaire — mono-outil],               [350+ dépendances — reporters, plugins, CI],
   [Scénario vanilla], [1 flow + 5 subflows + 2 elements + 1 script],[1 test + 1 page + 1 locator + 1 helper],
 )
 #set text(size: 1em)
-
-== Verdict
-
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 2em,
-  [
-    *Maestro gagne pour AMI aujourd'hui*
-
-    - App hybride WebView → refresh AX implicite = moins de flakiness iOS
-    - < 20 scénarios → la composition YAML suffit
-    - Équipe orientée déclaratif → lisibilité métier directe
-    - Mise au point interactive (`studio` + `--watch` + `hierarchy`)
-    - Le déclaratif force à documenter les invariants (subflows commentés)
-
-    #v(0.5em)
-    #rect(fill: luma(220), inset: 0.8em, radius: 4pt, width: 100%)[
-      *Maestro est plus efficace\
-      pour ce profil de projet.*
-    ]
-  ],
-  [
-    *WebdriverIO reste pertinent quand...*
-
-    - Besoin de librairies Node (HTTP custom, crypto, base de test)
-    - Parallélisme inter-devices complexe (Appium Hub/Grid)
-    - Intégrations CI riches (JUnit, Allure, JIRA)
-    - Suite de > 20 scénarios avec retry sophistiqué
-    - Forte culture TypeScript dans l'équipe
-
-    #v(0.5em)
-    L'architecture POM + Testing Library est solide. Le Screenplay Pattern reste une évolution naturelle si la suite grossit significativement.
-  ],
-)
 
 == À surveiller
 
