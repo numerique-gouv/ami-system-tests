@@ -33,13 +33,28 @@ class HomePage {
    *   1. Natif  : waitForVisible() détecte le conteneur WebView
    *   2. WebView : #notification-icon confirme que la SPA home authentifiée est rendue
    * Timeout long (60 s) pour couvrir le flow OIDC complet.
+   *
+   * On utilise driver.execute() (JS sync) + browser.waitUntil() plutôt que
+   * tl().findByRole() (executeAsyncScript) : sur WKWebView, un async script
+   * en cours est silencieusement tué si la page navigue, ce qui bloque Appium
+   * indéfiniment. Le sync JS renvoie immédiatement une erreur lors d'une
+   * navigation, et le try/catch dans waitUntil réessaie à l'intervalle suivant.
    */
   async waitForSpaReady(timeout = 60000): Promise<void> {
     await this.waitForVisible(timeout)
     await withWebView(async () => {
-      // Le lien "Notifications" dans le header confirme que la SPA home authentifiée
-      // est rendue — équivalent sémantique de '#notification-icon' (CSS structurel).
-      await tl().findByRole('link', { name: /notifications/i }, { timeout })
+      await browser.waitUntil(
+        async () => {
+          try {
+            return await driver.execute(
+              () => !!document.querySelector('#notification-icon a[href]')
+            ) as boolean
+          } catch {
+            return false
+          }
+        },
+        { timeout, interval: 1000, timeoutMsg: `SPA home non prête — #notification-icon absent après ${timeout}ms` }
+      )
     })
   }
 

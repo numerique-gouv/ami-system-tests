@@ -59,7 +59,7 @@ android-start:
         exit 0
     fi
     echo "🤖 Démarrage de l'émulateur {{ android_avd }}…"
-    "$EMU" -avd {{ android_avd }} -no-snapshot-save $POS_ARGS &
+    "$EMU" -avd {{ android_avd }} -no-snapshot-save &
     "$ADB" wait-for-device
     until "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
     # Attendre que le package manager soit opérationnel (requis par UiAutomator2)
@@ -100,6 +100,9 @@ ios-stop:
     xcrun simctl shutdown "{{ ios_simulator }}" || true
     @echo "✅ Simulateur arrêté."
 
+# Arrêter tous les simulateurs
+stop: android-stop ios-stop
+
 # ─── Présentation ────────────────────────────────────────────────────────────
 
 # Compiler une présentation en PDF (nécessite typst : brew install typst)
@@ -119,6 +122,17 @@ pptx name="slides": (pdf name)
         presentation/build/png-{{name}} \
         presentation/build/{{name}}.pptx
     @echo "✅ PPTX généré : presentation/build/{{name}}.pptx"
+
+# Générer le PPTX équipe avec la vidéo démo embarquée sur la slide 4
+# Nécessite en plus : ffmpeg (brew install ffmpeg)
+pptx-equipe: (pdf "slides-equipe")
+    @mkdir -p presentation/build/png-slides-equipe
+    pdftoppm -png -r 200 presentation/build/slides-equipe.pdf presentation/build/png-slides-equipe/slide
+    python3 presentation/make-pptx.py \
+        --video-on-slide 4 "presentation/assets/démo 2026 06 04 test E2E avec Webdriver.mp4" \
+        presentation/build/png-slides-equipe \
+        presentation/build/slides-equipe.pptx
+    @echo "✅ PPTX équipe généré : presentation/build/slides-equipe.pptx"
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
