@@ -6,8 +6,8 @@ import SettingsPage from '../pages/settings.page'
 
 describe('Home', () => {
   before(async () => {
-    AllureReporter.addFeature('Home')
-    AllureReporter.addSeverity('normal')
+    await AllureReporter.addFeature('Home')
+    await AllureReporter.addSeverity('normal')
     // Passe l'onboarding une fois pour la suite de tests
     const onboardingVisible = await OnboardingPage.isVisible()
     if (onboardingVisible) {

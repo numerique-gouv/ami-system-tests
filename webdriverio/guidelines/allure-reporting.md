@@ -30,13 +30,14 @@ reporters: [
   ['allure', {
     outputDir: 'allure-results',
     disableWebdriverStepsReporting: false, // ← commandes WDIO visibles
-    // addConsoleLogs: true,               // ← activer pour capturer les logs Appium
+    addConsoleLogs: true,                  // ← activé par défaut (logs console.log/warn/error)
   }],
 ],
 ```
 
-**Activer `addConsoleLogs: true`** pour inclure les logs `console.log/warn/error` dans
-le rapport. Utile pour tracer les context switches et les erreurs réseau côté SPA.
+`addConsoleLogs: true` est **activé par défaut** dans ce projet. Il inclut les logs
+`console.log/warn/error` dans le rapport Allure — utile pour tracer les context switches
+et les erreurs réseau côté SPA.
 
 ### Étapes métier avec `addStep`
 
@@ -118,12 +119,9 @@ just report
 ## 4. Où c'est appliqué dans le dépôt
 
 - `webdriverio/wdio.base.conf.ts:51-54` — configuration Allure (reporters).
-- `webdriverio/wdio.base.conf.ts:72-80` — hook `afterTest` avec screenshot automatique.
+- `webdriverio/wdio.base.conf.ts:72-96` — hook `afterTest` avec screenshot + attachement Allure + DOM snapshot WebView.
 - `webdriverio/justfile:report` — cible pour ouvrir le rapport.
 
-À enrichir en priorité :
-- `webdriverio/src/tests/notifications.test.ts` — scénario long, idéal pour des `addStep`.
-- Labels de sévérité sur tous les `describe` pour filtrer les runs en CI.
 
 ## 5. Sources
 

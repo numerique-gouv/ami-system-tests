@@ -5,8 +5,8 @@ import SettingsPage from '../pages/settings.page'
 
 describe('Paramètres', () => {
   before(async () => {
-    AllureReporter.addFeature('Paramètres')
-    AllureReporter.addSeverity('normal')
+    await AllureReporter.addFeature('Paramètres')
+    await AllureReporter.addSeverity('normal')
     const onboardingVisible = await OnboardingPage.isVisible()
     if (onboardingVisible) {
       await OnboardingPage.skip()

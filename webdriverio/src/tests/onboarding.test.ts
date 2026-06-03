@@ -3,9 +3,9 @@ import OnboardingPage from '../pages/onboarding.page'
 import HomePage from '../pages/home.page'
 
 describe('Onboarding', () => {
-  before(() => {
-    AllureReporter.addFeature('Onboarding')
-    AllureReporter.addSeverity('normal')
+  before(async () => {
+    await AllureReporter.addFeature('Onboarding')
+    await AllureReporter.addSeverity('normal')
   })
 
   beforeEach(async () => {

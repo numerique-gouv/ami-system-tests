@@ -1,6 +1,7 @@
 import type { Options } from '@wdio/types'
 import path from 'path'
 import fs from 'fs'
+import AllureReporter from '@wdio/allure-reporter'
 
 // Charge un fichier .env dans process.env sans dépendance externe.
 // Les variables déjà définies dans le shell ne sont pas écrasées.
@@ -70,12 +71,29 @@ export const baseConfig: Partial<Options.Testrunner> = {
   },
 
   afterTest: async (test, _context, result): Promise<void> => {
-    if (!result.passed) {
+    if (result.passed) return
+    try {
       const png = await browser.takeScreenshot()
+      await AllureReporter.addAttachment('Screenshot (échec)', Buffer.from(png, 'base64'), 'image/png')
+      // Conserve aussi sur disque pour les workflows hors Allure (CI logs)
       const dir = path.resolve(__dirname, '.wdio-logs/screenshots')
       fs.mkdirSync(dir, { recursive: true })
       const name = test.title.replace(/[^a-z0-9]/gi, '_').slice(0, 80)
       fs.writeFileSync(path.join(dir, `${name}_${Date.now()}.png`), Buffer.from(png, 'base64'))
+    } catch {
+      // Un crash de takeScreenshot (ex : session Appium fermée) ne doit pas masquer l'erreur du test
+    }
+    // DOM snapshot uniquement en WebView — évite le blocage ~25 s sur iOS hors contexte stabilisé
+    // et la page source XML native qui est lourde et inutile pour le débogage
+    try {
+      const ctx = await browser.getContext()
+      const ctxName = typeof ctx === 'string' ? ctx : ((ctx as { id?: string })?.id ?? '')
+      if (ctxName.startsWith('WEBVIEW')) {
+        const html = await browser.getPageSource()
+        await AllureReporter.addAttachment('DOM snapshot (WebView)', html, 'text/html')
+      }
+    } catch {
+      // idem — un échec de capture DOM ne doit jamais masquer l'erreur du test
     }
   },
 }

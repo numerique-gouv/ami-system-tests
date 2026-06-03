@@ -5,8 +5,8 @@ import PartnerPage from '../pages/partner.page'
 
 describe('Partenaire — écran de détail', () => {
   before(async () => {
-    AllureReporter.addFeature('Partenaire')
-    AllureReporter.addSeverity('normal')
+    await AllureReporter.addFeature('Partenaire')
+    await AllureReporter.addSeverity('normal')
     const onboardingVisible = await OnboardingPage.isVisible()
     if (onboardingVisible) {
       await OnboardingPage.skip()

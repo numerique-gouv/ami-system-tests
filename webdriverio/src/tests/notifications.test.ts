@@ -7,9 +7,9 @@ import NotificationsInboxPage from '../pages/notifications.page'
 import { publishNotification } from '../helpers/notifications-api'
 
 describe('Notifications', () => {
-  before(() => {
-    AllureReporter.addFeature('Notifications')
-    AllureReporter.addSeverity('critical')
+  before(async () => {
+    await AllureReporter.addFeature('Notifications')
+    await AllureReporter.addSeverity('critical')
   })
 
   /**
@@ -25,12 +25,12 @@ describe('Notifications', () => {
    *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios-notifications`
    */
   it("reçoit une notification publiée dans l'inbox in-app", async () => {
-    AllureReporter.addStep('1. Login FranceConnect')
+    await AllureReporter.addStep('1. Login FranceConnect')
     await LoginPage.reviewEnvironmentPicker()
     await LoginPage.tapFranceConnect()
     await FranceConnectPage.loginWithSandbox()
 
-    AllureReporter.addStep('2. Onboarding : décliner les notifications OS')
+    await AllureReporter.addStep('2. Onboarding : décliner les notifications OS')
     await OnboardingNotificationsPage.dismiss()
 
     // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC (iOS)
@@ -40,24 +40,24 @@ describe('Notifications', () => {
       // absent dans la majorité des cas
     }
 
-    AllureReporter.addStep('3. Attendre la home SPA chargée')
+    await AllureReporter.addStep('3. Attendre la home SPA chargée')
     await HomePage.waitForSpaReady()
 
-    AllureReporter.addStep('4. Ouvrir l\'inbox notifications')
+    await AllureReporter.addStep('4. Ouvrir l\'inbox notifications')
     await NotificationsInboxPage.openFromHome()
 
-    AllureReporter.addStep('5. Publier la notification via l\'API partenaire')
+    await AllureReporter.addStep('5. Publier la notification via l\'API partenaire')
     const title = `AMI-vanilla-${Date.now()}`
     await publishNotification({
       title,
       body: "Test vanilla — push OS non autorisé, doit apparaître dans l'inbox",
     })
 
-    AllureReporter.addStep('6. Vérifier la réception dans l\'inbox (WebSocket)')
+    await AllureReporter.addStep('6. Vérifier la réception dans l\'inbox (WebSocket)')
     // La SPA reçoit la notification via WebSocket sans rechargement de page.
     await NotificationsInboxPage.waitForNotification(title)
 
-    AllureReporter.addStep('7. Ouvrir la notification et vérifier son titre')
+    await AllureReporter.addStep('7. Ouvrir la notification et vérifier son titre')
     await NotificationsInboxPage.clickNotification(title)
     const newTop = await NotificationsInboxPage.getDetailTitle()
     expect(newTop).toEqual(title)
