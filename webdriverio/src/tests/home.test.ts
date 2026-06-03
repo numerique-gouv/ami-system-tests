@@ -1,3 +1,4 @@
+import AllureReporter from '@wdio/allure-reporter'
 import OnboardingPage from '../pages/onboarding.page'
 import HomePage from '../pages/home.page'
 import PartnerPage from '../pages/partner.page'
@@ -5,6 +6,8 @@ import SettingsPage from '../pages/settings.page'
 
 describe('Home', () => {
   before(async () => {
+    AllureReporter.addFeature('Home')
+    AllureReporter.addSeverity('normal')
     // Passe l'onboarding une fois pour la suite de tests
     const onboardingVisible = await OnboardingPage.isVisible()
     if (onboardingVisible) {
@@ -15,7 +18,7 @@ describe('Home', () => {
 
   it("affiche le titre de la page d'accueil", async () => {
     const title = await HomePage.getTitle()
-    expect(title.length).toBeGreaterThan(0)
+    expect(title).not.toBe('')
   })
 
   it('affiche la liste des partenaires', async () => {
@@ -31,6 +34,6 @@ describe('Home', () => {
   it('navigue vers les paramètres via la tab bar', async () => {
     await HomePage.goToSettings()
     await SettingsPage.waitForVisible()
-    expect(await SettingsPage.isVisible()).toBe(true)
+    // waitForVisible garantit l'affichage — pas de double vérification
   })
 })

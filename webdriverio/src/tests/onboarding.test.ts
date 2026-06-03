@@ -1,7 +1,13 @@
+import AllureReporter from '@wdio/allure-reporter'
 import OnboardingPage from '../pages/onboarding.page'
 import HomePage from '../pages/home.page'
 
 describe('Onboarding', () => {
+  before(() => {
+    AllureReporter.addFeature('Onboarding')
+    AllureReporter.addSeverity('normal')
+  })
+
   beforeEach(async () => {
     // Repart d'un état propre : réinstalle l'app pour rejouer l'onboarding
     await driver.terminateApp('fr.gouv.ami.staging')
@@ -14,7 +20,7 @@ describe('Onboarding', () => {
 
   it('affiche un titre de bienvenue non vide', async () => {
     const title = await OnboardingPage.getTitle()
-    expect(title.length).toBeGreaterThan(0)
+    expect(title).not.toBe('')
   })
 
   it("permet de passer l'onboarding via le bouton skip", async () => {

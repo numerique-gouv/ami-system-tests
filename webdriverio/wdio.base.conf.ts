@@ -50,7 +50,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   reporters: [
     'spec',
-    ['allure', { outputDir: 'allure-results', disableWebdriverStepsReporting: false }],
+    ['allure', { outputDir: 'allure-results', disableWebdriverStepsReporting: false, addConsoleLogs: true }],
   ],
 
   // specFileRetries relance le fichier de spec entier dans un nouveau processus Appium

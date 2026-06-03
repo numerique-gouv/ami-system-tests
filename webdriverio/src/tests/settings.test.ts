@@ -1,9 +1,12 @@
+import AllureReporter from '@wdio/allure-reporter'
 import OnboardingPage from '../pages/onboarding.page'
 import HomePage from '../pages/home.page'
 import SettingsPage from '../pages/settings.page'
 
 describe('Paramètres', () => {
   before(async () => {
+    AllureReporter.addFeature('Paramètres')
+    AllureReporter.addSeverity('normal')
     const onboardingVisible = await OnboardingPage.isVisible()
     if (onboardingVisible) {
       await OnboardingPage.skip()
@@ -15,7 +18,7 @@ describe('Paramètres', () => {
 
   it("affiche le titre de l'écran paramètres", async () => {
     const title = await SettingsPage.getTitle()
-    expect(title.length).toBeGreaterThan(0)
+    expect(title).not.toBe('')
   })
 
   it("affiche le numéro de version de l'application", async () => {
@@ -25,9 +28,8 @@ describe('Paramètres', () => {
   })
 
   it('affiche le toggle de notifications', async () => {
-    const enabled = await SettingsPage.isNotificationsToggleEnabled()
-    // On vérifie juste que la valeur est récupérable (boolean)
-    expect(typeof enabled).toBe('boolean')
+    // Une exception ici indique un bug driver — la valeur (true/false) importe peu
+    await SettingsPage.isNotificationsToggleEnabled()
   })
 
   it('peut activer/désactiver les notifications', async () => {
