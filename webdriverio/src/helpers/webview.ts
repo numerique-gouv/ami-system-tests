@@ -51,6 +51,12 @@ export async function withWebView<T>(callback: () => Promise<T>): Promise<T> {
     )
   }
   await driver.switchContext(webviewContext)
+  // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
+  // @testing-library/webdriverio utilise executeAsync (pas execute) → toutes les requêtes
+  // findBy* échouent instantanément sans ce reset explicite.
+  if (driver.isIOS) {
+    await browser.setTimeout({ script: 30000 }).catch(() => {})
+  }
   // Après le switch, re-sélectionner le dernier window handle disponible.
   // Pendant le flow OIDC, le tab callback se ferme juste après le redirect ;
   // sans ce step, Chromedriver pointe sur un handle stale ("no such window").

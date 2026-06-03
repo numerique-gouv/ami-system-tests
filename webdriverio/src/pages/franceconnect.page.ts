@@ -67,18 +67,21 @@ class FranceConnectPage {
    * Doit être appelé dans un contexte WebView (ou via withWebView).
    */
   async submit(): Promise<void> {
-    // Sur iOS WKWebView, button.click() via WKRDP ne déclenche pas toujours le submit.
-    // On utilise la touche Entrée (touche "Go" du clavier iOS), comme Maestro pressKey: Enter.
-    await browser.keys(['Return'])
     if (driver.isIOS) {
-      // Sur iOS/fip1-low, $() ne peut pas finder #mire (même bug WKRDP que fillCredentials).
-      // On attend que l'URL change — signal fiable que le redirect OIDC a été suivi.
+      // Sur iOS/WKWebView, fillCredentials utilise driver.execute() pour contourner le bug WKRDP
+      // (focus JS ≠ focus natif → browser.keys('Return') envoie la touche dans le vide).
+      // On clique le bouton submit via JS pour rester cohérent avec la même stratégie.
+      await driver.execute(() => {
+        const btn = document.querySelector<HTMLButtonElement>('button[type="submit"]')
+        btn?.click()
+      })
       const urlBeforeSubmit = await driver.getUrl().catch(() => '')
       await browser.waitUntil(
         async () => (await driver.getUrl().catch(() => urlBeforeSubmit)) !== urlBeforeSubmit,
         { timeout: 15000, interval: 300, timeoutMsg: 'Redirect OIDC post-submit non détecté en 15s' }
       )
     } else {
+      await browser.keys(['Return'])
       // Android : attendre que le conteneur FCP-LOW disparaisse (redirect OIDC suivi)
       await $(fcpLocators.fcpLowHeading).waitForDisplayed({ timeout: 15000, reverse: true })
     }

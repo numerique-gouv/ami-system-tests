@@ -30,7 +30,6 @@ describe('Notifications', () => {
     // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC (iOS)
     try {
       await LoginPage.tapFranceConnect(5000)
-      await FranceConnectPage.loginWithSandbox()
     } catch (e) {
       // absent dans la majorité des cas
     }
