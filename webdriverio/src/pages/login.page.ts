@@ -24,15 +24,16 @@ class LoginPage {
    * Sur Android : bouton natif (NATIVE_APP, contentDescription).
    * Sur iOS : bouton dans la WebView SPA (context switch automatique).
    */
-  async tapFranceConnect(): Promise<void> {
+  async tapFranceConnect(timeoutMs = 15000): Promise<void> {
+    const timeout = timeoutMs
     const loc = getLoginLocators()
     if (loc.fcButtonInWebView) {
       await withWebView(async () => {
-        await $(loc.fcButton).waitForDisplayed({ timeout: 15000 })
+        await $(loc.fcButton).waitForDisplayed({ timeout })
         await $(loc.fcButton).click()
       })
     } else {
-      await $(loc.fcButton).waitForDisplayed({ timeout: 15000 })
+      await $(loc.fcButton).waitForDisplayed({ timeout })
       await $(loc.fcButton).click()
     }
   }

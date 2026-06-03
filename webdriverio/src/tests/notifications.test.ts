@@ -19,44 +19,47 @@ describe('Notifications', () => {
    *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios-notifications`
    */
   it("reçoit une notification publiée dans l'inbox in-app", async () => {
-    // ── 1. Login FranceConnect ───────────────────────────────────────────────
+    // ── 1. Login FranceConnect ──────────────────────────────────────────────────
     await LoginPage.reviewEnvironmentPicker()
     await LoginPage.tapFranceConnect()
     await FranceConnectPage.loginWithSandbox()
 
-    // ── 2. Onboarding : décliner les notifications OS ───────────────────────
+    // ── 2. Onboarding : décliner les notifications OS ──────────────────────────
     await OnboardingNotificationsPage.dismiss()
     
-    // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC
+    // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC (iOS)
     try {
-      await LoginPage.tapFranceConnect()
+      await LoginPage.tapFranceConnect(5000)
+      await FranceConnectPage.loginWithSandbox()
     } catch (e) {
       // absent dans la majorité des cas
     }
 
-
-    // ── 3. Attendre la home SPA chargée (avatar profil visible en WebView) ──
+    // ── 3. Attendre la home SPA chargée (avatar profil visible en WebView) ─────
     await HomePage.waitForSpaReady()
 
-    // ── 4. Ouvrir l'inbox et mémoriser le titre courant en tête ─────────────
+    // ── 4. Ouvrir l'inbox et mémoriser le titre courant en tête ────────────────
     await NotificationsInboxPage.openFromHome()
-    const oldTop = await NotificationsInboxPage.getTopNotificationTitle()
-    // ── 5. Générer un titre unique pour ce run ──────────────────────────────
+    const oldTop = await NotificationsInboxPage.getDetailTitle()
+    // ── 5. Générer un titre unique pour ce run ─────────────────────────────────
 
     const title = `AMI-vanilla-${Date.now()}`
-    // ── 6. Publier la notification via l'API partenaire ─────────────────────
 
+    // ── 6. Publier la notification via l'API partenaire ────────────────────────
     await publishNotification({
       title,
       body: "Test vanilla — push OS non autorisé, doit apparaître dans l'inbox",
     })
-    // ── 7. Pull-to-refresh puis assertion ───────────────────────────────────
 
-    await NotificationsInboxPage.pullToRefresh()
+    // ── 7. Attendre la mise à jour WebSocket puis assertion ────────────────────
+    // La SPA reçoit la notification via WebSocket sans rechargement de page.
     await NotificationsInboxPage.waitForNotification(title)
-    // Le titre en tête a bien changé par rapport à l'état initial
-
+    // ── 8. "Lire" la notification et vérifier son titre ────────────────────────
+    await NotificationsInboxPage.clickNotification(title)
+    
+    // ── 9. Vérifier que le titre de la première notification est celle du test ─
     expect(oldTop).not.toEqual(title)
-    // TODO refresh pageSource to find new notification so you can click on it to consult the content.
+    const newTop = await NotificationsInboxPage.getDetailTitle()
+    expect(newTop).toEqual(title)
   })
 })
