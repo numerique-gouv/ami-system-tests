@@ -17,6 +17,13 @@ class HomePage {
    * L'app AMI est 100% SPA — pas de resource-id natif, on détecte la WebView elle-même.
    */
   async waitForVisible(timeout = 30000): Promise<void> {
+    const { width, height } = await driver.getWindowSize()
+    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+      .move({ duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.4) })
+      .down({ button: 0 })
+      .move({ duration: 300, x: Math.round(width / 2), y: Math.round(height * 0.5) })
+      .up({ button: 0 })
+      .perform()
     const loc = getHomeLocators()
     await $(loc.screenRoot).waitForDisplayed({ timeout })
   }

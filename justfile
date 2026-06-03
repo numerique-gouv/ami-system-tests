@@ -41,8 +41,8 @@ build: build-android build-ios
 
 # ─── Émulateurs / Simulateurs ───────────────────────────────────────────────
 
-android_avd    := "Pixel_modern"
-android_sdk    := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
+android_avd         := "Pixel_modern"
+android_sdk         := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
 
 # Démarrer l'émulateur Android si aucun appareil n'est déjà connecté via adb.
 # Si un émulateur est déjà actif (quelle que soit sa provenance), on le réutilise.
@@ -59,7 +59,7 @@ android-start:
         exit 0
     fi
     echo "🤖 Démarrage de l'émulateur {{ android_avd }}…"
-    "$EMU" -avd {{ android_avd }} -no-snapshot-save &
+    "$EMU" -avd {{ android_avd }} -no-snapshot-save $POS_ARGS &
     "$ADB" wait-for-device
     until "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
     # Attendre que le package manager soit opérationnel (requis par UiAutomator2)
@@ -68,6 +68,7 @@ android-start:
     # Le snapshot default_boot peut charger avec l'écran verrouillé.
     "$ADB" shell input keyevent 82   # KEYCODE_MENU : réveille l'écran
     "$ADB" shell input keyevent 4    # KEYCODE_BACK  : ferme tout dialog éventuel
+    "$ADB" shell input keyevent 3    # KEYCODE_HOME : accueil launcher (pas d'app ouverte)
     sleep 2
     echo "✅ Émulateur prêt."
 
@@ -101,21 +102,23 @@ ios-stop:
 
 # ─── Présentation ────────────────────────────────────────────────────────────
 
-# Compiler la présentation en PDF (nécessite typst : brew install typst)
-pdf:
+# Compiler une présentation en PDF (nécessite typst : brew install typst)
+# Usage : just pdf                  → slides.pdf
+#         just pdf slides-equipe    → slides-equipe.pdf
+pdf name="slides":
     @mkdir -p presentation/build
-    typst compile presentation/slides.typ presentation/build/slides.pdf
-    @echo "✅ PDF généré : presentation/build/slides.pdf"
+    typst compile presentation/{{name}}.typ presentation/build/{{name}}.pdf
+    @echo "✅ PDF généré : presentation/build/{{name}}.pdf"
 
 # Générer le PPTX depuis le PDF (1 slide = 1 PNG embarqué, 16:9)
 # Nécessite : pdftoppm (brew install poppler) + python3-pptx (pip install python-pptx)
-pptx: pdf
-    @mkdir -p presentation/build/png
-    pdftoppm -png -r 200 presentation/build/slides.pdf presentation/build/png/slide
+pptx name="slides": (pdf name)
+    @mkdir -p presentation/build/png-{{name}}
+    pdftoppm -png -r 200 presentation/build/{{name}}.pdf presentation/build/png-{{name}}/slide
     python3 presentation/make-pptx.py \
-        presentation/build/png \
-        presentation/build/slides.pptx
-    @echo "✅ PPTX généré : presentation/build/slides.pptx"
+        presentation/build/png-{{name}} \
+        presentation/build/{{name}}.pptx
+    @echo "✅ PPTX généré : presentation/build/{{name}}.pptx"
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 

@@ -36,7 +36,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // 'warn' supprime les logs COMMAND/DATA/RESULT d'Appium (niveau info) qui
   // parasitent la sortie console sans valeur ajoutée lors d'une exécution normale.
   // Passer à 'info' ou 'debug' ponctuellement pour diagnostiquer un test flaky.
-  logLevel: 'warn',
+  logLevel: 'info',
 
   bail: 0,
 
@@ -50,14 +50,13 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   reporters: [
     'spec',
-    // Décommentez pour activer Allure :
-    // ['allure', { outputDir: 'allure-results', disableWebdriverStepsReporting: false }],
+    ['allure', { outputDir: 'allure-results', disableWebdriverStepsReporting: false }],
   ],
 
   // specFileRetries relance le fichier de spec entier dans un nouveau processus Appium
   // (session fraîche, logs propres par tentative) contrairement à mochaOpts.retries
   // qui réutilise la même session et répète les logs dans le même flux de sortie.
-  specFileRetries: 1,
+  specFileRetries: 0,
   specFileRetriesDelay: 0,
 
   mochaOpts: {

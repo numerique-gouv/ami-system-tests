@@ -97,14 +97,18 @@ class FranceConnectPage {
   async loginWithSandbox(): Promise<void> {
     await withWebView(async () => {
       // Sur iOS, le bouton FC est dans la WebView SPA : la navigation vers le serveur FC
-      // est asynchrone. On attend que l'URL quitte la SPA avant de chercher la page eIDAS.
-      // Sur Android, la transition est synchrone (bouton natif) — ce waitUntil retourne immédiatement.
-      const spaUrl = await driver.getUrl().catch(() => '')
-      if (spaUrl) {
-        await browser.waitUntil(
-          async () => (await driver.getUrl().catch(() => spaUrl)) !== spaUrl,
-          { timeout: 15000, interval: 300, timeoutMsg: 'Navigation depuis la SPA non détectée en 15s' }
-        ).catch(() => {})
+      // est asynchrone — on attend que l'URL quitte la SPA avant de chercher la page eIDAS.
+      // Sur Android, tapFranceConnect() clique un bouton natif : la WebView est déjà sur la
+      // page eIDAS quand on arrive ici, donc spaUrl serait l'URL eIDAS et le waitUntil
+      // attendrait 15s pour rien (il guetterait une navigation qui n'arrive qu'après selectEidasFaible).
+      if (driver.isIOS) {
+        const spaUrl = await driver.getUrl().catch(() => '')
+        if (spaUrl) {
+          await browser.waitUntil(
+            async () => (await driver.getUrl().catch(() => spaUrl)) !== spaUrl,
+            { timeout: 15000, interval: 300, timeoutMsg: 'Navigation depuis la SPA non détectée en 15s' }
+          ).catch(() => {})
+        }
       }
 
       await this.selectEidasFaible()
