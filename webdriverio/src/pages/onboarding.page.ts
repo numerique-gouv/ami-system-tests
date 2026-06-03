@@ -5,9 +5,12 @@ class OnboardingPage {
    * Vérifie que l'écran d'onboarding est affiché
    */
   async isVisible(): Promise<boolean> {
-    const loc = getOnboardingLocators()
-    const el = await $(loc.welcomeTitle)
-    return el.isDisplayed()
+    try {
+      const loc = getOnboardingLocators()
+      return await $(loc.welcomeTitle).isDisplayed()
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -15,38 +18,33 @@ class OnboardingPage {
    */
   async getTitle(): Promise<string> {
     const loc = getOnboardingLocators()
-    return (await $(loc.welcomeTitle)).getText()
+    return await $(loc.welcomeTitle).getText()
   }
 
-  /**
-   * Avance à l'étape suivante de l'onboarding
-   */
   async continue(): Promise<void> {
     const loc = getOnboardingLocators()
-    await (await $(loc.continueButton)).click()
+    await $(loc.continueButton).click()
   }
 
-  /**
-   * Passe l'onboarding en entier
-   */
   async skip(): Promise<void> {
     const loc = getOnboardingLocators()
-    const skipBtn = await $(loc.skipButton)
+    const skipBtn = $(loc.skipButton)
     if (await skipBtn.isDisplayed()) {
       await skipBtn.click()
     }
   }
 
   /**
-   * Parcourt toutes les étapes de l'onboarding jusqu'à la fin
+   * Parcourt toutes les étapes de l'onboarding jusqu'à la fin.
+   * Attend que le bouton soit cliquable à chaque étape — gère l'animation de transition.
    */
   async completeAll(maxSteps = 5): Promise<void> {
     const loc = getOnboardingLocators()
     for (let i = 0; i < maxSteps; i++) {
-      const continueBtn = await $(loc.continueButton)
-      if (!(await continueBtn.isDisplayed())) break
+      const continueBtn = $(loc.continueButton)
+      if (!(await continueBtn.isDisplayed().catch(() => false))) break
+      await continueBtn.waitForClickable({ timeout: 3000 })
       await continueBtn.click()
-      await browser.pause(500)
     }
   }
 }

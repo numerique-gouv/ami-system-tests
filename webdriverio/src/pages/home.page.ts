@@ -6,7 +6,7 @@ class HomePage {
   async isVisible(): Promise<boolean> {
     try {
       const loc = getHomeLocators()
-      return $(loc.screenRoot).isDisplayed()
+      return await $(loc.screenRoot).isDisplayed()
     } catch {
       return false
     }
@@ -68,9 +68,9 @@ class HomePage {
   /** Vérifie si la liste "Mon agenda" ou "Mes démarches" est visible dans la SPA. */
   async isPartnerListVisible(): Promise<boolean> {
     try {
-      return withWebView(async () => {
-        const el = $('//*[contains(., "Mon agenda") or contains(., "Mes démarches")]')
-        return el.isDisplayed()
+      return await withWebView(async () => {
+        const el = await tl().findByText(/mon agenda|mes démarches/i, {}, { timeout: 5000 }).catch(() => null)
+        return el ? await el.isDisplayed() : false
       })
     } catch {
       return false

@@ -37,11 +37,9 @@ describe('Notifications', () => {
     // ── 3. Attendre la home SPA chargée (avatar profil visible en WebView) ─────
     await HomePage.waitForSpaReady()
 
-    // ── 4. Ouvrir l'inbox et mémoriser le titre courant en tête ────────────────
+    // ── 4. Ouvrir l'inbox ─────────────────────────────────────────────────────
     await NotificationsInboxPage.openFromHome()
-    const oldTop = await NotificationsInboxPage.getDetailTitle()
     // ── 5. Générer un titre unique pour ce run ─────────────────────────────────
-
     const title = `AMI-vanilla-${Date.now()}`
 
     // ── 6. Publier la notification via l'API partenaire ────────────────────────
@@ -56,8 +54,7 @@ describe('Notifications', () => {
     // ── 8. "Lire" la notification et vérifier son titre ────────────────────────
     await NotificationsInboxPage.clickNotification(title)
     
-    // ── 9. Vérifier que le titre de la première notification est celle du test ─
-    expect(oldTop).not.toEqual(title)
+    // ── 9. Vérifier que le titre affiché dans la vue détail correspond au test ──
     const newTop = await NotificationsInboxPage.getDetailTitle()
     expect(newTop).toEqual(title)
   })
