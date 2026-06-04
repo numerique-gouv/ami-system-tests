@@ -207,7 +207,7 @@
     #text(size: 1.1em)[
       *À chaque release, nous avons une preuve de bon fonctionnement de chaque
       parcours existant.*\
-      Quand les tests sont passés à chaque merge, le premier test non passant est dû au merge en cours (ou à un problème externe — e.g. infra).
+      Quand les tests sont passés à chaque mise en recette, le premier test non passant est dû au code publié entre les deux dernières mises en recettes (ou à un problème externe — e.g. infra).
     ]
     #v(0.8em)
     #text(size: 1.1em)[
@@ -258,19 +258,19 @@
   gutter:  0.7em,
   capability-card(
     icon-tag("◉"), "Tester sur les vrais téléphones",
-    [La même suite tourne sur des « device farms » (BrowserStack, SauceLabs, TestingBot) : un parc d'iPhone / Android réels, pas seulement des simulateurs.],
+    [Le même jeux de tests peut tourner sur des « device farms » (BrowserStack, SauceLabs, TestingBot) : un parc d'iPhone / Android réels "as a service", pas seulement des simulateurs.],
   ),
   capability-card(
     icon-tag("⊕"), "Tester deux utilisateurs en même temps (usager et partenaire)",
-    [Un partenaire envoie une notif, un usager la reçoit — tout dans le même scénario.],
+    [Un partenaire envoie une notification, un usager la reçoit — tout dans le même scénario.],
   ),
   capability-card(
     icon-tag("◐"), "Tester un parcours natif + web",
-    [L'app a des écrans natifs et des écrans web embarqués. La suite passe de l'un à l'autre — invisible pour l'usager, vérifié pour nous.],
+    [L'app a des écrans natifs et des écrans web embarqués. Le test de la démo passe de l'un à l'autre.],
   ),
   capability-card(
-    icon-tag("↩"), "Compatibilité descendante",
-    [Quand l'app native évolue, on peut rejouer les parcours pour vérifier que l'ancienne version installée ne casse pas.],
+    icon-tag("↩"), "Compatibilité natif et webview",
+    [Quand la web app évolue, on peut rejouer les parcours sur chaque version d'app native maintenue en utilisant la nouvelle webapp et/ou le nouveau backend pour vérifier que les parcours essentiels ne cassent pas.],
   ),
 )
 #v(0.3em)
