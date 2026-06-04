@@ -33,9 +33,9 @@ class OnboardingNotificationsPage {
     }
     try {
       const onboarding = $(titleSelector())
-      await onboarding.waitForExist({ timeout: 20000 })
+      await onboarding.waitForExist({ timeout: 5000 })
       await $(dismissSelector()).click()
-      await onboarding.waitForDisplayed({ timeout: 10000, reverse: true })
+      await onboarding.waitForDisplayed({ timeout: 1000, reverse: true })
     } catch {
       // Onboarding non visible dans les 20s — déjà refusé ou hors scope
     }

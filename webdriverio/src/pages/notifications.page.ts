@@ -35,43 +35,7 @@ class NotificationsInboxPage {
       )
     })
   }
-
-  /**
-   * Retourne l'aria-label du premier item de l'inbox, ou '' si la liste est vide.
-   * Utilise JS execute : les notifications ont aria-label = titre, mais les labels de nav
-   * (Retour, Gérer) sont exclus via une liste de blocage.
-   */
-  async getTopNotificationTitle(): Promise<string> {
-    return withWebView(async () => {
-      try {
-        const title = await driver.execute(() => {
-          const EXCLUDED = new Set(['Retour à la page précédente', 'Gérer', 'Notifications', ''])
-          const el = Array.from(document.querySelectorAll<Element>('[aria-label]')).find(
-            (e) => !EXCLUDED.has(e.getAttribute('aria-label') ?? '')
-          )
-          return el?.getAttribute('aria-label') ?? ''
-        }) as string
-        return title
-      } catch {
-        return ''
-      }
-    })
-  }
-
-  /**
-   * Rafraîchit l'inbox via window.location.reload() dans la WebView.
-   * Le geste natif (swipe DOWN en NATIVE_APP) ne déclenche pas forcément
-   * le pull-to-refresh JS de la SPA (dépend de l'implémentation Svelte/native).
-   * Un reload WebView garantit un fetch serveur complet.
-   */
-  async pullToRefresh(): Promise<void> {
-    await withWebView(async () => {
-      await driver.execute(() => { window.location.reload() })
-    })
-    // Attendre que la SPA recharge et rende la nouvelle liste
-    await browser.pause(3000)
-  }
-
+  
   /**
    * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
    * Lance si le délai est dépassé (notification non reçue).
@@ -113,7 +77,7 @@ class NotificationsInboxPage {
    * Utilise driver.execute plutôt que getByRole({ level: 1 }) car la SPA AMI utilise
    * <h2> / <h3> (composants DSFR fr-tile) et non systématiquement <h1>.
    */
-  async getDetailTitle(): Promise<string> {
+  async getTopNotificationTitle(): Promise<string> {
     return withWebView(async () => {
       const text = await driver.execute(() => {
         // Le titre de la notification est rendu comme un <a> (composant fr-tile DSFR), pas un heading.

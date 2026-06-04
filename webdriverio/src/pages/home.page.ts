@@ -40,7 +40,7 @@ class HomePage {
    * indéfiniment. Le sync JS renvoie immédiatement une erreur lors d'une
    * navigation, et le try/catch dans waitUntil réessaie à l'intervalle suivant.
    */
-  async waitForSpaReady(timeout = 60000): Promise<void> {
+  async waitForSpaReady(timeout = 10000): Promise<void> {
     await this.waitForVisible(timeout)
     await withWebView(async () => {
       await browser.waitUntil(

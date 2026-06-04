@@ -35,7 +35,7 @@ describe('Notifications', () => {
 
     // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC (iOS)
     try {
-      await LoginPage.tapFranceConnect(5000)
+      await LoginPage.tapFranceConnect(1000)
     } catch {
       // absent dans la majorité des cas
     }
@@ -45,6 +45,7 @@ describe('Notifications', () => {
 
     await AllureReporter.addStep('4. Ouvrir l\'inbox notifications')
     await NotificationsInboxPage.openFromHome()
+    const oldTop = await NotificationsInboxPage.getTopNotificationTitle()
 
     await AllureReporter.addStep('5. Publier la notification via l\'API partenaire')
     const title = `AMI-vanilla-${Date.now()}`
@@ -56,10 +57,11 @@ describe('Notifications', () => {
     await AllureReporter.addStep('6. Vérifier la réception dans l\'inbox (WebSocket)')
     // La SPA reçoit la notification via WebSocket sans rechargement de page.
     await NotificationsInboxPage.waitForNotification(title)
-
+ 
     await AllureReporter.addStep('7. Ouvrir la notification et vérifier son titre')
     await NotificationsInboxPage.clickNotification(title)
-    const newTop = await NotificationsInboxPage.getDetailTitle()
+    const newTop = await NotificationsInboxPage.getTopNotificationTitle()
+    expect(oldTop).not.toEqual(title)
     expect(newTop).toEqual(title)
   })
 })
