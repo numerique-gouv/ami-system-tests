@@ -2,6 +2,8 @@ import type { Options } from '@wdio/types'
 import path from 'path'
 import fs from 'fs'
 import AllureReporter from '@wdio/allure-reporter'
+import { listInteractive } from './src/helpers/inspect'
+import { withWebView } from './src/helpers/webview'
 
 // Charge un fichier .env dans process.env sans dépendance externe.
 // Les variables déjà définies dans le shell ne sont pas écrasées.
@@ -62,12 +64,19 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   mochaOpts: {
     ui: 'bdd',
-    timeout: 120000, // 2 min par test — les apps natives peuvent être lentes au démarrage
+    // WDIO_DEBUG=1 : désactive le timeout Mocha pour browser.debug() sans limite de temps.
+    // Sans ça, Mocha tue le test après 2 min pendant une session REPL interactive.
+    timeout: process.env.WDIO_DEBUG ? 0 : 120000,
   },
 
   // Hooks globaux
   before: async (): Promise<void> => {
-    // Espace pour des initialisations globales (ex: login, seed de données)
+    // Expose les helpers d'inspection sur globalThis pour le REPL browser.debug().
+    // Sans ça, taper `listInteractive()` dans le REPL lève "ReferenceError: not defined".
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(globalThis as any).listInteractive = listInteractive
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(globalThis as any).withWebView = withWebView
   },
 
   afterTest: async (test, _context, result): Promise<void> => {
