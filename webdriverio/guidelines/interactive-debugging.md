@@ -11,7 +11,7 @@ Les apps AMI sont hybrides : une partie de l'UI est **native** (bottom bar, aler
 
 Le cycle classique "modifier un locator → relancer `just test-android`" coûte **≈ 60 s** (boot émulateur, install, login FranceConnect, navigation). Pour trouver le bon sélecteur il faut souvent 3 à 5 cycles.
 
-La solution : **`browser.debug()`** suspend le test en cours et ouvre un REPL Node directement dans la session Appium vivante. `browser`, `driver`, `$`, `$$`, `listInteractive()` et `withWebView()` sont tous disponibles. On inspecte, on essaie, on re-inspecte — sans jamais relancer la session.
+La solution : **`browser.debug()`** suspend le test en cours et ouvre un REPL Node directement dans la session Appium vivante. `browser`, `driver`, `$`, `$$` sont disponibles, plus un set de helpers projet (`listInteractive`, `withWebView`, `webViewInfo`, `refreshAxTree`, `getContexts`, `saveScreenshot`, `listInteractiveAll`). Taper **`help()`** dans le REPL pour voir la liste à jour. On inspecte, on essaie, on re-inspecte — sans jamais relancer la session.
 
 ## 2. Prérequis
 
@@ -64,14 +64,16 @@ You can now go into the browser or use the command line as REPL
 
 ### Étape 3 : Boucle d'inspection dans le REPL
 
+**Tout commencer par `help()`** pour voir les helpers disponibles dans la session courante.
+
 **Vérifier dans quel contexte on est :**
 
 ```js
-> await driver.getContext()
-'NATIVE_APP'
+> await getContexts()
+[ 'NATIVE_APP', 'WEBVIEW_fr.gouv.ami.staging' ]
 ```
 
-**Lister les éléments natifs (contexte courant) :**
+**Lister les éléments natifs (contexte courant) : soit pour les pages antives, soit pour les overlay au-dessus des webviews **
 
 ```js
 > await listInteractive()
@@ -83,6 +85,12 @@ You can now go into the browser or use the command line as REPL
 ```js
 > await withWebView(async () => await listInteractive())
 // → tableau des éléments du DOM WebView
+```
+**La WebView est-elle vraiment visible (vs cachée derrière un overlay natif) ?**
+
+```js
+> await webViewInfo()
+// → { url: 'https://...', visible: 'visible' | 'hidden', title: '...' }
 ```
 
 **Tester un locator natif :**
@@ -112,9 +120,8 @@ You can now go into the browser or use the command line as REPL
 **Prendre un screenshot pour voir l'état visuel :**
 
 ```js
-> const png = await browser.takeScreenshot()
-> require('fs').writeFileSync('/tmp/debug.png', Buffer.from(png, 'base64'))
-// Ouvrir /tmp/debug.png
+> await saveScreenshot()              // → /tmp/debug-<timestamp>.png
+> await saveScreenshot('inbox-empty') // → /tmp/inbox-empty.png
 ```
 
 ### Étape 4 : Quitter

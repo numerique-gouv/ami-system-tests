@@ -126,7 +126,7 @@ async function listNativeElements(
           : text
             ? `android=new UiSelector().text("${text}")`
             : `android=new UiSelector().index(${index - 1})`
-        const tagName = await el.getTagName().catch(() => 'unknown')
+        const tagName = (await el.getTagName().catch(() => null)) ?? 'unknown'
         results.push({ index, context, platform, role: tagName, label, selectorHint })
         index++
       } catch {
@@ -150,7 +150,7 @@ async function listNativeElements(
         const label = (await el.getAttribute('label')) ?? ''
         const display = name || label || '(vide)'
         const selectorHint = name ? `~${name}` : `(aucun accessibilityIdentifier — inspecter avec Appium Inspector)`
-        const tagName = await el.getTagName().catch(() => 'XCUIElementType')
+        const tagName = (await el.getTagName().catch(() => null)) ?? 'XCUIElementType'
         results.push({ index, context, platform, role: tagName.replace('XCUIElementType', ''), label: display, selectorHint })
         index++
       } catch {
