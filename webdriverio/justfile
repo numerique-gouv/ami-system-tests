@@ -38,59 +38,77 @@ build-test:
     npm run typecheck
 
 # ─── Tests ──────────────────────────────────────────────────────────────────
-# Usage :
-#   just test-android                → tous les tests
-#   just test-android Notifications  → filtre par describe/it (grep Mocha)
+# Deux filtres optionnels combinables, chacun acceptant une regex :
+#   tag="<regex>"   → filtre describe/it Mocha (--mochaOpts.grep, regex JS)
+#   file="<regex>"  → filtre les chemins de spec via `grep -E` (regex POSIX étendue)
+#                     contre `src/tests/**/*.test.ts`
+#
+# Exemples :
+#   just test-android                                       → tous les tests
+#   just test-android tag="Notifications"                   → filtre Mocha
+#   just test-android file="notifications"                  → filtre fichier
+#   just test-android file="administration_partenaire/"     → tout un sous-répertoire
+#   just test-android tag="vanilla" file="notif|home"       → les deux combinés
 
 # Lancer les tests E2E Android — démarre l'émulateur, build, lance les tests
-# Usage : just test-android [grep]   — grep filtre par describe/it Mocha (optionnel)
-test-android grep="": android-start
+test-android tag="" file="": android-start
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🤖 Tests E2E Android…"
-    if [ -n "{{grep}}" ]; then
-        npm run test:android -- --mochaOpts.grep "{{grep}}"
-    else
-        npm run test:android
-    fi
+    just _run-tests android '{{tag}}' '{{file}}'
 
 # Lancer les tests E2E iOS — démarre le simulateur, build, reset FC, lance les tests
-# Usage : just test-ios [grep]       — grep filtre par describe/it Mocha (optionnel)
-test-ios grep="": ios-start
+test-ios tag="" file="": ios-start
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🍎 Tests E2E iOS…"
     just _ios-reset-fc-session
-    if [ -n "{{grep}}" ]; then
-        npm run test:ios -- --mochaOpts.grep "{{grep}}"
-    else
-        npm run test:ios
-    fi
+    just _run-tests ios '{{tag}}' '{{file}}'
 
 # Tests Android sans rebuild — démarre l'émulateur si nécessaire, puis lance directement
-# Usage : just test-android-fast [grep]
-test-android-builded grep="": build-android android-start
+test-android-builded tag="" file="": build-android android-start
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -n "{{grep}}" ]; then
-        npm run test:android -- --mochaOpts.grep "{{grep}}"
-    else
-        npm run test:android
-    fi
+    just _run-tests android '{{tag}}' '{{file}}'
 
-# Tests iOS sans rebuild — démarre le simulateur, reset FC, puis lance directement
-# Usage : just test-ios-fast [grep]              → avec reset (défaut)
-#         just test-ios-fast Notifications reset=""  → sans nettoyage (debug)
-test-ios-builded grep="" reset="true": build-ios ios-start
+# Tests iOS sans rebuild — reset=true par défaut ; reset="" pour le désactiver (debug)
+test-ios-builded tag="" file="" reset="true": build-ios ios-start
     #!/usr/bin/env bash
     set -euo pipefail
     if [ -n "{{reset}}" ]; then
         just _ios-reset-fc-session
     fi
-    if [ -n "{{grep}}" ]; then
-        npm run test:ios -- --mochaOpts.grep "{{grep}}"
+    just _run-tests ios '{{tag}}' '{{file}}'
+
+# Compose les arguments WDIO selon tag et file et lance la suite.
+# - file (regex POSIX étendue) sélectionne des `--spec` parmi src/tests/**/*.test.ts
+# - tag (regex JS) est passé tel quel à --mochaOpts.grep
+# Échoue explicitement si file ne matche aucun fichier.
+[private]
+_run-tests platform tag file:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ARGS=()
+    if [ -n '{{file}}' ]; then
+        MATCHES=$(find src/tests -type f -name '*.test.ts' | grep -E '{{file}}' || true)
+        if [ -z "$MATCHES" ]; then
+            echo "❌ Aucun fichier ne matche file=« {{file}} »." >&2
+            exit 1
+        fi
+        echo "📂 Fichiers ciblés :"
+        while IFS= read -r f; do
+            echo "   - $f"
+            ARGS+=(--spec "$f")
+        done <<< "$MATCHES"
+    fi
+    if [ -n '{{tag}}' ]; then
+        echo "🔎 Filtre Mocha tag=« {{tag}} »"
+        ARGS+=(--mochaOpts.grep '{{tag}}')
+    fi
+    if [ ${#ARGS[@]} -gt 0 ]; then
+        npm run test:{{platform}} -- "${ARGS[@]}"
     else
-        npm run test:ios
+        npm run test:{{platform}}
     fi
 
 # ─── Inspection ─────────────────────────────────────────────────────────────
