@@ -1,0 +1,73 @@
+{
+  "updatedAt": "2026-06-03T00:00:00Z",
+  "wdioConfigs": [
+    "wdio.base.conf.ts",
+    "wdio.android.conf.ts",
+    "wdio.ios.conf.ts"
+  ],
+  "reporters": [
+    { "name": "spec", "output": "stdout" },
+    {
+      "name": "allure",
+      "output": "allure-results",
+      "options": {
+        "addConsoleLogs": true,
+        "disableWebdriverStepsReporting": false
+      }
+    }
+  ],
+  "services": [
+    {
+      "name": "appium",
+      "ports": { "android": 4723, "ios": 4724 }
+    }
+  ],
+  "linting": {
+    "tool": "eslint",
+    "configFile": "eslint.config.mjs",
+    "style": "flat config",
+    "rules": [
+      "no-floating-promises: error",
+      "explicit-function-return-type: warn",
+      "no-console: warn"
+    ]
+  },
+  "testScripts": {
+    "android": "just test-android [grep]",
+    "ios": "just test-ios [grep]",
+    "report": "just report",
+    "check": "just build-test",
+    "inspect": "just inspect [hash]"
+  },
+  "customCommands": [],
+  "apiInterfaces": [
+    {
+      "file": "src/helpers/notifications-api.ts",
+      "purpose": "publishNotification({title, body}) — push via API partenaire avec retry 5xx"
+    },
+    {
+      "file": "src/helpers/webview.ts",
+      "purpose": "withWebView<T>(), tl(), refreshAxTree(), waitForWebViewContext() — gestion contexte WebView"
+    }
+  ],
+  "envVars": [
+    { "name": "APP_ENV", "usage": "environnement cible (staging par défaut)" },
+    { "name": "ANDROID_SDK_ROOT", "usage": "chemin SDK Android, chargé depuis .env racine" },
+    { "name": "NOTIF_API_URL", "usage": "URL API partenaire notifications — dans maestro/.env (non commité)" },
+    { "name": "NOTIF_PARTNER_ID", "usage": "identifiant partenaire — dans maestro/.env (non commité)" },
+    { "name": "NOTIF_PARTNER_SECRET", "usage": "secret partenaire — dans maestro/.env (non commité)" },
+    { "name": "NOTIF_RECIPIENT_FC_HASH", "usage": "hash FC du destinataire test — dans maestro/.env (non commité)" }
+  ],
+  "servers": [
+    { "env": "staging", "appId": "fr.gouv.ami.staging" }
+  ],
+  "notes": [
+    "Toutes les commandes passent par just (jamais npm/adb/xcrun directement).",
+    "Page Objects 3 niveaux : tests/ → pages/ → pages/locators/ (dispatch via getXxxLocators()).",
+    "WDIO v9 ChainablePromiseElement : $(loc).method() directement, jamais (await $(loc)).method().",
+    "Règle await : uniquement devant expect(wdioElement) ou Promise, jamais devant expect(primitive).",
+    "Secrets NOTIF_* dans maestro/.env, jamais dans le code ni dans ce cache.",
+    "iOS port 4724, Android port 4723 — pas de conflit si les deux tournent en même temps.",
+    "afterTest : screenshot + attachement Allure + DOM snapshot conditionnel (WebView uniquement)."
+  ]
+}
