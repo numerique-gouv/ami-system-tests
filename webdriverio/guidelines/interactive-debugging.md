@@ -184,7 +184,7 @@ Sans `WDIO_DEBUG=1`, Mocha coupe le test après 2 min. Si tu oublies la variable
 | `src/helpers/inspect.ts` | `listInteractive()` — détecte le contexte et la plateforme, affiche le tableau |
 | `wdio.base.conf.ts` (hook `before`) | Expose `listInteractive` et `withWebView` sur `globalThis` pour le REPL |
 | `wdio.base.conf.ts` (`mochaOpts.timeout`) | `0` si `WDIO_DEBUG=1`, `120000` sinon |
-| `src/scripts/inspect-android-webview.ts` | Script standalone `just inspect-android` — session séparée, sans login requis |
+| `src/scripts/inspect-webview.ts` | Script standalone `just inspect` (auto-détecte Android/iOS) — session séparée, sans login requis |
 
 ## 7. Sources
 

@@ -15,24 +15,20 @@ Les apps hybrides (native + WebView) ont deux arbres d'éléments distincts : l'
 
 ### Étape 1 : Inspecter l'écran avant d'écrire un sélecteur
 
-**Android WebView** — utiliser le script d'inspection qui ouvre Chrome DevTools :
+**WebView (Android ou iOS)** — utiliser le script d'inspection standalone :
 
 ```bash
-just inspect-android-webview
-# Ouvre chrome://inspect dans Chrome, permet d'inspecter le DOM du WebView
+just inspect                  # liste les éléments interactifs de la WebView courante
+just inspect /notifications   # navigue vers /#/notifications puis liste
 ```
 
-**iOS simulateur** — utiliser l'inspecteur de vue Appium ou le MCP Maestro :
+La cible auto-détecte la plateforme via le seul appareil booté (émulateur Android ou simulateur iOS).
+
+**iOS natif** — utiliser l'inspecteur de vue Appium ou le MCP Maestro :
 
 ```typescript
 // Depuis le MCP maestro dans Claude Code
 mcp__maestro__inspect_screen({ device_id: "..." })
-```
-
-**Général** — screenshot à la demande :
-
-```bash
-just inspect-android  # screenshot + dump de la view hierarchy
 ```
 
 ### Étape 2 : Tester un sélecteur avant de l'intégrer
@@ -87,8 +83,7 @@ Avant toute session de débogage, regarder :
 
 ## 4. Où c'est appliqué dans le dépôt
 
-- `webdriverio/src/scripts/inspect-android-webview.ts` — script d'inspection WebView Android via Chrome DevTools.
-- `webdriverio/src/scripts/inspect-notification-detail.ts` — script d'inspection pour la page de détail notification.
+- `webdriverio/src/scripts/inspect-webview.ts` — script d'inspection WebView cross-platform (Android + iOS).
 - `webdriverio/wdio.base.conf.ts:37-39` — `logLevel` et son explication.
 - `webdriverio/wdio.base.conf.ts:56-59` — `specFileRetries` et la distinction debug/prod.
 - `webdriverio/src/tests/notifications.test.ts:45` — horodatage pour idempotence backend.

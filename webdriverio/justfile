@@ -95,53 +95,60 @@ test-ios-builded tag="" reset="true": build-ios ios-start
 
 # ─── Inspection ─────────────────────────────────────────────────────────────
 
-# Lister les éléments interactifs de la WebView courante (sans réinitialiser l'app)
-# Usage : just inspect-android             → inspecte l'écran courant
-#         just inspect-android /notifications → navigue vers /#/notifications puis inspecte
-inspect-android hash="":
+# Lister les éléments interactifs de la WebView courante (sans réinitialiser l'app).
+# Détecte automatiquement la plateforme : exactement un appareil Android OU un simulateur iOS doit être connecté.
+# Usage : just inspect              → inspecte l'écran courant
+#         just inspect /notifications → navigue vers /#/notifications puis inspecte
+inspect hash="":
     #!/usr/bin/env bash
     set -euo pipefail
     ADB="{{ android_sdk }}/platform-tools/adb"
     export ANDROID_SDK_ROOT="{{ android_sdk }}"
     export ANDROID_HOME="{{ android_sdk }}"
-    # Android 16 (API 36) : un IAccessibilityServiceClient résiduel (Maestro ou run précédent)
-    # bloque la connexion UiAutomation avec "already registered" / "id=-1".
-    # Force-stop tous les packages susceptibles d'avoir laissé un client enregistré.
-    "$ADB" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
-    "$ADB" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
-    "$ADB" shell am force-stop dev.mobile.maestro 2>/dev/null || true
-    "$ADB" shell am force-stop dev.mobile.maestro.test 2>/dev/null || true
-    # Réveiller l'écran et s'assurer qu'il est déverrouillé
-    "$ADB" shell input keyevent 82
-    "$ADB" shell input keyevent 4
-    sleep 1
-    echo "🔍 Démarrage Appium sur le port 4723…"
-    # --allow-insecure active le téléchargement automatique de Chromedriver (requis WebView)
-    npm run appium:start -- --port 4723 --allow-insecure uiautomator2:chromedriver_autodownload &
-    APPIUM_PID=$!
-    trap "kill $APPIUM_PID 2>/dev/null; exit" INT TERM EXIT
-    sleep 5
-    echo "🔍 Inspection de la WebView en cours…"
-    npx ts-node --project tsconfig.json src/scripts/inspect-android-webview.ts "{{hash}}"
-    kill $APPIUM_PID 2>/dev/null || true
 
-# Inspecter la page de détail d'une notification (navigue vers la liste, clique le 1er item)
-inspect-android-notification-detail:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    ADB="{{ android_sdk }}/platform-tools/adb"
-    export ANDROID_SDK_ROOT="{{ android_sdk }}"
-    export ANDROID_HOME="{{ android_sdk }}"
-    "$ADB" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
-    "$ADB" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
-    "$ADB" shell am force-stop dev.mobile.maestro 2>/dev/null || true
-    "$ADB" shell am force-stop dev.mobile.maestro.test 2>/dev/null || true
-    "$ADB" shell input keyevent 82
-    npm run appium:start -- --port 4723 --allow-insecure uiautomator2:chromedriver_autodownload &
+    ANDROID_DEVICE=$("$ADB" devices 2>/dev/null | awk '/\tdevice$/{print $1}' | head -1 || true)
+    IOS_DEVICE=$(xcrun simctl list devices booted 2>/dev/null \
+        | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1 || true)
+
+    if [ -n "$ANDROID_DEVICE" ] && [ -n "$IOS_DEVICE" ]; then
+        echo "❌ Android ($ANDROID_DEVICE) ET iOS ($IOS_DEVICE) détectés. Arrête-en un avec 'just android-stop' ou 'just ios-stop'."
+        exit 1
+    fi
+    if [ -z "$ANDROID_DEVICE" ] && [ -z "$IOS_DEVICE" ]; then
+        echo "❌ Aucun appareil détecté. Lance 'just android-start' ou 'just ios-start'."
+        exit 1
+    fi
+
+    if [ -n "$ANDROID_DEVICE" ]; then
+        PLATFORM=android
+        echo "🤖 Appareil Android détecté : $ANDROID_DEVICE"
+        # Android 16 (API 36) : un IAccessibilityServiceClient résiduel (Maestro ou run précédent)
+        # bloque la connexion UiAutomation avec "already registered" / "id=-1".
+        # Force-stop tous les packages susceptibles d'avoir laissé un client enregistré.
+        "$ADB" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
+        "$ADB" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
+        "$ADB" shell am force-stop dev.mobile.maestro 2>/dev/null || true
+        "$ADB" shell am force-stop dev.mobile.maestro.test 2>/dev/null || true
+        # Réveiller l'écran et s'assurer qu'il est déverrouillé
+        "$ADB" shell input keyevent 82
+        "$ADB" shell input keyevent 4
+        sleep 1
+        # --allow-insecure active le téléchargement automatique de Chromedriver (requis WebView Android)
+        APPIUM_EXTRA_ARGS="--allow-insecure uiautomator2:chromedriver_autodownload"
+    else
+        PLATFORM=ios
+        echo "🍎 Simulateur iOS détecté : $IOS_DEVICE"
+        APPIUM_EXTRA_ARGS=""
+    fi
+
+    echo "🔍 Démarrage Appium sur le port 4723…"
+    # shellcheck disable=SC2086
+    npm run appium:start -- --port 4723 $APPIUM_EXTRA_ARGS &
     APPIUM_PID=$!
     trap "kill $APPIUM_PID 2>/dev/null; exit" INT TERM EXIT
     sleep 5
-    npx ts-node --project tsconfig.json src/scripts/inspect-notification-detail.ts
+    echo "🔍 Inspection de la WebView en cours ($PLATFORM)…"
+    npx ts-node --project tsconfig.json src/scripts/inspect-webview.ts "$PLATFORM" "{{hash}}"
     kill $APPIUM_PID 2>/dev/null || true
 
 # ─── Reset iOS ──────────────────────────────────────────────────────────────
