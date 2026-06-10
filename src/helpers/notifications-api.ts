@@ -1,20 +1,32 @@
 /**
  * Client HTTP pour l'API partenaire AMI — publication de notifications push.
  *
- * Portage TypeScript de maestro/scripts/notification-publish.js.
- * Les variables d'environnement sont chargées depuis maestro/.env via wdio.base.conf.ts.
- *
- * Variables requises (maestro/.env) :
+ * Variables requises (.env) :
  *   NOTIF_API_URL            — URL de base du backend AMI (sans slash final)
  *   NOTIF_PARTNER_ID         — identifiant partenaire
  *   NOTIF_PARTNER_SECRET     — secret partenaire (HTTP Basic auth)
  *   NOTIF_RECIPIENT_FC_HASH  — hash FC déterministe du compte sandbox
  */
 
+type ItemGenericStatus = 'new' | 'wip' | 'closed'
+
 interface PublishOptions {
+  // Champs requis
   title: string
   body: string
   recipientFcHash: string
+  // Champs optionnels — seules les valeurs définies sont envoyées
+  privateBody?: string
+  icon?: string
+  itemType?: string
+  itemId?: string
+  itemStatusLabel?: string
+  itemGenericStatus?: ItemGenericStatus
+  itemCanal?: string
+  itemMilestoneStartDate?: string
+  itemMilestoneEndDate?: string
+  itemExternalUrl?: string
+  tryPush?: boolean
 }
 
 const PUBLISH_MAX_RETRIES = 5
@@ -25,7 +37,13 @@ const PUBLISH_RETRY_DELAY_MS = 10000
  * Retry automatique sur 5xx (cold-start Scalingo) avec délai de 10s entre chaque tentative.
  * Lance si les variables d'environnement sont manquantes ou si toutes les tentatives échouent.
  */
-export async function publishNotification({ title, body, recipientFcHash }: PublishOptions): Promise<void> {
+export async function publishNotification({
+  title, body, recipientFcHash,
+  privateBody, icon,
+  itemType, itemId, itemStatusLabel, itemGenericStatus, itemCanal,
+  itemMilestoneStartDate, itemMilestoneEndDate, itemExternalUrl,
+  tryPush,
+}: PublishOptions): Promise<void> {
   const apiUrl    = requireEnv('NOTIF_API_URL')
   const partnerId = requireEnv('NOTIF_PARTNER_ID')
   const secret    = requireEnv('NOTIF_PARTNER_SECRET')
@@ -38,7 +56,17 @@ export async function publishNotification({ title, body, recipientFcHash }: Publ
     content_body:      body,
     // send_date unique à chaque appel : contourne l'idempotence backend (get_or_create sur le payload entier)
     send_date:         new Date().toISOString(),
-    try_push:          true,
+    ...(privateBody          !== undefined && { content_private_body:    privateBody }),
+    ...(icon                 !== undefined && { content_icon:            icon }),
+    ...(itemType             !== undefined && { item_type:               itemType }),
+    ...(itemId               !== undefined && { item_id:                 itemId }),
+    ...(itemStatusLabel      !== undefined && { item_status_label:       itemStatusLabel }),
+    ...(itemGenericStatus    !== undefined && { item_generic_status:     itemGenericStatus }),
+    ...(itemCanal            !== undefined && { item_canal:              itemCanal }),
+    ...(itemMilestoneStartDate !== undefined && { item_milestone_start_date: itemMilestoneStartDate }),
+    ...(itemMilestoneEndDate   !== undefined && { item_milestone_end_date:   itemMilestoneEndDate }),
+    ...(itemExternalUrl      !== undefined && { item_external_url:       itemExternalUrl }),
+    ...(tryPush              !== undefined && { try_push:                tryPush }),
   }
 
   let lastError: Error | undefined
