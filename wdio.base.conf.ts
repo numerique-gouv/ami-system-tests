@@ -21,10 +21,8 @@ function loadDotenv(filepath: string): void {
   }
 }
 
-// Charge les variables NOTIF_* depuis maestro/.env (secrets, non commité)
-loadDotenv(path.resolve(__dirname, '../maestro/.env'))
 // Charge le .env racine (ANDROID_SDK_ROOT)
-loadDotenv(path.resolve(__dirname, '../.env'))
+loadDotenv(path.resolve(__dirname, '.env.local'))
 
 export const baseConfig: Partial<Options.Testrunner> = {
   runner: 'local',

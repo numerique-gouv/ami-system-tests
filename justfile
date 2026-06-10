@@ -31,7 +31,7 @@ check:
     @command -v adb       > /dev/null && echo "✅ adb"       || echo "❌ adb manquant (Android SDK)"
     @command -v xcodegen  > /dev/null && echo "✅ xcodegen"  || echo "❌ xcodegen manquant (brew install xcodegen)"
     @command -v node      > /dev/null && echo "✅ node"      || echo "❌ node manquant"
-    @command -v appium    > /dev/null && echo "✅ appium"    || echo "❌ appium manquant (npm i -g appium)"
+    @(command -v appium > /dev/null || [ -f node_modules/.bin/appium ]) && echo "✅ appium" || echo "❌ appium manquant (npm install)"
     @command -v just      > /dev/null && echo "✅ just"      || echo "❌ just manquant"
 
 # Installer les dépendances Node et les drivers Appium

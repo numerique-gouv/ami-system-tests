@@ -11,10 +11,9 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "appium:install": "appium driver install uiautomator2 && appium driver install xcuitest",
-    "appium:install2": "appium driver install xcuitest && appium driver install uiautomator2",
-    "appium:update": "appium driver update uiautomator2 && appium driver update xcuitest",
-    "appium:start": "appium --port 4723 --log-level info",
+    "appium:install": "npx appium driver install uiautomator2 && npx appium driver install xcuitest",
+    "appium:update": "npx appium driver update uiautomator2 && npx appium driver update xcuitest",
+    "appium:start": "npx appium --port 4723 --log-level info",
     "report": "allure generate allure-results --clean -o allure-report && allure open allure-report"
   },
   "devDependencies": {
