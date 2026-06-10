@@ -20,7 +20,7 @@ La solution : **`browser.debug()`** suspend le test en cours et ouvre un REPL No
 just build-android    # ou just build-ios
 
 # Démarrer l'émulateur ou le simulateur
-just android-start    # ou just ios-start
+just start-android    # ou just start-ios
 ```
 
 Optionnel mais recommandé : exporter `WDIO_DEBUG=1` avant le run pour désactiver le timeout Mocha (2 min par défaut). Sans ça, Mocha tue le test si tu passes plus de 2 min dans le REPL.
@@ -146,7 +146,7 @@ Copier les valeurs de la colonne "Locator suggéré" dans les fichiers `src/page
 | `chrome://inspect/#devices` dans Chrome | Inspecteur visuel de la WebView Android **pendant** une session `browser.debug()`. Ouvrir Chrome, aller sur `chrome://inspect`, cliquer "inspect" sous le process AMI. |
 | **Appium Inspector** (app desktop) | Inspecter le contexte NATIVE iOS. Se connecter sur `localhost:4724` (session existante). Utile pour les overlays / sheets SwiftUI sans `accessibilityIdentifier`. |
 | `logLevel: 'debug'` dans `wdio.base.conf.ts` | Voir chaque COMMAND / DATA / RESULT Appium dans la console. À ne pas commiter. |
-| `just report` | Rapport Allure avec screenshots au moment de l'échec. À consulter avant toute session de debug. |
+| `just open-report` | Rapport Allure avec screenshots au moment de l'échec. À consulter avant toute session de debug. |
 
 > **`wdio repl` (CLI standalone) est déconseillé pour AMI** : il faudrait re-déclarer toutes les capabilities Appium à la main, et l'app ne serait pas dans son état post-login. Préférer toujours `browser.debug()` à l'intérieur d'un test scratch.
 

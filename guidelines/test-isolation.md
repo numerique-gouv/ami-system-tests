@@ -132,7 +132,7 @@ it('affiche la description', async () => { ... })
 | Notification publiée qui reste dans l'inbox | Fausse le décompte si la suite est rejouée | Titre unique `AMI-vanilla-${Date.now()}` |
 | Toggle notifications non remis | Le test suivant démarre avec un état différent | Cleanup explicite en fin de test |
 | Navigation laissée sur une page enfant | Le `before` du describe suivant peut trouver une page inattendue | `after` avec `goBack()` |
-| Session OIDC iOS dans SFSafariViewController | Le login saute l'écran FC → `dismiss()` timeout | `just _ios-reset-fc-session` avant chaque run |
+| Session OIDC iOS dans SFSafariViewController | Le login saute l'écran FC → `dismiss()` timeout | `just _reset-ios-fc-session` avant chaque run |
 
 ## 4. Où c'est appliqué dans le dépôt
 

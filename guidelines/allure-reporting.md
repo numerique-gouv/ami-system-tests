@@ -112,7 +112,7 @@ AllureReporter.addAttachment('WebView avant clic FC', png, 'image/png')
 ### Générer et ouvrir le rapport
 
 ```bash
-just report
+just open-report
 # équivaut à : allure generate allure-results --clean -o allure-report && allure open allure-report
 ```
 

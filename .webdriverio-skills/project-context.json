@@ -35,8 +35,8 @@
   "testScripts": {
     "android": "just test-android [grep]",
     "ios": "just test-ios [grep]",
-    "report": "just report",
-    "check": "just build-test",
+    "report": "just open-report",
+    "check": "just check-code",
     "inspect": "just inspect [hash]"
   },
   "customCommands": [],

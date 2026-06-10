@@ -68,7 +68,7 @@ Toutes les commandes passent par `just`. Voir `justfile` pour la liste complète
 
 ```bash
 just --list          # découvrir les cibles disponibles
-just build-test      # lint + typecheck — à lancer avant tout commit
+just check-code      # lint + typecheck — à lancer avant tout commit
 ```
 
 ## Tests skippés

@@ -1,3 +1,7 @@
+# Variables d'environnement locales
+.*local
+
+# dépendances, fichiers dérivés (compilés, logs, ...)
 node_modules/
 dist/
 .wdio-logs/
@@ -5,13 +9,14 @@ logs/
 allure-results/
 allure-report/
 *.log
-
-# Apps compilées (générées par just)
 apps/
 
 # Variables d'environnement locales
 .env
 .env.local
+
+# Paramètres locaux Claude Code (non partagés)
+.claude/
 
 # macOS
 .DS_Store

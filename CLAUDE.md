@@ -1,62 +1,69 @@
-# CLAUDE.md
+# CLAUDE.md — WebdriverIO / Appium
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Objectif du dépôt
-
-Ce dépôt compare **trois frameworks de tests E2E mobiles** pour l'application AMI (iOS + Android) :
-- `webdriverio/` — WebdriverIO + Appium (implémentation de référence)
-- `maestro/` — Maestro CLI (à implémenter)
-- `playwright/` — Playwright + Appium ou WebDriver BiDi (à implémenter)
-
-Le critère principal d'évaluation est la **maintenabilité** face à des cas complexes :
-- Apps hybrides native + WebView
-- Pages web qui doivent rester compatibles avec toutes les versions natives déployées
-- Scénarios multi-appareils (ce qui est configuré sur l'un impacte l'autre)
+Tests E2E mobiles (iOS + Android) pour l'application AMI.
+Stack : WebdriverIO v9 + Appium 3 + TypeScript + Testing Library.
 
 Les apps cibles sont dans les dépôts frères `../ami-app-android` et `../ami-app-ios`.
 
-## Commandes
+## Règle absolue : commandes via `just`
 
-**Toutes les commandes passent par `just`.** Ne jamais appeler directement `npm`, `npx`, `adb`, `xcodebuild` ou tout autre outil shell : ces appels doivent être encapsulés dans un justfile.
-
-Pour connaître les commandes disponibles dans un contexte donné, se placer dans le répertoire concerné et lancer :
+Ne jamais appeler directement `npm`, `npx`, `adb`, `xcrun`, `xcodebuild` ou `appium`. Ces appels doivent être encapsulés dans le `justfile`.
 
 ```bash
-just --list
+just --list                  # voir toutes les cibles disponibles
+just check-code              # lint + typecheck (avant tout commit)
+just test-android            # lancer les tests Android
+just test-ios                # lancer les tests iOS
+just test-android "Home"     # filtrer par nom de describe/it
+just inspect                 # explorer la WebView (auto-détecte Android ou iOS via le seul appareil connecté)
+just open-report             # générer et ouvrir le rapport Allure
 ```
-
-### Organisation des justfiles
-
-Le dépôt utilise un justfile racine pour les cibles communes (build, check), et un justfile par framework pour ses cibles propres. Chaque justfile enfant commence par `import '../justfile'` pour hériter des cibles et variables du parent.
-
-```
-justfile                   # build-android, build-ios, build, check
-webdriverio/justfile       # setup, test-android, test-ios, test, test-*-fast
-maestro/justfile           # (à créer)
-playwright/justfile        # (à créer)
-```
-
-> Les recettes importées s'exécutent avec le répertoire de travail du fichier où elles sont **définies** — les chemins relatifs du justfile racine restent donc corrects même appelés depuis un sous-dossier.
 
 > Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits.
 
-## Architecture WebdriverIO
+## Skills vs Guidelines
+
+| Type | Emplacement | Usage |
+|------|-------------|-------|
+| **Skills** (capacités Claude exécutables) | `.agents/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
+| **Guidelines** (savoir-faire du projet) | `guidelines/` | Documentation humain+IA. Lire avant d'écrire du code. |
+
+## Index des guidelines
+
+| Fichier | Sujet |
+|---------|-------|
+| `semantic-locators.md` | Testing Library en WebView, `accessibility id` en natif, dispatch via `getXxxLocators()` |
+| `cross-platform-page-objects.md` | POM 3 niveaux : tests → pages → pages/locators |
+| `webview-context-switching.md` | `withWebView()` seul autorisé, jamais `switchContext` direct |
+| `ios-wkwebview-quirks.md` | `refreshAxTree()`, scriptTimeout, single `withWebView` pour OIDC |
+| `oidc-redirect-handling.md` | Flow FranceConnect complet dans un seul `withWebView()` |
+| `assertion-quality.md` | `waitUntil` avec `timeoutMsg`, pas de `browser.pause` comme sync, règle `await` |
+| `test-isolation.md` | Décision `before`/`beforeEach`, `driver.reset()` interdit → `terminateApp`/`activateApp` |
+| `retry-strategies.md` | `specFileRetries` vs `mochaOpts.retries` vs retry applicatif |
+| `allure-reporting.md` | `addStep`, `addFeature`, `addSeverity`, `addAttachment` |
+| `appium-configuration.md` | Ports (Android 4723, iOS 4724), timeouts, `chromedriverAutodownload` |
+| `device-state-reset.md` | `xcrun simctl` iOS, `beforeSession` Android, idempotence |
+| `debugging-workflow.md` | inspect → run → commit |
+| `interactive-debugging.md` | Boucle `browser.debug()` + `listInteractive()` pour mettre au point un scénario sans relancer la session |
+
+## Architecture
 
 ```
-webdriverio/
-  wdio.base.conf.ts          # config partagée (timeouts, reporters, hooks)
-  wdio.android.conf.ts       # capabilities Android + service Appium port 4723
-  wdio.ios.conf.ts           # capabilities iOS + service Appium port 4724
-  src/
-    driver/
-      capabilities.ts        # androidCapabilities / iosCapabilities (Appium)
-    pages/
-      *.page.ts              # Page Objects — actions métier, sans sélecteurs directs
-      locators/
-        *.locators.ts        # sélecteurs par plateforme + fonction getXxxLocators()
-    tests/
-      *.test.ts              # scénarios Mocha (BDD)
+wdio.base.conf.ts          # config partagée (timeouts, reporters Allure, hooks)
+wdio.android.conf.ts       # capabilities Android + service Appium port 4723
+wdio.ios.conf.ts           # capabilities iOS + service Appium port 4724
+src/
+  driver/
+    capabilities.ts        # androidCapabilities / iosCapabilities (Appium)
+  helpers/
+    webview.ts             # withWebView<T>(), tl(), refreshAxTree(), waitForWebViewContext()
+    notifications-api.ts   # publishNotification() avec retry 5xx
+  pages/
+    *.page.ts              # Page Objects — actions métier, sans sélecteurs directs
+    locators/
+      *.locators.ts        # sélecteurs par plateforme + fonction getXxxLocators()
+  tests/
+    *.test.ts              # scénarios Mocha (BDD)
 ```
 
 ### Pattern locators
@@ -70,19 +77,43 @@ Chaque fichier de locators expose :
 
 ### Page Objects
 
-Les Pages Objects (`*.page.ts`) ne contiennent **aucun sélecteur** : ils appellent `getXxxLocators()` à chaque méthode. Cela permet de tester la même page sur les deux plateformes sans duplication.
+Les Page Objects (`*.page.ts`) ne contiennent **aucun sélecteur** : ils appellent `getXxxLocators()` à chaque méthode. Cela permet de tester la même page sur les deux plateformes sans duplication.
 
 Les singletons sont exportés (`export default new XxxPage()`).
 
-## Cas particuliers à modéliser
+## Patterns critiques (résumé)
 
-Lors de l'implémentation ou de la comparaison des frameworks, traiter explicitement :
+**POM 3 niveaux** : les tests n'importent que les page objects ; les pages appellent `getXxxLocators()` à chaque méthode ; les locators exposent `androidXxx`, `iosXxx`, `getXxxLocators()` (dispatch `driver.isIOS`).
+
+**WDIO v9 ChainablePromiseElement** : écrire `$(loc).method()` directement, jamais `(await $(loc)).method()` (déclenche TS [80007]).
+
+**Règle `await`** : `await` uniquement devant `expect(wdioElement)` (matchers expect-webdriverio) ou devant les appels retournant une Promise. Jamais devant `expect(string|boolean|number)`.
+
+**Pas de `browser.pause` comme sync** : remplacer par `waitUntil`, `waitForDisplayed`, ou `waitForClickable`.
+
+**`withWebView()` unique pour OIDC iOS** : sortir du contexte WebView au milieu du flow FranceConnect provoque un blocage ~25 s.
+
+**`isVisible()` try/catch + `return await`** : sans `await`, les rejections de Promise ne sont pas interceptées par `try/catch`.
+
+## Cas particuliers à modéliser
 
 | Cas | Considérations |
 |-----|---------------|
-| **WebView hybride** | Appium : switch de contexte `NATIVE_APP` ↔ `WEBVIEW_*` ; Playwright : CDP natif sur Android |
+| **WebView hybride** | Appium : switch de contexte `NATIVE_APP` ↔ `WEBVIEW_*` via `withWebView()` |
 | **Compat web × native** | Les locators web ne doivent pas casser quand l'app native est une version N-1 ou N-2 |
 | **Multi-appareils** | Deux instances `driver` simultanées ou coordination via Appium Hub/Grid ; synchronisation entre scénarios |
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---------|------|
+| `wdio.base.conf.ts` | Config partagée (reporters Allure, `afterTest` screenshot+attachement) |
+| `wdio.android.conf.ts` | Capabilities Android, port 4723, `beforeSession` force-stop |
+| `wdio.ios.conf.ts` | Capabilities iOS, port 4724 |
+| `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
+| `src/helpers/webview.ts` | `withWebView<T>()`, `tl()`, `refreshAxTree()`, `waitForWebViewContext()` |
+| `src/helpers/notifications-api.ts` | `publishNotification()` avec retry 5xx |
+| `src/pages/locators/` | Un fichier par écran, `getXxxLocators()` dispatch plateforme |
 
 ## Prérequis locaux
 
@@ -93,3 +124,7 @@ Lors de l'implémentation ou de la comparaison des frameworks, traiter explicite
 - `appium` global (`npm i -g appium`)
 - Simulateur iOS "iPhone 15 / iOS 17.0" créé dans Xcode
 - Émulateur Android "Pixel 7 / API 34" créé dans AVD Manager
+
+## Secrets
+
+Variables `NOTIF_*` dans `.env` à la racine (non commité, gabarit dans `.env.example`). Ne jamais écrire leurs valeurs dans du code ou du cache.

@@ -77,7 +77,7 @@ Et vérifier la variable `send_date` dans le payload — elle garantit l'unicit�
 
 Avant toute session de débogage, regarder :
 
-1. Le rapport Allure (`just report`) — screenshots au moment de l'échec.
+1. Le rapport Allure (`just open-report`) — screenshots au moment de l'échec.
 2. `.wdio-logs/appium-android.log` ou `appium-ios.log` — erreur exacte d'Appium.
 3. Le `logLevel: 'info'` dans la prochaine exécution — voir quelle commande Appium échoue.
 

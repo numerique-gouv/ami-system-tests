@@ -16,8 +16,8 @@ Mis à jour : 2026-06-03
 just test-android            # Android (port 4723)
 just test-ios                # iOS (port 4724)
 just test-android "Titre"    # filtrer par nom de test
-just build-test              # lint + typecheck (avant commit)
-just report                  # générer + ouvrir rapport Allure
+just check-code              # lint + typecheck (avant commit)
+just open-report             # générer + ouvrir rapport Allure
 ```
 
 > **Ne jamais appeler npm/npx/adb/xcrun directement** — tout passe par `just`.
