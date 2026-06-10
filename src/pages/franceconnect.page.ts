@@ -1,8 +1,6 @@
 import { fcpLocators } from './locators/franceconnect.locators'
 import { withWebView, refreshAxTree, tl } from '../helpers/webview'
-
-const FC_IDENTIFIER = 'avec_nom_dusage'
-const FC_PASSWORD   = '123'
+import type { TestUser } from '../helpers/test-users'
 
 class FranceConnectPage {
   /**
@@ -97,7 +95,7 @@ class FranceConnectPage {
    * Les interactions sur fip1-low utilisent driver.execute() car $() échoue
    * après plusieurs redirections cross-origin (bug WKRDP connu sur iOS).
    */
-  async loginWithSandbox(): Promise<void> {
+  async loginWithSandbox(user: TestUser): Promise<void> {
     await withWebView(async () => {
       // Sur iOS, le bouton FC est dans la WebView SPA : la navigation vers le serveur FC
       // est asynchrone — on attend que l'URL quitte la SPA avant de chercher la page eIDAS.
@@ -117,7 +115,7 @@ class FranceConnectPage {
       await this.selectEidasFaible()
       try {
         await refreshAxTree()
-        await this.fillCredentials(FC_IDENTIFIER, FC_PASSWORD)
+        await this.fillCredentials(user.login, user.password)
         await this.submit()
       } catch {
         // Erreur transitoire sur la page credentials — ignorée

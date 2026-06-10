@@ -1,5 +1,6 @@
 # Variables d'environnement locales
 .*local
+*.local.ts
 
 # dépendances, fichiers dérivés (compilés, logs, ...)
 node_modules/

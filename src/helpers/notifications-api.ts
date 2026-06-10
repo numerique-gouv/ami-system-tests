@@ -14,6 +14,7 @@
 interface PublishOptions {
   title: string
   body: string
+  recipientFcHash: string
 }
 
 const PUBLISH_MAX_RETRIES = 5
@@ -24,16 +25,15 @@ const PUBLISH_RETRY_DELAY_MS = 10000
  * Retry automatique sur 5xx (cold-start Scalingo) avec délai de 10s entre chaque tentative.
  * Lance si les variables d'environnement sont manquantes ou si toutes les tentatives échouent.
  */
-export async function publishNotification({ title, body }: PublishOptions): Promise<void> {
+export async function publishNotification({ title, body, recipientFcHash }: PublishOptions): Promise<void> {
   const apiUrl    = requireEnv('NOTIF_API_URL')
   const partnerId = requireEnv('NOTIF_PARTNER_ID')
   const secret    = requireEnv('NOTIF_PARTNER_SECRET')
-  const fcHash    = requireEnv('NOTIF_RECIPIENT_FC_HASH')
 
   const credentials = Buffer.from(`${partnerId}:${secret}`).toString('base64')
 
   const payload = {
-    recipient_fc_hash: fcHash,
+    recipient_fc_hash: recipientFcHash,
     content_title:     title,
     content_body:      body,
     // send_date unique à chaque appel : contourne l'idempotence backend (get_or_create sur le payload entier)
