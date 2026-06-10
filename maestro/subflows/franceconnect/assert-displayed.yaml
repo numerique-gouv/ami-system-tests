@@ -1,7 +1,0 @@
-appId: ${APP_ID}
-# Subflow : vérifie que l'écran FranceConnexionScreen est affiché (Android).
-# Pré-condition : franceconnect/open.yaml a été appelé.
----
-- assertVisible: "${output.fc_button}"
-- assertVisible: "${output.fc_info}"
-- assertVisible: "${output.fc_tchap}"

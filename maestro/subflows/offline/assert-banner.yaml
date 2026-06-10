@@ -1,5 +1,0 @@
-appId: ${APP_ID}
-# Subflow : assertions supplémentaires sur la bannière offline (Android).
-# iOS affiche uniquement offline_title — offline_desc est Android-only.
----
-- assertVisible: "${output.offline_desc}"

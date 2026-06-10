@@ -1,8 +1,0 @@
-flows:
-  - flows/**
-excludeTags:
-  - wip
-platform:
-  ios:
-    snapshotKeyHonorModalViews: false
-

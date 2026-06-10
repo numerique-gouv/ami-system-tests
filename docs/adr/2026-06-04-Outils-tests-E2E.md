@@ -29,6 +29,7 @@ Les points difficiles à testser:
 [Pour playwright, l'outil est ses variantes ne sont pas satisfaisants](outils%20E2E/playwright/README.md).
 Il reste un point de vigilance sur [mobilewright qui est un nouvel entrant (mars 2026) prometteur](https://github.com/mobile-next/mobilewright).
 Il pourrait être le prochain meilleur choix.
+
 [Pour Maestro, sa productivité vient de son écriture de scénario de manière déclarative (en yaml).](outils%20E2E/maestro/README.md)
 La description est plus rapide que la programmation.
 La description limite la capacité d'expression des scénarios à ce qui a été abstrait par l'outil.

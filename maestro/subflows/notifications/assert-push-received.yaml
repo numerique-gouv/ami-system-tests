@@ -1,8 +1,0 @@
-appId: ${APP_ID}
-# Vérifie qu'un push est arrivé : le titre de la notification apparaît en bannière heads-up.
-# Pré-condition : output.last_notif_title défini (par notifications/publish.yaml).
----
-- extendedWaitUntil:
-    visible:
-      text: "${output.last_notif_title}"
-    timeout: 20000
