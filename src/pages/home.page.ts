@@ -1,96 +1,144 @@
-import { getHomeLocators } from './locators/home.locators'
-import { withWebView, tl } from '../helpers/webview'
+import {getHomeLocators} from './locators/home.locators'
+import {withWebView} from '../helpers/webview'
 
 class HomePage {
-  /** Retourne true si le conteneur WebView natif est affiché. */
-  async isVisible(): Promise<boolean> {
-    try {
-      const loc = getHomeLocators()
-      return await $(loc.screenRoot).isDisplayed()
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Attend que le conteneur WebView natif soit visible.
-   * L'app AMI est 100% SPA — pas de resource-id natif, on détecte la WebView elle-même.
-   */
-  async waitForVisible(timeout = 30000): Promise<void> {
-    const { width, height } = await driver.getWindowSize()
-    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-      .move({ duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.4) })
-      .down({ button: 0 })
-      .move({ duration: 300, x: Math.round(width / 2), y: Math.round(height * 0.5) })
-      .up({ button: 0 })
-      .perform()
-    const loc = getHomeLocators()
-    await $(loc.screenRoot).waitForDisplayed({ timeout })
-  }
-
-  /**
-   * Attend que la SPA WebView soit chargée après authentification.
-   *   1. Natif  : waitForVisible() détecte le conteneur WebView
-   *   2. WebView : #notification-icon confirme que la SPA home authentifiée est rendue
-   * Timeout long (60 s) pour couvrir le flow OIDC complet.
-   *
-   * On utilise driver.execute() (JS sync) + browser.waitUntil() plutôt que
-   * tl().findByRole() (executeAsyncScript) : sur WKWebView, un async script
-   * en cours est silencieusement tué si la page navigue, ce qui bloque Appium
-   * indéfiniment. Le sync JS renvoie immédiatement une erreur lors d'une
-   * navigation, et le try/catch dans waitUntil réessaie à l'intervalle suivant.
-   */
-  async waitForSpaReady(timeout = 10000): Promise<void> {
-    await this.waitForVisible(timeout)
-    await withWebView(async () => {
-      await browser.waitUntil(
-        async () => {
-          try {
-            return await driver.execute(
-              () => !!document.querySelector('#notification-icon a[href]')
-            ) as boolean
-          } catch {
+    /** Retourne true si le conteneur WebView natif est affiché. */
+    async isVisible(): Promise<boolean> {
+        try {
+            const loc = getHomeLocators()
+            return await $(loc.screenRoot).isDisplayed()
+        } catch {
             return false
-          }
-        },
-        { timeout, interval: 1000, timeoutMsg: `SPA home non prête — #notification-icon absent après ${timeout}ms` }
-      )
-    })
-  }
-
-  /** Retourne le titre du document SPA (tag <title> HTML). */
-  async getTitle(): Promise<string> {
-    return withWebView(async () => {
-      return (await driver.execute(() => document.title)) as string
-    })
-  }
-
-  /** Vérifie si la liste "Mon agenda" ou "Mes démarches" est visible dans la SPA. */
-  async isPartnerListVisible(): Promise<boolean> {
-    try {
-      return await withWebView(async () => {
-        const el = await tl().findByText(/mon agenda|mes démarches/i, {}, { timeout: 5000 }).catch(() => null)
-        return el ? await el.isDisplayed() : false
-      })
-    } catch {
-      return false
+        }
     }
-  }
 
-  /** Ouvre le premier partenaire/item de la liste en tapant dessus dans la WebView. */
-  async openFirstPartner(): Promise<void> {
-    await withWebView(async () => {
-      const item = $('//*[@aria-label and @tabindex="0"][1]')
-      await item.click()
-    })
-  }
+    /**
+     * Attend que le conteneur WebView natif soit visible.
+     * L'app AMI est 100% SPA — pas de resource-id natif, on détecte la WebView elle-même.
+     */
+    async waitForVisible(timeout = 30000): Promise<void> {
+        const {width, height} = await driver.getWindowSize()
+        await driver.action('pointer', {parameters: {pointerType: 'touch'}})
+            .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.4)})
+            .down({button: 0})
+            .move({duration: 300, x: Math.round(width / 2), y: Math.round(height * 0.5)})
+            .up({button: 0})
+            .perform()
+        const loc = getHomeLocators()
+        await $(loc.screenRoot).waitForDisplayed({timeout})
+    }
 
-  /** Navigue vers l'onglet Suivi/Paramètres via la nav WebView. */
-  async goToSettings(): Promise<void> {
-    await withWebView(async () => {
-      await (await tl().getByRole('link', { name: /suivi/i })).click()
-    })
-  }
+    /**
+     * Attend que la SPA home authentifiée soit chargée.
+     * Vérifie la couche native (waitForVisible) puis la nav WebView (lien "Suivi" visible).
+     * Remplace waitForSpaReady — un seul point de vérité pour "la home est prête".
+     * Retourne true si prête dans le délai, false sinon (ne throw pas).
+     */
+    /**
+     * Attend que la SPA home authentifiée soit chargée.
+     * Utilise driver.execute (JS sync) pour détecter le lien "Suivi" visible dans la nav.
+     * Les async scripts (tl().findByRole) sont tués lors de la navigation post-OIDC,
+     * d'où l'usage du JS synchrone qui retourne immédiatement lors d'une navigation.
+     */
+    async isHomeVisible(timeout = 30000): Promise<boolean> {
+        try {
+            await this.waitForVisible(timeout)
+            return await withWebView(async () => {
+                await browser.waitUntil(
+                    async () => {
+                        try {
+                            return await driver.execute(() =>
+                                Array.from(document.querySelectorAll('a'))
+                                    .some(a => a.textContent?.trim() === 'Suivi' && (a as HTMLElement).offsetParent !== null)
+                            ) as boolean
+                        } catch {
+                            return false
+                        }
+                    },
+                    {timeout, interval: 1000, timeoutMsg: `SPA home non prête — lien "Suivi" absent après ${timeout}ms`}
+                )
+                return true
+            })
+        } catch {
+            return false
+        }
+    }
+
+    /**
+     * Attend que la démarche identifiée par son titre apparaisse sur la home.
+     * Effectue un pull-to-refresh (glissement natif vers le bas) pour déclencher
+     * le chargement des nouvelles données, puis poll jusqu'à ce que le titre
+     * apparaisse dans le texte visible de la page.
+     */
+    async waitForDemarche(title: string, timeout = 30000): Promise<void> {
+        await this.pullToRefresh()
+        await withWebView(async () => {
+            await browser.waitUntil(
+                async () => {
+                    try {
+                        return await driver.execute(
+                            (t: string) => document.body.innerText.includes(t),
+                            title
+                        ) as boolean
+                    } catch {
+                        return false
+                    }
+                },
+                {timeout, interval: 2000, timeoutMsg: `Démarche "${title}" non visible sur la home après ${timeout}ms`}
+            )
+        })
+    }
+
+    /**
+     * Glissement natif vers le bas (haut de l'écran → milieu) pour déclencher
+     * le pull-to-refresh de la liste home.
+     */
+    async pullToRefresh(): Promise<void> {
+        const {width, height} = await driver.getWindowSize()
+        await driver.action('pointer', {parameters: {pointerType: 'touch'}})
+            .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.25)})
+            .down({button: 0})
+            .move({duration: 800, x: Math.round(width / 2), y: Math.round(height * 0.65)})
+            .up({button: 0})
+            .perform()
+    }
+
+    /**
+     * Navigue vers la section "Suivi" en cliquant sur le lien visible dans la nav.
+     * Attend que le titre "Mes démarches" soit visible pour confirmer la navigation.
+     */
+    async ouvreSuivi(): Promise<void> {
+        await withWebView(async () => {
+            await browser.waitUntil(
+                async () => await driver.execute(() => {
+                    const link = Array.from(document.querySelectorAll('a'))
+                        .find(a => a.textContent?.trim() === 'Suivi') as HTMLElement | undefined
+                    if (!link) return false
+                    link.click()
+                    return true
+                }) as boolean,
+                { timeout: 10000, interval: 500, timeoutMsg: 'Lien "Suivi" introuvable dans la nav' }
+            )
+            await browser.waitUntil(
+                async () => await driver.execute(() =>
+                    Array.from(document.querySelectorAll('h1, h2')).some(h => h.textContent?.includes('démarches'))
+                ) as boolean,
+                {
+                    timeout: 10000,
+                    interval: 300,
+                    timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi'
+                }
+            )
+        })
+    }
+
+    /** Ouvre le premier partenaire/item de la liste en tapant dessus dans la WebView. */
+    async openFirstPartner(): Promise<void> {
+        await withWebView(async () => {
+            const item = $('//*[@aria-label and @tabindex="0"][1]')
+            await item.click()
+        })
+    }
 }
 
 export default new HomePage()
