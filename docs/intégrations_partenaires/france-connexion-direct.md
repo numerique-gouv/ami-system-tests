@@ -22,8 +22,9 @@ L'usager est ainsi reconnecté de manière fluide sur votre site, alors qu'il vi
 
 - Vous êtes déjà fournisseur de service FranceConnect et savez déclencher un flux OIDC standard (`/api/v2/authorize`).
 - Vous disposez d'un canal de contact avec l'équipe AMI pour :
-  - obtenir l'**autorisation FranceConnect** d'utiliser le paramètre `prompt=login` (démarche administrative, à anticiper),
-  - échanger les **certificats** nécessaires à la vérification des JWT émis par AMI.
+    - obtenir un compte partenaire auprès d'AMI pour envoyer des notifications,
+    - échanger les **certificats** nécessaires à la vérification des JWT émis par AMI.
+- Vous devrez obtenir l'**autorisation FranceConnect** d'utiliser le paramètre `prompt=login` (démarche administrative, à anticiper).
 
 ## 2. Principe de fonctionnement
 
@@ -39,6 +40,11 @@ La FCD repose sur trois éléments :
 
 Le paramètre `prompt=login` ne peut être utilisé que si FranceConnect l'a autorisé pour votre service. Cette autorisation se demande à l'équipe France Connect.
 **Anticipez cette étape** : elle est purement administrative, mais elle peut prendre plusieurs jours.
+
+Pour envoyer une notification contenant un lien vers votre portail, vous aurez besoin d'un compte partenaire chez AMI. Ce compte se demande à l'équipe AMI.
+Il vous permettra d'utiliser l'API des serveurs d'AMI.
+Vous pouvez aussi demander la promotion d'un compte ProConnect de membres de votre équipe pour utiliser l'UI d'admin d'AMI et ainsi envoyer des notifications depuis un formulaire web, plutôt qu'une API.
+**Anticipez aussi cette étape** : elle est purement administrative, mais elle peut prendre plusieurs jours.
 
 ## 3. Prouver que la requête vient d'AMI
 
@@ -206,9 +212,10 @@ Procédure de validation manuelle reproductible.
 
 ### Pré-requis
 
-- Un [compte de test FC - AMI](https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-low/mocks/idp/databases/citizen/base.csv).
+- Un [compte de test FC - AMI (sandbox)](https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-low/mocks/idp/databases/citizen/base.csv).
 - Un accès à votre service partenaire raccordé à FranceConnect.
 - Un navigateur avec outils de développement (onglet *Réseau*).
+- Un compte partenaire fourni par AMI, voire un compte ProConnect pour l'UI d'administration d'AMI
 
 ### Procédure
 
@@ -216,15 +223,17 @@ Procédure de validation manuelle reproductible.
 
 Procédure technique sans authentification ni intervention de l'équipe AMI
 
-1. Se connecter à AMI avec le compte de test.
+1. Se connecter à AMI avec le compte de test FC.
 2. Déclencher l'accès à une ressource de votre service depuis AMI via une notification:
-   1. en utilisant le swagger de qualification ou sur l'environnement staging: https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications et en utilisant la vue "multi-form data" pour avoir une documentation de chaque champ, dont:
-   2. recipient_fc_hash: que l'on peut copier depuis l'application mobile, en étant connecté au compte de test, puis paramètres, nous contacter. Cette page vous affichera un identifiant copiable.
-   3. content_title: un titre de notification
-   4. content_body: un contenu pour votre notification
-   5. item_external_url: un lien vers une page authentifiée de votre service
-   6. send_date: votre date d'envoi au format ISO 8601 (2026-06-09T14:30:00+02:00 ou 2026-06-09)
-   7. enfin try_push à false précise que l'on ne veux pas notifier les appareils, a true ou par défaut, nous notifions.
+   1. en utilisant le swagger de qualification ou sur l'environnement staging: https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications
+      1. Le basic auth requis est celui du compte partenaire
+      2. en utilisant la vue "multi-form data" vous aurez une documentation de chaque champ, dont :
+         1. recipient_fc_hash: que l'on peut copier depuis l'application mobile, en étant connecté au compte de test, cliquer sur votre avatar en haut à gauche, puis "préférences", et "nous contacter". Cette page vous affichera un identifiant copiable.
+         2. content_title: un titre de notification
+         3. content_body: un contenu pour votre notification
+         4. item_external_url: un lien vers une page authentifiée de votre service
+         5. send_date: votre date d'envoi au format ISO 8601 (2026-06-09T14:30:00+02:00 ou 2026-06-09)
+         6. enfin try_push à false précise que l'on ne veut pas notifier les appareils, a true ou par défaut, nous notifions.
 3. Ouvrir les outils de développement avant la redirection vers FranceConnect.
 4. Repérer l'appel sortant vers `/api/v2/authorize` et vérifier la présence du paramètre **`prompt=login`** dans la query string.
 
@@ -233,10 +242,10 @@ Procédure technique sans authentification ni intervention de l'équipe AMI
 Procédure par site web administration avec une création de compte par l'équipe AMI à chaque redéploiement de l'environnement AMI que vous utiliserez.
 
 1. Se connecter à AMI avec le compte de test.
-2. Déclencher l'accès à une ressource de votre service depuis AMI via une notification:
+2. Déclencher l'accès à une ressource de votre service depuis AMI via une notification :
    1. [En demandant à l'équipe AMI de promouvoir votre email ProConnect en admin] (https://github.com/numerique-gouv/ami-notifications-api/blob/main/CONTRIBUTING.md#agent-admin-space-espace-partenaire-ami)
    2. En vous connectant à l'espace partenaire de AMI: en staging: https://ami-back-staging.osc-fr1.scalingo.io/agent-admin/manage/notification/
-   3. En allant sur la page "Envoyer une notification", vous pourrez remplir partiellement le formulaire avec, au minimum, les champs suivants (ceux suivi d'une étoile *) :
+   3. En allant sur la page "Envoyer une notification", vous pourrez remplir partiellement le formulaire avec, au minimum, les champs suivants (ceux suivis d'une étoile *) :
       1. recipient_fc_hash: que l'on peut copier depuis l'application mobile, en étant connecté au compte de test, puis paramètres, à propos, contact qui vous affichera un identifiant ou un moyen de conact (mail ou autre) qui contiendra cet identifiant.
       2. content_title: un titre de notification
       3. content_body: un contenu pour votre notification
@@ -287,4 +296,3 @@ Procédure par site web administration avec une création de compte par l'équip
 - [Besoin d'intégrations partenaires](https://docs.numerique.gouv.fr/docs/d47bae28-71cc-4b62-9e84-bd7027d6e462/)
 - [Envoi de notifications individuelles par API](https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications) en vue multi-form-data pour avoir une documentation de chaque champs.
 - [Envoi de notifications individuelles par l'espace web partenaire](https://ami-back-staging.osc-fr1.scalingo.io/agent-admin/manage/notification/)
-
