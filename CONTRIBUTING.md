@@ -27,5 +27,3 @@ un payload exemple:
 "try_push": true
 }
 ```
-
-

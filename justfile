@@ -143,12 +143,29 @@ check-code:
 
 # ─── Tests ──────────────────────────────────────────────────────────────────
 # Usage :
-#   just test-android                → tous les tests
-#   just test-android Notifications  → filtre par describe/it (grep Mocha, regex JS)
+#   just test-android                        → tous les tests
+#   just test-android "src/tests/home*"      → un ou plusieurs globs de fichiers
+#   just test-android-grep Notifications     → filtre par describe/it (grep Mocha, regex JS)
 
-# Lancer les tests E2E Android — démarre l'émulateur, build, lance les tests
-# Usage : just test-android [tag]    — tag filtre par describe/it Mocha (optionnel)
-test-android tag="": start-android
+# Lancer les tests E2E Android — démarre l'émulateur, lance les tests sur les fichiers fournis
+# Usage : just test-android [glob…]   — un ou plusieurs globs de fichiers (optionnels)
+test-android *globs="": start-android
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🤖 Tests E2E Android…"
+    if [ -n "{{globs}}" ]; then
+        SPEC_ARGS=""
+        for glob in {{globs}}; do
+            SPEC_ARGS="$SPEC_ARGS --spec $glob"
+        done
+        npm run test:android -- $SPEC_ARGS
+    else
+        npm run test:android
+    fi
+
+# Lancer les tests E2E Android filtrés par nom de describe/it (grep Mocha, regex JS)
+# Usage : just test-android-grep [tag]
+test-android-grep tag="": start-android
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🤖 Tests E2E Android…"
@@ -158,9 +175,26 @@ test-android tag="": start-android
         npm run test:android
     fi
 
-# Lancer les tests E2E iOS — démarre le simulateur, build, reset FC, lance les tests
-# Usage : just test-ios [tag]        — tag filtre par describe/it Mocha (optionnel)
-test-ios tag="": start-ios
+# Lancer les tests E2E iOS — démarre le simulateur, reset FC, lance les tests sur les fichiers fournis
+# Usage : just test-ios [glob…]       — un ou plusieurs globs de fichiers (optionnels)
+test-ios *globs="": start-ios
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🍎 Tests E2E iOS…"
+    just _reset-ios-fc-session
+    if [ -n "{{globs}}" ]; then
+        SPEC_ARGS=""
+        for glob in {{globs}}; do
+            SPEC_ARGS="$SPEC_ARGS --spec $glob"
+        done
+        npm run test:ios -- $SPEC_ARGS
+    else
+        npm run test:ios
+    fi
+
+# Lancer les tests E2E iOS filtrés par nom de describe/it (grep Mocha, regex JS)
+# Usage : just test-ios-grep [tag]
+test-ios-grep tag="": start-ios
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🍎 Tests E2E iOS…"

@@ -67,6 +67,12 @@ export async function withWebView<T>(callback: () => Promise<T>): Promise<T> {
   try {
     return await callback()
   } finally {
+    // Sur iOS, un UIAlert système (ex. permission push) peut apparaître juste après
+    // la fin du flow OIDC. WDA bloque switchContext tant que l'alerte est présente.
+    // On refuse l'alerte en aveugle pour déverrouiller le context switch.
+    if (driver.isIOS) {
+      try { await driver.dismissAlert() } catch {}
+    }
     await driver.switchContext('NATIVE_APP')
   }
 }

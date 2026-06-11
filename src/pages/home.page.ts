@@ -66,27 +66,41 @@ class HomePage {
 
     /**
      * Attend que la démarche identifiée par son titre apparaisse sur la home.
-     * Effectue un pull-to-refresh (glissement natif vers le bas) pour déclencher
-     * le chargement des nouvelles données, puis poll jusqu'à ce que le titre
-     * apparaisse dans le texte visible de la page.
+     *
+     * Stratégie : navigation vers Accueil (clic sur le lien de nav SPA) plutôt que
+     * pull-to-refresh. Sur iOS, le geste pull-to-refresh ne déclenche pas le refetch
+     * du widget "Mes démarches" de façon fiable, alors que la navigation SPA force
+     * un re-render + fetch. Si la démarche n'est pas encore visible, on re-navigue
+     * toutes les 10 s pour relancer le fetch.
      */
     async waitForDemarche(title: string, timeout = 30000): Promise<void> {
-        await this.pullToRefresh()
-        await withWebView(async () => {
-            await browser.waitUntil(
-                async () => {
-                    try {
-                        return await driver.execute(
+        const deadline = Date.now() + timeout
+        let found = false
+        while (!found) {
+            // Clic sur le lien "Accueil" dans la nav SPA pour forcer le rechargement du widget.
+            await withWebView(async () => {
+                await driver.execute(() => {
+                    const a = Array.from(document.querySelectorAll('a'))
+                        .find(el => el.textContent?.trim() === 'Accueil') as HTMLElement | undefined
+                    a?.click()
+                })
+            })
+            const remaining = deadline - Date.now()
+            if (remaining <= 0) break
+            found = await withWebView(async () => {
+                try {
+                    await browser.waitUntil(
+                        async () => driver.execute(
                             (t: string) => document.body.innerText.includes(t),
                             title
-                        ) as boolean
-                    } catch {
-                        return false
-                    }
-                },
-                {timeout, interval: 2000, timeoutMsg: `Démarche "${title}" non visible sur la home après ${timeout}ms`}
-            )
-        })
+                        ) as Promise<boolean>,
+                        { timeout: Math.min(remaining, 10000), interval: 1000 }
+                    )
+                    return true
+                } catch { return false }
+            })
+        }
+        if (!found) throw new Error(`Démarche "${title}" non visible sur la home après ${timeout}ms`)
     }
 
     /**
