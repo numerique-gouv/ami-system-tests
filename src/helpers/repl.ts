@@ -30,7 +30,7 @@ function register(helper: ReplHelper): void {
  * Retourne la liste des contextes Appium actifs (NATIVE_APP + WEBVIEW_* éventuels).
  * Raccourci typable sans le préfixe `driver.`.
  */
-async function getContexts(): Promise<string[]> {
+export async function getContexts(): Promise<string[]> {
   return (await driver.getContexts()) as string[]
 }
 
@@ -38,7 +38,7 @@ async function getContexts(): Promise<string[]> {
  * Sauve un screenshot du device dans /tmp/<name>.png (défaut : debug-<timestamp>.png).
  * Affiche et retourne le chemin pour faciliter le `open` dans le terminal.
  */
-async function saveScreenshot(name?: string): Promise<string> {
+export async function saveScreenshot(name?: string): Promise<string> {
   const png = await browser.takeScreenshot()
   const filename = `${name ?? `debug-${Date.now()}`}.png`
   const filepath = path.join('/tmp', filename)
@@ -52,7 +52,7 @@ async function saveScreenshot(name?: string): Promise<string> {
  * Inspecte la WebView : URL chargée, visibilité réelle (vs cachée derrière un overlay
  * natif) et titre. Throw si aucune WebView vivante dans le process.
  */
-async function webViewInfo(): Promise<{ url: string; visible: string; title: string }> {
+export async function webViewInfo(): Promise<{ url: string; visible: string; title: string }> {
   return await withWebView(async () => ({
     url: await browser.getUrl(),
     visible: (await driver.execute(() => document.visibilityState)) as string,
@@ -64,7 +64,7 @@ async function webViewInfo(): Promise<{ url: string; visible: string; title: str
  * Liste les éléments interactifs en NATIVE puis en WEBVIEW (si dispo).
  * Pratique sur un écran hybride pour voir d'un coup ce qui est ciblable des deux côtés.
  */
-async function listInteractiveAll(): Promise<{
+export async function listInteractiveAll(): Promise<{
   native: Awaited<ReturnType<typeof listInteractive>>
   webview: Awaited<ReturnType<typeof listInteractive>> | null
 }> {
@@ -86,7 +86,7 @@ async function listInteractiveAll(): Promise<{
 /**
  * Affiche dynamiquement la liste des helpers REPL enregistrés.
  */
-function help(): void {
+export function help(): void {
   // eslint-disable-next-line no-console
   console.log('\nHelpers REPL disponibles (browser.debug()) :\n')
   const sigWidth = Math.max(...HELPERS.map((h) => h.signature.length))

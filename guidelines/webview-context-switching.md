@@ -27,7 +27,7 @@ Encapsuler **toute** interaction WebView dans `withWebView()`. Ce helper :
 
 1. Attend qu'un contexte `WEBVIEW_*` soit disponible (poll 500 ms, max 25 s).
 2. Switch vers ce contexte.
-3. Réinitialise `scriptTimeout` à 30 s sur iOS (voir [ios-wkwebview-quirks.md](ios-wkwebview-quirks.md)).
+3. Réinitialise `scriptTimeout` à 30 s sur iOS (voir [webview-quirks.md](webview-quirks.md)).
 4. Re-sélectionne le dernier `windowHandle` (gère la fermeture du tab OIDC).
 5. Exécute le callback.
 6. **Restaure `NATIVE_APP` dans le bloc `finally`**, même si le callback lance.

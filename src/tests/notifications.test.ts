@@ -21,7 +21,7 @@ describe('Notifications', () => {
    * l'inbox in-app reçoit quand même la notification via l'API partenaire.
    *
    * Pré-requis :
-   *   - Variables NOTIF_* dans maestro/.env (voir maestro/.env.example)
+   *   - Variables NOTIF_* dans .env (voir .env.example)
    *   - App installée avec fullReset (la SPA doit afficher la mire FC au lancement)
    *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios-notifications`
    */
@@ -44,13 +44,13 @@ describe('Notifications', () => {
     }
 
     await AllureReporter.addStep('3. Attendre la home SPA chargée')
-    await HomePage.waitForSpaReady()
+    await HomePage.isHomeVisible(60000)
 
-    await AllureReporter.addStep('4. Ouvrir l\'inbox notifications')
+    await AllureReporter.addStep("4. Ouvrir l'inbox notifications")
     await NotificationsInboxPage.openFromHome()
     const oldTop = await NotificationsInboxPage.getTopNotificationTitle()
 
-    await AllureReporter.addStep('5. Publier la notification via l\'API partenaire')
+    await AllureReporter.addStep("5. Publier la notification via l'API partenaire")
     const title = `AMI-vanilla-${Date.now()}`
     await publishNotification({
       title,
@@ -61,7 +61,7 @@ describe('Notifications', () => {
     await AllureReporter.addStep('6. Vérifier la réception dans l\'inbox (WebSocket)')
     // La SPA reçoit la notification via WebSocket sans rechargement de page.
     await NotificationsInboxPage.waitForNotification(title)
- 
+
     await AllureReporter.addStep('7. Ouvrir la notification et vérifier son titre')
     await NotificationsInboxPage.clickNotification(title)
     const newTop = await NotificationsInboxPage.getTopNotificationTitle()

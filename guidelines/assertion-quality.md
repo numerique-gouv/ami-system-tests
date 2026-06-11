@@ -91,6 +91,30 @@ await browser.waitUntil(
 await browser.waitUntil(async () => someCondition())
 ```
 
+### Asserter l'absence : waitUntil, pas de check immédiat
+
+Après un changement d'état (clic sur un onglet, action métier), la SPA a besoin d'un cycle de rendu avant de re-rendre le contenu. Vérifier immédiatement l'absence d'un élément renvoie souvent un faux positif (l'élément est encore présent dans le DOM).
+
+```typescript
+// ✅ waitUntil avec innerText — attend que l'élément disparaisse effectivement
+async assertItemAbsent(title: string, timeoutMs = 5000): Promise<void> {
+  await withWebView(async () => {
+    await browser.waitUntil(
+      async () => driver.execute(
+        (t: string) => !document.body.innerText.includes(t), title
+      ) as Promise<boolean>,
+      { timeout: timeoutMs, interval: 500, timeoutMsg: `"${title}" toujours visible après ${timeoutMs}ms` }
+    )
+  })
+}
+
+// ❌ Check immédiat — la SPA n'a pas encore re-rendu après l'action
+const absent = await driver.execute((t: string) => !document.body.innerText.includes(t), title)
+expect(absent).toBe(true)
+```
+
+Utiliser `innerText` plutôt que `textContent` : il respecte `display:none` et `visibility:hidden`, donc il reflète ce que l'utilisateur voit réellement (voir [semantic-locators.md](semantic-locators.md)).
+
 ### Ne pas doubler `waitForDisplayed` et `isDisplayed`
 
 `waitForDisplayed` (ou `waitForVisible`) garantit déjà que l'élément est affiché.
@@ -125,14 +149,15 @@ de contexte — utiliser `driver.execute()` ou Testing Library dans `withWebView
 
 ## 4. Où c'est appliqué dans le dépôt
 
-- `webdriverio/src/tests/settings.test.ts:36-39` — `waitUntil` avec `timeoutMsg`.
-- `webdriverio/src/tests/notifications.test.ts:59` — `expect(newTop).toEqual(title)` (valeur visible).
-- `webdriverio/src/helpers/webview.ts:52-57` — `waitUntil` avec `timeoutMsg` dans `waitForWebViewContext`.
-- `webdriverio/src/pages/notifications.page.ts:29-34` — `waitUntil` avec `timeoutMsg` sur le hash.
+- `src/tests/settings.test.ts` — `waitUntil` avec `timeoutMsg`.
+- `src/tests/notifications.test.ts` — `expect(newTop).toEqual(title)` (valeur visible).
+- `src/helpers/webview.ts` — `waitUntil` avec `timeoutMsg` dans `waitForWebViewContext`.
+- `src/pages/notifications.page.ts` — `waitUntil` avec `timeoutMsg` sur le hash.
+- `src/pages/demarches.page.ts` — `assertItemAbsent` avec `waitUntil` + `innerText`.
 
 Exemples de tests à améliorer pour exposer les valeurs :
-- `webdriverio/src/tests/partner.test.ts:21,26` — `expect(name.length).toBeGreaterThan(0)` → `expect(name).not.toBe('')`.
-- `webdriverio/src/tests/settings.test.ts:30` — `expect(typeof enabled).toBe('boolean')` → assertion comportementale.
+- `src/tests/partner.test.ts` — `expect(name.length).toBeGreaterThan(0)` → `expect(name).not.toBe('')`.
+- `src/tests/settings.test.ts` — `expect(typeof enabled).toBe('boolean')` → assertion comportementale.
 
 ## 5. Sources
 

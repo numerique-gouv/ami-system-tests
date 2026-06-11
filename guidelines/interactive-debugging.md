@@ -167,7 +167,7 @@ Remède :
 > await listInteractive() // re-lister
 ```
 
-Voir `guidelines/ios-wkwebview-quirks.md`.
+Voir `guidelines/webview-quirks.md`.
 
 ### `browser.pause()` ≠ `browser.debug()`
 

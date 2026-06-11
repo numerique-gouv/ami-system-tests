@@ -1,4 +1,4 @@
-# Pièges iOS WKWebView / WebKit Remote Debugging Protocol
+# Pièges WebView : WKRDP (iOS) et executeAsync cross-platform
 
 ## 1. Symptôme
 
@@ -16,7 +16,9 @@ WebKit Remote Debugging Protocol (WKRDP) est le canal de communication entre App
 | `scriptTimeout` après `switchContext` | conservé | **réinitialisé à ~0 ms** |
 | AX tree après redirect OIDC | re-syncronisé automatiquement | **périmé jusqu'à trigger** |
 | Clic sur `<a>` enfant | propagation normale | peut ne pas déclencher navigation |
-| Scripts `executeAsync` pendant navigation | tolérés | **tués par WKWebView** |
+| Scripts `executeAsync` pendant navigation SPA | **tués aussi** (voir §3) | **tués par WKWebView** |
+
+> **Note cross-platform** : la colonne Android indique le comportement CDP/Chromedriver hors navigation active. Pendant une navigation SPA (avant que `document.readyState` soit `'complete'`), Chromedriver tue aussi les scripts `executeAsync` en cours — voir §3.
 
 ### scriptTimeout réinitialisé
 
@@ -72,29 +74,47 @@ if (!hash.includes('/notifications')) {
 
 ### `execute` synchrone plutôt qu'`executeAsync` pour les sentinelles SPA
 
-WKWebView tue les scripts async en cours pendant une navigation. Pour tester si une page SPA est prête, utiliser `driver.execute` synchrone :
+WKWebView tue les scripts async en cours pendant une navigation. Ce comportement n'est **pas limité à iOS** : sur Android aussi, tout `executeAsync` lancé pendant une navigation SPA active (avant `document.readyState === 'complete'`) est interrompu par Chromedriver. Toutes les queries Testing Library (`findBy*`, `getBy*`, `queryBy*`) utilisent `executeAsync` — elles peuvent donc échouer ou timeouterdes deux côtés.
+
+Exemple Android vécu : `isHomeVisible` avec `tl().findByRole('link', { name: /Suivi/i })` dans un `waitUntil` timeoutait à 60 s après le flow OIDC. Remplacé par `driver.execute` synchrone → fonctionne immédiatement.
+
+**Règle cross-platform** : pour les sentinelles de navigation et les checks de readiness, utiliser `driver.execute` (JS synchrone). Réserver Testing Library aux interactions utilisateur (clic, remplissage de formulaire) une fois la page stable.
 
 ```typescript
-// ✅ execute synchrone — survivant aux navigations
+// ✅ execute synchrone — cross-platform, survivant aux navigations
 await browser.waitUntil(
   async () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
-  { timeout: 10000 }
+  { timeout: 10000, timeoutMsg: 'Page non chargée en 10s' }
 )
 
-// ❌ executeAsync — tué pendant les navigations iOS
+// ✅ Détecter un lien après navigation OIDC (Android + iOS)
+await browser.waitUntil(
+  async () => driver.execute(() =>
+    Array.from(document.querySelectorAll('a')).some(a => a.textContent?.trim() === 'Suivi')
+  ) as Promise<boolean>,
+  { timeout: 15000, interval: 500, timeoutMsg: 'Lien "Suivi" absent après OIDC' }
+)
+
+// ❌ executeAsync — tué pendant les navigations sur iOS ET Android
 await browser.executeAsync((done) => {
   if (document.readyState === 'complete') done(true)
   else window.addEventListener('load', () => done(true))
 })
+
+// ❌ tl().findByRole dans un waitUntil post-navigation — executeAsync tué en transit
+await browser.waitUntil(
+  async () => { await tl().findByRole('link', { name: /Suivi/i }); return true },
+  { timeout: 15000 }
+)
 ```
 
 ## 4. Où c'est appliqué dans le dépôt
 
-- `webdriverio/src/helpers/webview.ts:54-58` — reset `scriptTimeout` dans `withWebView()`.
-- `webdriverio/src/helpers/webview.ts:86-92` — implémentation `refreshAxTree()`.
-- `webdriverio/src/pages/notifications.page.ts:24-28` — fallback JS hash.
-- `webdriverio/src/pages/franceconnect.page.ts:15` — appel `refreshAxTree()` avant sélection eIDAS.
-- `webdriverio/src/driver/capabilities.ts:63` — `webkitResponseTimeout: 3000`.
+- `src/helpers/webview.ts` — reset `scriptTimeout` dans `withWebView()`, implémentation `refreshAxTree()`.
+- `src/pages/notifications.page.ts` — fallback JS hash.
+- `src/pages/franceconnect.page.ts` — appel `refreshAxTree()` avant sélection eIDAS.
+- `src/driver/capabilities.ts` — `webkitResponseTimeout: 3000`.
+- `src/pages/demarches.page.ts` — `driver.execute` pour détecter le lien "Suivi" post-OIDC (Android + iOS).
 
 ## 5. Sources
 

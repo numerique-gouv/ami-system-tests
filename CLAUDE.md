@@ -35,10 +35,11 @@ just open-report             # générer et ouvrir le rapport Allure
 | `semantic-locators.md` | Testing Library en WebView, `accessibility id` en natif, dispatch via `getXxxLocators()` |
 | `cross-platform-page-objects.md` | POM 3 niveaux : tests → pages → pages/locators |
 | `webview-context-switching.md` | `withWebView()` seul autorisé, jamais `switchContext` direct |
-| `ios-wkwebview-quirks.md` | `refreshAxTree()`, scriptTimeout, single `withWebView` pour OIDC |
+| `webview-quirks.md` | `refreshAxTree()`, scriptTimeout (iOS), `executeAsync` tué pendant navigation (iOS + Android) |
 | `oidc-redirect-handling.md` | Flow FranceConnect complet dans un seul `withWebView()` |
 | `assertion-quality.md` | `waitUntil` avec `timeoutMsg`, pas de `browser.pause` comme sync, règle `await` |
 | `test-isolation.md` | Décision `before`/`beforeEach`, `driver.reset()` interdit → `terminateApp`/`activateApp` |
+| `spa-navigation.md` | Navigation SPA hybride : clic vs JS hash, pull-to-refresh natif, tab switching, responsabilité PO |
 | `retry-strategies.md` | `specFileRetries` vs `mochaOpts.retries` vs retry applicatif |
 | `allure-reporting.md` | `addStep`, `addFeature`, `addSeverity`, `addAttachment` |
 | `appium-configuration.md` | Ports (Android 4723, iOS 4724), timeouts, `chromedriverAutodownload` |

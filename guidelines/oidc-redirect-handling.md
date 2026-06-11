@@ -15,7 +15,7 @@ Le flow OIDC FranceConnect implique plusieurs redirects cross-origin successifs 
 SPA AMI → serveur FC (eIDAS) → fip1-low (credentials) → callback AMI → SPA AMI
 ```
 
-Chaque redirect change l'URL et peut invalider l'état WebView en cours d'inspection. Sur iOS, l'AX tree WKWebView reste figé pendant ces transitions (voir [ios-wkwebview-quirks.md](ios-wkwebview-quirks.md)).
+Chaque redirect change l'URL et peut invalider l'état WebView en cours d'inspection. Sur iOS, l'AX tree WKWebView reste figé pendant ces transitions (voir [webview-quirks.md](webview-quirks.md)).
 
 Sur Android, le bouton FC est natif. Quand la session OIDC se termine, l'app revient sur la home mais la WebView peut encore "rejouer" brièvement l'état précédent — le bouton FC peut réapparaître une fraction de seconde.
 
@@ -92,4 +92,4 @@ await withWebView(async () => { await fillCredentials() }) // bloquant sur iOS
 
 - Commits `ffdb450` (refreshAxTree eIDAS faible), `9636a98` (retry FC button iOS), `2473cc1` (timeout paramétrable)
 - [FranceConnect — Documentation flux OIDC](https://partenaires.franceconnect.gouv.fr/fcp/fournisseur-service)
-- [ios-wkwebview-quirks.md](ios-wkwebview-quirks.md) — détail sur l'AX tree périmé
+- [webview-quirks.md](webview-quirks.md) — détail sur l'AX tree périmé
