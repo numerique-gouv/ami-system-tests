@@ -67,22 +67,33 @@ class HomePage {
     /**
      * Attend que la démarche identifiée par son titre apparaisse sur la home.
      *
-     * Stratégie : navigation vers Accueil (clic sur le lien de nav SPA) plutôt que
-     * pull-to-refresh. Sur iOS, le geste pull-to-refresh ne déclenche pas le refetch
-     * du widget "Mes démarches" de façon fiable, alors que la navigation SPA force
-     * un re-render + fetch. Si la démarche n'est pas encore visible, on re-navigue
-     * toutes les 10 s pour relancer le fetch.
+     * Stratégie : Suivi → Accueil (double changement de route SPA).
+     * Un clic sur "Accueil" depuis la route home est un no-op pour le routeur SPA
+     * (même route → pas de re-render, pas de refetch). Passer par Suivi d'abord
+     * force un vrai changement de route, puis le retour sur Accueil déclenche
+     * le refetch du widget "Mes démarches". Stable sur Android et iOS.
      */
     async waitForDemarche(title: string, timeout = 30000): Promise<void> {
         const deadline = Date.now() + timeout
         let found = false
         while (!found) {
-            // Clic sur le lien "Accueil" dans la nav SPA pour forcer le rechargement du widget.
             await withWebView(async () => {
                 await driver.execute(() => {
-                    const a = Array.from(document.querySelectorAll('a'))
+                    const suivi = Array.from(document.querySelectorAll('a'))
+                        .find(el => el.textContent?.trim() === 'Suivi') as HTMLElement | undefined
+                    suivi?.click()
+                })
+                await browser.waitUntil(
+                    async () => driver.execute(() =>
+                        Array.from(document.querySelectorAll('h1, h2'))
+                            .some(h => h.textContent?.includes('démarches'))
+                    ) as Promise<boolean>,
+                    { timeout: 5000, interval: 300, timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi' }
+                )
+                await driver.execute(() => {
+                    const accueil = Array.from(document.querySelectorAll('a'))
                         .find(el => el.textContent?.trim() === 'Accueil') as HTMLElement | undefined
-                    a?.click()
+                    accueil?.click()
                 })
             })
             const remaining = deadline - Date.now()
