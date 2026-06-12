@@ -267,6 +267,25 @@ inspect hash="":
 open-report:
     npm run report
 
+# ─── Documentation ──────────────────────────────────────────────────────────
+
+# Installer les dépendances du site de documentation
+setup-docs:
+    npm ci --prefix site
+
+# Servir le site en local (pathPrefix = /, liens absolus)
+serve-docs: setup-docs
+    npm run start --prefix site
+
+# Builder le site avec le pathPrefix de production
+build-docs: setup-docs
+    ELEVENTY_PATH_PREFIX=/ami-system-tests/ npm run build --prefix site
+
+# Mettre à jour le template eleventy-dsfr depuis l'upstream
+update-docs:
+    git fetch docs-upstream
+    git subtree pull --prefix=site docs-upstream main --squash
+
 # ─── Présentation ───────────────────────────────────────────────────────────
 
 # Compiler une présentation en PDF (nécessite typst : brew install typst)

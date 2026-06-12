@@ -150,6 +150,26 @@ module.exports = {
 
             marker: "?"
         }
+    },
+
+    // ::: rapidoc https://api.example.com/openapi.json
+    // Rend le web component RapiDoc avec thème auto (suit prefers-color-scheme).
+    rapidoc: md => {
+        const re = /^rapidoc(\s+\S+)?$/;
+        return {
+            validate: (params) => {
+                return params.trim().match(re);
+            },
+            render: (tokens, idx) => {
+                const params = tokens[idx].info.trim().match(re);
+                if (tokens[idx].nesting === 1) {
+                    const specUrl = md.utils.escapeHtml((params?.[1] || "").trim());
+                    return `<rapi-doc spec-url="${specUrl}" render-style="read" show-header="false">\n`;
+                } else {
+                    return `</rapi-doc>\n`;
+                }
+            }
+        }
     }
 
 }

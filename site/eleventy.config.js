@@ -1,5 +1,7 @@
 const {DateTime} = require("luxon");
 const {nanoid} = require ("nanoid");
+const fs = require("fs");
+const path = require("path");
 
 const markdownItAnchor = require("markdown-it-anchor");
 const markdownItAttrs = require("markdown-it-attrs");
@@ -185,6 +187,25 @@ module.exports = function (eleventyConfig) {
         mdLib.use(markdownItContainer, 'accordion', customMarkdownContainers.accordion(mdLib));
     });
 
+    // Fence renderer override: ```mermaid → <pre class="mermaid">
+    eleventyConfig.amendLibrary("md", mdLib => {
+        const defaultFence = mdLib.renderer.rules.fence || function(tokens, idx, options, env, self) {
+            return self.renderToken(tokens, idx, options);
+        };
+        mdLib.renderer.rules.fence = function(tokens, idx, options, env, self) {
+            const token = tokens[idx];
+            if (token.info.trim() === "mermaid") {
+                return `<pre class="mermaid">${token.content}</pre>\n`;
+            }
+            return defaultFence(tokens, idx, options, env, self);
+        };
+    });
+
+    // Container ::: rapidoc <spec-url> — rend le web component RapiDoc
+    eleventyConfig.amendLibrary("md", mdLib => {
+        mdLib.use(markdownItContainer, 'rapidoc', customMarkdownContainers.rapidoc(mdLib));
+    });
+
     // Automatically strip all leading or trailing whitespace
     // to prevent Markdown lib from rendering with wrapping into paragraphs
     // instead of using Nunjucks special syntax. Learn more:
@@ -195,6 +216,21 @@ module.exports = function (eleventyConfig) {
     });
 
     eleventyConfig.addNunjucksGlobal("nanoid", () => nanoid());
+
+    // Shortcode {% codefile "path/relative/to/site/", lang, "start-end" %}
+    // Lit un fichier hors du dossier input (ex: "../src/helpers/webview.ts")
+    // et le rend comme bloc de code coloré. `lines` optionnel, ex: "10-40".
+    eleventyConfig.addShortcode("codefile", function(filePath, lang, lines) {
+        const absPath = path.resolve(__dirname, filePath);
+        const content = fs.readFileSync(absPath, "utf-8");
+        let extracted = content;
+        if (lines) {
+            const [from, to] = lines.split("-").map(Number);
+            extracted = content.split("\n").slice(from - 1, to).join("\n");
+        }
+        const language = lang || path.extname(absPath).replace(".", "") || "text";
+        return `\`\`\`${language}\n${extracted}\n\`\`\``;
+    });
 
     // Features to make your build faster (when you need them)
 
@@ -238,6 +274,6 @@ module.exports = function (eleventyConfig) {
         // When paired with the HTML <base> plugin https://www.11ty.dev/docs/plugins/html-base/
         // it will transform any absolute URLs in your HTML to include this
         // folder name and does **not** affect where things go in the output folder.
-        pathPrefix: "/",
+        pathPrefix: process.env.ELEVENTY_PATH_PREFIX || "/",
     };
 };
