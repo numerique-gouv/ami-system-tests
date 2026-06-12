@@ -8,4 +8,4 @@ eleventyNavigation:
 slugOverride: a propos
 ---
 
-Nous sommes la mission logiciels libres.
+Nous sommes la mission de développement de l'Application Mobile Interministérielle (AMI).

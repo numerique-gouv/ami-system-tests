@@ -1,4 +1,13 @@
-# Intégration partenaire : API de notifications
+---
+title: API de notifications
+layout: layouts/page.njk
+description: Envoi de notifications push et suivi de démarches via l'API AMI
+eleventyNavigation:
+  key: API de notifications
+  parent: Intégrations partenaires
+  order: 2
+showBreadcrumb: true
+---
 
 > Statut : **brouillon, à relire avant diffusion partenaire**
 > Dernière mise à jour : 11 juin 2026

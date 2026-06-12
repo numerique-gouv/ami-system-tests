@@ -79,9 +79,21 @@
 <!-- RapiDoc : web component Swagger/OpenAPI (containers ::: rapidoc) -->
 <script>
   (function() {
-    var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var localScheme = localStorage.getItem('scheme');
+    var isDark = localScheme === 'dark' ||
+      (localScheme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.querySelectorAll('rapi-doc').forEach(function(el) {
       el.setAttribute('theme', isDark ? 'dark' : 'light');
+      if (isDark) {
+        el.setAttribute('bg-color', '#161616');
+        el.setAttribute('text-color', '#ffffff');
+        el.setAttribute('primary-color', '#8585f6');
+        el.setAttribute('nav-bg-color', '#1b1b35');
+        el.setAttribute('nav-text-color', '#ffffff');
+        el.setAttribute('nav-hover-bg-color', '#272747');
+        el.setAttribute('nav-accent-color', '#8585f6');
+        el.setAttribute('nav-accent-text-color', '#161616');
+      }
     });
   })();
 </script>

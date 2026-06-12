@@ -1,13 +1,7 @@
 module.exports = {
-    title: "Nom du site / service",
-    url: "https://url_du_site.gouv.fr/",
-    newsletter: [
-        {
-            url: "",
-            title: "",
-            description: ""
-        }
-    ],
+    title: "AMI — Documentation partenaires",
+    url: "https://numerique-gouv.github.io/ami-system-tests/",
+    newsletter: [],
     facebook_url: "",
     mastodon_url: "",
     twitter_url: "",
@@ -17,13 +11,13 @@ module.exports = {
     peertube_url: "",
     github_url: "",
     sourcehut_url: "",
-    repository_url: "https://github.com/codegouvfr/eleventy-dsfr",
+    repository_url: "https://github.com/numerique-gouv/ami-system-tests",
     language: "fr",
-    description: "baseline - précisions sur l‘organisation",
+    description: "Documentation technique pour les partenaires de l'application AMI",
     author: {
-        name: "Nom du service",
-        email: "contact@nom.du.service.gouv.fr",
-        url: "https://url_du_service.gouv.fr/"
+        name: "DINUM",
+        email: "contact@numerique.gouv.fr",
+        url: "https://numerique.gouv.fr/"
     },
-    service: "Nom de l’entité (ministère, secrétariat d‘état, gouvernement)"
+    service: "Direction Interministérielle du Numérique"
 }

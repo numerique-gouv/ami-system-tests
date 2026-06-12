@@ -1,31 +1,36 @@
----
-title: Exemple de mentions légales
+ ---
+title: Mentions légales
 layout: layouts/page.njk
-description: Mentions légales à compléter
+description: Mentions légales du site AMI — Documentation partenaires
 slugOverride: mentions legales
 showBreadcrumb: true
 ---
+
 ## Identification de l'éditeur
 
-[ A COMPLETER ]
+Direction Interministérielle du Numérique (DINUM)
+20 avenue de Ségur
+75007 Paris
 
 ## Directeur de la publication
 
-[ A COMPLETER ]
+Le directeur de la DINUM.
 
 ## Prestataire d'hébergement
 
-[ A COMPLETER ]
+GitHub Pages
+GitHub, Inc. (filiale de Microsoft Corporation)
+88 Colin P Kelly Jr St
+San Francisco, CA 94107, États-Unis
+[github.com](https://github.com)
 
 ## Crédits
 
-- [1F3DB.svg](https://openmoji.org/data/color/svg/1F3DB.svg) par [Martin Wehl](https://openmoji.org/library/#author=Martin%20Wehl) sous licence [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0>).
-
-[ A COMPLETER ]
+- [1F3DB.svg](https://openmoji.org/data/color/svg/1F3DB.svg) par [Martin Wehl](https://openmoji.org/library/#author=Martin%20Wehl) sous licence [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0).
 
 ## Code source du site
 
-[ A COMPLETER ]
+Le code source de ce site est disponible sur [GitHub — numerique-gouv/ami-system-tests](https://github.com/numerique-gouv/ami-system-tests).
 
 ## Accessibilité
 

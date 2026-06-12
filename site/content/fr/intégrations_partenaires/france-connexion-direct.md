@@ -1,4 +1,13 @@
-# Intégration partenaire — FranceConnexion Direct
+---
+title: FranceConnexion Direct
+layout: layouts/page.njk
+description: Authentification silencieuse via FranceConnect pour les services partenaires d'AMI
+eleventyNavigation:
+  key: FranceConnexion Direct
+  parent: Intégrations partenaires
+  order: 1
+showBreadcrumb: true
+---
 
 > Statut : **brouillon, à relire avant diffusion partenaire**
 > Dernière mise à jour : 9 juin 2026

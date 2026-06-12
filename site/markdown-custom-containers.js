@@ -29,7 +29,7 @@ module.exports = {
             validate: (params) => {
                 return params.trim().match(re);
             },
-    
+
             render: (tokens, idx) => {
                 if (tokens[idx].nesting === 1) {
                     // opening tag
@@ -164,7 +164,7 @@ module.exports = {
                 const params = tokens[idx].info.trim().match(re);
                 if (tokens[idx].nesting === 1) {
                     const specUrl = md.utils.escapeHtml((params?.[1] || "").trim());
-                    return `<rapi-doc spec-url="${specUrl}" render-style="read" show-header="false">\n`;
+                    return `<rapi-doc spec-url="${specUrl}" render-style="view" show-header="false" allow-try="false" show-curl-before-try="true" allow-authentication="false" allow-spec-file-download="true" allow-server-selection="false" update-route="false" bg-color="#ffffff" text-color="#3a3a3a" primary-color="#000091" match-paths="/api/" nav-bg-color="#f5f5fe" nav-text-color="#3a3a3a" nav-hover-bg-color="#ececfe" nav-accent-color="#000091" nav-accent-text-color="#ffffff">\n`;
                 } else {
                     return `</rapi-doc>\n`;
                 }

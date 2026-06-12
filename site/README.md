@@ -80,7 +80,7 @@ Ou exécuter un [mode de débogage](https://www.11ty.dev/docs/debugging/).
 
 - Modifier les fichiers [`_data/metadata.js`](_data/metadata.js) et [`_data/data.js`](_data/data.js) pour renseigner les informations du site.
 - Modifier le fichier [`package.json`](package.json) pour modifier les informations du dépôt.
-- Compléter les pages obligatoires : [`content/fr/accessibility`](content/fr/accessibility/index.md), [`content/fr/personal-data`](content/fr/personal-data/index.md), [`content/fr/legal`](content/fr/legal/index.md).
+- Compléter les pages obligatoires : [`content/fr/accessibility`](content/fr/accessibility/index.md), [`content/fr/personal-data`](content/fr/donnees-personnelles/index.md), [`content/fr/legal`](content/fr/legal/index.md).
 
 ### Développement
 

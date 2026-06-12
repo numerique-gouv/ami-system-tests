@@ -7,4 +7,4 @@ eleventyNavigation:
   order: 2
 ---
 
-<floss@numerique.gouv.fr>
+<ami@numerique.gouv.fr>
