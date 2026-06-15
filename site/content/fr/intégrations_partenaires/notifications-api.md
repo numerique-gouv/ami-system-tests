@@ -9,11 +9,17 @@ eleventyNavigation:
 showBreadcrumb: true
 ---
 
+# Intégration partenaire : API de publication d'événéments partenaire
+
 > Statut : **brouillon, à relire avant diffusion partenaire**
 > Dernière mise à jour : 11 juin 2026
 > Public visé : équipes techniques d'un fournisseur de service partenaire d'AMI.
 
 ## 1. Vue d'ensemble
+
+>*EGV* L'API va s'appeler event, est-ce qu'on parlerait pas plutôt d'API de *publication d'événéments partenaire* ?
+
+>*EGV* je pense qu'on ne devrait dans cette doc parler que de la V2. Elle est disponible sur [la branche 935](https://ami-back-staging-pr935.osc-fr1.scalingo.io/schema/rapidoc#put-/api/v2/event) en attendant d'être mergée.
 
 L'API de notifications AMI permet à un fournisseur de service (FS) partenaire de :
 
@@ -21,6 +27,8 @@ L'API de notifications AMI permet à un fournisseur de service (FS) partenaire d
 2. **Alimenter le suivi de démarches** de l'usager dans l'application AMI, sans que l'usager ait à saisir quoi que ce soit.
 
 Ces deux fonctions passent par **le même appel API** : `POST /api/v1/notifications`.
+
+>*EGV* et ce sera un PUT
 
 ---
 
@@ -53,6 +61,7 @@ Authorization: Basic <credentials>
 
 La documentation Swagger interactive est disponible à l'adresse `/schema/rapidoc` (vue *multi-form-data* recommandée pour lire la description de chaque champ).
 L'url d'envoi de notification depuis l'environnement staging est donc : https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications
+
 ---
 
 ## 4. Champs du payload
@@ -62,17 +71,19 @@ L'url d'envoi de notification depuis l'environnement staging est donc : https://
 Ces champs alimentent la notification dans le centre de notifications AMI et, le cas échéant, la notification push sur mobile.
 Les mobiles physiques ios et android ainsi que les mobiles virtuels android sont capables de recevoir les "notifications push".
 Les mobiles virtuels ios ne sont pas visibles des systèmes de notifications Apple.
-Tous les mobiles recoivent les notifications dans le centre de notifications de l'application AMI, quelles "push" ou non.
+Tous les mobiles recoivent les notifications dans le centre de notifications de l'application AMI, quelles soient "push" ou non.
 
 | Champ | Type | Requis | Description |
 |---|---|---|---|
 | `recipient_fc_hash` | string | **oui** | Hash déterministe des données pivot FranceConnect de l'usager destinataire. Voir [§ 6](#6-identifier-le-destinataire-recipient_fc_hash). |
 | `content_title` | string | **oui** | Titre de la notification (visible dans le centre de notifications et dans la push). |
 | `content_body` | string | **oui** | Corps de la notification (visible dans le centre de notifications et dans la push). |
-| `content_private_body` | string | non | Contenu complémentaire **non envoyé en push**. Concaténé à `content_body` dans le centre de notifications AMI. Non exploité dans la v1, réservé pour la v2. |
+| `content_private_body` | string | non | Contenu complémentaire **non envoyé en push**. Concaténé à `content_body` dans le centre de notifications AMI. Non exploité dans la v1, réservé pour la v2.|
 | `content_icon` | string | non | Nom technique d'une icône DSFR (ex. `fr-icon-notification-3-line`). Par défaut : icône du partenaire déclarée dans AMI. |
 | `send_date` | datetime ISO 8601 | **oui** | Date d'émission côté partenaire (ex. `2026-06-11T14:30:00+02:00`). **Doit être unique entre deux appels** : ce champ entre dans la clé d'idempotence (voir [§ 7](#7-idempotence)). |
 | `try_push` | boolean | non | Si `true` (défaut), AMI tente d'envoyer une notification push sur les terminaux de l'usager s'il est enregistré. Mettre à `false` pour enregistrer sans notifier. |
+
+>*EGV* les content_private_body sera quand même exploité dans la V1
 
 ### 4.2 Champs de démarche (`item_*`)
 
@@ -129,18 +140,26 @@ Le `partner_id` est automatiquement injecté par AMI à partir de vos credential
 
 > **Note :** l'alimentation du suivi de démarches est conditionnée à une activation côté AMI pour votre `partner_id`. Contactez l'équipe AMI si vos notifications n'apparaissent pas dans « Mes démarches ».
 
+>*EGV* Et assez vite on va pouvoir rajouter le cas des démarches multipartenaires, ou démarches imbriquées :).
+
 ---
 
 ## 6. Identifier le destinataire : `recipient_fc_hash`
 
 Le champ `recipient_fc_hash` est le **hash déterministe des données pivot FranceConnect** de l'usager. Il est calculé par FranceConnect et transmis à AMI lors de l'authentification de l'usager.
 
+>*EGV* En fait, FC ne donnent que les infos de l'identité pivot, et c'est au partenaire de le calculer (cf dernier § de [ce doc](https://docs.numerique.gouv.fr/docs/62800682-bcd1-49f0-9298-7b43221eb2ec/) )
+
 Pour récupérer ce hash lors de vos tests :
 
 1. Connectez-vous à l'application AMI avec le compte de test.
 2. Allez dans **Paramètres → À propos → Nous contacter** : la page affiche un identifiant copiable.
 
+>*EGV* Bon ça veut dire qu'il va falloir le remettre (a disparu dans le dernière maquette)
+
 Pour vos intégrations en production, vous obtenez ce hash par le flux OIDC FranceConnect standard (claim `sub` ou champ pivot selon votre configuration FC).
+
+>*EGV* cf ↑
 
 ---
 
@@ -250,9 +269,9 @@ curl -X POST https://ami-back-staging.osc-fr1.scalingo.io/api/v1/notifications \
 1. Récupérer le `recipient_fc_hash` du compte de test (voir [§ 6](#6-identifier-le-destinataire-recipient_fc_hash)).
 2. Envoyer les trois appels successifs des exemples ci-dessus (§ 9.1, 9.2, 9.3).
 3. Dans l'application AMI (connectée avec le compte de test) :
-   - Après le premier appel : la démarche apparaît en page d'accueil et dans **En cours** avec le statut « Brouillon ».
-   - Après le deuxième appel : le statut passe à « En cours » et l'URL est mise à jour.
-   - Après le troisième appel : la démarche bascule dans **Passées** avec le statut « Terminé ».
+	- Après le premier appel : la démarche apparaît en page d'accueil et dans **En cours** avec le statut « Brouillon ».
+	- Après le deuxième appel : le statut passe à « En cours » et l'URL est mise à jour.
+	- Après le troisième appel : la démarche bascule dans **Passées** avec le statut « Terminé ».
 
 ### Critères de succès
 
@@ -275,10 +294,16 @@ Si vous préférez tester sans appels API directs, l'équipe AMI peut vous donne
 
 - **V2 de l'API en cours de conception** : certains noms de champs seront renommés (ex. `item_external_url` → `content_link`). L'ancienne API restera supportée pendant une période de transition. Nous vous informerons de la date de dépréciation en avance.
 - **Agenda** : les champs `item_milestone_start_date` et `item_milestone_end_date` ne sont pas encore exploités dans l'interface calendrier d'AMI. Ils sont définis dans le modèle et peuvent être envoyés sans effet visible pour l'instant.
+>*EGV* J'ai l'espoir qu'il le seront d'ici la bêta. L'idée est de créer une échéance dans l'agenda.
+
+
 - **Catalogue de démarches et description génériques** : la description de démarche affichée dans AMI est actuellement codée en dur pour certains partenaires (OTV). Un catalogue générique alimentable par l'API est prévu mais pas encore implémenté.
 - **Listes d'étapes** : non implémentées. Fonctionnalité prévue permettant d'importer une liste de tâches depuis une page service-public.fr.
 - **Pré-remplissage** : une version spécifique OTV existe ; la généralisation à tous les partenaires est en cours d'étude.
+>*EGV* Du coup je ne parlerais pas de ces trois derniers points
+
 - **Accès staging restreint** : l'environnement staging n'est accessible qu'aux IP déclarées. Contactez l'équipe AMI pour faire déclarer votre IP.
+>*EGV* J'ai vu ça aussi dans l'autre doc. Ce n'est pas le cas si je ne me trompe pas.
 
 ---
 
