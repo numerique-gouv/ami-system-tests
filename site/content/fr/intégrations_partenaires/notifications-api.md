@@ -322,7 +322,17 @@ Si vous préférez tester sans appels API directs, l'équipe AMI peut vous donne
 
 ## 13. Références
 
-- [Envoi de notifications individuelles par API](https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications) en vue multi-form-data pour avoir une documentation de chaque champs.
+- [Envoi de notifications individuelles par API](https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications) en vue multi-form-data pour avoir une documentation de chaque champ.
 - [Envoi de notifications individuelles par l'espace d'administration partenaire](https://ami-back-staging.osc-fr1.scalingo.io/agent-admin/manage/notification/) avec l'envoi d'un formulaire web.
 - [Documentation FranceConnexion Direct](./france-connexion-direct.md): intégration du raccourci d'authentification.
 - [Besoin d'intégrations partenaires](https://docs.numerique.gouv.fr/docs/d47bae28-71cc-4b62-9e84-bd7027d6e462/)
+
+
+> TODO: ça a été écrit au-dessus ?
+
+Pour envoyer une notification contenant un lien vers votre portail, vous aurez besoin d'un compte partenaire chez AMI. Ce compte se demande à l'équipe AMI.
+Il vous permettra d'utiliser l'API des serveurs d'AMI.
+
+Bientôt, vous pourrez aussi demander la promotion d'un compte ProConnect de membres de votre équipe pour utiliser l'UI d'admin d'AMI et ainsi envoyer des notifications depuis un formulaire web, plutôt qu'une API.
+
+**Anticipez aussi cette étape** : elle est purement administrative, mais elle peut prendre plusieurs jours.

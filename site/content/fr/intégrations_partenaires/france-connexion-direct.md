@@ -54,15 +54,7 @@ Le paramètre `prompt=login` ne peut être utilisé que si FranceConnect l'a aut
 
 Pour qu'AMI puisse connecter vos usagers à votre service directement, ils doivent avoir donné leur consentement lors de la connexion à FC depuis AMI.
 Vous devez donc nous fournir toutes les informations de consentement nécessaire à l'utilisation de votre service pour que nous puissions l'intégrer à AMI.
-
-Pour envoyer une notification contenant un lien vers votre portail, vous aurez besoin d'un compte partenaire chez AMI. Ce compte se demande à l'équipe AMI.
-Il vous permettra d'utiliser l'API des serveurs d'AMI.
-
-Bientôt, vous pourrez aussi demander la promotion d'un compte ProConnect de membres de votre équipe pour utiliser l'UI d'admin d'AMI et ainsi envoyer des notifications depuis un formulaire web, plutôt qu'une API.
-
 **Anticipez aussi cette étape** : elle est purement administrative, mais elle peut prendre plusieurs jours.
-
->*EGV* je déplacerais ces trois paragraphes dans la future doc partenaire "envoyer des notifications"
 
 ## 3. Prouver que la requête vient d'AMI
 
