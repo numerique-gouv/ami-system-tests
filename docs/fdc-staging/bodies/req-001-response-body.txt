@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Mobile app</title>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="/_app/immutable/entry/start.CdzkC63t.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BbxK-IHA.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/COAMDV3Z.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DHj525na.js" rel="modulepreload">
+		<link href="/_app/immutable/entry/app.ClLa0gC4.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/PPVm8Dsz.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DsnmJJEf.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CjdkOpoD.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BKuJLLDA.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/ClgNMEP9.js" rel="modulepreload">
+		<link href="/_app/immutable/nodes/0.C4Oo7A2O.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DpGr--Kk.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BKzwVIgk.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DenShQaf.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BsDJqeTv.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/D58jCWt7.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CAr5boiR.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CMkCyW7O.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BpSwoWf0.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/C4QknlRj.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/D6VMvFBx.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Nv5Y1X5Z.js" rel="modulepreload">
+		<link href="/_app/env.js" rel="modulepreload">
+		
+		<link href="/_app/immutable/assets/0.DV75-KsW.css" rel="stylesheet">
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <main class="container">
+      <div style="display: contents">
+			<script>
+				{
+					__sveltekit_4p3fcl = {
+						base: new URL('.', location).pathname.slice(0, -1),
+						env: null
+					};
+
+					const element = document.currentScript.parentElement;
+
+					import("/_app/env.js").then(({ env }) => {
+						__sveltekit_4p3fcl.env = env;
+
+						Promise.all([
+							import("/_app/immutable/entry/start.CdzkC63t.js"),
+							import("/_app/immutable/entry/app.ClLa0gC4.js")
+						]).then(([kit, app]) => {
+							kit.start(app, element);
+						});
+					});
+				}
+			</script>
+		</div>
+    </main>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(
+            registration => {
+              let status;
+              if (registration.installing) {
+                status = 'Service worker installing';
+              } else if (registration.waiting) {
+                status = 'Service worker installed';
+              } else if (registration.active) {
+                status = 'Service worker active';
+              }
+              console.log('status', status);
+              console.log('registration', registration);
+              registration.update();
+            },
+            error => {
+              console.error(`Registration failed with ${error}`);
+            }
+          );
+      } else {
+        alert('Service workers are not supported');
+      }
+    </script>
+  </body>
+</html>

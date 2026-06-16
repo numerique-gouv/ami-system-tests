@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+      <head>
+        <title>Déconnexion du FI</title>
+      </head>
+      <body>
+        <form method="POST" action="/api/v2/client/disconnect-from-idp">
+        </form>
+        <script src="/static/20260202/js/auto-submit.js" defer></script>
+      </body>
+    </html>

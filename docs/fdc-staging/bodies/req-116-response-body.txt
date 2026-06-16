@@ -1,0 +1,1 @@
+.icon.svelte-1eqehiz{background-color:var(--icon-color);display:inline-block;-webkit-mask:var(--svg) no-repeat center;mask:var(--svg) no-repeat center;-webkit-mask-size:contain;mask-size:contain;width:20px;height:20px}

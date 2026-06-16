@@ -1,0 +1,8 @@
+{
+  "name": "fdc-staging-tools",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "playwright": "^1.45.0"
+  }
+}

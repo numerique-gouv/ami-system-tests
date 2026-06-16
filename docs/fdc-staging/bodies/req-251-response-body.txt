@@ -1,0 +1,1 @@
+.wrapper.svelte-18k7gw6{display:flex;flex-direction:column;height:100vh;overflow:hidden}.wrapper.svelte-18k7gw6 .content:where(.svelte-18k7gw6){flex-grow:1;overflow:auto;padding:1rem}.wrapper.svelte-18k7gw6 .footer:where(.svelte-18k7gw6){padding:1rem}
