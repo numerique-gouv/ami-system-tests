@@ -24,8 +24,19 @@ Cela conduit à séparer **deux problèmes distincts**, qui ont deux réponses d
 
 | # | Problème | Qui porte la confiance | Dépend de FC ? |
 |---|----------|------------------------|----------------|
-| 1 | **Continuité de session SSO** : U arrive authentifié chez le partenaire sans remire | La session SSO FC/KC | **Oui** — capacités à valider avec FC |
-| 2 | **Preuve de provenance** : le partenaire ne répond que si l'appel vient bien d'AMI | Signature de l'émetteur (AMI), vérifiée par le partenaire | Non — entre AMI et partenaires |
+| 1 | **Preuve de provenance** : le partenaire ne répond que si l'appel vient bien d'AMI | Signature de l'émetteur (AMI), vérifiée par le partenaire | Non — entre AMI et partenaires |
+| 2 | **Continuité de session SSO** : U arrive authentifié chez le partenaire sans remire | La session SSO FC/KC | **Oui** ou **Non** en fonction de la solution choisie |
+| 3 | **Suppression de la page de connexion FC** : l'usager n'a pas besoin de cliquer sur le bouton bleu | tbd | Non - uniquement par le partenaire, si preuve de provenance |
+| 4 | **Suppression de la page d'information de FC** : l'usage n'a pas besoin d'être informé, il l'a été au moment de sa connexion sur AMI | tbd | Oui - besoin de déclarer le FS comme étant autorisé à passer prompt=login (toujours si preuve de provenance) |
+| 5 | **Préremplissage** : AMI transmets au partenaire des informations dans l'appel : hors scope de ce document | hors scope | hors scope |
+
+Le problème 2 a deux solutions : 
+- 2a) une préauthentification chez AMI
+- 2b) une préselection du FI AMI-FI par le partenaire
+
+La solution 2a), sans implémenter 3 et 4 permet d'offrir à l'usager, sans développements côté partenaire, une expérience minimale de FranceConnexion longue, où l'usager n'a pas besoin de se connecter aurpès d'un FI tant qu'il passe par AMI et qu'il ne reste pas sur les pages de FranceConnect suffisement longtemps pour invalider le SSO. Y rajouter les point 3, puis 4, supprime ce dernier risque en cachant tout le processus et offre à l'usager une expérience complètement sans couture.
+
+La solution 2b) a l'avantage de mettre les reponsabilités aux bons endroits mais crée une dépendance entre le partenaire et AMI-FI.
 
 ---
 
@@ -147,21 +158,32 @@ sequenceDiagram
 
 **Session SSO & ré‑authentification silencieuse**
 1. FC maintient‑il une **session SSO** permettant une ré‑authentification **silencieuse via `prompt=none`** ? Quelle est la **durée de vie** de cette session ?
-2. Quel est le comportement exact **sans session active** ou en cas de session expirée ? Renvoi `login_required` standard ?
-3. FC supporte‑t‑il qu'un utilisateur **passe d'un fournisseur de service à un autre** (AMI → OTV) dans la **même session** sans réafficher la mire ? Contraintes éventuelles ?
+  - Oui, 20 ou 30 minutes. 
+3. Quel est le comportement exact **sans session active** ou en cas de session expirée ? Renvoi `login_required` standard ?
+  - Oui, renvoie vers la mire
+4. FC supporte‑t‑il qu'un utilisateur **passe d'un fournisseur de service à un autre** (AMI → OTV) dans la **même session** sans réafficher la mire ? Contraintes éventuelles ?
+  - Ce qui peut aller contre leur mandat n'est pas le fait de ne pas appeler la mire mais de ne pas informer l'usager des informations transmises (La mire saute déjà quand on est connecté SSO d'une précédente connexion sur un autre FS, mais on verra bien la page d'information)
+5. Pourquoi FC nous a proposé d'utiliser la valeur de paramètre prompt=login et non prompt=none alors qu'on a l'impression qu'on propose plutôt le cas none ?
 
 **Paramètres de la requête**
 4. FC honore‑t‑il **`idp_hint` / `kc_idp_hint`** (ex. `france-identite`) pour court‑circuiter l'écran de choix du FI ? **État de déploiement** (cf. réserve du ticket SP‑9729) ?
+  - nécessite un déploiement par partenaire
 5. Quels **`acr_values` / niveaux eIDAS** sont supportés/exigés ? Un niveau plus élevé **force‑t‑il une ré‑authentification** (donc casse le SSO silencieux) ?
+  - On ne se balade qu'entre FS acceptant du niveau faible
 
 **Consentement & déconnexion**
 6. FC **réaffiche‑t‑il l'écran de consentement** (scopes) même quand une session est active ? Peut‑on l'éviter pour un FS déjà autorisé ?
+  - cf 4.
 7. FC propage‑t‑il la **déconnexion (SLO / back‑channel logout)** vers les fournisseurs de service ?
+  - bonne question.
 
 **Cadre & exploitation**
 8. Le dispositif « **France Connexion Direct** » (et l'usage de `prompt=login`) nécessite‑t‑il une **autorisation administrative préalable** ? Processus, périmètre, délais ?
+  - oui, autant pour le porompt=login que pour le idp_hint
 9. Contraintes sur les **`redirect_uri`**, les **scopes** autorisés, les **environnements** (intégration / qualif / prod) et l'**allowlist IP** ?
+  - déjà résolu / documenté
 10. Existe‑t‑il des **contraintes réglementaires** (eIDAS, RGPD) ou des **limites de débit / éligibilité** sur le partage d'identité entre fournisseurs de service ?
+  - a priori pas d'autre contraintes que d'être deux FS bien déclarés chez FC.
 
 ---
 
