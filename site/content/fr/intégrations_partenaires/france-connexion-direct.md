@@ -8,7 +8,7 @@ eleventyNavigation:
   order: 1
 showBreadcrumb: true
 ---
-# Intégration partenaire — FranceConnexion Direct
+# Intégration partenaire : FranceConnexion Direct
 
 > Statut : **version 1.0, diffusable**
 > Dernière mise à jour : 19 juin 2026
@@ -73,7 +73,7 @@ Vous le vérifiez avec la clé publique correspondante.
 
 Caractéristiques du token :
 
-- **Signature** par la clé privée AMI (algorithme à fixer lors de l'échange initial — par défaut `RS256`).
+- **Signature** par la clé privée AMI (algorithme à fixer lors de l'échange initial par défaut `RS256`).
 - **Durée de validité courte** : strictement inférieure à 1 heure. La valeur précise sera fixée d'un commun accord à l'intégration.
 - **Charge utile minimale** : date d'émission (`iat`), date d'expiration (`exp`), URL de destination, identifiant émetteur (`iss = "ami"`).
 
@@ -85,14 +85,14 @@ Cette capacité de pré-remplissage fait l'objet d'une autre intégration dont l
 1. Récupérer et stocker le **certificat public** AMI (modalités d'échange et de rotation à convenir).
 2. Sur votre route d'entrée FCD, vérifier :
 	- la **signature** du JWT,
-	- la **date d'expiration** (`exp`) — rejeter si expiré,
-	- l'**URL de destination** — rejeter si elle ne correspond pas à la route appelée.
-3. En cas d'échec d'une de ces vérifications, basculer sur le **parcours OIDC standard** (afficher le bouton FranceConnect — voir Diagramme B).
+	- la **date d'expiration** (`exp`), rejeter si expiré,
+	- l'**URL de destination**, rejeter si elle ne correspond pas à la route appelée.
+3. En cas d'échec d'une de ces vérifications, basculer sur le **parcours OIDC standard** (afficher le bouton FranceConnect : voir Diagramme B).
 	- Soit notre SI est défaillant, soit un intru teste notre partenariat...
 
 ## 4. Diagrammes de séquence
 
-### Diagramme A — FCD nominale
+### Diagramme A : FCD nominale
 
 Cas où l'usager vient juste de s'authentifier dans AMI : la session SSO FranceConnect est active, et il est redirigé chez vous sans nouvelle interaction d'authentification.
 
@@ -132,7 +132,7 @@ sequenceDiagram
     PBack-->>U: Affiche la ressource demandée
 ```
 
-### Diagramme B — Fallback (token AMI absent ou invalide)
+### Diagramme B : Fallback (token AMI absent ou invalide)
 
 La FCD est une **optimisation**.
 Votre service doit rester fonctionnel si la FCD échoue : token AMI absent, expiré ou mal signé.
@@ -211,15 +211,15 @@ Le centre de notification est acessible depuis la page d'accueil de l'applicatio
 
 | Terme | Définition |
 |---|---|
-| **FCD** | FranceConnexion Direct — l'objet de ce document. |
+| **FCD** | FranceConnexion Direct : l'objet de ce document. |
 | **FI** | Fournisseur d'Identité (La Poste, Ameli, Impôts…). |
-| **FS** | Fournisseur de Service — votre service, raccordé à FranceConnect. |
+| **FS** | Fournisseur de Service : votre service, raccordé à FranceConnect. |
 | **AMI-FI** | Fournisseur d'identité exposé par l'application AMI elle-même, utilisé pour la reconnexion silencieuse au sein d'AMI. |
 | **Mire FI** | Page FranceConnect listant les fournisseurs d'identité disponibles. |
 | **Page d'information** | Page FranceConnect précisant les données qui vont être transmises au FS avant consentement. |
 | **SSO FranceConnect** | Session ouverte chez FranceConnect (~30 minutes) permettant de ne pas se réauthentifier entre deux FS. |
 | **`prompt=login`** | Paramètre OIDC standard demandant à FranceConnect de ne pas afficher la page d'information. Soumis à autorisation. |
-| **JWT** | JSON Web Token — format compact de jeton signé (RFC 7519). |
+| **JWT** | JSON Web Token : format compact de jeton signé (RFC 7519). |
 
 ### 7.2 Limitations connues
 
