@@ -52,15 +52,17 @@ La FCD repose sur trois éléments :
 Le paramètre `prompt=login` ne peut être utilisé que si FranceConnect l'a autorisé pour votre service. Cette autorisation se demande à l'équipe France Connect.
 **Anticipez cette étape** : elle est purement administrative, mais elle peut prendre plusieurs semaines (un déploiement de FC) en attendant qu'ils aient une interface d'administration ad-hoc.
 
-Pour qu'AMI puisse connecter vos usagers à votre service directement, ils doivent avoir donné leur consentement lors de la connexion à FC depuis AMI.
-Vous devez donc nous fournir toutes les informations de consentement nécessaire à l'utilisation de votre service pour que nous puissions l'intégrer à AMI.
+Pour qu'AMI puisse connecter vos usagers à votre service directement, ils doivent avoir été informés de l'utilisation de leurs données personnelles par les administrations partenaires lors de la première connexion à FC depuis AMI.
+Vous devez donc nous fournir toutes les informations de traitement des données personnelles nécessaire à l'utilisation de votre service pour que nous puissions l'intégrer à AMI.
+Le secteur privé a besoin de demander un consentement de leurs utilisateurs, les administrations informent leurs usagers.
+Par abus de langage, vous entendrez peut-être parler de page de consentement pour décrire cette "information".
 **Anticipez aussi cette étape** : elle est purement administrative, mais elle peut prendre plusieurs jours.
 
 ## 3. Prouver que la requête vient d'AMI
 
 ### Pourquoi cette preuve
 
-La FCD raccourcit le parcours utilisateur en faisant l'hypothèse que la session SSO FranceConnect est active.
+La FCD raccourcit le parcours utilisateur fournissant une session SSO FranceConnect active (et neuve).
 Si n'importe quel site pouvait déclencher ce raccourci, un attaquant pourrait orchestrer un parcours détourné.
 Vous devez donc vérifier que l'appel entrant provient effectivement d'AMI.
 
@@ -74,7 +76,9 @@ Caractéristiques du token :
 - **Signature** par la clé privée AMI (algorithme à fixer lors de l'échange initial — par défaut `RS256`).
 - **Durée de validité courte** : strictement inférieure à 1 heure. La valeur précise sera fixée d'un commun accord à l'intégration.
 - **Charge utile minimale** : date d'émission (`iat`), date d'expiration (`exp`), URL de destination, identifiant émetteur (`iss = "ami"`).
-- **Aucune donnée métier** dans ce token. Le préremplissage utilise un mécanisme distinct (token chiffré avec votre clé publique, hors périmètre de ce document).
+
+Une de nos itérations place des données usager chiffrées dans un attribut `data` de ce token pour permettre un préremplissage.
+Cette capacité de pré-remplissage fait l'objet d'une autre intégration dont le fonctionnement final pourra être différent.
 
 ### Côté partenaire : ce que vous devez faire
 
@@ -84,6 +88,7 @@ Caractéristiques du token :
 	- la **date d'expiration** (`exp`) — rejeter si expiré,
 	- l'**URL de destination** — rejeter si elle ne correspond pas à la route appelée.
 3. En cas d'échec d'une de ces vérifications, basculer sur le **parcours OIDC standard** (afficher le bouton FranceConnect — voir Diagramme B).
+	- Soit notre SI est défaillant, soit un intru teste notre partenariat...
 
 ## 4. Diagrammes de séquence
 
@@ -102,60 +107,65 @@ sequenceDiagram
 
     Note over U,AMI: L'usager est déjà FranceConnecté dans AMI
     U->>AMI: Sélectionne un service partenaire
-    AMI->>AMI: Génère un JWT signé (iat, exp < 1 h, URL cible)
-    AMI->>PFront: Redirige vers l'URL partenaire avec ?ami_token=...
+    AMI->>AMI: Génère un JWT-AMI signé
+    Note over AMI,PFront: Reconnexion FC silencieuse par AMI
+    AMI->>PFront: Redirige vers l'URL partenaire<br/> avec ?ami_token=JWT-AMI...
 
     rect rgba(0, 0, 255, 0.08)
     Note over PFront,PBack: Vérification de la provenance AMI
-    PFront->>PBack: Transmet le token AMI
-    PBack->>PBack: Vérifie signature, exp, URL cible
-    PBack-->>PFront: Token valide
+    PFront->>PBack: Transmet le JWT-AMI
+    PBack->>PBack: Vérifie tout le contenu du JWT-AMI
+    PBack-->>PFront: JWT-AMI valide
     end
 
     rect rgba(0, 0, 255, 0.08)
     Note over PFront,FC: Déclenchement direct du flux OIDC
-    PFront->>FC: GET /api/v2/authorize ?prompt=login&...
-    Note right of FC: Session SSO FC active<br/>→ ni mire, ni page d'information
+    PFront->>FC: GET /api/v2/authorize?prompt=login&...
+    Note over FC: Session SSO FC active<br/>sans ni mire, ni page d'information
     FC-->>PFront: redirect /callback?code=...&state=...
-    end
-
     PFront->>PBack: GET /callback?code=...&state=...
     PBack->>FC: POST /api/v2/token
     FC-->>PBack: id_token + access_token
     PBack->>FC: GET /api/v2/userinfo
     FC-->>PBack: userinfo
+    end
     PBack-->>U: Affiche la ressource demandée
 ```
 
 ### Diagramme B — Fallback (token AMI absent ou invalide)
 
-La FCD est une **optimisation**. Votre service doit rester fonctionnel si la FCD échoue : token AMI absent, expiré ou mal signé.
+La FCD est une **optimisation**.
+Votre service doit rester fonctionnel si la FCD échoue : token AMI absent, expiré ou mal signé.
+**Votre service doit rester sécurisé** si notre protocole n'est pas réussi.
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    actor U as Usager
-    participant PFront as Front partenaire
-    participant PBack as Back partenaire
-    participant FC as FranceConnect
+	autonumber
+	actor U as Usager
+	participant AMI as AMI ou MITM
+	participant PFront as Front partenaire
+	participant PBack as Back partenaire
+	participant FC as FranceConnect
 
-    U->>PFront: Accède à l'URL partenaire (token absent ou invalide)
+	alt L'usager interagi avec un faux AMI
+		U->>AMI: Sélectionne un service partenaire
+		Note over AMI: AMI disfonctionne ou un intru forge un token
+		AMI->>PFront: Redirige vers l'URL partenaire<br/> avec ?ami_token=JWT-AMI...<br/>(JWT-AMI absent ou invalide)
+	end
 
-    alt Token AMI absent ou invalide
-        PFront->>PBack: Pas de token / token rejeté
-        PBack-->>PFront: Affiche le parcours standard
-        PFront-->>U: Bouton « Se connecter avec FranceConnect »
-        U->>PFront: Clique sur le bouton
-    end
+	alt L'Usager utilise un front malveillant (eg. phishing)
+		U->>PFront: Accède à l'URL partenaire (JWT-AMI absent ou invalide)
+	end
 
-    PFront->>FC: GET /api/v2/authorize (sans prompt=login)
+	PFront->>PBack: Pas de token / token rejeté
+	Note over U,FC: L'usager doit s'authentifier normalement et complètement
+	PBack-->>PFront: Affiche le parcours standard
+	PFront-->>U: Bouton « Se connecter avec FranceConnect »
+	U->>PFront: Clique sur le bouton
+
+	PFront->>FC: GET /api/v2/authorize (sans prompt=login)
     FC-->>U: Mire FI + page d'information
     U->>FC: Sélectionne un FI et s'authentifie
-    FC-->>PFront: redirect /callback?code=...
-    PFront->>PBack: GET /callback?code=...
-    PBack->>FC: POST /api/v2/token
-    FC-->>PBack: id_token + access_token
-    PBack-->>U: Affiche la ressource demandée
 ```
 
 ## 5. Étapes d'intégration côté partenaire
@@ -177,55 +187,15 @@ Procédure de validation manuelle reproductible.
 
 ### Pré-requis
 
-- Un [compte de test FC - AMI (sandbox)](https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-low/mocks/idp/databases/citizen/base.csv).
+- Un ou plusieurs [compte(s) de test FC - AMI (sandbox)](https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-low/mocks/idp/databases/citizen/base.csv).
 - Un accès à votre service partenaire raccordé à FranceConnect.
 - Un navigateur avec outils de développement (onglet *Réseau*).
-- Un compte partenaire fourni par AMI, voire un compte ProConnect pour l'UI d'administration d'AMI
 
 ### Procédure
 
-#### Procédure simple
-
-L'équipe AMI envoie à un compte de test, un avec un lien vers la démarche partenaire de test.
-Le partenaire peut se connecter au compte de test, y consulter la notification envoyé par AMI et cliquer dessus pour être redirigé vers le site partenaire de test.
-
-#### Procédure par API
-
-Procédure technique sans authentification ni intervention de l'équipe AMI
->*EGV Proposition* Accessible uniquement aux partenaires ayant intégré le service de notifications sur AMI. Dans le cas contraire, l'équipe AMI pourra envoyer à l'un compte de test un avec un lien vers la démarche partenaire, pour test.
-
-1. Se connecter à AMI avec le compte de test FC.
-2. Déclencher l'accès à une ressource de votre service depuis AMI via une notification:
-	1. en utilisant le swagger de qualification ou sur l'environnement staging: https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications
-		1. Le basic auth requis est celui du compte partenaire
-		2. en utilisant la vue "multi-form data" vous aurez une documentation de chaque champ, dont :
-			1. recipient_fc_hash: que l'on peut copier depuis l'application mobile, en étant connecté au compte de test, cliquer sur votre avatar en haut à gauche, puis "préférences", et "nous contacter". Cette page vous affichera un identifiant copiable.
-			2. content_title: un titre de notification
-			3. content_body: un contenu pour votre notification
-			4. item_external_url: un lien vers une page authentifiée de votre service
-			5. send_date: votre date d'envoi au format ISO 8601 (2026-06-09T14:30:00+02:00 ou 2026-06-09)
-			6. enfin try_push à false précise que l'on ne veut pas notifier les appareils, a true ou par défaut, nous notifions.
-3. Ouvrir les outils de développement avant la redirection vers FranceConnect.
-4. Repérer l'appel sortant vers `/api/v2/authorize` et vérifier la présence du paramètre **`prompt=login`** dans la query string.
-
-#### Procédure par UI admin
-
-Procédure par site web administration avec une création de compte par l'équipe AMI à chaque redéploiement de l'environnement AMI que vous utiliserez.
->*EGV Proposition* Accessible uniquement aux partenaires ayant intégré le service de notifications sur AMI.
-
-1. Se connecter à AMI avec le compte de test.
-2. Déclencher l'accès à une ressource de votre service depuis AMI via une notification :
-	1. [En demandant à l'équipe AMI de promouvoir votre email ProConnect en admin] (https://github.com/numerique-gouv/ami-notifications-api/blob/main/CONTRIBUTING.md#agent-admin-space-espace-partenaire-ami)
-	2. En vous connectant à l'espace partenaire de AMI: en staging: https://ami-back-staging.osc-fr1.scalingo.io/agent-admin/manage/notification/
-	3. En allant sur la page "Envoyer une notification", vous pourrez remplir partiellement le formulaire avec, au minimum, les champs suivants (ceux suivis d'une étoile *) :
-		1. recipient_fc_hash: que l'on peut copier depuis l'application mobile, en étant connecté au compte de test, puis paramètres, à propos, contact qui vous affichera un identifiant ou un moyen de conact (mail ou autre) qui contiendra cet identifiant.
-		2. content_title: un titre de notification
-		3. content_body: un contenu pour votre notification
-		4. item_external_url: un lien vers une page authentifiée de votre service
-		5. send_date: votre date d'envoi au format ISO 8601 (2026-06-09T14:30:00+02:00 ou 2026-06-09)
-		6. enfin try_push à false précise que l'on ne veux pas notifier les appareils, a true ou par défaut, nous notifions.
-3. Ouvrir les outils de développement avant la redirection vers FranceConnect.
-4. Repérer l'appel sortant vers `/api/v2/authorize` et vérifier la présence du paramètre **`prompt=login`** dans la query string.
+L'équipe AMI envoie à chaque compte de test une notification avec un lien vers la démarche partenaire de test (ou une page authentifiée de votre service).
+Le testeur peut se connecter à AMI en utilisant un compte de test, y consulter la notification envoyée par AMI et cliquer dessus pour être redirigé vers le site partenaire de test.
+Le centre de notification est acessible depuis la page d'accueil de l'application en cliquant sur l'icône en forme de cloche.
 
 ### Critères de succès
 
@@ -253,7 +223,6 @@ Procédure par site web administration avec une création de compte par l'équip
 
 ### 7.2 Limitations connues
 
-- L'environnement **staging d'AMI n'est accessible qu'aux IP déclarées**. Pour les premiers tests, prévoir une bascule sur la prod avec parcimonie.
 - Les modalités précises de **cycle de vie des certificats** (échange, rotation, révocation) ne sont pas encore documentées. Elles seront ajoutées en annexe avant mise en production.
 - La FCD est **autorisée par FranceConnect au cas par cas** : tant que l'autorisation n'est pas posée, l'appel `prompt=login` sera rejeté par FranceConnect.
 
@@ -265,6 +234,4 @@ Procédure par site web administration avec une création de compte par l'équip
 - [Spécification OIDC `prompt`](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
 - [Patterns de micro services](https://microservices.io/post/architecture/2025/07/22/microservices-authn-authz-part-3-jwt-authorization.html)
 - [l'OIDC chez FranceConnect](https://docs.partenaires.franceconnect.gouv.fr/fs/fs-technique/fs-technique-oidc/)
-- [Besoin d'intégrations partenaires](https://docs.numerique.gouv.fr/docs/d47bae28-71cc-4b62-9e84-bd7027d6e462/)
-- [Envoi de notifications individuelles par API](https://ami-back-staging.osc-fr1.scalingo.io/schema/rapidoc#post-/api/v1/notifications) en vue multi-form-data pour avoir une documentation de chaque champs.
-- [Envoi de notifications individuelles par l'espace web partenaire](https://ami-back-staging.osc-fr1.scalingo.io/agent-admin/manage/notification/)
+- [Expression de besoins d'intégrations partenaires](https://docs.numerique.gouv.fr/docs/d47bae28-71cc-4b62-9e84-bd7027d6e462/)
