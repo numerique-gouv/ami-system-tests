@@ -10,8 +10,8 @@ showBreadcrumb: true
 ---
 # Intégration partenaire — FranceConnexion Direct
 
-> Statut : **brouillon, à relire avant diffusion partenaire**
-> Dernière mise à jour : 9 juin 2026
+> Statut : **version 1.0, diffusable**
+> Dernière mise à jour : 19 juin 2026
 > Public visé : équipes techniques d'un fournisseur de service partenaire d'AMI, déjà raccordé à FranceConnect.
 
 ## 1. Présentation
