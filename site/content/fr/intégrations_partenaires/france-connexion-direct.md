@@ -62,7 +62,7 @@ Par abus de langage, vous entendrez peut-être parler de page de consentement po
 
 ### Pourquoi cette preuve
 
-La FCD raccourcit le parcours utilisateur fournissant une session SSO FranceConnect active (et neuve).
+La FCD raccourcit le parcours utilisateur en fournissant une session SSO FranceConnect active (et neuve).
 Si n'importe quel site pouvait déclencher ce raccourci, un attaquant pourrait orchestrer un parcours détourné.
 Vous devez donc vérifier que l'appel entrant provient effectivement d'AMI.
 
@@ -77,8 +77,8 @@ Caractéristiques du token :
 - **Durée de validité courte** : strictement inférieure à 1 heure. La valeur précise sera fixée d'un commun accord à l'intégration.
 - **Charge utile minimale** : date d'émission (`iat`), date d'expiration (`exp`), URL de destination, identifiant émetteur (`iss = "ami"`).
 
-Une de nos itérations place des données usager chiffrées dans un attribut `data` de ce token pour permettre un préremplissage.
-Cette capacité de pré-remplissage fait l'objet d'une autre intégration dont le fonctionnement final pourra être différent.
+> Dans l'état actuel de nos développements, nous plaçons des données usager chiffrées dans un attribut `data` de ce token pour permettre un préremplissage.
+> Cette capacité de pré-remplissage fait l'objet d'une autre intégration dont le fonctionnement final pourra être différent.
 
 ### Côté partenaire : ce que vous devez faire
 
@@ -86,9 +86,9 @@ Cette capacité de pré-remplissage fait l'objet d'une autre intégration dont l
 2. Sur votre route d'entrée FCD, vérifier :
 	- la **signature** du JWT,
 	- la **date d'expiration** (`exp`), rejeter si expiré,
-	- l'**URL de destination**, rejeter si elle ne correspond pas à la route appelée.
 3. En cas d'échec d'une de ces vérifications, basculer sur le **parcours OIDC standard** (afficher le bouton FranceConnect : voir Diagramme B).
-	- Soit notre SI est défaillant, soit un intru teste notre partenariat...
+	- Plusieurs causes sont possibles : le certificat public est invalide, une régression coté AMI, un problème de time-zone, ou autre.
+  - Dans tous les cas, vous devez abandonner la FCD et faire passer l'usager par une connexion FC standard.
 
 ## 4. Diagrammes de séquence
 
@@ -121,7 +121,7 @@ sequenceDiagram
     rect rgba(0, 0, 255, 0.08)
     Note over PFront,FC: Déclenchement direct du flux OIDC
     PFront->>FC: GET /api/v2/authorize?prompt=login&...
-    Note over FC: Session SSO FC active<br/>sans ni mire, ni page d'information
+    Note over FC: Session SSO FC active<br/>sans mire, ni page d'information
     FC-->>PFront: redirect /callback?code=...&state=...
     PFront->>PBack: GET /callback?code=...&state=...
     PBack->>FC: POST /api/v2/token
@@ -142,14 +142,14 @@ Votre service doit rester fonctionnel si la FCD échoue : token AMI absent, expi
 sequenceDiagram
 	autonumber
 	actor U as Usager
-	participant AMI as AMI ou MITM
+	participant AMI as AMI
 	participant PFront as Front partenaire
 	participant PBack as Back partenaire
 	participant FC as FranceConnect
 
-	alt L'usager interagi avec un faux AMI
+	alt L'usager interagit avec un faux AMI
 		U->>AMI: Sélectionne un service partenaire
-		Note over AMI: AMI disfonctionne ou un intru forge un token
+		Note over AMI: AMI disfonctionne ou un intrus forge un token
 		AMI->>PFront: Redirige vers l'URL partenaire<br/> avec ?ami_token=JWT-AMI...<br/>(JWT-AMI absent ou invalide)
 	end
 
@@ -188,7 +188,7 @@ Procédure de validation manuelle reproductible.
 ### Pré-requis
 
 - Un ou plusieurs [compte(s) de test FC - AMI (sandbox)](https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-low/mocks/idp/databases/citizen/base.csv).
-- Un accès à votre service partenaire raccordé à FranceConnect.
+- Un accès à votre service partenaire de recette raccordé à la sandbox de FranceConnect.
 - Un navigateur avec outils de développement (onglet *Réseau*).
 
 ### Procédure
@@ -196,6 +196,8 @@ Procédure de validation manuelle reproductible.
 L'équipe AMI envoie à chaque compte de test une notification avec un lien vers la démarche partenaire de test (ou une page authentifiée de votre service).
 Le testeur peut se connecter à AMI en utilisant un compte de test, y consulter la notification envoyée par AMI et cliquer dessus pour être redirigé vers le site partenaire de test.
 Le centre de notification est acessible depuis la page d'accueil de l'application en cliquant sur l'icône en forme de cloche.
+
+> Si vous avez déjà la capacité d'envoyer des notifications AMI sur l'environnement de recette, vous êtes autonomes pour envoyer la notification de test.
 
 ### Critères de succès
 
