@@ -129,3 +129,17 @@ Les singletons sont exportés (`export default new XxxPage()`).
 ## Secrets
 
 Variables `NOTIF_*` dans `.env` à la racine (non commité, gabarit dans `.env.example`). Ne jamais écrire leurs valeurs dans du code ou du cache.
+
+## Documentation section
+
+Documentation diagrams and tables must be strictly grounded in captured/observed evidence.
+Do not introduce speculative actors or inferred relationships; if something is unknown, mark it as unconfirmed.
+
+## Testing section
+
+Never claim work is done or that tests pass without actually running them and verifying the output.
+Avoid long status summaries; confirm real results before ending.
+
+## Testing / E2E section
+
+For WDIO/Appium locators, prefer stable DOM/accessibility-based selectors over hardcoded fallbacks (e.g., avoid hardcoded '/suivi' or arbitrary parentElement traversal); inspect the actual rendered HTML before choosing a strategy.
