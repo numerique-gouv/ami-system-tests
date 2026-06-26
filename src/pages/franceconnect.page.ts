@@ -11,8 +11,7 @@ class FranceConnectPage {
   async selectEidasFaible(): Promise<void> {
     try {
       await refreshAxTree()
-      // Inspecté via just inspect : rôle "link", nom accessible "Démonstration eIDAS faible"
-      const eidasLink = await tl().getByRole('link', { name: /Démonstration eIDAS faible/i }).catch(() => null)
+      const eidasLink = await tl().getByRole('link', { name: new RegExp(fcpLocators.eidasFaibleLabel, 'i') }).catch(() => null)
       if (!eidasLink) return
       await driver.execute(() => window.scrollTo(0, 0))
       await eidasLink.click()
