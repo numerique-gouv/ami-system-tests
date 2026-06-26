@@ -1,149 +1,147 @@
-# WebdriverIO + Appium — Tests E2E AMI
+# Tests E2E — AMI
 
-## Architecture actuelle : Page Object Model + Testing Library
+Suite de tests système mobiles (iOS + Android) pour l'application AMI.
+Les scénarios couvrent les parcours utilisateurs complets : authentification FranceConnect, notifications push, démarches, etc.
 
-### Principe
+**Stack** : WebdriverIO v9 + Appium 3 + TypeScript + Testing Library
 
-Les tests s'appuient sur deux couches :
+---
 
-1. **Page Objects** (`src/pages/*.page.ts`) — actions métier sans sélecteurs directs
-2. **Requêtes sémantiques** (`@testing-library/webdriverio`) — trouvent les éléments comme un utilisateur les perçoit
+## Prérequis
 
-```
-test (scénario utilisateur)
-  └── Page Object (action métier : "ouvrir l'inbox")
-        └── tl().getByRole / findByText  (élément par rôle ARIA ou texte visible)
-```
+| Outil | Installation |
+|-------|-------------|
+| Node.js ≥ 20 | [nodejs.org](https://nodejs.org) |
+| `just` | `brew install just` |
+| Android SDK + `adb` | Android Studio → SDK Manager |
+| Xcode + `xcodegen` | App Store + `brew install xcodegen` |
+| Appium (global) | `npm i -g appium` |
 
-### Sélecteurs WebView : Testing Library
+Simulateur iOS attendu : **iPhone 17 Pro** (ou définir `IOS_SIMULATOR` dans `.env.local`)
+Émulateur Android : AVD de type Pixel, API 36 — nom configurable via `ANDROID_DEVICE_NAME` dans `.env.local`
 
-Dans les WebViews (SPA Svelte), les éléments sont trouvés par leur **sens**, pas par leur structure DOM :
+---
 
-```typescript
-// Avant (CSS fragile)
-const bell = $('#notification-icon a')
-const item = $(`//*[normalize-space(.)="${title}"]`)
+## Installation
 
-// Après (sémantique — résiste aux refactos CSS/layout)
-const bell = await tl().getByRole('link', { name: /notifications/i })
-const item = await tl().findByText(title, {}, { timeout: 20000 })
-```
-
-`tl()` retourne les requêtes Testing Library liées au contexte WebView courant. Il doit être appelé à l'intérieur d'un callback `withWebView()`.
-
-Queries disponibles : `getByRole`, `getByText`, `getByLabelText`, `getByPlaceholderText`, `findBy*` (async, avec attente), `queryBy*` (retourne null si absent).
-
-### Sélecteurs natifs : accessibility id
-
-Pour les éléments natifs (SwiftUI / Compose), on utilise les accessibility identifiers :
-
-```typescript
-// iOS accessibilityIdentifier / Android contentDescription
-$('~franceConnect button')
-'-ios predicate string:label == "Peut-être plus tard"'
+```bash
+cp .env.example .env.local   # puis remplir les variables NOTIF_*
+just setup                   # npm install + drivers Appium, may not work on non mac os
+just check                   # vérifier que les outils sont présents
 ```
 
 ---
 
-## Prochaine étape : Screenplay Pattern
-
-### Pourquoi ?
-
-Le Page Object Model a une limite : il pense en **pages** alors que les tests devraient penser en **comportements utilisateur**. Avec POM, un test ressemble à :
-
-```typescript
-await LoginPage.tapFranceConnect()
-await FranceConnectPage.loginWithSandbox()
-await OnboardingNotificationsPage.dismiss()
-await NotificationsInboxPage.openFromHome()
-```
-
-Ce n'est pas faux, mais ce n'est pas non plus une user story. Le Screenplay Pattern résout ça.
-
-### Le modèle Screenplay
-
-Quatre concepts :
-
-| Concept | Rôle | Exemple |
-|---------|------|---------|
-| **Actor** | Qui fait l'action | `const alice = Actor.named('Alice')` |
-| **Ability** | Ce que l'acteur peut faire | `BrowseTheWebWithWebdriverIO.using(browser)` |
-| **Task** | Ce que l'acteur fait (business) | `LoginViaFranceConnect()` |
-| **Question** | Ce que l'acteur observe | `TopNotificationTitle()` |
-
-### À quoi ressemblerait le test avec Screenplay
-
-```typescript
-import { Actor } from '@serenity-js/core'
-import { BrowseTheWebWithWebdriverIO } from '@serenity-js/webdriverio'
-
-describe('Notifications', () => {
-  let alice: Actor
-
-  before(() => {
-    alice = Actor.named('Alice').whoCan(BrowseTheWebWithWebdriverIO.using(browser))
-  })
-
-  it("reçoit une notification dans l'inbox malgré refus OS", async () => {
-    await alice.attemptsTo(
-      LoginViaFranceConnect(),
-      DeclineNotificationOnboarding(),
-      OpenNotificationsInbox(),
-    )
-
-    const title = `AMI-vanilla-${Date.now()}`
-    await publishNotification({ title, body: 'Test' })
-
-    await alice.attemptsTo(RefreshInbox())
-
-    await alice.asks(
-      Ensure.that(TopNotificationTitle(), equals(title))
-    )
-  })
-})
-```
-
-Les Tasks encapsulent tout le détail technique :
-
-```typescript
-// tasks/LoginViaFranceConnect.ts
-export const LoginViaFranceConnect = () =>
-  Task.where('#actor se connecte via FranceConnect',
-    // dismiss staging picker si présent
-    TryTo(SelectStagingEnvironment()),
-    // clic bouton FC dans la WebView
-    Click.on(PageElement.located(By.role('button', { name: /FranceConnect/i }))),
-    // gère optionnellement la page eIDAS
-    TryTo(SelectEidasFaible()),
-    // remplit et soumet le formulaire FCP-LOW
-    Enter.theValue(FC_IDENTIFIER).into(PageElement.located(By.id('login'))),
-    Enter.theValue(FC_PASSWORD).into(PageElement.located(By.id('password'))),
-    Press.the(Key.Enter),
-    Wait.until(PageElement.located(By.id('mire')), isNotPresent()),
-  )
-```
-
-### Bénéfice concret
-
-- Le test lit comme une user story — utile pour les PO/QA non-techniques
-- Les Tasks sont composables et réutilisables entre scénarios
-- Les rapports Serenity/JS décrivent les actions en langage naturel avec screenshots
-
-### Quand migrer ?
-
-Le Screenplay vaut l'investissement quand :
-- **> 15-20 scénarios** qui partagent des séquences d'actions
-- Une **équipe QA non-dev** lit ou écrit les tests
-- Les tests actuels deviennent difficiles à maintenir (copier-coller de séquences)
-
-Pour ce projet aujourd'hui, le POM + Testing Library est le bon niveau. À revisiter si la suite de tests s'étoffe.
-
-### Librairie de référence
-
-`@serenity-js/webdriverio` — [serenity-js.org](https://serenity-js.org)
+## Lancer les tests
 
 ```bash
-npm install @serenity-js/core @serenity-js/webdriverio @serenity-js/assertions
+just test-android                          # tous les tests Android
+just test-ios                              # tous les tests iOS
+just test-android "src/tests/home*"        # un fichier spécifique (glob)
+just test-android-grep Notifications       # filtrer par nom de describe/it
+just check-code                            # lint + typecheck avant commit
+just open-report                           # rapport Allure du dernier run
 ```
 
-La configuration se fait dans `wdio.base.conf.ts` via le reporter Serenity/JS.
+> Toutes les commandes passent par `just`. Ne jamais appeler directement `npm`, `npx`, `adb`, `xcrun` ou `appium`.
+
+---
+
+## Architecture
+
+```
+wdio.base.conf.ts          config partagée (timeouts, reporters Allure, hooks)
+wdio.android.conf.ts       capabilities Android + service Appium port 4723
+wdio.ios.conf.ts           capabilities iOS + service Appium port 4724
+src/
+  driver/
+    capabilities.ts        androidCapabilities / iosCapabilities
+  helpers/
+    webview.ts             withWebView(), tl(), refreshAxTree()
+    notifications-api.ts   publishNotification() avec retry 5xx
+  pages/
+    *.page.ts              Page Objects — actions métier, sans sélecteurs
+    locators/
+      *.locators.ts        sélecteurs par plateforme + getXxxLocators()
+  tests/
+    *.test.ts              scénarios Mocha (BDD)
+docs/
+  guidelines/              documentation détaillée des patterns (voir ci-dessous)
+```
+
+### Principe de sélection des éléments
+
+Les tests s'appuient sur deux couches :
+
+1. **Page Objects** (`src/pages/*.page.ts`) — actions métier sans sélecteurs directs
+2. **Requêtes sémantiques** — trouvent les éléments comme un utilisateur les perçoit
+
+```
+test (scénario)
+  └── Page Object ("ouvrir l'inbox")
+        └── tl().getByRole / findByText  — élément par rôle ARIA ou texte visible
+```
+
+En WebView (SPA Svelte), les éléments sont cherchés par leur **sens**, pas leur structure DOM :
+
+```typescript
+// Résistant aux refactos CSS/layout
+const bell = await tl().getByRole('link', { name: /notifications/i })
+const item = await tl().findByText(title, {}, { timeout: 20000 })
+```
+
+Pour les rares éléments **natifs** (hors WebView — boutons système, dialogs OS), les locators sont spécifiques à la plateforme et passent par `getXxxLocators()` :
+
+```typescript
+// iOS : accessibilityIdentifier SwiftUI
+$('~franceConnect button')
+// Android : resource-id
+$('~franceConnect button')  // si le même id est posé des deux côtés
+```
+
+---
+
+## Secrets
+
+Les variables `NOTIF_*` (clés API notifications) sont dans `.env.local` à la racine — non commité.
+Voir `.env.example` pour les noms des variables à renseigner.
+
+---
+
+## Contribuer
+
+### Ajouter un test
+
+1. Inspecter l'écran avec `just inspect` (ou `just inspect /ma-route`)
+2. Créer ou compléter les locators dans `src/pages/locators/`
+3. Créer ou compléter le Page Object dans `src/pages/`
+4. Écrire le scénario dans `src/tests/`
+5. Valider : `just check-code` puis `just test-android "MonTest"`
+
+### Guidelines
+
+Documentation détaillée des patterns et décisions d'architecture dans `docs/guidelines/` :
+
+| Fichier | Sujet |
+|---------|-------|
+| `semantic-locators.md` | Testing Library en WebView, `accessibility id` en natif |
+| `cross-platform-page-objects.md` | POM 3 niveaux : tests → pages → locators |
+| `webview-context-switching.md` | `withWebView()` seul autorisé |
+| `webview-quirks.md` | `refreshAxTree()`, scriptTimeout iOS, `executeAsync` |
+| `oidc-redirect-handling.md` | Flow FranceConnect complet |
+| `assertion-quality.md` | `waitUntil`, interdiction `browser.pause` |
+| `test-isolation.md` | `terminateApp`/`activateApp`, décision `before`/`beforeEach` |
+| `spa-navigation.md` | Navigation SPA hybride, pull-to-refresh, tab switching |
+| `retry-strategies.md` | `specFileRetries` vs `mochaOpts.retries` |
+| `debugging-workflow.md` | inspect → run → commit |
+| `interactive-debugging.md` | Boucle `browser.debug()` + `listInteractive()` |
+| `allure-reporting.md` | `addStep`, `addFeature`, `addSeverity`, `addAttachment` |
+
+### Workflow de débogage
+
+```bash
+just inspect              # explorer l'écran courant en live
+just inspect /suivi       # naviguer vers une route puis inspecter
+# → repérer les accessibility ids ou textes → mettre à jour les locators
+just test-android-grep "MonTest"   # relancer uniquement ce scénario
+```
