@@ -241,9 +241,9 @@ inspect:
         "$ADB" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
         "$ADB" shell am force-stop dev.mobile.maestro 2>/dev/null || true
         "$ADB" shell am force-stop dev.mobile.maestro.test 2>/dev/null || true
-        # Réveiller l'écran et s'assurer qu'il est déverrouillé
-        "$ADB" shell input keyevent 82
-        "$ADB" shell input keyevent 4
+        # Réveiller l'écran (KEYCODE_WAKEUP=224) sans interagir avec l'app au premier plan.
+        # Ne pas utiliser keyevent 4 (BACK) : il naviguerait dans l'app et ferait perdre la page en cours.
+        "$ADB" shell input keyevent 224
         sleep 1
         # --allow-insecure active le téléchargement automatique de Chromedriver (requis WebView Android)
         APPIUM_EXTRA_ARGS="--allow-insecure uiautomator2:chromedriver_autodownload"
