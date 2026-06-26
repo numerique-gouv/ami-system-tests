@@ -92,18 +92,24 @@ Voir aussi [webview-quirks.md §3](webview-quirks.md) pour les détails cross-pl
 
 Quand un scénario doit vérifier plusieurs informations sur un même élément (titre + statut, titre + URL), appliquer ce principe en deux temps :
 
-1. **Trouver** la carte/l'élément par ce qu'un utilisateur voit : texte visible (`innerText`, `textContent` du titre), rôle ARIA, ou icône accessible.
-2. **Explorer** les informations adjacentes avec des ancres structurelles stables : classes DSFR (`fr-badge`, `fr-tile__title`) ou attributs d'accessibilité (`aria-label`, `data-testid`).
+1. **Identifier** la carte/l'élément parmi d'autres → `textContent` (texte brut DOM, indépendant du CSS). Robuste même si l'élément ciblé applique un CSS "stretched link" ou un `text-transform` : la valeur stockée dans le DOM est toujours présente.
+2. **Asserter** l'état visible → `innerText` (respecte `display:none`, `visibility:hidden`, `text-transform`). Garantit que le statut, le titre ou la valeur est effectivement rendu à l'écran.
+
+> **Pourquoi ne pas utiliser `innerText` partout ?** `innerText` provoque un reflow CSS et retourne `''` si l'élément ou l'un de ses ancêtres est `display:none`. Sur un composant DSFR `fr-tile__title`, le lien interne peut être stylé de façon à retourner `''` via `innerText` alors que le texte est dans le DOM — `textContent` le trouve toujours.
 
 Les classes DSFR (`fr-badge`, `fr-tile__content`, `fr-tile__title`, etc.) font partie du contrat du Design Système de l'État — elles sont aussi stables que les rôles ARIA, et plus stables que les classes Svelte hashées (ex. `svelte-19k7n5y`) qui changent à chaque build.
 
 ```typescript
-// ✅ 1. Trouver par texte visible (ce que l'utilisateur lit)
+// ✅ 1. Identifier la carte : textContent (clé de recherche, indépendant du CSS)
 const card = cards.find(c => c.querySelector('.fr-tile__title')?.textContent?.includes(title))
 
-// ✅ 2. Explorer les données adjacentes avec des classes DSFR stables
-const status = card.querySelector('.fr-badge')?.textContent?.trim()
+// ✅ 2. Asserter l'état visible : innerText (vérifie ce que l'utilisateur voit)
+const status = (card.querySelector('.fr-badge') as HTMLElement | null)?.innerText?.trim()
 const href = (card.querySelector('a[data-testid="request-item-link"]') as HTMLAnchorElement)?.href
+
+// ❌ innerText pour l'identification — peut retourner '' sur un .fr-tile__title
+//    si le lien enfant est stylé en "stretched link" → carte jamais trouvée
+const card = cards.find(c => (c.querySelector('.fr-tile__title') as HTMLElement | null)?.innerText?.includes(title))
 
 // ❌ Explorer via classes Svelte hashées — fragile, change à chaque build
 card.querySelector('.svelte-19k7n5y')?.textContent
@@ -113,7 +119,7 @@ const link = Array.from(document.querySelectorAll('a')).find(a => a.textContent?
 // → rate les cartes sans lien externe
 ```
 
-**Règle pratique** : le critère de recherche doit toujours être un contenu visible par l'utilisateur. Le chemin pour lire des données autour peut utiliser les classes du Design Système ou les attributs d'accessibilité — mais jamais des classes d'implémentation (Svelte, BEM interne, framework).
+**Règle pratique** : `textContent` pour identifier, `innerText` pour asserter. Le chemin pour lire les données autour peut utiliser les classes du Design Système ou les attributs d'accessibilité — mais jamais des classes d'implémentation (Svelte, BEM interne, framework).
 
 ### innerText vs textContent vs offsetParent
 
@@ -121,8 +127,8 @@ Quand `tl().findByText('TERMINÉ')` échoue alors que le texte est visible, le p
 
 | Propriété | Ce qu'elle voit | Cas d'usage |
 |---|---|---|
-| `textContent` | Texte brut DOM, ignore CSS | Testing Library ; comparaison exacte de la valeur stockée |
-| `innerText` | Texte rendu (respecte `display:none`, `visibility:hidden`, `text-transform`) | Vérifier ce que l'utilisateur voit effectivement |
+| `textContent` | Texte brut DOM, ignore CSS | **Identifier** un élément parmi d'autres (clé de recherche) ; Testing Library ; valeur stockée indépendamment du rendu |
+| `innerText` | Texte rendu (respecte `display:none`, `visibility:hidden`, `text-transform`) | **Asserter** qu'un état est visible à l'écran ; sentinelles de navigation ; vérification badge/statut |
 | `offsetParent === null` | Élément retiré du layout (`display:none`) | Ne détecte **pas** `visibility:hidden` |
 
 ```typescript
