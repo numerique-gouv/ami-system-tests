@@ -255,9 +255,9 @@ inspect:
 
     echo "🔍 Démarrage Appium sur le port 4723…"
     # shellcheck disable=SC2086
-    npm run appium:start -- --port 4723 $APPIUM_EXTRA_ARGS &
+    npm run appium:start -- --port 4723 $APPIUM_EXTRA_ARGS </dev/null &
     APPIUM_PID=$!
-    trap "kill $APPIUM_PID 2>/dev/null; exit" INT TERM EXIT
+    trap "kill $APPIUM_PID 2>/dev/null || true" INT TERM EXIT
     sleep 5
     echo "🔍 Inspection de la WebView en cours ($PLATFORM)…"
     npx ts-node --project tsconfig.json src/scripts/inspect-webview.ts "$PLATFORM"

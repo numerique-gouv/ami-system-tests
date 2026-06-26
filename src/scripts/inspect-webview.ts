@@ -9,9 +9,12 @@
  *   just inspect /notifications     → navigue vers /#/notifications avant d'inspecter
  */
 
+import nodeRepl from 'node:repl'
 import { remote } from 'webdriverio'
 import { androidCapabilities, iosCapabilities } from '../driver/capabilities'
-import { registerReplHelpers, listInteractiveAll } from '../helpers/repl'
+import { listInteractiveAll, getContexts, saveScreenshot, webViewInfo } from '../helpers/repl'
+import { withWebView, refreshAxTree, tl } from '../helpers/webview'
+import { listInteractive } from '../helpers/inspect'
 
 const [,, platform] = process.argv
 
@@ -30,6 +33,7 @@ async function main(): Promise<void> {
   caps['appium:noReset'] = true
   caps['appium:fullReset'] = false
 
+  // eslint-disable-next-line no-console
   console.log(`\n🔌 Connexion à Appium (localhost:4723, ${platform})…`)
   const browser = await remote({
     hostname: 'localhost',
@@ -38,21 +42,68 @@ async function main(): Promise<void> {
     capabilities: caps as WebdriverIO.Capabilities,
   })
 
-  // En mode remote() standalone, WDIO n'injecte pas les globaux automatiquement.
-  // Les helpers (withWebView, listInteractive, repl…) utilisent driver/browser comme globaux.
+  // useGlobal: true : le REPL utilise le scope global Node.js, ce qui active le
+  // top-level `await` natif. Les helpers sont exposés sur globalThis pour y être accessibles.
   const g = globalThis as Record<string, unknown>
   g.browser = browser
   g.driver  = browser
   g.$       = browser.$.bind(browser)
   g.$$      = browser.$$.bind(browser)
+  g.listInteractive    = listInteractive
+  g.listInteractiveAll = listInteractiveAll
+  g.withWebView        = withWebView
+  g.webViewInfo        = webViewInfo
+  g.refreshAxTree      = refreshAxTree
+  g.getContexts        = getContexts
+  g.saveScreenshot     = saveScreenshot
+  g.tl                 = tl
+  g.help               = showHelp
 
-  registerReplHelpers()
-
+  // eslint-disable-next-line no-console
   console.log('\n📋 Éléments interactifs :\n')
   await listInteractiveAll()
 
+  function showHelp(): void {
+    // eslint-disable-next-line no-console
+    console.log(`
+Helpers disponibles dans ce REPL :
+
+  help()                         — affiche ce message
+  await listInteractive()        — éléments du contexte courant (natif ou webview)
+  await listInteractiveAll()     — natif + webview en un appel
+  await withWebView(async () =>  — exécuter une action dans le contexte WebView
+    { ... })
+  await webViewInfo()            — { url, visible, title } de la WebView active
+  await refreshAxTree()          — force le re-scan accessibilité (iOS)
+  await getContexts()            — liste les contextes Appium
+  await saveScreenshot('name')   — sauve /tmp/name.png
+
+  tl()                           — Testing Library (à utiliser dans withWebView)
+    ex : await withWebView(async () => {
+           const el = await tl().findByText('Mon texte')
+           console.log(await el.getText())
+         })
+
+  $('selector')                  — WDIO $ (accès direct)
+  $$('selector')                 — WDIO $$ (liste)
+  browser / driver               — session Appium en cours
+
+Voir docs/guidelines/interactive-debugging.md pour les recettes.\n`)
+  }
+
+  // eslint-disable-next-line no-console
   console.log('\n💡 REPL ouvert — taper help() pour voir les helpers disponibles.\n')
-  await browser.debug()
+
+  // useGlobal: true → le REPL partage le scope global Node.js (pas de contexte vm isolé).
+  // Avantage : top-level await est géré nativement par Node.js (enveloppé en async IIFE).
+  // Inconvénient acceptable : les `var` déclarés dans le REPL polluent le global — sans
+  // importance en session d'inspection.
+  const replServer = nodeRepl.start({
+    prompt: 'wdio> ',
+    useGlobal: true,
+  })
+
+  await new Promise<void>(resolve => replServer.on('exit', resolve))
 
   await browser.deleteSession()
 }

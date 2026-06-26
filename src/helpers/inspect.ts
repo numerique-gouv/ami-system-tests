@@ -79,8 +79,24 @@ async function listWebViewElements(
         seen.add(el)
 
         const tag = el.tagName.toLowerCase()
-        const role = el.getAttribute('role') ?? tag
-        const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
+        const explicitRole = el.getAttribute('role')
+        // Rôle ARIA implicite selon la spec HTML AAM.
+        // <input> varie selon type, <select multiple> est listbox.
+        const INPUT_TYPE_ROLES: Record<string, string> = {
+          checkbox: 'checkbox', radio: 'radio', search: 'searchbox',
+          number: 'spinbutton', range: 'slider',
+        }
+        let implicitRole: string
+        if (tag === 'input') {
+          implicitRole = INPUT_TYPE_ROLES[(el as HTMLInputElement).type] ?? 'textbox'
+        } else if (tag === 'select') {
+          implicitRole = (el as HTMLSelectElement).multiple ? 'listbox' : 'combobox'
+        } else {
+          const STATIC: Record<string, string> = { a: 'link', button: 'button', textarea: 'textbox' }
+          implicitRole = STATIC[tag] ?? tag
+        }
+        const role = explicitRole ?? implicitRole
+        const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
         const ariaLabel = el.getAttribute('aria-label') ?? ''
         const href = (el as HTMLAnchorElement).href ?? ''
         const id = el.id
