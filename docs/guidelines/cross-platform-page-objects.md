@@ -101,7 +101,7 @@ Le branchement explicite est acceptable dans le Page Object quand le comportemen
 
 | Cas | iOS | Android |
 |---|---|---|
-| Submit formulaire FCP-LOW | `driver.execute(() => btn.click())` | `browser.keys(['Return'])` |
+| Submit formulaire FCP-LOW | `driver.execute(() => btn.click())` | `driver.execute(() => btn.click())` |
 | Clic JS vs pointer events | fallback JS hash | pointer events Chromedriver natifs |
 | Wait post-OIDC | `waitUntil(url !== spaUrl)` | pas nécessaire (bouton déjà en WebView) |
 

@@ -77,9 +77,13 @@ avec un indicateur pass/fail par étape.
 // Dans le describe ou en début de it()
 AllureReporter.addFeature('Notifications')
 AllureReporter.addSeverity('critical')        // blocker | critical | normal | minor | trivial
-AllureReporter.addStory('Réception in-app')   // sous-feature
-AllureReporter.addTag('smoke')                // tags libres pour les runs sélectifs
+AllureReporter.addStory('Réception in-app')   // sous-feature (optionnel)
+AllureReporter.addTag('smoke')                // tags libres pour les runs sélectifs (optionnel)
 ```
+
+`addFeature` et `addSeverity` sont **obligatoires** dans chaque `describe` ou `it`.
+`addStory` et `addTag` sont **optionnels** — les adopter quand un pipeline CI exploite
+les filtres Allure pour des runs sélectifs (smoke, regression, feature X).
 
 Résultat dans Allure : filtrage par feature/sévérité, suivi des flaky par story.
 

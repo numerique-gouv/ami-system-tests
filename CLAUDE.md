@@ -5,7 +5,7 @@ Stack : WebdriverIO v9 + Appium 3 + TypeScript + Testing Library.
 
 Les apps cibles sont dans les dépôts frères `../ami-app-android` et `../ami-app-ios`.
 
-## Règle absolue : commandes via `just`
+Les commandes se lancent toujours via `just`.
 
 Ne jamais appeler directement `npm`, `npx`, `adb`, `xcrun`, `xcodebuild` ou `appium`. Ces appels doivent être encapsulés dans le `justfile`.
 
@@ -28,7 +28,7 @@ just open-report             # générer et ouvrir le rapport Allure
 | **Skills** (capacités Claude exécutables) | `.agents/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
 | **Guidelines** (savoir-faire du projet) | `guidelines/` | Documentation humain+IA. Lire avant d'écrire du code. |
 
-## Index des guidelines
+Tous les fichiers de guidelines sont dans `docs/guidelines/`.
 
 | Fichier | Sujet |
 |---------|-------|
@@ -69,16 +69,16 @@ src/
 
 ### Pattern locators
 
-Chaque fichier de locators expose :
-- `androidXxxLocators` — resource-id (`fr.gouv.ami.staging:id/<name>`)
-- `iosXxxLocators` — `accessibility id`
-- `getXxxLocators()` — retourne le bon objet selon `driver.isIOS`
+L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les requêtes Testing Library (`tl().getByRole`, `tl().findByText`) sont donc identiques sur les deux plateformes.
 
-**Convention avec les équipes mobile** : poser le même identifiant (`accessibilityIdentifier` SwiftUI / `contentDescription` Android) pour les éléments communs → un seul locator `accessibility id` suffit alors des deux côtés.
+Le dispatch `getXxxLocators()` n'est nécessaire que pour les **éléments natifs** (hors WebView) :
+- `androidXxxLocators` — resource-id (`fr.gouv.ami.staging:id/<name>`)
+- `iosXxxLocators` — `accessibility id` (SwiftUI `accessibilityIdentifier`)
+- `getXxxLocators()` — retourne le bon objet selon `driver.isIOS`
 
 ### Page Objects
 
-Les Page Objects (`*.page.ts`) ne contiennent **aucun sélecteur** : ils appellent `getXxxLocators()` à chaque méthode. Cela permet de tester la même page sur les deux plateformes sans duplication.
+Les Pages Objects (`*.page.ts`) ne contiennent **aucun sélecteur** : ils appellent `getXxxLocators()` à chaque méthode. Cela permet de tester la même page sur les deux plateformes sans duplication.
 
 Les singletons sont exportés (`export default new XxxPage()`).
 
@@ -95,14 +95,6 @@ Les singletons sont exportés (`export default new XxxPage()`).
 **`withWebView()` unique pour OIDC iOS** : sortir du contexte WebView au milieu du flow FranceConnect provoque un blocage ~25 s.
 
 **`isVisible()` try/catch + `return await`** : sans `await`, les rejections de Promise ne sont pas interceptées par `try/catch`.
-
-## Cas particuliers à modéliser
-
-| Cas | Considérations |
-|-----|---------------|
-| **WebView hybride** | Appium : switch de contexte `NATIVE_APP` ↔ `WEBVIEW_*` via `withWebView()` |
-| **Compat web × native** | Les locators web ne doivent pas casser quand l'app native est une version N-1 ou N-2 |
-| **Multi-appareils** | Deux instances `driver` simultanées ou coordination via Appium Hub/Grid ; synchronisation entre scénarios |
 
 ## Fichiers clés
 
@@ -123,23 +115,24 @@ Les singletons sont exportés (`export default new XxxPage()`).
 - Android SDK + `adb` dans le PATH
 - Xcode + `xcodegen` (`brew install xcodegen`)
 - `appium` global (`npm i -g appium`)
-- Simulateur iOS "iPhone 15 / iOS 17.0" créé dans Xcode
-- Émulateur Android "Pixel 7 / API 34" créé dans AVD Manager
+- Simulateur iOS "iPhone 17 Pro" (ou surcharger `IOS_SIMULATOR` dans `.env.local`)
+- Émulateur Android : AVD de type Pixel, API 36 (nom via `ANDROID_DEVICE_NAME` dans `.env.local`)
 
 ## Secrets
 
-Variables `NOTIF_*` dans `.env` à la racine (non commité, gabarit dans `.env.example`). Ne jamais écrire leurs valeurs dans du code ou du cache.
+Variables `NOTIF_*` dans `.env.local` à la racine (non commité, gabarit dans `.env`). Ne jamais écrire leurs valeurs dans du code ou du cache.
+Dans les permissions, tu ne dois pas avoir le droit de lire `.env.local`, les commande shell s'en servent comme WDIO, scalingo, mais tu ne doit jamais utiliser d'outil pour l'afficher.
 
-## Documentation section
+## Section Documentation
 
-Documentation diagrams and tables must be strictly grounded in captured/observed evidence.
-Do not introduce speculative actors or inferred relationships; if something is unknown, mark it as unconfirmed.
+Les diagrammes et tableaux de documentation doivent être strictement fondés sur des preuves capturées ou observées.
+Ne pas introduire d'acteurs spéculatifs ou de relations inférées ; si quelque chose est inconnu, le marquer comme non confirmé.
 
-## Testing section
+## Section Tests
 
-Never claim work is done or that tests pass without actually running them and verifying the output.
-Avoid long status summaries; confirm real results before ending.
+Ne jamais affirmer qu'un travail est terminé ou que les tests passent sans les avoir réellement exécutés et vérifié le résultat.
+Éviter les longs résumés de statut ; confirmer les résultats réels avant de conclure.
 
-## Testing / E2E section
+## Section Tests / E2E
 
-For WDIO/Appium locators, prefer stable DOM/accessibility-based selectors over hardcoded fallbacks (e.g., avoid hardcoded '/suivi' or arbitrary parentElement traversal); inspect the actual rendered HTML before choosing a strategy.
+Pour les locators WDIO/Appium, préférer les sélecteurs stables basés sur le DOM ou l'accessibilité plutôt que des valeurs codées en dur (ex. : éviter `/suivi` hardcodé ou la traversée arbitraire de `parentElement`) ; inspecter le HTML réellement rendu avant de choisir une stratégie.

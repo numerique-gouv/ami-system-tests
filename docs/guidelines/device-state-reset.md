@@ -44,7 +44,7 @@ Le test se contente de `fullReset: false` dans les capabilities — Appium réin
 
 Sur Android, le nettoyage est dans le hook `beforeSession` de `wdio.android.conf.ts` car il doit cibler le device connecté dynamiquement :
 
-```typescriptx
+```typescript
 // wdio.android.conf.ts
 beforeSession(): void {
   // Force-stop les APKs UiAutomator2 stale

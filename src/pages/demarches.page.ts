@@ -32,15 +32,15 @@ class DemarchesPage {
             lastContent = await driver.execute(
               (contentSel: string, titleSel: string, badgeSel: string, t: string) => {
                 const cards = Array.from(document.querySelectorAll(contentSel))
-                const card = cards.find(c => c.querySelector(titleSel)?.textContent?.includes(t))
+                const card = cards.find(c => (c.querySelector(titleSel) as HTMLElement | null)?.innerText?.includes(t))
                 if (!card) return null
-                return card.querySelector(badgeSel)?.textContent?.trim().toLowerCase() ?? ''
+                return (card.querySelector(badgeSel) as HTMLElement | null)?.innerText?.trim().toLowerCase() ?? ''
               }, loc.cardContent, loc.cardTitle, loc.cardBadge, title) as string | null
             if (lastContent === null) { failReason = 'card-not-found'; return false }
             if (!lastContent.includes(statusLabelLower)) { failReason = 'status-not-found'; return false }
             return true
           },
-          { timeout: timeoutMs, interval: 2000, timeoutMsg: 'timeout' }
+          { timeout: timeoutMs, interval: 2000, timeoutMsg: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms` }
         )
       } catch {
         if (failReason === 'card-not-found')
@@ -75,14 +75,14 @@ class DemarchesPage {
     await withWebView(async () => {
       await driver.execute((tabSel: string, label: string) => {
         const tab = Array.from(document.querySelectorAll(tabSel))
-          .find(el => el.textContent?.trim() === label) as HTMLElement | undefined
+          .find(el => (el as HTMLElement).innerText?.trim() === label) as HTMLElement | undefined
         if (!tab) throw new Error(`Onglet "${label}" introuvable dans le DOM`)
         tab.click()
       }, loc.tabSelector, loc.tabPasseesLabel)
       await browser.waitUntil(
         async () => driver.execute((tabSel: string, label: string) => {
           const tab = Array.from(document.querySelectorAll(tabSel))
-            .find(el => el.textContent?.trim() === label)
+            .find(el => (el as HTMLElement).innerText?.trim() === label)
           return tab?.getAttribute('aria-selected') === 'true'
         }, loc.tabSelector, loc.tabPasseesLabel) as Promise<boolean>,
         { timeout: 5000, interval: 300, timeoutMsg: `Onglet "${loc.tabPasseesLabel}" non activé après le clic` }
@@ -117,7 +117,7 @@ class DemarchesPage {
             lastHref = await driver.execute(
               (contentSel: string, titleSel: string, linkSel: string, t: string) => {
                 const cards = Array.from(document.querySelectorAll(contentSel))
-                const card = cards.find(c => c.querySelector(titleSel)?.textContent?.includes(t))
+                const card = cards.find(c => (c.querySelector(titleSel) as HTMLElement | null)?.innerText?.includes(t))
                 if (!card) return null
                 return (card.querySelector(linkSel) as HTMLAnchorElement | null)?.href ?? null
               }, loc.cardContent, loc.cardTitle, loc.cardLink, title) as string | null
@@ -125,7 +125,7 @@ class DemarchesPage {
             if (!lastHref.includes(expectedUrl)) { failReason = 'url-not-found'; return false }
             return true
           },
-          { timeout: timeoutMs, interval: 2000, timeoutMsg: 'timeout' }
+          { timeout: timeoutMs, interval: 2000, timeoutMsg: `URL "${expectedUrl}" non trouvée pour "${title}" après ${timeoutMs}ms` }
         )
       } catch {
         if (failReason === 'card-not-found')

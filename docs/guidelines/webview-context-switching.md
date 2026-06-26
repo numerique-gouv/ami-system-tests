@@ -49,7 +49,7 @@ await driver.switchContext('NATIVE_APP') // jamais atteint si click() échoue
 
 ### Règles complémentaires
 
-- **Gestes en `NATIVE_APP`** : swipe, pull-to-refresh natif, `keys('Return')` — ne jamais les appeler depuis l'intérieur de `withWebView()`.
+- **Gestes en `NATIVE_APP`** : swipe, pull-to-refresh natif, `keys('Return')` — ne jamais les appeler depuis l'intérieur de `withWebView()`. Pour soumettre un formulaire WebView (ex. FCP-LOW), préférer `driver.execute(() => btn.click())` : un clic JS synthétique bypasse le hit-testing et n'est pas affecté par un overlay natif (clavier, toolbar) qui pourrait voler le focus.
 - **Reload WebView** : préférer `driver.execute(() => { window.location.reload() })` au swipe pull-to-refresh natif (plus fiable, garantit un fetch serveur).
 - **WebView "endormie"** : si `waitForDisplayed` timeout juste après une navigation, un léger swipe natif (`NATIVE_APP`) avant d'entrer dans `withWebView()` réveille le moteur de rendu.
 

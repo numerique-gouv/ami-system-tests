@@ -48,10 +48,14 @@ Ne jamais commiter un workaround hypothétique ("ça devrait marcher avec ce sé
 Pendant une session de débogage :
 
 ```typescript
-// wdio.base.conf.ts — temporaire, ne pas commiter
+// wdio.base.conf.ts — temporaire, ne pas commiter en prod
 logLevel: 'info',      // voit les COMMAND/DATA/RESULT Appium
 specFileRetries: 0,    // voir la vraie cause, pas le retry qui masque
 ```
+
+> **Projet en développement actif :** tant que la suite de tests n'est pas stabilisée,
+> `logLevel: 'info'` et `specFileRetries: 0` peuvent être commités dans `wdio.base.conf.ts`
+> pour faciliter le diagnostic quotidien. Basculer vers `'warn'`/`1` lors de la mise en CI.
 
 Ajouter un `afterEach` screenshot si le `afterTest` ne suffit pas :
 

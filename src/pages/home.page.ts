@@ -49,7 +49,7 @@ class HomePage {
                         try {
                             return await driver.execute(() =>
                                 Array.from(document.querySelectorAll('a'))
-                                    .some(a => a.textContent?.trim() === 'Suivi' && (a as HTMLElement).offsetParent !== null)
+                                    .some(a => a.innerText?.trim() === 'Suivi')
                             ) as boolean
                         } catch {
                             return false
@@ -80,19 +80,19 @@ class HomePage {
             await withWebView(async () => {
                 await driver.execute(() => {
                     const suivi = Array.from(document.querySelectorAll('a'))
-                        .find(el => el.textContent?.trim() === 'Suivi') as HTMLElement | undefined
+                        .find(el => el.innerText?.trim() === 'Suivi') as HTMLElement | undefined
                     suivi?.click()
                 })
                 await browser.waitUntil(
                     async () => driver.execute(() =>
-                        Array.from(document.querySelectorAll('h1, h2'))
-                            .some(h => h.textContent?.includes('démarches'))
+                        Array.from(document.querySelectorAll<HTMLElement>('h1, h2'))
+                            .some(h => h.innerText?.includes('démarches'))
                     ) as Promise<boolean>,
                     { timeout: 5000, interval: 300, timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi' }
                 )
                 await driver.execute(() => {
                     const accueil = Array.from(document.querySelectorAll('a'))
-                        .find(el => el.textContent?.trim() === 'Accueil') as HTMLElement | undefined
+                        .find(el => el.innerText?.trim() === 'Accueil') as HTMLElement | undefined
                     accueil?.click()
                 })
             })
@@ -105,7 +105,7 @@ class HomePage {
                             (t: string) => document.body.innerText.includes(t),
                             title
                         ) as Promise<boolean>,
-                        { timeout: Math.min(remaining, 10000), interval: 1000 }
+                        { timeout: Math.min(remaining, 10000), interval: 1000, timeoutMsg: `Démarche "${title}" non visible sur la home après ${Math.min(remaining, 10000)}ms` }
                     )
                     return true
                 } catch { return false }
@@ -146,7 +146,7 @@ class HomePage {
             )
             await browser.waitUntil(
                 async () => await driver.execute(() =>
-                    Array.from(document.querySelectorAll('h1, h2')).some(h => h.textContent?.includes('démarches'))
+                    Array.from(document.querySelectorAll<HTMLElement>('h1, h2')).some(h => h.innerText?.includes('démarches'))
                 ) as boolean,
                 {
                     timeout: 10000,
@@ -157,13 +157,6 @@ class HomePage {
         })
     }
 
-    /** Ouvre le premier partenaire/item de la liste en tapant dessus dans la WebView. */
-    async openFirstPartner(): Promise<void> {
-        await withWebView(async () => {
-            const item = $('//*[@aria-label and @tabindex="0"][1]')
-            await item.click()
-        })
-    }
 }
 
 export default new HomePage()

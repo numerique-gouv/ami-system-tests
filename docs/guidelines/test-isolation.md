@@ -125,6 +125,46 @@ it('affiche le nom du partenaire', async () => { ... })
 it('affiche la description', async () => { ... })
 ```
 
+### Cas 4 — Exception : cycle de vie d'entité backend (suite séquentielle intentionnelle)
+
+Quand les `it()` testent les **états successifs d'une même entité côté API** (ex. `new → wip → closed` pour une démarche partenaire), la dépendance entre `it()` est structurelle et ne peut pas être éliminée à coût raisonnable : rejouer le backend depuis zéro dans chaque `it()` impliquerait un login OIDC + une séquence de publications complète à chaque étape.
+
+Dans ce cas, la suite peut partager un identifiant d'entité créé dans `before`, à condition que :
+1. La dépendance soit documentée explicitement en commentaire dans le `describe`.
+2. L'identifiant soit unique et horodaté (ex. `` `E2E-${new Date().toISOString()}` ``) pour garantir l'idempotence des runs successifs.
+3. Chaque `it()` publie ses propres notifications et valide son état sans supposer l'état *local de l'app* laissé par le `it()` précédent (retour sur la page d'accueil explicite en début de `it()` si nécessaire).
+4. Les `specFileRetries` relancent bien l'ensemble du spec file (nouvelle session → `before` rejoué) et non un `it()` isolé.
+
+```typescript
+/**
+ * Les 3 tests partagent le même `itemId` (même démarche côté API, états successifs).
+ * Exception documentée à la règle d'indépendance des it() — voir test-isolation.md §Cas 4.
+ */
+describe('Démarches — cycle de vie via notifications partenaire', () => {
+  let itemId: string
+  before(async () => {
+    itemId = `E2E-${new Date().toISOString()}`
+    // login OIDC ...
+  })
+
+  it('crée une démarche visible (statut new)', async () => {
+    await publishNotification({ itemId, itemGenericStatus: 'new', ... })
+    await HomePage.waitForDemarche(title)
+    // ...
+  })
+
+  it('met à jour l'URL externe (statut wip)', async () => {
+    await DemarchesPage.goToHome() // retour explicite, pas de supposition sur l'état local
+    await publishNotification({ itemId, itemGenericStatus: 'wip', ... })
+    // ...
+  })
+})
+```
+
+> **Limite** : si un `it()` intermédiaire échoue, les `it()` suivants échoueront également.
+> C'est acceptable dans cette exception — l'échec est signalé au niveau de la suite entière,
+> et le rapport Allure montre quelle étape du cycle a failli.
+
 ### Fuites d'état à surveiller dans ce projet
 
 | Source de fuite | Impact | Remède |

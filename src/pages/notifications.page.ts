@@ -17,7 +17,6 @@ class NotificationsInboxPage {
       await bell.waitForDisplayed({ timeout: 15000 })
       await bell.click()
 
-      await browser.pause(500)
       const hash = await driver.execute(() => window.location.hash) as string
 
       // Sur iOS/WKWebView, le clic sur <a> via WKRDP ne déclenche pas toujours la navigation —
@@ -26,12 +25,13 @@ class NotificationsInboxPage {
         await driver.execute(() => { window.location.hash = '/notifications' })
       }
 
+      // Confirmation par un élément visible de la page (pas par le hash) — spa-navigation.md
       await browser.waitUntil(
         async () => {
-          const h = await driver.execute(() => window.location.hash) as string
-          return h.includes('/notifications')
+          const heading = await driver.execute(() => document.querySelector('h1')?.innerText ?? '') as string
+          return /notification/i.test(heading)
         },
-        { timeout: 15000, interval: 500, timeoutMsg: 'page /#/notifications non atteinte en 15s' }
+        { timeout: 15000, interval: 500, timeoutMsg: 'Page notifications non rendue en 15s' }
       )
     })
   }

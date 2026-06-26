@@ -96,7 +96,7 @@ reporters: [
 ],
 ```
 
-`'warn'` supprime les logs Appium bas niveau en production. Passer à `'info'` ponctuellement pour diagnostiquer un test flaky. Allure (`just open-report`) conserve l'historique des runs avec screenshots automatiques.
+`'warn'` supprime les logs Appium bas niveau en production. `'info'` peut être commité en phase de développement actif pour faciliter le diagnostic quotidien ; basculer vers `'warn'` lors de la mise en CI. Allure (`just open-report`) conserve l'historique des runs avec screenshots automatiques.
 
 ### Screenshot automatique sur échec
 

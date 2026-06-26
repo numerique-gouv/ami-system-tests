@@ -1,5 +1,5 @@
 import { fcpLocators } from './locators/franceconnect.locators'
-import { withWebView, refreshAxTree, tl } from '../helpers/webview'
+import { withWebView, refreshAxTree } from '../helpers/webview'
 import type { TestUser } from '../helpers/test-users'
 
 class FranceConnectPage {
@@ -11,10 +11,9 @@ class FranceConnectPage {
   async selectEidasFaible(): Promise<void> {
     try {
       await refreshAxTree()
-      const eidasLink = await tl().findByText(/faible/i, {}, { timeout: 8000 }).catch(() => null)
-      if (!eidasLink) return
+      if (!await $(fcpLocators.eidasFaibleLink).isExisting()) return
       await driver.execute(() => window.scrollTo(0, 0))
-      await eidasLink.click()
+      await $(fcpLocators.eidasFaibleLink).click()
       await $(fcpLocators.fcpLowHeading).waitForDisplayed({ timeout: 10000 })
     } catch {
       // Erreur transitoire (navigation en cours) — considéré comme auto-complete
@@ -65,24 +64,17 @@ class FranceConnectPage {
    * Doit être appelé dans un contexte WebView (ou via withWebView).
    */
   async submit(): Promise<void> {
-    if (driver.isIOS) {
-      // Sur iOS/WKWebView, fillCredentials utilise driver.execute() pour contourner le bug WKRDP
-      // (focus JS ≠ focus natif → browser.keys('Return') envoie la touche dans le vide).
-      // On clique le bouton submit via JS pour rester cohérent avec la même stratégie.
-      await driver.execute(() => {
-        const btn = document.querySelector<HTMLButtonElement>('button[type="submit"]')
-        btn?.click()
-      })
-      const urlBeforeSubmit = await driver.getUrl().catch(() => '')
-      await browser.waitUntil(
-        async () => (await driver.getUrl().catch(() => urlBeforeSubmit)) !== urlBeforeSubmit,
-        { timeout: 15000, interval: 300, timeoutMsg: 'Redirect OIDC post-submit non détecté en 15s' }
-      )
-    } else {
-      await browser.keys(['Return'])
-      // Android : attendre que le conteneur FCP-LOW disparaisse (redirect OIDC suivi)
-      await $(fcpLocators.fcpLowHeading).waitForDisplayed({ timeout: 15000, reverse: true })
-    }
+    // driver.execute() contourne le hit-testing : un overlay natif (clavier, toolbar Android)
+    // ne peut pas intercepter un clic JS synthétique, contrairement à browser.keys('Return').
+    await driver.execute(() => {
+      const btn = document.querySelector<HTMLButtonElement>('button[type="submit"]')
+      btn?.click()
+    })
+    const urlBeforeSubmit = await driver.getUrl().catch(() => '')
+    await browser.waitUntil(
+      async () => (await driver.getUrl().catch(() => urlBeforeSubmit)) !== urlBeforeSubmit,
+      { timeout: 15000, interval: 300, timeoutMsg: 'Redirect OIDC post-submit non détecté en 15s' }
+    )
   }
 
   /**

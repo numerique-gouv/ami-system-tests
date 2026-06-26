@@ -1,6 +1,6 @@
 # Navigation dans une SPA hybride
 
-Patterns pour naviguer de manière fiable dans l'app AMI (SPA React dans une WebView native Android/iOS).
+Patterns pour naviguer de manière fiable dans l'app AMI (SPA Svelte dans une WebView native Android/iOS).
 
 ## 1. Symptôme
 

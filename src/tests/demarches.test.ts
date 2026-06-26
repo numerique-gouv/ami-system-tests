@@ -27,6 +27,10 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
   let urlV1: string
   let urlV2: string
 
+  after(async () => {
+    try { await DemarchesPage.goToHome() } catch { /* session déjà terminée */ }
+  })
+
   before(async () => {
     await AllureReporter.addFeature('Démarches')
     await AllureReporter.addSeverity('critical')

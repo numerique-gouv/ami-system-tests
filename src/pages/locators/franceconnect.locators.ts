@@ -34,10 +34,8 @@ export interface FranceConnectLocators {
  *   Conteneur : id="mire" ; champs : id="login", id="password" ; bouton : type="submit".
  */
 export const fcpLocators: FranceConnectLocators = {
-  // L'IDP eIDAS faible a id="idp-<uuid>" dans la liste FranceConnect staging.
-  // Le premier de la liste est toujours eIDAS faible en staging (confirmé).
-  // NB : pas d'aria-label sur cet élément — Maestro le cible via text: ".*faible.*" (textContent).
-  eidasFaibleLink: '[id^="idp-"]',
+  // aria-label="Démonstration eIDAS faible " (espace final) confirmé en staging.
+  eidasFaibleLink: '[aria-label*="faible"]',
 
   // Outer container de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
   fcpLowHeading: '#mire',
