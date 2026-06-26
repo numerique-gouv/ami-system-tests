@@ -12,6 +12,7 @@ allure-report/
 *.log
 apps/
 .playwright-mcp/
+build/
 
 # Variables d'environnement locales
 .env
