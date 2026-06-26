@@ -211,7 +211,7 @@ test-ios-grep tag="": start-ios
 # Détecte automatiquement la plateforme : exactement un appareil Android OU un simulateur iOS doit être connecté.
 # Usage : just inspect              → inspecte l'écran courant
 #         just inspect /notifications → navigue vers /#/notifications puis inspecte
-inspect hash="":
+inspect:
     #!/usr/bin/env bash
     set -euo pipefail
     ADB="{{ android_sdk }}/platform-tools/adb"
@@ -260,7 +260,7 @@ inspect hash="":
     trap "kill $APPIUM_PID 2>/dev/null; exit" INT TERM EXIT
     sleep 5
     echo "🔍 Inspection de la WebView en cours ($PLATFORM)…"
-    npx ts-node --project tsconfig.json src/scripts/inspect-webview.ts "$PLATFORM" "{{hash}}"
+    npx ts-node --project tsconfig.json src/scripts/inspect-webview.ts "$PLATFORM"
     kill $APPIUM_PID 2>/dev/null || true
 
 # Générer et ouvrir le rapport Allure du dernier run
