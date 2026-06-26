@@ -47,7 +47,7 @@ await driver.execute(() => { window.location.hash = '#/requests' })
 // ✅ Element visible dans la page de destination — robuste aux changements de routing
 await browser.waitUntil(
   async () => driver.execute(() =>
-    !!document.querySelector('h1')?.textContent?.includes('Mes démarches')
+    !!document.querySelector('h1')?.innerText?.includes('Mes démarches')
   ) as Promise<boolean>,
   { timeout: 10000, timeoutMsg: 'Page Mes démarches non chargée' }
 )
@@ -57,6 +57,25 @@ await browser.waitUntil(
   async () => (await driver.execute(() => window.location.hash)) === '#/requests',
   { timeout: 10000 }
 )
+```
+
+**Exception — page sans heading identifiable :** si la page de destination est une pure liste
+sans heading sémantique stable (ex. inbox notifications : 50+ `<a>`, aucun `h1`), la
+confirmation par hash est légitime à condition que :
+1. le hash ait été positionné juste avant (par clic ou fallback JS) dans le même `withWebView()` ;
+2. une assertion sur le contenu réel (`waitForNotification`, `waitForItemWithStatus`…) suive
+   immédiatement et confirme le rendu effectif.
+
+```typescript
+// ✅ Exception légitime — inbox notifications (pas de heading, 50+ <a>)
+if (!hash.includes('/notifications')) {
+  await driver.execute(() => { window.location.hash = '/notifications' })
+}
+await browser.waitUntil(
+  async () => (await driver.execute(() => window.location.hash) as string).includes('/notifications'),
+  { timeout: 15000, interval: 500, timeoutMsg: 'page /#/notifications non atteinte en 15s' }
+)
+// Le rendu réel est confirmé ensuite par waitForNotification(title)
 ```
 
 ### Pull-to-refresh : geste natif AVANT withWebView

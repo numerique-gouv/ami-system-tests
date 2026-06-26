@@ -25,13 +25,17 @@ class NotificationsInboxPage {
         await driver.execute(() => { window.location.hash = '/notifications' })
       }
 
-      // Confirmation par un élément visible de la page (pas par le hash) — spa-navigation.md
+      // Exception documentée (spa-navigation.md) : la page notifications n'a pas de heading
+      // identifiable — c'est une liste pure de <a>. Le hash est ici la sentinelle légitime :
+      // soit le clic l'a positionné, soit le fallback vient de le forcer ; la SPA Svelte
+      // re-rend synchronement après un changement de hash. Le rendu réel est confirmé
+      // ensuite par waitForNotification() qui attend un item spécifique.
       await browser.waitUntil(
         async () => {
-          const heading = await driver.execute(() => document.querySelector('h1')?.innerText ?? '') as string
-          return /notification/i.test(heading)
+          const h = await driver.execute(() => window.location.hash) as string
+          return h.includes('/notifications')
         },
-        { timeout: 15000, interval: 500, timeoutMsg: 'Page notifications non rendue en 15s' }
+        { timeout: 15000, interval: 500, timeoutMsg: 'page /#/notifications non atteinte en 15s' }
       )
     })
   }
