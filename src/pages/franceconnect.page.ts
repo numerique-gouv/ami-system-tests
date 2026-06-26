@@ -1,5 +1,5 @@
 import { fcpLocators } from './locators/franceconnect.locators'
-import { withWebView, refreshAxTree } from '../helpers/webview'
+import { withWebView, refreshAxTree, tl } from '../helpers/webview'
 import type { TestUser } from '../helpers/test-users'
 
 class FranceConnectPage {
@@ -11,9 +11,11 @@ class FranceConnectPage {
   async selectEidasFaible(): Promise<void> {
     try {
       await refreshAxTree()
-      if (!await $(fcpLocators.eidasFaibleLink).isExisting()) return
+      // Inspecté via just inspect : rôle "link", nom accessible "Démonstration eIDAS faible"
+      const eidasLink = await tl().getByRole('link', { name: /Démonstration eIDAS faible/i }).catch(() => null)
+      if (!eidasLink) return
       await driver.execute(() => window.scrollTo(0, 0))
-      await $(fcpLocators.eidasFaibleLink).click()
+      await eidasLink.click()
       await $(fcpLocators.fcpLowHeading).waitForDisplayed({ timeout: 10000 })
     } catch {
       // Erreur transitoire (navigation en cours) — considéré comme auto-complete

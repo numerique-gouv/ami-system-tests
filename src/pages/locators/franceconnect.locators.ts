@@ -16,7 +16,6 @@ import type { Locator } from './onboarding.locators'
  */
 
 export interface FranceConnectLocators {
-  eidasFaibleLink: Locator  // lien "niveau faible" sur la page de sélection eiDAS
   fcpLowHeading:   Locator  // titre de confirmation que la page FCP-LOW est chargée
   identifierField: Locator  // champ identifiant utilisateur
   passwordField:   Locator  // champ mot de passe
@@ -24,19 +23,16 @@ export interface FranceConnectLocators {
 }
 
 /**
- * Sélecteurs vérifiés par inspection Appium (Maestro inspect_screen) sur le staging réel.
+ * Sélecteurs vérifiés par inspection (just inspect) sur le staging réel.
  *
  * Page 1 — sélection eiDAS (FranceConnect) :
- *   Les IDPs ont id="idp-<uuid>" dans le DOM ; le premier de la liste est toujours eIDAS faible.
- *   aria-label="Démonstration eIDAS faible " (avec espace final) confirmé en staging.
+ *   L'IDP "Démonstration eIDAS faible" est ciblé via tl().getByRole('link', { name: /Démonstration eIDAS faible/i })
+ *   directement dans selectEidasFaible() — les queries TL s'écrivent inline dans le PO, pas dans les locators.
  *
  * Page 2 — formulaire FCP-LOW :
  *   Conteneur : id="mire" ; champs : id="login", id="password" ; bouton : type="submit".
  */
 export const fcpLocators: FranceConnectLocators = {
-  // aria-label="Démonstration eIDAS faible " (espace final) confirmé en staging.
-  eidasFaibleLink: '[aria-label*="faible"]',
-
   // Outer container de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
   fcpLowHeading: '#mire',
 
