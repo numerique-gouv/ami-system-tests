@@ -18,17 +18,24 @@ const [,, platform] = process.argv
 async function main(): Promise<void> {
   const baseCaps = platform === 'ios' ? iosCapabilities : androidCapabilities
 
+  // Retirer les capabilities qui relancent ou terminent l'app :
+  //   - 'appium:app'              → déclenche une vérification d'installation + lancement depuis le .apk/.app
+  //   - 'appium:appActivity'      → Android : navigue vers MainActivity au démarrage de session
+  //   - 'appium:shouldTerminateApp' → iOS : termine l'app avant de s'y attacher
+  // Sans appActivity/shouldTerminateApp, Appium s'attache à l'app déjà au premier plan.
+  const caps = { ...(baseCaps as Record<string, unknown>) }
+  delete caps['appium:app']
+  delete caps['appium:appActivity']
+  delete caps['appium:shouldTerminateApp']
+  caps['appium:noReset'] = true
+  caps['appium:fullReset'] = false
+
   console.log(`\n🔌 Connexion à Appium (localhost:4723, ${platform})…`)
   const browser = await remote({
     hostname: 'localhost',
     port: 4723,
     logLevel: 'error',
-    capabilities: {
-      ...baseCaps,
-      // Mode inspection : garder l'état de l'app, ne pas réinstaller
-      'appium:noReset': true,
-      'appium:fullReset': false,
-    },
+    capabilities: caps as WebdriverIO.Capabilities,
   })
 
   // En mode remote() standalone, WDIO n'injecte pas les globaux automatiquement.
