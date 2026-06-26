@@ -12,9 +12,8 @@
 import { remote } from 'webdriverio'
 import { androidCapabilities, iosCapabilities } from '../driver/capabilities'
 import { registerReplHelpers, listInteractiveAll } from '../helpers/repl'
-import { withWebView } from '../helpers/webview'
 
-const [,, platform, hash] = process.argv
+const [,, platform] = process.argv
 
 async function main(): Promise<void> {
   const baseCaps = platform === 'ios' ? iosCapabilities : androidCapabilities
@@ -41,18 +40,6 @@ async function main(): Promise<void> {
   g.$$      = browser.$$.bind(browser)
 
   registerReplHelpers()
-
-  if (hash) {
-    console.log(`\n🔗 Navigation vers ${hash}…`)
-    try {
-      await withWebView(async () => {
-        await browser.execute((h: string) => { window.location.hash = h }, hash)
-        await browser.pause(800)
-      })
-    } catch (e) {
-      console.warn(`⚠️  Navigation échouée : ${(e as Error).message}`)
-    }
-  }
 
   console.log('\n📋 Éléments interactifs :\n')
   await listInteractiveAll()

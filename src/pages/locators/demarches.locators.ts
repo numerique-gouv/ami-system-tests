@@ -1,15 +1,16 @@
 /**
  * Sélecteurs WebView de la page de suivi des démarches.
  *
- * Structure DOM (DSFR fr-tile, Svelte) observée via `just inspect` :
- *   [role="tabpanel"]
- *     .fr-tile__content          ← conteneur d'une carte
- *       .fr-tile__title          ← titre visible (contient un <a> optionnel)
- *       .fr-tile__start
- *         .fr-badge              ← libellé de statut (ex. "Brouillon", "Terminé")
+ * Structure DOM (DSFR fr-tile, Svelte) observée via `just inspect` (2026-06-26) :
+ *   .fr-tile__content                     ← conteneur d'une carte (PAS scopé dans un [role="tabpanel"])
+ *     .fr-tile__title
+ *       a[data-testid="request-item-link"] ← titre + lien externe (textContent = titre affiché)
+ *     .fr-tile__start
+ *       .fr-badge                          ← libellé de statut (ex. "Brouillon", "Terminé")
  *
- * Règle : chercher par le titre visible (.fr-tile__title), pas par le lien
- * (l'URL externe est facultative — certaines cartes n'ont pas de <a>).
+ * Note : l'app n'utilise pas [role="tabpanel"]. Les onglets filtrent via CSS/état Svelte.
+ * Chercher dans TOUS les .fr-tile__content ; le filtre par titre (unique via timestamp) évite
+ * les faux positifs entre cartes "En cours" et "Passées".
  */
 
 export interface DemarchesLocators {
@@ -30,7 +31,7 @@ export interface DemarchesLocators {
 }
 
 export const androidDemarchesLocators: DemarchesLocators = {
-  cardContent:     '[role="tabpanel"] .fr-tile__content',
+  cardContent:     '.fr-tile__content',
   cardTitle:       '.fr-tile__title',
   cardBadge:       '.fr-badge',
   cardLink:        'a[data-testid="request-item-link"]',
@@ -40,7 +41,7 @@ export const androidDemarchesLocators: DemarchesLocators = {
 }
 
 export const iosDemarchesLocators: DemarchesLocators = {
-  cardContent:     '[role="tabpanel"] .fr-tile__content',
+  cardContent:     '.fr-tile__content',
   cardTitle:       '.fr-tile__title',
   cardBadge:       '.fr-badge',
   cardLink:        'a[data-testid="request-item-link"]',

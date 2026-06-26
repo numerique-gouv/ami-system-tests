@@ -32,7 +32,9 @@ class DemarchesPage {
             lastContent = await driver.execute(
               (contentSel: string, titleSel: string, badgeSel: string, t: string) => {
                 const cards = Array.from(document.querySelectorAll(contentSel))
-                const card = cards.find(c => (c.querySelector(titleSel) as HTMLElement | null)?.innerText?.includes(t))
+                // textContent pour identifier la carte (texte brut, indépendant du CSS)
+                // innerText pour le badge (vérifie ce que l'utilisateur voit réellement)
+                const card = cards.find(c => c.querySelector(titleSel)?.textContent?.includes(t))
                 if (!card) return null
                 return (card.querySelector(badgeSel) as HTMLElement | null)?.innerText?.trim().toLowerCase() ?? ''
               }, loc.cardContent, loc.cardTitle, loc.cardBadge, title) as string | null
@@ -117,7 +119,7 @@ class DemarchesPage {
             lastHref = await driver.execute(
               (contentSel: string, titleSel: string, linkSel: string, t: string) => {
                 const cards = Array.from(document.querySelectorAll(contentSel))
-                const card = cards.find(c => (c.querySelector(titleSel) as HTMLElement | null)?.innerText?.includes(t))
+                const card = cards.find(c => c.querySelector(titleSel)?.textContent?.includes(t))
                 if (!card) return null
                 return (card.querySelector(linkSel) as HTMLAnchorElement | null)?.href ?? null
               }, loc.cardContent, loc.cardTitle, loc.cardLink, title) as string | null
