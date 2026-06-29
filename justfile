@@ -175,13 +175,12 @@ test-android-grep tag="": start-android
         npm run test:android
     fi
 
-# Lancer les tests E2E iOS — démarre le simulateur, reset FC, lance les tests sur les fichiers fournis
+# Lancer les tests E2E iOS — démarre le simulateur, lance les tests sur les fichiers fournis
 # Usage : just test-ios [glob…]       — un ou plusieurs globs de fichiers (optionnels)
 test-ios *globs="": start-ios
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🍎 Tests E2E iOS…"
-    just _reset-ios-fc-session
     if [ -n "{{globs}}" ]; then
         SPEC_ARGS=""
         for glob in {{globs}}; do
@@ -198,7 +197,6 @@ test-ios-grep tag="": start-ios
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🍎 Tests E2E iOS…"
-    just _reset-ios-fc-session
     if [ -n "{{tag}}" ]; then
         npm run test:ios -- --mochaOpts.grep "{{tag}}"
     else
@@ -312,31 +310,3 @@ build-pptx name="slides": (build-pdf name)
 help:
     @just --list
 
-# ─── Privé ──────────────────────────────────────────────────────────────────
-
-# Réinitialise complètement le conteneur de données de l'app AMI staging.
-# Un effacement partiel (WebKit/cookies seuls) laisse l'app dans un état incohérent
-# où la WKWebView se reconnecte sans afficher la mire FC. On vide tout le conteneur data.
-[private]
-_reset-ios-fc-session:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    BOOTED_UDID=$(xcrun simctl list devices booted \
-        | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' \
-        | head -1)
-    if [ -z "$BOOTED_UDID" ]; then
-        echo "⚠️  Aucun simulateur iOS démarré — _reset-ios-fc-session ignoré."
-        exit 0
-    fi
-    # Réinitialise la permission notifications
-    xcrun simctl privacy "$BOOTED_UDID" reset notifications {{ app_id }} 2>/dev/null || true
-    # Efface les cookies SFSafariViewController (session OIDC FC partagée avec Safari)
-    xcrun simctl spawn "$BOOTED_UDID" defaults delete com.apple.SafariViewService 2>/dev/null || true
-    xcrun simctl spawn "$BOOTED_UDID" rm -rf /Library/Caches/com.apple.SafariViewService 2>/dev/null || true
-    xcrun simctl spawn "$BOOTED_UDID" rm -f /var/mobile/Library/Cookies/com.apple.SafariViewService.binarycookies 2>/dev/null || true
-    # Vide l'intégralité du conteneur data de l'app (équivalent "effacer les données" dans Réglages)
-    APP_CONTAINER=$(xcrun simctl get_app_container "$BOOTED_UDID" {{ app_id }} data 2>/dev/null || true)
-    if [ -n "$APP_CONTAINER" ]; then
-        rm -rf "${APP_CONTAINER:?}/"* 2>/dev/null || true
-    fi
-    echo "✅ Conteneur data AMI staging vidé."

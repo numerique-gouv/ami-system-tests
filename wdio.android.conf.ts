@@ -26,10 +26,10 @@ export const config: Options.Testrunner = {
 
   port: 4723,
 
-  // Sur Android 16 (API 36), une session UiAutomation stale (laissée par Maestro ou un run
-  // précédent) bloque la création d'une nouvelle session Appium avec "already registered".
-  // Force-stop les APKs UiAutomator2 avant chaque session pour nettoyer l'état.
-  beforeSession(): void {
+  // Sur Android 16 (API 36), un serveur UiAutomator2 stale (run précédent tué abruptement)
+  // bloque la première session Appium avec "already registered". Nettoyé une seule fois
+  // avant le run — Appium gère proprement ses APKs entre les spec files.
+  onPrepare(): void {
     const adb = process.env.ANDROID_HOME
       ? `${process.env.ANDROID_HOME}/platform-tools/adb`
       : process.env.ANDROID_SDK_ROOT
