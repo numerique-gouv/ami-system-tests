@@ -1,31 +1,15 @@
 import type { Options } from '@wdio/types'
 import path from 'path'
 import fs from 'fs'
+import dotenv from 'dotenv'
 import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
 import { registerReplHelpers } from './src/helpers/repl'
 
 const log = logger('afterTest')
 
-// Charge un fichier .env dans process.env sans dépendance externe.
-// Les variables déjà définies dans le shell ne sont pas écrasées.
-function loadDotenv(filepath: string): void {
-  if (!fs.existsSync(filepath)) return
-  for (const line of fs.readFileSync(filepath, 'utf-8').split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue
-    const eqIdx = trimmed.indexOf('=')
-    const key = trimmed.slice(0, eqIdx).trim()
-    let val = trimmed.slice(eqIdx + 1).trim()
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1)
-    }
-    if (!(key in process.env)) process.env[key] = val
-  }
-}
-
-// Charge le .env racine (ANDROID_SDK_ROOT)
-loadDotenv(path.resolve(__dirname, '.env.local'))
+// Les variables déjà définies dans le shell ne sont pas écrasées (override: false).
+dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
 
 export const baseConfig: Partial<Options.Testrunner> = {
   runner: 'local',
