@@ -1,4 +1,4 @@
-import { withWebView } from '../helpers/webview'
+import { tl, withWebView } from '../helpers/webview'
 import { getProfileLocators } from './locators/profile.locators'
 
 class ProfilePage {
@@ -80,6 +80,149 @@ class ProfilePage {
           .filter(Boolean)
       , loc.addressSection) as Promise<string[]>
     )
+  }
+
+  /**
+   * Navigue directement vers /#/profile via le hash SvelteKit.
+   * Utilisable depuis n'importe quelle page d'édition ou après un échec de test.
+   */
+  async navigateToProfileDirect(): Promise<void> {
+    const loc = getProfileLocators()
+    await withWebView(async () => {
+      await driver.execute(() => { window.location.hash = '/profile' })
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.profileContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non chargée après navigation directe par hash' }
+      )
+    })
+  }
+
+  /**
+   * Ouvre le formulaire d'édition du nom d'usage, saisit la valeur, enregistre,
+   * et attend le retour sur la page profil.
+   *
+   * Pattern : driver.execute pour les sentinelles de navigation (nav active = executeAsync tué),
+   * tl() pour les interactions sur la page stable (sémantique + résiliente aux refactorings DOM).
+   */
+  async editPreferredUsername(newValue: string): Promise<void> {
+    const loc = getProfileLocators()
+    await withWebView(async () => {
+      // Clic "Modifier" : data-testid requis, les 3 boutons ont le même texte "Modifier"
+      await driver.execute((sel: string) => {
+        document.querySelector<HTMLElement>(sel)?.click()
+      }, loc.preferredUsernameEditButton)
+
+      // Sentinelle : attendre que le formulaire soit rendu (driver.execute, nav active)
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.editContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Formulaire "Mon identité" non chargé après clic Modifier' }
+      )
+
+      // Page stable → tl() : label "Nom d'usage" associé à l'input via for/id
+      const input = await tl().findByLabelText("Nom d'usage")
+      await input.setValue(newValue)
+
+      const submitBtn = await tl().findByRole('button', { name: 'Enregistrer' })
+      await submitBtn.click()
+
+      // Sentinelle retour profil
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.profileContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non affichée après enregistrement du nom d\'usage' }
+      )
+    })
+  }
+
+  /**
+   * Ouvre le formulaire d'édition de l'email, remplace la valeur, enregistre,
+   * et attend le retour sur la page profil.
+   */
+  async editEmail(newValue: string): Promise<void> {
+    const loc = getProfileLocators()
+    await withWebView(async () => {
+      await driver.execute((sel: string) => {
+        document.querySelector<HTMLElement>(sel)?.click()
+      }, loc.emailEditButton)
+
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.editContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Formulaire "Contact" non chargé après clic Modifier' }
+      )
+
+      // Label "E-mail" — libellé observé dans l'APK staging (différent du code source Svelte)
+      const input = await tl().findByLabelText('E-mail')
+      await input.setValue(newValue)
+
+      const submitBtn = await tl().findByRole('button', { name: 'Enregistrer' })
+      await submitBtn.click()
+
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.profileContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non affichée après enregistrement de l\'email' }
+      )
+    })
+  }
+
+  /**
+   * Ouvre le formulaire d'édition de l'adresse, saisit la requête BAN,
+   * sélectionne le premier résultat de l'autocomplétion, enregistre,
+   * et attend le retour sur la page profil.
+   *
+   * L'input déclenche un debounce Svelte de 750 ms avant l'appel BAN →
+   * le waitUntil autocomplete attend jusqu'à 6 s.
+   * L'item autocomplete est ciblé par data-testid (texte imprévisible dépendant de l'API BAN).
+   */
+  async editAddress(query: string): Promise<void> {
+    const loc = getProfileLocators()
+    await withWebView(async () => {
+      await driver.execute((sel: string) => {
+        document.querySelector<HTMLElement>(sel)?.click()
+      }, loc.addressEditButton)
+
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.editContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Formulaire "Mon adresse" non chargé après clic Modifier' }
+      )
+
+      // Label "Adresse" — setValue envoie des keystrokes qui déclenchent oninput + debounce
+      const input = await tl().findByLabelText('Adresse')
+      await input.setValue(query)
+
+      // Sentinelle autocomplete : debounce 750 ms + latence API BAN
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.autocompleteFirstItemButton) as Promise<boolean>,
+        { timeout: 6000, interval: 300, timeoutMsg: 'Suggestions BAN non affichées après saisie de l\'adresse' }
+      )
+
+      // data-testid requis : texte de l'item inconnu à l'avance (retour BAN variable)
+      await driver.execute((sel: string) => {
+        document.querySelector<HTMLElement>(sel)?.click()
+      }, loc.autocompleteFirstItemButton)
+
+      const submitBtn = await tl().findByRole('button', { name: 'Enregistrer' })
+      await submitBtn.click()
+
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.profileContainer) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non affichée après enregistrement de l\'adresse' }
+      )
+    })
   }
 }
 

@@ -20,6 +20,14 @@ export interface ProfileLocators {
   identitySection: Locator   // section "Mon identité"
   emailSection: Locator      // section "Contact"
   addressSection: Locator    // section "Mon adresse"
+  // Boutons "Modifier" dans la page profil (data-testid requis : les 3 boutons ont le même texte)
+  preferredUsernameEditButton: Locator // [data-testid="preferred-username-button"]
+  emailEditButton: Locator             // [data-testid="email-button"]
+  addressEditButton: Locator           // [data-testid="address-button"]
+  // Sentinelle de navigation — les pages d'édition partagent [data-testid="container"]
+  editContainer: Locator               // [data-testid="container"]
+  // Premier item d'autocomplétion BAN (texte imprévisible → data-testid)
+  autocompleteFirstItemButton: Locator // [data-testid="autocomplete-item-button-0"]
 }
 
 export const androidProfileLocators: ProfileLocators = {
@@ -29,6 +37,11 @@ export const androidProfileLocators: ProfileLocators = {
   identitySection: '#profile-identity',
   emailSection: '#profile-email',
   addressSection: '#profile-address',
+  preferredUsernameEditButton: '[data-testid="preferred-username-button"]',
+  emailEditButton: '[data-testid="email-button"]',
+  addressEditButton: '[data-testid="address-button"]',
+  editContainer: '[data-testid="container"]',
+  autocompleteFirstItemButton: '[data-testid="autocomplete-item-button-0"]',
 }
 
 export const iosProfileLocators: ProfileLocators = {
@@ -38,6 +51,11 @@ export const iosProfileLocators: ProfileLocators = {
   identitySection: '#profile-identity',
   emailSection: '#profile-email',
   addressSection: '#profile-address',
+  preferredUsernameEditButton: '[data-testid="preferred-username-button"]',
+  emailEditButton: '[data-testid="email-button"]',
+  addressEditButton: '[data-testid="address-button"]',
+  editContainer: '[data-testid="container"]',
+  autocompleteFirstItemButton: '[data-testid="autocomplete-item-button-0"]',
 }
 
 export function getProfileLocators(): ProfileLocators {
