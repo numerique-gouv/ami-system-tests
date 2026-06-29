@@ -38,9 +38,6 @@ export const config: Options.Testrunner = {
     try {
       execFileSync(adb, ['shell', 'am', 'force-stop', 'io.appium.uiautomator2.server.test'], { stdio: 'ignore' })
       execFileSync(adb, ['shell', 'am', 'force-stop', 'io.appium.uiautomator2.server'], { stdio: 'ignore' })
-      // Maestro laisse aussi un IAccessibilityServiceClient enregistré dans system_server
-      execFileSync(adb, ['shell', 'am', 'force-stop', 'dev.mobile.maestro'], { stdio: 'ignore' })
-      execFileSync(adb, ['shell', 'am', 'force-stop', 'dev.mobile.maestro.test'], { stdio: 'ignore' })
     } catch {
       // Pas de device connecté ou APK absent — ignoré
     }
