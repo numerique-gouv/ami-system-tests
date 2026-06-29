@@ -25,7 +25,10 @@ describe('Notifications', () => {
    *   - App installée avec fullReset (la SPA doit afficher la mire FC au lancement)
    *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios-notifications`
    */
-  it("reçoit une notification publiée dans l'inbox in-app", async () => {
+  it("reçoit une notification publiée dans l'inbox in-app", async function() {
+    // Le login FranceConnect (~80 s) + la livraison WebSocket Android (~22 s) dépassent
+    // le timeout Mocha global (120 s). On étend localement sans toucher au seuil global.
+    this.timeout(180000)
     const user = getUser('avec_nom_dusage')
 
     await AllureReporter.addStep('1. Login FranceConnect')
