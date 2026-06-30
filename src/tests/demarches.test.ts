@@ -1,11 +1,9 @@
 import AllureReporter from '@wdio/allure-reporter'
-import LoginPage from '../pages/login.page'
-import FranceConnectPage from '../pages/franceconnect.page'
-import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
 import DemarchesPage from '../pages/demarches.page'
 import {publishNotification} from '../helpers/notifications-api'
 import {getUser} from '../helpers/test-users'
+import {authenticate} from '../helpers/authenticate'
 
 /**
  * Cycle de vie d'une démarche partenaire dans l'app AMI.
@@ -34,7 +32,8 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         }
     })
 
-    before(async () => {
+    before(async function () {
+        this.timeout(180000)
         await AllureReporter.addFeature('Démarches')
         await AllureReporter.addSeverity('critical')
 
@@ -43,17 +42,9 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         urlV1 = `https://staging.partenaire.example/demarches/${itemId}/v1`
         urlV2 = `https://staging.partenaire.example/demarches/${itemId}/v2`
 
-        await LoginPage.reviewEnvironmentPicker()
-        await LoginPage.tapFranceConnect()
-        await FranceConnectPage.loginWithSandbox(user)
-        await OnboardingNotificationsPage.dismiss()
-        try {
-            await LoginPage.tapFranceConnect(1000)
-        } catch {
-            // absent dans la majorité des cas
+        if (!await HomePage.isHomeReachable()) {
+            await authenticate()
         }
-        const ready = await HomePage.isHomeVisible(60000)
-        if (!ready) throw new Error('SPA home non prête après 60s')
     })
 
     it("crée une démarche visible dans le suivi (statut new)", async () => {

@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
 import { registerReplHelpers } from './src/helpers/repl'
+import { testSuites } from './test-suites'
 
 const log = logger('afterTest')
 
@@ -14,7 +15,17 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
 export const baseConfig: Partial<Options.Testrunner> = {
   runner: 'local',
 
-  specs: [path.resolve(__dirname, 'src/tests/**/*.test.ts')],
+  specs: (() => {
+    const suiteName = process.env.WDIO_SUITE
+    if (suiteName) {
+      const suite = testSuites[suiteName]
+      if (!suite) throw new Error(
+        `Suite inconnue : "${suiteName}". Suites disponibles : ${Object.keys(testSuites).join(', ')}`
+      )
+      return suite
+    }
+    return [path.resolve(__dirname, 'src/tests/**/*.test.ts')]
+  })(),
 
   exclude: [],
 
