@@ -143,9 +143,11 @@ check-code:
 
 # ─── Tests ──────────────────────────────────────────────────────────────────
 # Usage :
-#   just test-android                        → tous les tests
+#   just test-android                        → tous les tests (session par fichier)
 #   just test-android "src/tests/home*"      → un ou plusieurs globs de fichiers
 #   just test-android-grep Notifications     → filtre par describe/it (grep Mocha, regex JS)
+#   just test-android-suite all              → tous les tests en session partagée (auth une fois)
+#   just test-android-suite CI              → smoke suite (auth + tests critiques)
 
 # Lancer les tests E2E Android — démarre l'émulateur, lance les tests sur les fichiers fournis
 # Usage : just test-android [glob…]   — un ou plusieurs globs de fichiers (optionnels)
@@ -159,18 +161,6 @@ test-android *globs="": start-android
             SPEC_ARGS="$SPEC_ARGS --spec $glob"
         done
         npm run test:android -- $SPEC_ARGS
-    else
-        npm run test:android
-    fi
-
-# Lancer les tests E2E Android filtrés par nom de describe/it (grep Mocha, regex JS)
-# Usage : just test-android-grep [tag]
-test-android-grep tag="": start-android
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "🤖 Tests E2E Android…"
-    if [ -n "{{tag}}" ]; then
-        npm run test:android -- --mochaOpts.grep "{{tag}}"
     else
         npm run test:android
     fi
@@ -191,17 +181,15 @@ test-ios *globs="": start-ios
         npm run test:ios
     fi
 
-# Lancer les tests E2E iOS filtrés par nom de describe/it (grep Mocha, regex JS)
-# Usage : just test-ios-grep [tag]
-test-ios-grep tag="": start-ios
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "🍎 Tests E2E iOS…"
-    if [ -n "{{tag}}" ]; then
-        npm run test:ios -- --mochaOpts.grep "{{tag}}"
-    else
-        npm run test:ios
-    fi
+# Lancer les tests E2E Android avec une suite nommée (session partagée — auth une seule fois)
+# Usage : just test-android-suite <suite>   ex: just test-android-suite all
+test-android-suite suite: start-android
+    WDIO_SUITE={{suite}} npm run test:android
+
+# Lancer les tests E2E iOS avec une suite nommée (session partagée — auth une seule fois)
+# Usage : just test-ios-suite <suite>   ex: just test-ios-suite CI
+test-ios-suite suite: start-ios
+    WDIO_SUITE={{suite}} npm run test:ios
 
 # ─── Inspection / Reporting ─────────────────────────────────────────────────
 

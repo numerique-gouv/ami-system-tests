@@ -21,7 +21,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "wdio.*.conf.ts"
+    "wdio.*.conf.ts",
+    "test-suites.ts"
   ],
   "exclude": [
     "node_modules",

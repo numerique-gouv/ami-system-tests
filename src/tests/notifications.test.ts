@@ -1,16 +1,20 @@
 import AllureReporter from '@wdio/allure-reporter'
-import LoginPage from '../pages/login.page'
-import FranceConnectPage from '../pages/franceconnect.page'
-import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
 import NotificationsInboxPage from '../pages/notifications.page'
 import { publishNotification } from '../helpers/notifications-api'
 import { getUser } from '../helpers/test-users'
+import { authenticate } from '../helpers/authenticate'
 
 describe('Notifications', () => {
-  before(async () => {
+  const user = getUser('avec_nom_dusage')
+
+  before(async function () {
+    this.timeout(180000)
     await AllureReporter.addFeature('Notifications')
     await AllureReporter.addSeverity('critical')
+    if (!await HomePage.isHomeReachable()) {
+      await authenticate()
+    }
   })
 
   /**
@@ -23,37 +27,15 @@ describe('Notifications', () => {
    * Pré-requis :
    *   - Variables NOTIF_* dans .env (voir .env.example)
    *   - App installée avec fullReset (la SPA doit afficher la mire FC au lancement)
-   *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios-notifications`
+   *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios`
    */
   it("reçoit une notification publiée dans l'inbox in-app", async function() {
-    // Le login FranceConnect (~80 s) + la livraison WebSocket Android (~22 s) dépassent
-    // le timeout Mocha global (120 s). On étend localement sans toucher au seuil global.
-    this.timeout(180000)
-    const user = getUser('avec_nom_dusage')
-
-    await AllureReporter.addStep('1. Login FranceConnect')
-    await LoginPage.reviewEnvironmentPicker()
-    await LoginPage.tapFranceConnect()
-    await FranceConnectPage.loginWithSandbox(user)
-
-    await AllureReporter.addStep('2. Onboarding : décliner les notifications OS')
-    await OnboardingNotificationsPage.dismiss()
-
-    // Le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC (iOS)
-    try {
-      await LoginPage.tapFranceConnect(1000)
-    } catch {
-      // absent dans la majorité des cas
-    }
-
-    await AllureReporter.addStep('3. Attendre la home SPA chargée')
-    await HomePage.isHomeVisible(60000)
-
-    await AllureReporter.addStep("4. Ouvrir l'inbox notifications")
+    // La livraison WebSocket Android (~22 s) reste dans le timeout Mocha global (120 s)
+    await AllureReporter.addStep("1. Ouvrir l'inbox notifications")
     await NotificationsInboxPage.openFromHome()
     const oldTop = await NotificationsInboxPage.getTopNotificationTitle()
 
-    await AllureReporter.addStep("5. Publier la notification via l'API partenaire")
+    await AllureReporter.addStep("2. Publier la notification via l'API partenaire")
     const title = `AMI-vanilla-${Date.now()}`
     await publishNotification({
       title,
@@ -61,11 +43,10 @@ describe('Notifications', () => {
       recipientFcHash: user.fcHash,
     })
 
-    await AllureReporter.addStep('6. Vérifier la réception dans l\'inbox (WebSocket)')
-    // La SPA reçoit la notification via WebSocket sans rechargement de page.
+    await AllureReporter.addStep('3. Vérifier la réception dans l\'inbox (WebSocket)')
     await NotificationsInboxPage.waitForNotification(title)
 
-    await AllureReporter.addStep('7. Ouvrir la notification et vérifier son titre')
+    await AllureReporter.addStep('4. Ouvrir la notification et vérifier son titre')
     await NotificationsInboxPage.clickNotification(title)
     const newTop = await NotificationsInboxPage.getTopNotificationTitle()
     expect(oldTop).not.toEqual(title)
