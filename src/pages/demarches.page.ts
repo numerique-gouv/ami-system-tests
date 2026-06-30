@@ -6,16 +6,6 @@ const DEMARCHES_TIMEOUT_MS = 20000
 
 class DemarchesPage {
   /**
-   * Attend qu'une démarche identifiée par son titre soit visible dans la liste.
-   * La mise à jour est poussée par WebSocket — pas besoin de recharger la page.
-   */
-  async waitForItem(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
-    await withWebView(async () => {
-      await tl().findByText(title, {}, { timeout: timeoutMs })
-    })
-  }
-
-  /**
    * Attend que le libellé de statut attendu soit visible sur la carte de la démarche.
    * Trouve le lien-titre dans le tabpanel courant, remonte via closest() vers la carte
    * pour lire le textContent complet (titre + statut).
@@ -49,46 +39,6 @@ class DemarchesPage {
           throw new Error(`Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms`)
         throw new Error(`Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastContent})`)
       }
-    })
-  }
-
-  /**
-   * Attend que la démarche identifiée par son titre ne soit PAS visible dans l'onglet courant.
-   * Utilise innerText (texte réellement rendu, respecte display:none et visibility:hidden).
-   */
-  async assertItemAbsent(title: string, timeoutMs = 5000): Promise<void> {
-    await withWebView(async () => {
-      await browser.waitUntil(
-        async () => driver.execute(
-          (t: string) => !document.body.innerText.includes(t),
-          title
-        ) as Promise<boolean>,
-        { timeout: timeoutMs, interval: 500, timeoutMsg: `Démarche "${title}" toujours visible après ${timeoutMs}ms — devrait être absente de cet onglet` }
-      )
-    })
-  }
-
-  /**
-   * Clique sur l'onglet "Passées" et confirme l'activation via aria-selected.
-   * Utilise [role="tab"] (rôle ARIA sémantique observé via just inspect) plutôt que button.
-   */
-  async switchToPassees(): Promise<void> {
-    const loc = getDemarchesLocators()
-    await withWebView(async () => {
-      await driver.execute((tabSel: string, label: string) => {
-        const tab = Array.from(document.querySelectorAll(tabSel))
-          .find(el => (el as HTMLElement).innerText?.trim() === label) as HTMLElement | undefined
-        if (!tab) throw new Error(`Onglet "${label}" introuvable dans le DOM`)
-        tab.click()
-      }, loc.tabSelector, loc.tabPasseesLabel)
-      await browser.waitUntil(
-        async () => driver.execute((tabSel: string, label: string) => {
-          const tab = Array.from(document.querySelectorAll(tabSel))
-            .find(el => (el as HTMLElement).innerText?.trim() === label)
-          return tab?.getAttribute('aria-selected') === 'true'
-        }, loc.tabSelector, loc.tabPasseesLabel) as Promise<boolean>,
-        { timeout: 5000, interval: 300, timeoutMsg: `Onglet "${loc.tabPasseesLabel}" non activé après le clic` }
-      )
     })
   }
 

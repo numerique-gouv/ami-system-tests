@@ -2,14 +2,73 @@ import {getHomeLocators} from './locators/home.locators'
 import {withWebView} from '../helpers/webview'
 
 class HomePage {
-    /** Retourne true si le conteneur WebView natif est affiché. */
-    async isVisible(): Promise<boolean> {
-        try {
-            const loc = getHomeLocators()
-            return await $(loc.screenRoot).isDisplayed()
-        } catch {
-            return false
+    /**
+     * Guard d'authentification : navigue vers la home puis attend le sentinel.
+     * Le if/else branche sur le contexte courant — ajouter une branche si la home
+     * passe en natif sans remplacer le WebView (app hybride multi-écrans).
+     *
+     * Utilisé dans les before() pour détecter si la session est déjà authentifiée,
+     * quelle que soit la page sur laquelle le test précédent s'est terminé.
+     */
+    async isHomeReachable(timeout = 5000): Promise<boolean> {
+        const contexts = await driver.getContexts() as string[]
+        if (contexts.some(c => c.startsWith('WEBVIEW_'))) {
+            await this.navigateHomeFromWebview().catch(() => {})
+        } else {
+            await this.navigateHomeFromNative().catch(() => {})
         }
+        return this.isHomeSentinelVisible(timeout)
+    }
+
+    /**
+     * Navigation vers la home depuis un contexte WebView.
+     * Exception à spa-navigation.md (clic > hash direct) :
+     * état de départ inconnu — aucun lien de nav n'est garanti présent.
+     */
+    private async navigateHomeFromWebview(): Promise<void> {
+        await withWebView(async () => {
+            await driver.execute(() => { window.location.hash = '/' })
+        })
+    }
+
+    /**
+     * Navigation vers la home depuis un contexte natif (aucune WebView disponible).
+     * Les deep links sont traités par l'app au niveau OS — ils atteignent n'importe quel
+     * écran cible qu'il soit natif ou WebView, sans dépendre du contexte Appium courant.
+     * l'app ne supporte pas les deep links.
+     *
+     *   - Android : le AndroidManifest.xml n'a que l'intent-filter de lancement (MAIN/LAUNCHER) et Firebase. Aucun scheme custom, aucun data android:scheme.
+     *   - iOS : pas de CFBundleURLSchemes, pas d'onOpenURL, pas de gestionnaire d'URL entrant.
+     *
+     *   mobile: deepLink enverrait un intent/URL que l'app ne saurait pas traiter — elle s'ouvrirait simplement sans naviguer nulle part de spécifique.
+     *   * Piste : driver.execute('mobile: deepLink', { url: 'ami://home', package/bundleId: ... })
+     */
+    private async navigateHomeFromNative(): Promise<void> {}
+
+    /**
+     * Attend que le sentinel de la home soit visible.
+     * WebView : vérifie le hash URL (route SPA '#/') — indépendant du DOM rendu.
+     * Natif : à implémenter. Piste : $(getHomeLocators().homeSentinel).waitForDisplayed(...)
+     */
+    private async isHomeSentinelVisible(timeout: number): Promise<boolean> {
+        const contexts = await driver.getContexts() as string[]
+        if (contexts.some(c => c.startsWith('WEBVIEW_'))) {
+            try {
+                return await withWebView(async () => {
+                    await browser.waitUntil(
+                        async () => driver.execute(
+                            () => window.location.hash === '#/'
+                        ) as Promise<boolean>,
+                        { timeout, interval: 500, timeoutMsg: '' }
+                    )
+                    return true
+                })
+            } catch {
+                return false
+            }
+        }
+        // Natif : à implémenter si home devient native.
+        return false
     }
 
     /**
@@ -112,20 +171,6 @@ class HomePage {
             })
         }
         if (!found) throw new Error(`Démarche "${title}" non visible sur la home après ${timeout}ms`)
-    }
-
-    /**
-     * Glissement natif vers le bas (haut de l'écran → milieu) pour déclencher
-     * le pull-to-refresh de la liste home.
-     */
-    async pullToRefresh(): Promise<void> {
-        const {width, height} = await driver.getWindowSize()
-        await driver.action('pointer', {parameters: {pointerType: 'touch'}})
-            .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.25)})
-            .down({button: 0})
-            .move({duration: 800, x: Math.round(width / 2), y: Math.round(height * 0.65)})
-            .up({button: 0})
-            .perform()
     }
 
     /**
