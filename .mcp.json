@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "wdio": {
+      "command": "npx",
+      "args": ["-y", "--package", "@wdio/mcp", "wdio-mcp"]
+    }
+  }
+}
