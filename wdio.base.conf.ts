@@ -23,7 +23,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // 'warn' supprime les logs COMMAND/DATA/RESULT d'Appium (niveau info) qui
   // parasitent la sortie console sans valeur ajoutée lors d'une exécution normale.
   // Passer à 'info' ou 'debug' ponctuellement pour diagnostiquer un test flaky.
-  logLevel: 'info',
+  logLevel: 'warn',
 
   bail: 0,
 
