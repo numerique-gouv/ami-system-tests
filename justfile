@@ -253,6 +253,13 @@ inspect:
 open-report:
     npm run report
 
+# Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
+# AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
+# Usage : just push-notification avec_nom_dusage
+#         just push-notification avec_nom_dusage "Mon titre personnalisé"
+push-notification login title="":
+    npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
+
 # ─── Documentation ──────────────────────────────────────────────────────────
 
 # Installer les dépendances du site de documentation
