@@ -48,31 +48,74 @@ class NotificationsInboxPage {
   }
   
   /**
+   * Geste natif vers le bas pour déclencher le SwipeRefreshLayout Android.
+   * Doit être appelé hors withWebView : le geste est intercepté par la WebView
+   * si on est en contexte WebView, et n'atteint pas le conteneur natif.
+   */
+  private async pullToRefresh(): Promise<void> {
+    const { width, height } = await driver.getWindowSize()
+    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+      .move({ duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.25) })
+      .down({ button: 0 })
+      .move({ duration: 800, x: Math.round(width / 2), y: Math.round(height * 0.65) })
+      .up({ button: 0 })
+      .perform()
+  }
+
+  /**
    * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
    * Lance si le délai est dépassé (notification non reçue).
    *
-   * Fast-path : findByText en 5 s (suffit sur iOS, parfois sur Android).
-   * Fallback (NOTIF_NAV_FALLBACK) : navigation SPA aller-retour (/#/home → /#/notifications)
-   * qui déclenche un rechargement HTTP de la liste au onMount du composant Svelte — la
-   * notification est déjà persistée côté backend (publishNotification est synchrone).
-   * Mettre NOTIF_REQUIRE_WEBSOCKET=1 pour désactiver le fallback et forcer l'échec si
-   * la livraison temps-réel ne fonctionne pas.
+   * Stratégie : backoff exponentiel, un withWebView minimal par tentative.
+   * Entre deux withWebView, le contexte repasse en NATIVE_APP : le debugger CDP
+   * se détache de la WebView, dont l'event loop redevient libre de traiter les
+   * messages WebSocket entrants. Si la notification n'arrive pas après tous les
+   * paliers, un fallback navigation aller-retour force un rechargement HTTP de
+   * la liste au onMount du composant Svelte.
+   * Mettre NOTIF_REQUIRE_WEBSOCKET=1 pour désactiver le fallback.
    */
   async waitForNotification(title: string, timeoutMs = NOTIF_DELIVERY_TIMEOUT_MS): Promise<void> {
-    await withWebView(async () => {
-      if (NOTIF_NAV_FALLBACK) {
-        const arrived = await tl().findByText(title, {}, { timeout: 5000 }).then(() => true).catch(() => false)
-        if (arrived) {
-          console.log('[notifications] reçue via push temps-réel (< 5 s)')
-          return
-        }
-        console.warn('[notifications] non reçue en 5 s — fallback navigation HTTP (NOTIF_REQUIRE_WEBSOCKET=1 pour désactiver)')
-        await driver.execute(() => { window.location.hash = '/home' })
-        await browser.pause(300)
-        await driver.execute(() => { window.location.hash = '/notifications' })
+    const backoffMs = [500, 1000, 2000, 4000, 8000]
+    let elapsed = 0
+    for (const delay of backoffMs) {
+      await browser.pause(delay) // hors withWebView : WebView libre de recevoir la WebSocket
+      elapsed += delay
+      const found = await withWebView(() =>
+        tl().findByText(title, {}, { timeout: 500 }).then(() => true).catch(() => false)
+      )
+      if (found) {
+        console.log(`[notifications] reçue via WebSocket (≤ ${elapsed} ms)`)
+        return
+      } else {
+        console.log(`[notifications] toujours pas reçue  (≤ ${elapsed} ms)`)
       }
-      await tl().findByText(title, {}, { timeout: timeoutMs })
-    })
+    }
+
+    if (!NOTIF_NAV_FALLBACK) {
+      await withWebView(async () => { await tl().findByText(title, {}, { timeout: timeoutMs }) })
+      return
+    }
+
+    // Fallback : pull-to-refresh natif pour forcer un rechargement API de la liste.
+    // La notification est déjà persistée côté backend (publishNotification est synchrone).
+    // Le geste doit être exécuté en contexte NATIVE_APP (hors withWebView) pour atteindre
+    // le SwipeRefreshLayout Android qui enveloppe la WebView.
+    console.warn('[notifications] non reçue via WebSocket — fallback pull-to-refresh (NOTIF_REQUIRE_WEBSOCKET=1 pour désactiver)')
+
+    if (driver.isIOS) {
+      // la WKWebView a peut-être un UIRefreshControl qui bloque le refresh avec swipe down (pullToRefresh)
+      await withWebView(async () => {
+        await driver.execute(() => window.location.reload())
+        await browser.waitUntil(
+          async () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
+          { timeout: 10000, timeoutMsg: 'Rechargement iOS non terminé en 10s' }
+        )
+      })
+    } else {
+      await this.pullToRefresh()
+    }
+
+    await withWebView(async () => { await tl().findByText(title, {}, { timeout: timeoutMs }) })
   }
 
   /**
