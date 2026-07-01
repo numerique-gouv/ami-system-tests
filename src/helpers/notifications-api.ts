@@ -1,11 +1,13 @@
 /**
  * Client HTTP pour l'API partenaire AMI — publication de notifications push.
  *
- * Variables requises (.env) :
- *   NOTIF_API_URL            — URL de base du backend AMI (sans slash final)
- *   NOTIF_PARTNER_ID         — identifiant partenaire
- *   NOTIF_PARTNER_SECRET     — secret partenaire (HTTP Basic auth)
- *   NOTIF_RECIPIENT_FC_HASH  — hash FC déterministe du compte sandbox
+ * Variables (.env / .env.local) :
+ *   AMI_ENV              — fragment du label picker (titre ou numéro de PR).
+ *   NOTIF_PARTNER_ID     — identifiant partenaire
+ *   NOTIF_PARTNER_SECRET — secret partenaire (HTTP Basic auth)
+ *
+ * L'URL backend est définie via setBackendUrl(), appelé par LoginPage.reviewEnvironmentPicker()
+ * depuis le titre de l'item cliqué dans le picker — jamais par variable d'environnement.
  */
 
 type ItemGenericStatus = 'new' | 'wip' | 'closed'
@@ -31,6 +33,7 @@ interface PublishOptions {
 
 const PUBLISH_MAX_RETRIES = 5
 const PUBLISH_RETRY_DELAY_MS = 10000
+const STAGING_BASE_URL = 'https://ami-back-staging.osc-fr1.scalingo.io'
 
 /**
  * Publie une notification via l'API partenaire AMI.
@@ -44,9 +47,11 @@ export async function publishNotification({
   itemMilestoneStartDate, itemMilestoneEndDate, itemExternalUrl,
   tryPush,
 }: PublishOptions): Promise<void> {
-  const apiUrl    = requireEnv('NOTIF_API_URL')
+  const apiUrl    = resolveApiUrl()
   const partnerId = requireEnv('NOTIF_PARTNER_ID')
   const secret    = requireEnv('NOTIF_PARTNER_SECRET')
+
+  console.warn(`[notifications-api] publishNotification → hôte: ${apiUrl}  partner: ${partnerId}  fc_hash: ${recipientFcHash}`)
 
   const credentials = Buffer.from(`${partnerId}:${secret}`).toString('base64')
 
@@ -96,12 +101,27 @@ export async function publishNotification({
   throw lastError!
 }
 
+// URL du backend pour la session courante — fixée par setBackendUrl() lors du choix de l'env.
+let _backendUrl: string = STAGING_BASE_URL
+
+/**
+ * Définit l'URL backend pour toute la session de test.
+ * Appelé par LoginPage.reviewEnvironmentPicker() dès que l'environnement est sélectionné.
+ */
+export function setBackendUrl(url: string): void {
+  _backendUrl = url
+}
+
+function resolveApiUrl(): string {
+  return _backendUrl
+}
+
 function requireEnv(name: string): string {
   const val = process.env[name]
   if (!val) {
     throw new Error(
       `Variable d'environnement manquante : ${name}. ` +
-      'Copier maestro/.env.example en maestro/.env et renseigner les valeurs.'
+      'Copier .env en .env.local et renseigner les valeurs.'
     )
   }
   return val
