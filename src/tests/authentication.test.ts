@@ -5,19 +5,19 @@ import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
 import { getUser } from '../helpers/test-users'
 
+/**
+ * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
+ * L'authentification est sous la responsabilité d'une autre équipe — ce test
+ * valide uniquement que notre intégration fonctionne de bout en bout.
+ */
 describe('Authentification', () => {
-  before(async () => {
+  before(async function () {
+    this.timeout(180000)
     await AllureReporter.addFeature('Authentification')
     await AllureReporter.addSeverity('critical')
   })
-
-  /**
-   * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
-   * L'authentification est sous la responsabilité d'une autre équipe — ce test
-   * valide uniquement que notre intégration fonctionne de bout en bout.
-   */
+  
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
-    this.timeout(180000)
     const user = getUser('avec_nom_dusage')
 
     await AllureReporter.addStep('1. Sélectionner l\'environnement de review')
@@ -34,4 +34,5 @@ describe('Authentification', () => {
     const homeReady = await HomePage.isHomeVisible(60000)
     expect(homeReady).toBe(true)
   })
+
 })

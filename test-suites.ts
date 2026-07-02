@@ -31,6 +31,7 @@ export const testSuites: Record<string, string[][]> = {
     r('src/tests/authentication.test.ts'),
     r('src/tests/notifications.test.ts'),
     r('src/tests/demarches.test.ts'),
+    r('src/tests/profile.test.ts'),
   ]],
   
   /** Tous les tests d'authentifications en session séparées. */
