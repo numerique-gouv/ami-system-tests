@@ -22,8 +22,10 @@ export const baseConfig: Partial<Options.Testrunner> = {
       if (!suite) throw new Error(
         `Suite inconnue : "${suiteName}". Suites disponibles : ${Object.keys(testSuites).join(', ')}`
       )
+      log.warn(`On utilise la suite ${suiteName}:`, suite)
       return suite
     }
+    log.warn(`On lance tous les tests de src/tests/`)
     return [path.resolve(__dirname, 'src/tests/**/*.test.ts')]
   })(),
 

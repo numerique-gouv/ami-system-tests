@@ -5,6 +5,7 @@ import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
 import ProfilePage from '../pages/profile.page'
 import { getUser } from '../helpers/test-users'
+import {authenticate} from "@helpers/authenticate";
 
 // Données attendues pour le compte "avec_nom_dusage" — vérifiées sur l'app staging le 2026-06-29.
 // Identité fournie par FranceConnect, adresse fournie par la Caf.
@@ -36,16 +37,10 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     await AllureReporter.addFeature('Profil usager')
     await AllureReporter.addSeverity('normal')
 
-    await LoginPage.reviewEnvironmentPicker()
-    await LoginPage.tapFranceConnect()
-    await FranceConnectPage.loginWithSandbox(user)
-    await OnboardingNotificationsPage.dismiss()
-    try {
-      await LoginPage.tapFranceConnect(1000)
-    } catch { /* absent dans la majorité des cas */ }
-    const ready = await HomePage.isHomeVisible(60000)
-    if (!ready) throw new Error('SPA home non prête après 60s')
-
+    if (!await HomePage.isHomeReachable()) {
+      await authenticate()
+    }
+    
     await AllureReporter.addStep('Naviguer vers Mon profil depuis le menu avatar')
     await ProfilePage.navigate()
   })
