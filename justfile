@@ -11,9 +11,8 @@ ios_project     := "../ami-app-ios"
 app_id          := "fr.gouv.ami.staging"
 
 android_apk := android_project / "app/build/outputs/apk/staging/debug/app-staging-debug.apk"
-# derivedData absolu (chemin justfile) car xcodebuild est invoqué après un `cd {{ios_project}}`.
-# Volontairement hors du dossier ios_project : swiftlint ne scanne pas SourcePackages.
-ios_derived := justfile_directory() / "build/ios"
+# Le projet iOS construit dans son propre dossier build/.
+ios_derived := ios_project / "build"
 ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI-Staging.app"
 
 android_avd := "Pixel_modern"
@@ -56,26 +55,29 @@ upgrade-deps:
 
 # ─── Build ──────────────────────────────────────────────────────────────────
 
-# Builder l'APK Android (flavor staging, debug)
-# JDK 21 requis : Kotlin/Gradle ne supporte pas JDK 22+
+# Vérifier que l'APK Android existe (builder depuis le projet ami-app-android)
 build-android:
-    @echo "📦 Build Android (staging/debug)…"
-    cd {{android_project}} && JAVA_HOME=$(/usr/libexec/java_home -v 21 -a arm64) ./gradlew assembleStagingDebug
-    @echo "✅ APK généré : {{android_apk}}"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f "{{android_apk}}" ]; then
+        echo "✅ APK trouvé : {{android_apk}}"
+    else
+        echo "❌ APK introuvable : {{android_apk}}"
+        echo "   → Lance le build depuis le projet mobile : cd {{android_project}} && ./gradlew assembleStagingDebug"
+        exit 1
+    fi
 
-# Builder l'app iOS pour simulateur (scheme AMI-Staging)
+# Vérifier que l'app iOS existe (builder depuis le projet ami-app-ios)
 build-ios:
-    @echo "🔨 Génération du projet Xcode via XcodeGen…"
-    cd {{ios_project}} && xcodegen generate --spec ami-project.yml
-    @echo "📦 Build iOS (AMI-Staging / simulateur)…"
-    cd {{ios_project}} && xcodebuild \
-        -scheme AMI-Staging \
-        -configuration Debug \
-        -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-        -derivedDataPath {{ ios_derived }} \
-        -quiet \
-        build
-    @echo "✅ App générée : {{ios_app}}"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -d "{{ios_app}}" ]; then
+        echo "✅ App iOS trouvée : {{ios_app}}"
+    else
+        echo "❌ App iOS introuvable : {{ios_app}}"
+        echo "   → Lance le build depuis le projet mobile : cd {{ios_project}} && just build (ou xcodebuild)"
+        exit 1
+    fi
 
 # ─── Émulateurs / Simulateurs ───────────────────────────────────────────────
 

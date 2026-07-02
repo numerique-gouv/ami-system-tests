@@ -1,6 +1,6 @@
 import path from 'path'
 
-// Chemins vers les apps buildées (générées via `just build-android` / `just build-ios`)
+// Chemins vers les apps buildées par les projets mobiles frères
 const ANDROID_APP_PATH = path.resolve(
   __dirname,
   '../../../ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk'
@@ -8,7 +8,7 @@ const ANDROID_APP_PATH = path.resolve(
 
 const IOS_APP_PATH = path.resolve(
   __dirname,
-  '../../build/ios/Build/Products/Debug-iphonesimulator/AMI-Staging.app'
+  '../../../ami-app-ios/build/Build/Products/Debug-iphonesimulator/AMI-Staging.app'
 )
 
 // ─── Android ────────────────────────────────────────────────────────────────
