@@ -1,4 +1,5 @@
 import { getOnboardingNotifLocators } from './locators/onboarding-notifications.locators'
+import { traced } from '../helpers/traced'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -40,4 +41,4 @@ class OnboardingNotificationsPage {
   }
 }
 
-export default new OnboardingNotificationsPage()
+export default traced(new OnboardingNotificationsPage(), 'OnboardingNotificationsPage')

@@ -68,6 +68,14 @@ export const baseConfig: Partial<Options.Testrunner> = {
   },
 
   // Hooks globaux
+  beforeSuite: (suite): void => {
+    log.warn(`▶ describe : ${suite.title}`)
+  },
+
+  beforeTest: (test): void => {
+    log.warn(`  → it : ${test.title}`)
+  },
+
   before: async (): Promise<void> => {
     // Expose les helpers d'inspection sur globalThis pour le REPL browser.debug().
     // Tape `help()` dans le REPL pour voir la liste complète.

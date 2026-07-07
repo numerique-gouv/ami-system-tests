@@ -1,5 +1,6 @@
 import {getHomeLocators} from './locators/home.locators'
 import {withWebView} from '../helpers/webview';
+import { traced } from '../helpers/traced'
 
 class HomePage {
     /**
@@ -206,4 +207,4 @@ class HomePage {
 
 }
 
-export default new HomePage()
+export default traced(new HomePage(), 'HomePage')

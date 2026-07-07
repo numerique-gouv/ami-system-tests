@@ -1,4 +1,5 @@
 import { getLoginLocators } from './locators/login.locators'
+import { traced } from '../helpers/traced'
 import { withWebView } from '../helpers/webview'
 import { setBackendUrl } from '../helpers/notifications-api'
 
@@ -88,4 +89,4 @@ function reviewTitleToApiUrl(title: string): string {
   return 'https://ami-back-staging.osc-fr1.scalingo.io'
 }
 
-export default new LoginPage()
+export default traced(new LoginPage(), 'LoginPage')

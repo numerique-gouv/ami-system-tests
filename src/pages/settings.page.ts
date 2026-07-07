@@ -1,4 +1,5 @@
 import { getSettingsLocators } from './locators/settings.locators'
+import { traced } from '../helpers/traced'
 import { getLoginLocators } from './locators/login.locators'
 
 class SettingsPage {
@@ -36,4 +37,4 @@ class SettingsPage {
   }
 }
 
-export default new SettingsPage()
+export default traced(new SettingsPage(), 'SettingsPage')

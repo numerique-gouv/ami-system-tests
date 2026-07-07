@@ -1,4 +1,5 @@
 import { withWebView, tl } from '../helpers/webview'
+import { traced } from '../helpers/traced'
 
 // Timeout pour l'assertion post-push.
 // Sur iOS (WKRDP), la notification WebSocket arrive en ~5 s.
@@ -164,4 +165,4 @@ class NotificationsInboxPage {
   }
 }
 
-export default new NotificationsInboxPage()
+export default traced(new NotificationsInboxPage(), 'NotificationsInboxPage')

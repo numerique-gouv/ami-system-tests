@@ -1,4 +1,5 @@
 import { fcpLocators } from './locators/franceconnect.locators'
+import { traced } from '../helpers/traced'
 import { withWebView, refreshAxTree, tl } from '../helpers/webview'
 import type { TestUser } from '../helpers/test-users'
 
@@ -117,4 +118,4 @@ class FranceConnectPage {
   }
 }
 
-export default new FranceConnectPage()
+export default traced(new FranceConnectPage(), 'FranceConnectPage')

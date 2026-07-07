@@ -1,4 +1,5 @@
 import { tl, withWebView, refreshAxTree } from '../helpers/webview'
+import { traced } from '../helpers/traced'
 import { getProfileLocators } from './locators/profile.locators'
 import { getLoginLocators } from './locators/login.locators'
 
@@ -298,4 +299,4 @@ class AvatarMenuPage {
   }
 }
 
-export default new AvatarMenuPage()
+export default traced(new AvatarMenuPage(), 'AvatarMenuPage')
