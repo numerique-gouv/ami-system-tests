@@ -8,6 +8,8 @@ Patterns pour naviguer de manière fiable dans l'app AMI (SPA Svelte dans une We
 - Un clic sur un onglet semble réussi mais la liste affichée n'est pas mise à jour.
 - `pullToRefresh()` à l'intérieur de `withWebView()` ne rafraîchit pas la liste.
 - Un test vérifie `window.location.hash` pour confirmer la navigation alors que la page est déjà chargée.
+- Après une navigation, `listInteractiveAll()` ou `tl().findBy*` ne trouvent plus rien — même après `refreshAxTree()`.
+- Un clic JS via `driver.execute(el?.click())` n'ouvre pas un menu ou ne déclenche pas une navigation sur iOS.
 
 ## 2. Pourquoi
 
@@ -16,6 +18,68 @@ La WebView est embarquée dans un shell natif Android (`SwipeRefreshLayout`) et 
 Par ailleurs, vérifier le hash pour confirmer une navigation SPA est fragile : le hash peut être mis à jour avant que le contenu soit rendu, ou une route peut ne pas utiliser de hash du tout.
 
 ## 3. Solution
+
+### Navigation + sentinel dans le même `withWebView()`
+
+Sortir du contexte WebView (`switchContext('NATIVE_APP')`) pendant qu'une transition SPA est en cours laisse WKWebView dans un état instable sur iOS : l'AX tree devient corrompu et `refreshAxTree()` ne suffit pas à le récupérer. Les outils WDIO (`tl().findBy*`, `listInteractiveAll`) ne trouvent plus rien sur la page suivante.
+
+**Règle** : navigation et confirmation du DOM de destination doivent être dans le **même** `withWebView()`.
+
+```typescript
+// ✅ Navigation + sentinel dans un seul withWebView — DOM stable avant de quitter le contexte
+await withWebView(async () => {
+  await driver.execute(() => { window.location.hash = '/notifications' })
+  // Rester ici jusqu'à ce que la destination soit stable
+  await browser.waitUntil(
+    async () => driver.execute(() =>
+      Array.from(document.querySelectorAll('a'))
+        .some(a => (a as HTMLElement).innerText?.trim() === 'Suivi')
+    ) as Promise<boolean>,
+    { timeout: 10000, interval: 500, timeoutMsg: 'Home non atteinte' }
+  )
+})
+
+// ❌ Navigation dans un withWebView(), sentinel dans un second — WKWebView instable entre les deux
+await withWebView(async () => {
+  await driver.execute(() => { window.location.hash = '/notifications' })
+})
+// ← sortie de contexte pendant la transition SPA → AX tree corrompu sur iOS
+await withWebView(async () => {
+  await tl().findByRole('link', { name: /Suivi/i }) // échoue même après refreshAxTree()
+})
+```
+
+Ce pattern s'applique aussi à la navigation par clic : rester dans `withWebView()` le temps que le contenu de destination soit confirmé.
+
+---
+
+### Préférer les clics utilisateur aux injections JS sur iOS
+
+Sur iOS/WKWebView, `document.querySelector(sel)?.click()` via `driver.execute` ne propage pas l'intégralité de la séquence d'événements (`pointerdown → mousedown → click`). Les handlers Svelte attachés via `on:click` / `addEventListener` peuvent ne pas être déclenchés, en particulier pour les boutons qui ouvrent des menus ou déclenchent une navigation.
+
+**Règle** : pour toute interaction qui doit déclencher un comportement Svelte (ouverture de menu, soumission, navigation), utiliser `$(sel).click()` WDIO, précédé de `waitForClickable()`. Réserver `driver.execute(?.click())` aux sentinelles de navigation (vérifier la présence d'un élément, pas interagir avec).
+
+```typescript
+// ✅ Vrai clic WDIO — XCUITest génère les événements complets, fonctionne iOS + Android
+await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })
+await $(loc.toggleMenuButton).click()
+
+// ✅ Encore mieux : sélecteur sémantique via Testing Library (texte visible utilisateur)
+const btn = await tl().findByRole('button', { name: 'Me déconnecter' })
+await btn.click()
+
+// ❌ JS click via driver.execute — silencieux sur iOS si Svelte n'attrape pas l'événement
+await driver.execute((sel: string) => {
+  document.querySelector<HTMLElement>(sel)?.click()
+}, loc.toggleMenuButton)
+```
+
+**Préférence pour les sélecteurs** :
+1. `tl().findByRole / findByLabelText / findByText` — cible ce que l'utilisateur voit, résistant aux refactorings DOM
+2. `$(loc.selector).click()` avec `data-testid` — quand le texte est ambigu (ex. 3 boutons "Modifier")
+3. `driver.execute(?.click())` — uniquement pour les sentinelles (vérification de présence), jamais pour des interactions
+
+---
 
 ### Naviguer par clic sur éléments visibles, pas par manipulation JS
 

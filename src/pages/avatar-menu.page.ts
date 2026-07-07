@@ -1,7 +1,8 @@
-import { tl, withWebView } from '../helpers/webview'
+import { tl, withWebView, refreshAxTree } from '../helpers/webview'
 import { getProfileLocators } from './locators/profile.locators'
+import { getLoginLocators } from './locators/login.locators'
 
-class ProfilePage {
+class AvatarMenuPage {
   /**
    * Navigue vers la page "Mon profil" depuis la home :
    *   clic toggle-menu-button → attente profile-button → clic profile-button → attente conteneur profil.
@@ -13,9 +14,12 @@ class ProfilePage {
     const loc = getProfileLocators()
     await withWebView(async () => {
       // 1. Ouvrir le menu avatar (initiales)
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.toggleMenuButton)
+      // iOS/WKWebView : driver.execute(?.click()) ne propage pas l'intégralité des événements
+      // nécessaires à Svelte. On utilise le click WDIO natif, précédé de refreshAxTree()
+      // pour invalider un éventuel AX tree périmé post-OIDC.
+      await refreshAxTree()
+      await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })
+      await $(loc.toggleMenuButton).click()
 
       // 2. Attendre que le bouton "Mon profil" soit présent dans le menu ouvert
       await browser.waitUntil(
@@ -80,6 +84,31 @@ class ProfilePage {
           .filter(Boolean)
       , loc.addressSection) as Promise<string[]>
     )
+  }
+
+  /**
+   * Ouvre le menu avatar et clique le bouton "Paramètres".
+   * Après le clic, l'app quitte la WebView pour l'écran natif Paramètres —
+   * les interactions suivantes (ex. logout) doivent cibler des éléments natifs.
+   */
+  async navigateToSettings(): Promise<void> {
+    const loc = getProfileLocators()
+    await withWebView(async () => {
+      await refreshAxTree()
+      await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })
+      await $(loc.toggleMenuButton).click()
+
+      await browser.waitUntil(
+        async () => driver.execute((sel: string) =>
+          !!document.querySelector(sel)
+        , loc.settingsMenuButton) as Promise<boolean>,
+        { timeout: 5000, interval: 200, timeoutMsg: 'Menu avatar non ouvert — [data-testid="settings-button"] absent après 5s' }
+      )
+
+      await driver.execute((sel: string) => {
+        document.querySelector<HTMLElement>(sel)?.click()
+      }, loc.settingsMenuButton)
+    })
   }
 
   /**
@@ -174,6 +203,49 @@ class ProfilePage {
   }
 
   /**
+   * Ouvre le menu avatar et clique "Me déconnecter".
+   * Le bouton est dans la WebView SPA (menu avatar, même niveau que "Mon profil" et "Paramètres").
+   * Après le clic, attend l'écran de connexion :
+   *   - iOS : réapparition d'un contexte WEBVIEW (login SPA)
+   *   - Android : bouton FranceConnect natif affiché
+   */
+  async logout(): Promise<void> {
+    const loc = getProfileLocators()
+    const loginLoc = getLoginLocators()
+
+    await withWebView(async () => {
+      if (await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })) {
+        await $(loc.toggleMenuButton).click()
+        const logoutBtn = await tl().findByRole('button', {name: 'Me déconnecter'})
+        await logoutBtn.click()
+      } else {
+        console.warn("avatar menu is not clickable...")
+      }
+    })
+
+    await withWebView(async () => {
+      // Sentinelle : la modale de confirmation apparaît après le clic "Me déconnecter"
+      await tl().findByRole('heading', { name: 'Suppression de vos données' })
+      const confirmBtn = await tl().findByRole('button', { name: 'Confirmer' })
+      await confirmBtn.click()
+    })
+    
+    if (loginLoc.fcButtonInWebView) {
+      await browser.waitUntil(
+        async () => {
+          try {
+            const contexts = await driver.getContexts() as string[]
+            return contexts.some(c => c.startsWith('WEBVIEW_'))
+          } catch { return false }
+        },
+        { timeout: 15000, interval: 500, timeoutMsg: 'WebView de login non disponible après déconnexion (iOS)' }
+      )
+    } else {
+      await $(loginLoc.fcButton).waitForDisplayed({ timeout: 15000 })
+    }
+  }
+
+  /**
    * Ouvre le formulaire d'édition de l'adresse, saisit la requête BAN,
    * sélectionne le premier résultat de l'autocomplétion, enregistre,
    * et attend le retour sur la page profil.
@@ -226,4 +298,4 @@ class ProfilePage {
   }
 }
 
-export default new ProfilePage()
+export default new AvatarMenuPage()

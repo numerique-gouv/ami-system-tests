@@ -12,7 +12,7 @@ describe('Notifications', () => {
     this.timeout(180000)
     await AllureReporter.addFeature('Notifications')
     await AllureReporter.addSeverity('critical')
-    if (!await HomePage.isHomeReachable()) {
+    if (!await HomePage.isHomeReachable(1000)) {
       await authenticate()
     }
   })

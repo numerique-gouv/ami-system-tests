@@ -1,5 +1,5 @@
 import {getHomeLocators} from './locators/home.locators'
-import {withWebView} from '../helpers/webview'
+import {withWebView} from '../helpers/webview';
 
 class HomePage {
     /**
@@ -13,62 +13,54 @@ class HomePage {
     async isHomeReachable(timeout = 5000): Promise<boolean> {
         const contexts = await driver.getContexts() as string[]
         if (contexts.some(c => c.startsWith('WEBVIEW_'))) {
-            await this.navigateHomeFromWebview().catch(() => {})
-        } else {
-            await this.navigateHomeFromNative().catch(() => {})
+            try { await this.navigateHomeFromWebview(timeout) } catch { return false }
+            return true
         }
-        return this.isHomeSentinelVisible(timeout)
+        // TODO en navigation native, fait des back()k,blkdnfbdddbdbgd.
+        return false
     }
 
     /**
      * Navigation vers la home depuis un contexte WebView.
-     * Exception à spa-navigation.md (clic > hash direct) :
-     * état de départ inconnu — aucun lien de nav n'est garanti présent.
+     *
+     * Pattern spa-navigation.md — navigation + sentinel dans le même withWebView() :
+     * sortir du contexte pendant la transition SPA laisse WKWebView dans un état instable
+     * sur iOS (AX tree corrompu, outils WDIO aveugles). On reste dans le contexte jusqu'à
+     * ce que le DOM de destination soit stable.
+     *
+     * Stratégie :
+     *   1. Déjà sur #/ → rien à faire.
+     *   2. Sinon, clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
+     *   3. Fallback hash si aucun lien de nav présent (état de départ inconnu).
+     *   4. Sentinel : lien "Suivi" visible → DOM home stable.
      */
-    private async navigateHomeFromWebview(): Promise<void> {
+    private async navigateHomeFromWebview(timeout: number): Promise<void> {
         await withWebView(async () => {
-            await driver.execute(() => { window.location.hash = '/' })
-        })
-    }
+            const alreadyHome = await driver.execute(
+                () => window.location.hash === '#/'
+            ) as boolean
 
-    /**
-     * Navigation vers la home depuis un contexte natif (aucune WebView disponible).
-     * Les deep links sont traités par l'app au niveau OS — ils atteignent n'importe quel
-     * écran cible qu'il soit natif ou WebView, sans dépendre du contexte Appium courant.
-     * l'app ne supporte pas les deep links.
-     *
-     *   - Android : le AndroidManifest.xml n'a que l'intent-filter de lancement (MAIN/LAUNCHER) et Firebase. Aucun scheme custom, aucun data android:scheme.
-     *   - iOS : pas de CFBundleURLSchemes, pas d'onOpenURL, pas de gestionnaire d'URL entrant.
-     *
-     *   mobile: deepLink enverrait un intent/URL que l'app ne saurait pas traiter — elle s'ouvrirait simplement sans naviguer nulle part de spécifique.
-     *   * Piste : driver.execute('mobile: deepLink', { url: 'ami://home', package/bundleId: ... })
-     */
-    private async navigateHomeFromNative(): Promise<void> {}
+            if (!alreadyHome) {
+                const clicked = await driver.execute(() => {
+                    const link = Array.from(document.querySelectorAll('a'))
+                        .find(a => (a as HTMLElement).innerText?.trim() === 'Accueil') as HTMLElement | undefined
+                    if (link) { link.click(); return true }
+                    return false
+                }) as boolean
 
-    /**
-     * Attend que le sentinel de la home soit visible.
-     * WebView : vérifie le hash URL (route SPA '#/') — indépendant du DOM rendu.
-     * Natif : à implémenter. Piste : $(getHomeLocators().homeSentinel).waitForDisplayed(...)
-     */
-    private async isHomeSentinelVisible(timeout: number): Promise<boolean> {
-        const contexts = await driver.getContexts() as string[]
-        if (contexts.some(c => c.startsWith('WEBVIEW_'))) {
-            try {
-                return await withWebView(async () => {
-                    await browser.waitUntil(
-                        async () => driver.execute(
-                            () => window.location.hash === '#/'
-                        ) as Promise<boolean>,
-                        { timeout, interval: 500, timeoutMsg: '' }
-                    )
-                    return true
-                })
-            } catch {
-                return false
+                if (!clicked) {
+                    await driver.execute(() => { window.location.hash = '/' })
+                }
             }
-        }
-        // Natif : à implémenter si home devient native.
-        return false
+
+            await browser.waitUntil(
+                async () => driver.execute(() =>
+                    Array.from(document.querySelectorAll('a'))
+                        .some(a => (a as HTMLElement).innerText?.trim() === 'Suivi')
+                ) as Promise<boolean>,
+                { timeout, interval: 500, timeoutMsg: 'Home non atteinte — lien "Suivi" absent après navigation' }
+            )
+        })
     }
 
     /**
@@ -147,7 +139,11 @@ class HomePage {
                         Array.from(document.querySelectorAll<HTMLElement>('h1, h2'))
                             .some(h => h.innerText?.includes('démarches'))
                     ) as Promise<boolean>,
-                    { timeout: 5000, interval: 300, timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi' }
+                    {
+                        timeout: 5000,
+                        interval: 300,
+                        timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi'
+                    }
                 )
                 await driver.execute(() => {
                     const accueil = Array.from(document.querySelectorAll('a'))
@@ -164,10 +160,16 @@ class HomePage {
                             (t: string) => document.body.innerText.includes(t),
                             title
                         ) as Promise<boolean>,
-                        { timeout: Math.min(remaining, 10000), interval: 1000, timeoutMsg: `Démarche "${title}" non visible sur la home après ${Math.min(remaining, 10000)}ms` }
+                        {
+                            timeout: Math.min(remaining, 10000),
+                            interval: 1000,
+                            timeoutMsg: `Démarche "${title}" non visible sur la home après ${Math.min(remaining, 10000)}ms`
+                        }
                     )
                     return true
-                } catch { return false }
+                } catch {
+                    return false
+                }
             })
         }
         if (!found) throw new Error(`Démarche "${title}" non visible sur la home après ${timeout}ms`)
@@ -187,7 +189,7 @@ class HomePage {
                     link.click()
                     return true
                 }) as boolean,
-                { timeout: 10000, interval: 500, timeoutMsg: 'Lien "Suivi" introuvable dans la nav' }
+                {timeout: 10000, interval: 500, timeoutMsg: 'Lien "Suivi" introuvable dans la nav'}
             )
             await browser.waitUntil(
                 async () => await driver.execute(() =>

@@ -42,7 +42,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         urlV1 = `https://staging.partenaire.example/demarches/${itemId}/v1`
         urlV2 = `https://staging.partenaire.example/demarches/${itemId}/v2`
 
-        if (!await HomePage.isHomeReachable()) {
+        if (!await HomePage.isHomeReachable(1000)) {
             await authenticate()
         }
     })

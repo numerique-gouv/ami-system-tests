@@ -145,3 +145,16 @@ just inspect /suivi       # naviguer vers une route puis inspecter
 # → repérer les accessibility ids ou textes → mettre à jour les locators
 just test-android-grep "MonTest"   # relancer uniquement ce scénario
 ```
+
+### Docs utiles
+
+- [les démarches de DN](https://docs.numerique.gouv.fr/docs/1ce135fb-6fb3-4ff5-a53e-27f3670dbd8e/)
+- [Les recettes](https://docs.numerique.gouv.fr/docs/26b382cc-68fd-4a80-be43-dd3eb4bd102c/)
+
+### Scénarios restant à faire
+
+- [ ] écrans de toute première connexion (après suppression des données via la cli scalingo)
+- [ ] Paramétrer les zones scolaires et constater l'ajout et suppression d'éléments dans le calendrier (on les enlève tous, le calendrier est vide, on en remet un, ce n'est pas vide (autour de Noël, on remet toutes les zones d'origine))
+- [ ] Sur android constater le fonctionnement des notifications push native (login en refusant, notif envoyée, on les accepte, notif envoyée et vue en push)
+- [ ] Agenda : élections et auto-promo OTV, ... c'est fluctuant selon les dates, a tester en auto ?
+- [ ] Teste de démarche utilisant OTV 

@@ -8,7 +8,7 @@ const ANDROID_APP_PATH = path.resolve(
 
 const IOS_APP_PATH = path.resolve(
   __dirname,
-  '../../../ami-app-ios/build/Build/Products/Debug-iphonesimulator/AMI-Staging.app'
+  '../../../ami-app-ios/build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
 )
 
 // ─── Android ────────────────────────────────────────────────────────────────

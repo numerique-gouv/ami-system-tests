@@ -13,12 +13,18 @@ import { getUser } from './test-users'
  */
 export async function authenticate(): Promise<void> {
   const user = getUser('avec_nom_dusage')
+  console.warn('[authenticate] reviewEnvironmentPicker')
   await LoginPage.reviewEnvironmentPicker()
+  console.warn('[authenticate] tapFranceConnect')
   await LoginPage.tapFranceConnect()
+  console.warn('[authenticate] loginWithSandbox')
   await FranceConnectPage.loginWithSandbox(user)
+  console.warn('[authenticate] dismiss onboarding notifications')
   await OnboardingNotificationsPage.dismiss()
   // Sur iOS, le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC
+  console.warn('[authenticate] tapFranceConnect (retry iOS OIDC redirect)')
   try { await LoginPage.tapFranceConnect(1000) } catch { /* cas normal — bouton absent */ }
+  console.warn('[authenticate] isHomeVisible')
   const ready = await HomePage.isHomeVisible(60000)
   if (!ready) throw new Error("La page d'accueil n'est pas visible après authentification")
 }
