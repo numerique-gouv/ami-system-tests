@@ -1,5 +1,5 @@
-import { getOnboardingNotifLocators } from './locators/onboarding-notifications.locators'
-import { traced } from '../helpers/traced'
+import {getOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
+import {traced} from '../helpers/traced'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -26,18 +26,10 @@ class OnboardingNotificationsPage {
    * isDisplayed=false pendant l'animation d'entrée de la sheet.
    */
   async dismiss(): Promise<void> {
-    if (driver.isIOS) {
-      try { await driver.dismissAlert() } catch { /* pas de dialog système OS — cas normal */ }
-    }
     const loc = getOnboardingNotifLocators()
-    try {
-      const onboarding = $(loc.title)
-      await onboarding.waitForExist({ timeout: 5000 })
-      await $(loc.dismiss).click()
-      await onboarding.waitForDisplayed({ timeout: 1000, reverse: true })
-    } catch {
-      // Onboarding non visible dans les 5s — déjà refusé ou hors scope
-    }
+    await $(loc.dismiss).waitForExist({ timeout: 10000 })
+    await $(loc.dismiss).click()
+    await $(loc.title).waitForDisplayed({ timeout: 1000, reverse: true })
   }
 }
 

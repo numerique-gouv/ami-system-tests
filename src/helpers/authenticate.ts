@@ -23,8 +23,8 @@ export async function authenticate(): Promise<void> {
   await OnboardingNotificationsPage.dismiss()
   // Sur iOS, le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC
   console.warn('[authenticate] tapFranceConnect (retry iOS OIDC redirect)')
-  try { await LoginPage.tapFranceConnect(1000) } catch { /* cas normal — bouton absent */ }
+  await LoginPage.tapFranceConnect(true)
   console.warn('[authenticate] isHomeVisible')
-  const ready = await HomePage.isHomeVisible(60000)
+  const ready = await HomePage.isHomeVisible(30000)
   if (!ready) throw new Error("La page d'accueil n'est pas visible après authentification")
 }

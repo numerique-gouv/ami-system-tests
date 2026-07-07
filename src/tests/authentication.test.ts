@@ -29,9 +29,10 @@ describe('Authentification', () => {
 
     await AllureReporter.addStep('3. Passer l\'onboarding des notifications')
     await OnboardingNotificationsPage.dismiss()
+    await LoginPage.tapFranceConnect(true )
 
     await AllureReporter.addStep('4. Vérifier l\'arrivée sur la page d\'accueil')
-    const homeReady = await HomePage.isHomeVisible(60000)
+    const homeReady = await HomePage.isHomeVisible(30000)
     expect(homeReady).toBe(true)
   })
 
