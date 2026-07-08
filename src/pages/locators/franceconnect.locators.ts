@@ -18,9 +18,6 @@ import type { Locator } from './onboarding.locators'
 export interface FranceConnectLocators {
   eidasFaibleLabel: string   // nom accessible du lien eIDAS faible (pour tl().getByRole dans le PO)
   fcpLowHeading:    Locator  // titre de confirmation que la page FCP-LOW est chargée
-  identifierField:  Locator  // champ identifiant utilisateur
-  passwordField:    Locator  // champ mot de passe
-  submitButton:     Locator  // bouton de soumission du formulaire
 }
 
 /**
@@ -32,21 +29,15 @@ export interface FranceConnectLocators {
  *   Le PO utilise : tl().getByRole('link', { name: new RegExp(fcpLocators.eidasFaibleLabel, 'i') })
  *
  * Page 2 — formulaire FCP-LOW :
- *   Conteneur : id="mire" ; champs : id="login", id="password" ; bouton : type="submit".
+ *   Conteneur : id="mire". Les champs identifiant/mot de passe et le bouton de soumission
+ *   sont ciblés via tl() (getByLabelText / getByRole) directement dans le PO, pas ici.
  */
 export const fcpLocators: FranceConnectLocators = {
   // Nom accessible confirmé via just inspect (2026-06-26)
-  eidasFaibleLabel: 'Démonstration eIDAS faible',
+  eidasFaibleLabel: 'eIDAS faible',
 
   // Outer container de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
   fcpLowHeading: '#mire',
-
-  // Champs confirmés par inspection DOM (Maestro rid = HTML id)
-  identifierField: '#login',
-  passwordField:   '#password',
-
-  // Bouton "Valider" (type=submit confirmé)
-  submitButton: 'button[type="submit"]',
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform
