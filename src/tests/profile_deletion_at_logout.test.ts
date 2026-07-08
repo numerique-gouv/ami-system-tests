@@ -87,7 +87,7 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
 
   it('se reconnecte avec le même compte', async () => {
     await AllureReporter.addStep('Lancer le flow FranceConnect')
-    await authenticate()
+    await authenticate(true)
     
     await AllureReporter.addStep('Naviguer vers Mon profil')
     await ProfilePage.navigate()

@@ -30,6 +30,7 @@ class LoginPage {
         const title = await picker.getText()
         setBackendUrl(reviewTitleToApiUrl(title))
         await picker.click()
+        await picker.waitForDisplayed({timeout: 10000, reverse: true})
 
     }
 
@@ -37,27 +38,38 @@ class LoginPage {
      * Tape le bouton "S'identifier avec FranceConnect".
      * Sur Android : bouton natif (NATIVE_APP, contentDescription).
      * Sur iOS : bouton dans la WebView SPA (context switch automatique).
-     * Cet écran peut apparaitre une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC. Donc on catch silencieusement les fois ou la page ne reviens pas.
+     * Cet écran peut apparaitre une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC.
      */
-    async tapFranceConnect(oidcConcurrencyBugOnIOs = false ): Promise<void> {
-        const timeout = 15000
+    async tapFranceConnect(oidcConcurrencyBugOnIOs = false): Promise<void> {
         const loc = getLoginLocators()
+        const timeout = oidcConcurrencyBugOnIOs ? 5000 : 15000
+
         if (loc.fcButtonInWebView) {
+            // iOS : bouton dans la WebView SPA.
             await withWebView(async () => {
-                if (oidcConcurrencyBugOnIOs) {
-                    await $(loc.fcButton).click().catch(() => null)
-                } else {
-                    await $(loc.fcButton).waitForDisplayed({timeout})
-                    await $(loc.fcButton).click()
+                    try {
+                        await $(loc.fcButton).waitForDisplayed({timeout})
+                        await $(loc.fcButton).click()
+                        // const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
+                        // await fcButton?.click()
+                    } catch (ex) {
+                        if (!oidcConcurrencyBugOnIOs) {
+                            console.warn("bouton de mire de connexion introuvable", ex)
+                        }
+                    }
                 }
-            })
+            )
         } else {
-            if (oidcConcurrencyBugOnIOs) {
-                await $(loc.fcButton).click().catch(() => null)
-            } else {
+        // Android : bouton natif (contentDescription), en dehors de toute WebView.
+            try {
                 await $(loc.fcButton).waitForDisplayed({timeout})
                 await $(loc.fcButton).click()
+            } catch (ex) {
+                if (!oidcConcurrencyBugOnIOs) {
+                    console.warn("bouton de mire de connexion introuvable", ex)
+                }
             }
+            return
         }
     }
 
@@ -85,6 +97,7 @@ class LoginPage {
             {timeout: 30000, interval: 200, timeoutMsg: 'Tile du picker introuvable après scroll'}
         )
     }
+
 }
 
 /**
