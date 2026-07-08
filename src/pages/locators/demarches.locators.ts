@@ -24,32 +24,17 @@ export interface DemarchesLocators {
   cardLink: string
   /** Sélecteur des onglets (role="tab" explicite dans le DOM) */
   tabSelector: string
-  /** Texte visible de l'onglet "Passées" */
-  tabPasseesLabel: string
-  /** Texte visible de l'onglet "En cours" */
-  tabEnCoursLabel: string
 }
 
-export const androidDemarchesLocators: DemarchesLocators = {
+export const demarchesLocators: DemarchesLocators = {
   cardContent:     '.fr-tile__content',
   cardTitle:       '.fr-tile__title',
   cardBadge:       '.fr-badge',
-  cardLink:        'a[data-testid="request-item-link"]',
+  cardLink:        'a[data-testid="followup-item-link"]',
   tabSelector:     '[role="tab"]',
-  tabPasseesLabel: 'Passées',
-  tabEnCoursLabel: 'En cours',
 }
 
-export const iosDemarchesLocators: DemarchesLocators = {
-  cardContent:     '.fr-tile__content',
-  cardTitle:       '.fr-tile__title',
-  cardBadge:       '.fr-badge',
-  cardLink:        'a[data-testid="request-item-link"]',
-  tabSelector:     '[role="tab"]',
-  tabPasseesLabel: 'Passées',
-  tabEnCoursLabel: 'En cours',
-}
-
+/** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */
 export function getDemarchesLocators(): DemarchesLocators {
-  return driver.isIOS ? iosDemarchesLocators : androidDemarchesLocators
+  return demarchesLocators
 }
