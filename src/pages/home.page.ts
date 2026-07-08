@@ -14,7 +14,12 @@ class HomePage {
     async isHomeReachable(timeout = 5000): Promise<boolean> {
         const contexts = await driver.getContexts() as string[]
         if (contexts.some(c => c.startsWith('WEBVIEW_'))) {
-            try { await this.navigateHomeFromWebview(timeout) } catch { return false }
+            try {
+                await this.navigateHomeFromWebview(timeout)
+            } catch (ex) {
+                console.warn('isHomeReachable: navigation vers la home en échec', ex)
+                return false
+            }
             return true
         }
         // TODO en navigation native, fait des back()k,blkdnfbdddbdbgd.
@@ -111,7 +116,8 @@ class HomePage {
                 )
                 return true
             })
-        } catch {
+        } catch (ex) {
+            console.warn('isHomeVisible: home non atteinte', ex)
             return false
         }
     }

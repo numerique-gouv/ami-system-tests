@@ -95,8 +95,11 @@ class FranceConnectPage {
                 await refreshAxTree()
                 await this.fillCredentials(user.login, user.password)
                 await this.submit()
-            } catch {
-                // Erreur transitoire sur la page credentials — ignorée
+            } catch (ex) {
+                // Best-effort : la session FC peut déjà être ouverte (cf. selectEidasFaible).
+                // Loggé quand même — une vraie erreur d'interaction (champ/bouton introuvable)
+                // sur cette chaîne critique ne doit pas se confondre avec ce cas attendu.
+                console.warn('loginWithSandbox: échec sur la page credentials', ex)
             }
         })
     }
