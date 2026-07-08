@@ -7,7 +7,7 @@ import logger from '@wdio/logger'
 import { registerReplHelpers } from './src/helpers/repl'
 import { testSuites } from './test-suites'
 
-const log = logger('afterTest')
+const log = logger('scenario')
 
 // Les variables déjà définies dans le shell ne sont pas écrasées (override: false).
 dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
@@ -25,7 +25,6 @@ export const baseConfig: Partial<Options.Testrunner> = {
       log.warn(`On utilise la suite ${suiteName}:`, suite)
       return suite
     }
-    log.warn(`On lance tous les tests de src/tests/`)
     return [path.resolve(__dirname, 'src/tests/**/*.test.ts')]
   })(),
 
@@ -37,6 +36,14 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // parasitent la sortie console sans valeur ajoutée lors d'une exécution normale.
   // Passer à 'info' ou 'debug' ponctuellement pour diagnostiquer un test flaky.
   logLevel: 'warn',
+
+  // Le logger 'page-object' (traced()) reste à 'info' même si le niveau
+  // global est 'warn', pour tracer les appels de méthodes de Page Object
+  // sans réactiver le bruit Appium.
+  logLevels: {
+    'page-object': 'info',
+    'scenario': 'info',
+  },
 
   bail: 0,
 
@@ -69,11 +76,11 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   // Hooks globaux
   beforeSuite: (suite): void => {
-    log.warn(`▶ describe : ${suite.title}`)
+    log.info(`▶ describe : ${suite.title}`)
   },
 
   beforeTest: (test): void => {
-    log.warn(`  → it : ${test.title}`)
+    log.info(`  → it : ${test.title}`)
   },
 
   before: async (): Promise<void> => {
