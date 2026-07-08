@@ -56,12 +56,12 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             recipientFcHash: user.fcHash,
             privateBody: 'Contenu privé E2E',
             icon: 'fr-icon-notification-3-line',
+            contentLink: urlV1,
             itemType: 'OTV',
             itemId,
             itemStatusLabel: 'Brouillon',
             itemGenericStatus: 'new',
             itemCanal: 'AMI',
-            itemExternalUrl: urlV1,
         })
 
         await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur la page d\'accueil')
@@ -71,8 +71,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         await HomePage.ouvreSuivi()
 
         await AllureReporter.addStep('4. Vérifier la présence de la démarche avec le statut "Brouillon"')
-        await DemarchesPage.waitForItemWithStatus(titleNew, 'Brouillon')
-        await DemarchesPage.waitForItemExternalUrl(titleNew, urlV1)
+        await DemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon', urlV1)
 
     })
 
@@ -83,12 +82,12 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             title: titleUpdate,
             body: 'Mise à jour E2E',
             recipientFcHash: user.fcHash,
+            contentLink: urlV2,
             itemType: 'OTV',
             itemId,
             itemStatusLabel: 'En cours',
             itemGenericStatus: 'wip',
             itemCanal: 'AMI',
-            itemExternalUrl: urlV2,
         })
 
         await AllureReporter.addStep("2. Retour sur la page d'accueil")
@@ -102,8 +101,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         await HomePage.ouvreSuivi()
 
         await AllureReporter.addStep('5. Vérifier que la démarche utilise la nouvelle URL (V2)')
-        await DemarchesPage.waitForItemWithStatus(titleUpdate, 'En cours')
-        await DemarchesPage.waitForItemExternalUrl(titleUpdate, urlV2)
+        await DemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours', urlV2)
 
     })
 
@@ -114,12 +112,12 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             title: titleClosing,
             body: 'Clôture E2E',
             recipientFcHash: user.fcHash,
+            contentLink: urlV2,
             itemType: 'OTV',
             itemId,
             itemStatusLabel: 'Terminé',
             itemGenericStatus: 'closed',
             itemCanal: 'AMI',
-            itemExternalUrl: urlV2,
         })
 
         await AllureReporter.addStep("2. Retour sur la page d'accueil")
@@ -129,8 +127,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         await HomePage.ouvreSuivi()
 
         await AllureReporter.addStep('4. Vérifier que la démarche est clôturée avec le statut "Terminé"')
-        await DemarchesPage.waitForItemWithStatus(titleClosing, 'Terminé')
-        await DemarchesPage.waitForItemExternalUrl(titleClosing, urlV2)
+        await DemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé', urlV2)
 
     })
 })
