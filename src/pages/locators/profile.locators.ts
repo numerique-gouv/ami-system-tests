@@ -31,22 +31,7 @@ export interface ProfileLocators {
   autocompleteFirstItemButton: Locator // [data-testid="autocomplete-item-button-0"]
 }
 
-export const androidProfileLocators: ProfileLocators = {
-  toggleMenuButton: '[data-testid="toggle-menu-button"]',
-  profileMenuButton: '[data-testid="profile-button"]',
-  settingsMenuButton: '[data-testid="settings-button"]',
-  profileContainer: '[data-testid="profile"]',
-  identitySection: '#profile-identity',
-  emailSection: '#profile-email',
-  addressSection: '#profile-address',
-  preferredUsernameEditButton: '[data-testid="preferred-username-button"]',
-  emailEditButton: '[data-testid="email-button"]',
-  addressEditButton: '[data-testid="address-button"]',
-  editContainer: '[data-testid="container"]',
-  autocompleteFirstItemButton: '[data-testid="autocomplete-item-button-0"]',
-}
-
-export const iosProfileLocators: ProfileLocators = {
+export const profileLocators: ProfileLocators = {
   toggleMenuButton: '[data-testid="toggle-menu-button"]',
   profileMenuButton: '[data-testid="profile-button"]',
   settingsMenuButton: '[data-testid="settings-button"]',
@@ -62,5 +47,5 @@ export const iosProfileLocators: ProfileLocators = {
 }
 
 export function getProfileLocators(): ProfileLocators {
-  return driver.isIOS ? iosProfileLocators : androidProfileLocators
+  return profileLocators
 }
