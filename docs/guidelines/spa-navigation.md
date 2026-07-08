@@ -123,24 +123,32 @@ await browser.waitUntil(
 )
 ```
 
-**Exception — page sans heading identifiable :** si la page de destination est une pure liste
-sans heading sémantique stable (ex. inbox notifications : 50+ `<a>`, aucun `h1`), la
-confirmation par hash est légitime à condition que :
-1. le hash ait été positionné juste avant (par clic ou fallback JS) dans le même `withWebView()` ;
-2. une assertion sur le contenu réel (`waitForNotification`, `waitForItemWithStatus`…) suive
-   immédiatement et confirme le rendu effectif.
+**Ne pas supposer qu'une page manque de heading sans avoir vérifié le DOM rendu.** L'inbox
+notifications a longtemps été traitée comme une "page sans heading identifiable" (exception
+hash ci-dessous) — c'est faux : elle a un heading `"Notifications"`, simplement noyé parmi 50+
+`<a>` de la liste. `NotificationsInboxPage.openFromHome()` confirme désormais la navigation par
+ce heading, comme le reste du fichier :
 
 ```typescript
-// ✅ Exception légitime — inbox notifications (pas de heading, 50+ <a>)
-if (!hash.includes('/notifications')) {
-  await driver.execute(() => { window.location.hash = '/notifications' })
-}
+// ✅ src/pages/notifications.page.ts — heading "Notifications" présent, malgré la liste de <a>
 await browser.waitUntil(
-  async () => (await driver.execute(() => window.location.hash) as string).includes('/notifications'),
-  { timeout: 15000, interval: 500, timeoutMsg: 'page /#/notifications non atteinte en 15s' }
+  async () => driver.execute(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
+      .some(h => h.innerText?.trim() === 'Notifications')
+  ) as Promise<boolean>,
+  { timeout: 15000, interval: 500, timeoutMsg: 'Heading "Notifications" absent après navigation' }
 )
-// Le rendu réel est confirmé ensuite par waitForNotification(title)
 ```
+
+**Exception résiduelle — page réellement sans heading stable :** si un futur écran s'avère,
+après inspection du DOM rendu (`just inspect`, pas une supposition), dépourvu de tout heading
+sémantique, la confirmation par hash reste un dernier recours à condition que :
+1. le hash ait été positionné juste avant (par clic ou fallback JS) dans le même `withWebView()` ;
+2. une assertion sur le contenu réel suive immédiatement et confirme le rendu effectif.
+
+Vérifier d'abord qu'il n'existe vraiment aucun heading (y compris hors-écran ou stylé) avant de
+retomber sur cette exception — cf. `docs/guidelines/semantic-locators.md` §"innerText vs textContent"
+sur les faux négatifs liés au CSS.
 
 ### Pull-to-refresh : geste natif AVANT withWebView
 
@@ -229,6 +237,7 @@ Cela maintient la cohérence avec le pattern POM 3 niveaux décrit dans [cross-p
 - `src/pages/home.page.ts` — `waitForDemarche()`.
 - `src/pages/demarches.page.ts` — `assertVisibleDemarcheWith()`, `goToHome()`.
 - `src/pages/home.page.ts` — `ouvreSuivi()` (navigation vers la page Suivi initiée depuis Home).
+- `src/pages/notifications.page.ts` — `openFromHome()` : confirmation par heading `"Notifications"`, pas par hash.
 - `src/tests/demarches.test.ts` — scénarios tab switching et pull-to-refresh.
 
 ## 5. Sources

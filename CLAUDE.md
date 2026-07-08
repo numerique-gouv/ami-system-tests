@@ -33,6 +33,7 @@ Tous les fichiers de guidelines sont dans `docs/guidelines/`.
 | Fichier | Sujet |
 |---------|-------|
 | `semantic-locators.md` | Testing Library en WebView, `accessibility id` en natif, dispatch via `getXxxLocators()` |
+| `selection-strategy-catalog.md` | Index : type de page × action → quelle API (`tl()`/`$()`/`driver.execute()`), tableau des défis Android/iOS |
 | `cross-platform-page-objects.md` | POM 3 niveaux : tests → pages → pages/locators |
 | `webview-context-switching.md` | `withWebView()` seul autorisé, jamais `switchContext` direct |
 | `webview-quirks.md` | `refreshAxTree()`, scriptTimeout (iOS), `executeAsync` tué pendant navigation (iOS + Android) |
