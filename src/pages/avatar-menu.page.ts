@@ -1,7 +1,6 @@
 import { tl, withWebView, refreshAxTree } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getProfileLocators } from './locators/profile.locators'
-import { getLoginLocators } from './locators/login.locators'
 
 class AvatarMenuPage {
   /**
@@ -212,7 +211,6 @@ class AvatarMenuPage {
    */
   async logout(): Promise<void> {
     const loc = getProfileLocators()
-    const loginLoc = getLoginLocators()
 
     await withWebView(async () => {
       if (await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })) {
@@ -229,21 +227,8 @@ class AvatarMenuPage {
       await tl().findByRole('heading', { name: 'Suppression de vos données' })
       const confirmBtn = await tl().findByRole('button', { name: 'Confirmer' })
       await confirmBtn.click()
+      await confirmBtn.waitForDisplayed({ timeout: 5000,  reverse: true })
     })
-    
-    if (loginLoc.fcButtonInWebView) {
-      await browser.waitUntil(
-        async () => {
-          try {
-            const contexts = await driver.getContexts() as string[]
-            return contexts.some(c => c.startsWith('WEBVIEW_'))
-          } catch { return false }
-        },
-        { timeout: 15000, interval: 500, timeoutMsg: 'WebView de login non disponible après déconnexion (iOS)' }
-      )
-    } else {
-      await $(loginLoc.fcButton).waitForDisplayed({ timeout: 15000 })
-    }
   }
 
   /**
