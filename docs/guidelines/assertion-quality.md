@@ -115,6 +115,23 @@ expect(absent).toBe(true)
 
 Utiliser `innerText` plutôt que `textContent` : il respecte `display:none` et `visibility:hidden`, donc il reflète ce que l'utilisateur voit réellement (voir [semantic-locators.md](semantic-locators.md)).
 
+### Fusionner les vérifications séquentielles sur un même élément ou une même liste
+
+Quand un scénario vérifie plusieurs attributs d'un même élément (titre + statut, titre + URL) avec deux méthodes séparées appelées à la suite, chaque méthode reparcourt la liste/l'élément et rouvre sa propre fenêtre de `waitUntil` — deux sources de flakiness au lieu d'une, et un message d'échec qui ne dit pas lequel des deux critères a échoué.
+
+```typescript
+// ❌ Deux attentes séparées sur la même carte — parcourt la liste deux fois,
+//    et un échec sur le 2e appel ne dit rien sur l'état du 1er critère
+await DemarchesPage.waitForItemWithStatus(title, 'Brouillon')
+await DemarchesPage.waitForItemExternalUrl(title, url)
+
+// ✅ Une seule attente combinée — un seul waitUntil, un failReason par étape
+//    (card-not-found / status-not-found / url-not-found) pour un message précis
+await DemarchesPage.assertVisibleDemarcheWith(title, 'Brouillon', url)
+```
+
+**Règle pratique** : dès qu'un scénario a besoin de vérifier N critères sur le même item d'une liste, écrire une seule méthode de Page Object qui les vérifie tous dans le même `waitUntil`/`$$()`, avec une variable d'état (`failReason`) qui capture jusqu'où l'attente est allée avant d'échouer. Ne pas enchaîner N méthodes à un seul critère chacune.
+
 ### Ne pas doubler `waitForDisplayed` et `isDisplayed`
 
 `waitForDisplayed` (ou `waitForVisible`) garantit déjà que l'élément est affiché.
@@ -149,15 +166,10 @@ de contexte — utiliser `driver.execute()` ou Testing Library dans `withWebView
 
 ## 4. Où c'est appliqué dans le dépôt
 
-- `src/tests/settings.test.ts` — `waitUntil` avec `timeoutMsg`.
 - `src/tests/notifications.test.ts` — `expect(newTop).toEqual(title)` (valeur visible).
 - `src/helpers/webview.ts` — `waitUntil` avec `timeoutMsg` dans `waitForWebViewContext`.
 - `src/pages/notifications.page.ts` — `waitUntil` avec `timeoutMsg` sur le hash.
-- `src/pages/demarches.page.ts` — `assertItemAbsent` avec `waitUntil` + `innerText`.
-
-Exemples de tests à améliorer pour exposer les valeurs :
-- `src/tests/partner.test.ts` — `expect(name.length).toBeGreaterThan(0)` → `expect(name).not.toBe('')`.
-- `src/tests/settings.test.ts` — `expect(typeof enabled).toBe('boolean')` → assertion comportementale.
+- `src/pages/demarches.page.ts` — `assertVisibleDemarcheWith` : `waitUntil` combiné avec `failReason` pour un message d'échec ciblé par critère (titre / statut / URL).
 
 ## 5. Sources
 

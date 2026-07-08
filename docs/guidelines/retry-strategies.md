@@ -63,15 +63,22 @@ for (let attempt = 1; attempt <= PUBLISH_MAX_RETRIES; attempt++) {
 Pour les éléments qui réapparaissent brièvement (bouton FC en fin de redirect OIDC) :
 
 ```typescript
-// Dans le test — timeout court + try/catch = best-effort
-try {
-  await LoginPage.tapFranceConnect(5000)
-} catch {
-  // Absent dans la majorité des cas — pas d'échec du test
+// Dans le Page Object — flag explicite pour distinguer l'usage normal (15 s)
+// de l'usage "best-effort" (5 s), catch géré à l'intérieur de la méthode
+async tapFranceConnect(oidcConcurrencyBugOnIOs = false): Promise<void> {
+  const timeout = oidcConcurrencyBugOnIOs ? 5000 : 15000
+  try {
+    await $(loc.fcButton).waitForDisplayed({ timeout })
+    await $(loc.fcButton).click()
+  } catch (ex) {
+    if (!oidcConcurrencyBugOnIOs) {
+      console.warn('bouton de mire de connexion introuvable', ex)
+    }
+  }
 }
 ```
 
-Le Page Object accepte un `timeoutMs` paramétrable pour distinguer l'usage normal (15 s) de l'usage "best-effort" (5 s).
+**Règle** : le `catch` best-effort ne doit pas être totalement silencieux. Logger l'erreur dès que le cas n'est pas le cas attendu documenté (ici : absence hors du contexte "retry OIDC iOS"). Un `catch {}` vide masque un vrai bug (sélecteur cassé, timeout réseau) derrière un "comportement normal" — un `console.warn` conditionné au cas attendu garde le best-effort tout en laissant une trace exploitable en cas de flakiness inattendue.
 
 ### Ne pas retrier les `findBy*` Testing Library
 
@@ -91,7 +98,7 @@ for (let i = 0; i < 3; i++) {
 
 - `webdriverio/wdio.base.conf.ts:59` — `specFileRetries: 0` (valeur de debug actuelle, commenter pour passer à 1 en CI).
 - `webdriverio/src/helpers/notifications-api.ts:19-65` — retry 5×10s sur `publishNotification`.
-- `webdriverio/src/tests/notifications.test.ts:31-35` — retry court bouton FC post-OIDC.
+- `webdriverio/src/pages/login.page.ts` — `tapFranceConnect(oidcConcurrencyBugOnIOs)`, retry court bouton FC post-OIDC avec catch loggé.
 
 ## 5. Sources
 

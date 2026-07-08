@@ -90,17 +90,19 @@ Un `it()` qui modifie l'état doit le remettre dans l'état initial avant de ter
 ou placer le cleanup dans `afterEach`. L'état ne doit pas fuite sur le test suivant.
 
 ```typescript
-it('peut activer/désactiver les notifications', async () => {
-  const before = await SettingsPage.isNotificationsToggleEnabled()
-  await SettingsPage.toggleNotifications()
-  await browser.waitUntil(
-    async () => (await SettingsPage.isNotificationsToggleEnabled()) !== before,
-    { timeout: 3000, interval: 200, timeoutMsg: 'Toggle non mis à jour en 3s' }
-  )
-  expect(await SettingsPage.isNotificationsToggleEnabled()).toBe(!before)
+// profile_deletion_at_logout.test.ts
+before(async () => {
+  // Capture des valeurs originales AVANT modification, pour restauration.
+  original = { preferredUsername: /* ... */, email: await ProfilePage.getEmailBold(), /* ... */ }
+})
 
-  // ← Cleanup explicite : l'état après ce test == état avant ce test
-  await SettingsPage.toggleNotifications()
+after(async () => {
+  // Restauration best-effort : protège le compte si un it() échoue avant le logout,
+  // qui déclenche normalement la suppression des données côté app. Chaque étape est
+  // catchée séparément pour ne pas abandonner la restauration au premier échec.
+  if (!original) return
+  try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch { /* silencieux */ }
+  try { await ProfilePage.editEmail(original.email) } catch { /* silencieux */ }
 })
 ```
 

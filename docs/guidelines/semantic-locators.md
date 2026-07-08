@@ -88,38 +88,41 @@ await browser.waitUntil(
 
 Voir aussi [webview-quirks.md §3](webview-quirks.md) pour les détails cross-platform.
 
-### Stratégie en deux temps : trouver comme un utilisateur, explorer avec des ancres stables
+### Stratégie en une passe : `$$()` + `.getText()` plutôt que `driver.execute` + `textContent`/`innerText`
 
-Quand un scénario doit vérifier plusieurs informations sur un même élément (titre + statut, titre + URL), appliquer ce principe en deux temps :
+Quand un scénario doit vérifier plusieurs informations sur un même élément (titre + statut, titre + URL), fusionner les vérifications en une seule boucle `waitUntil` sur `$$()` plutôt que d'écrire un callback `driver.execute` qui rejoue `textContent`/`innerText` à la main :
 
-1. **Identifier** la carte/l'élément parmi d'autres → `textContent` (texte brut DOM, indépendant du CSS). Robuste même si l'élément ciblé applique un CSS "stretched link" ou un `text-transform` : la valeur stockée dans le DOM est toujours présente.
-2. **Asserter** l'état visible → `innerText` (respecte `display:none`, `visibility:hidden`, `text-transform`). Garantit que le statut, le titre ou la valeur est effectivement rendu à l'écran.
+```typescript
+// ✅ Une seule boucle : identifie ET asserte dans le même waitUntil, $$() + .getText()
+await browser.waitUntil(async () => {
+  for await (const card of $$(loc.cardContent)) {
+    const titleText = await card.$(loc.cardTitle).getText().catch(() => '')
+    if (!titleText.includes(title)) continue
+    const status = (await card.$(loc.cardBadge).getText().catch(() => '')).trim().toLowerCase()
+    return status.includes(statusLabel.toLowerCase())
+  }
+  return false
+}, { timeout: 20000, interval: 2000, timeoutMsg: `Démarche "${title}" non trouvée` })
 
-> **Pourquoi ne pas utiliser `innerText` partout ?** `innerText` provoque un reflow CSS et retourne `''` si l'élément ou l'un de ses ancêtres est `display:none`. Sur un composant DSFR `fr-tile__title`, le lien interne peut être stylé de façon à retourner `''` via `innerText` alors que le texte est dans le DOM — `textContent` le trouve toujours.
+// ❌ driver.execute + textContent/innerText réimplémente ce que $$().getText() fait déjà,
+//    et re-parcourt le DOM une fois par critère (titre, puis statut, puis URL séparément)
+driver.execute((contentSel, titleSel, badgeSel, t) => {
+  const cards = Array.from(document.querySelectorAll(contentSel))
+  const card = cards.find(c => c.querySelector(titleSel)?.textContent?.includes(t))
+  return (card?.querySelector(badgeSel) as HTMLElement | null)?.innerText?.trim() ?? ''
+}, loc.cardContent, loc.cardTitle, loc.cardBadge, title)
+```
+
+`$$()` reste soumis aux mêmes limites `executeAsync` que `tl()` (voir §"Limites des queries Testing Library" ci-dessus) : à utiliser une fois la navigation stabilisée, pas comme sentinelle de navigation elle-même.
 
 Les classes DSFR (`fr-badge`, `fr-tile__content`, `fr-tile__title`, etc.) font partie du contrat du Design Système de l'État — elles sont aussi stables que les rôles ARIA, et plus stables que les classes Svelte hashées (ex. `svelte-19k7n5y`) qui changent à chaque build.
 
 ```typescript
-// ✅ 1. Identifier la carte : textContent (clé de recherche, indépendant du CSS)
-const card = cards.find(c => c.querySelector('.fr-tile__title')?.textContent?.includes(title))
-
-// ✅ 2. Asserter l'état visible : innerText (vérifie ce que l'utilisateur voit)
-const status = (card.querySelector('.fr-badge') as HTMLElement | null)?.innerText?.trim()
-const href = (card.querySelector('a[data-testid="request-item-link"]') as HTMLAnchorElement)?.href
-
-// ❌ innerText pour l'identification — peut retourner '' sur un .fr-tile__title
-//    si le lien enfant est stylé en "stretched link" → carte jamais trouvée
-const card = cards.find(c => (c.querySelector('.fr-tile__title') as HTMLElement | null)?.innerText?.includes(title))
-
 // ❌ Explorer via classes Svelte hashées — fragile, change à chaque build
-card.querySelector('.svelte-19k7n5y')?.textContent
-
-// ❌ Trouver via un <a> quand le lien est optionnel
-const link = Array.from(document.querySelectorAll('a')).find(a => a.textContent?.includes(title))
-// → rate les cartes sans lien externe
+card.$('.svelte-19k7n5y').getText()
 ```
 
-**Règle pratique** : `textContent` pour identifier, `innerText` pour asserter. Le chemin pour lire les données autour peut utiliser les classes du Design Système ou les attributs d'accessibilité — mais jamais des classes d'implémentation (Svelte, BEM interne, framework).
+**Règle pratique** : préférer les méthodes WDIO (`$$()`, `.getText()`, `.getAttribute()`) à un callback `driver.execute` manuel dès que la logique est exprimable avec l'API WDIO standard — `driver.execute` reste réservé aux cas où `$()`/`$$()` échoue réellement (navigation en cours, bug WKRDP documenté, cf. [webview-quirks.md](webview-quirks.md)).
 
 ### innerText vs textContent vs offsetParent
 
@@ -201,15 +204,15 @@ Les sélecteurs CSS utilisés dans les callbacks `driver.execute` doivent être 
 Les callbacks `driver.execute` s'exécutent dans le contexte browser — les constantes TypeScript ne sont pas accessibles directement. Les passer **en arguments** :
 
 ```typescript
-// demarches.locators.ts
-export const androidDemarchesLocators = { cardItem: '.request--item', cardTitleIn: '.fr-tile__title' }
+// demarches.locators.ts — un seul objet, WebView commune iOS/Android (cf. cross-platform-page-objects.md)
+export const demarchesLocators = { cardContent: '.fr-tile__content', cardTitle: '.fr-tile__title' }
 
-// demarches.page.ts
+// demarches.page.ts — $$() consomme directement les locators centralisés, pas de driver.execute
 const loc = getDemarchesLocators()
-await driver.execute((cardSel: string, t: string) => {
-  return Array.from(document.querySelectorAll(cardSel))
-    .find(el => el.textContent?.includes(t))?.textContent ?? null
-}, loc.cardItem, title)
+for await (const card of $$(loc.cardContent)) {
+  const titleText = await card.$(loc.cardTitle).getText().catch(() => '')
+  if (titleText.includes(title)) { /* ... */ }
+}
 ```
 
 ## 4. Où c'est appliqué dans le dépôt
@@ -217,8 +220,8 @@ await driver.execute((cardSel: string, t: string) => {
 - `src/helpers/webview.ts` — helper `tl()` qui expose Testing Library.
 - `src/pages/notifications.page.ts` — `getByRole('link')` pour la cloche, exclusion des labels de navigation.
 - `src/pages/locators/notifications.locators.ts` — fichier volontairement vide de sélecteurs (tout est en WebView, queries TL dans le Page Object).
-- `src/pages/locators/demarches.locators.ts` — CSS selectors WebView centralisés, passés en args aux callbacks `driver.execute`.
-- `src/pages/demarches.page.ts` — `driver.execute` avec args locators, `aria-selected` pour la confirmation d'onglet.
+- `src/pages/locators/demarches.locators.ts` — CSS selectors WebView centralisés, objet unique sans dispatch plateforme.
+- `src/pages/demarches.page.ts` — `assertVisibleDemarcheWith`, `$$()` + `.getText()` avec locators centralisés.
 
 ## 5. Sources
 

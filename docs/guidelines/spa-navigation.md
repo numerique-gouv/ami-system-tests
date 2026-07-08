@@ -226,7 +226,8 @@ Cela maintient la cohérence avec le pattern POM 3 niveaux décrit dans [cross-p
 
 ## 4. Où c'est appliqué dans le dépôt
 
-- `src/pages/demarches.page.ts` — `pullToRefresh()`, `waitForDemarche()`, `switchTab()`, `assertItemAbsent()`.
+- `src/pages/home.page.ts` — `waitForDemarche()`.
+- `src/pages/demarches.page.ts` — `assertVisibleDemarcheWith()`, `goToHome()`.
 - `src/pages/home.page.ts` — `ouvreSuivi()` (navigation vers la page Suivi initiée depuis Home).
 - `src/tests/demarches.test.ts` — scénarios tab switching et pull-to-refresh.
 
