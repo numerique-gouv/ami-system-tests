@@ -12,8 +12,10 @@ class DemarchesPage {
    *
    * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information asynchrone") :
    * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
-   * stratégie que `NotificationsInboxPage.waitForNotification`. `driver.execute` + `innerText`
-   * plutôt que `tl()` : pas de dépendance sur un rôle/texte ARIA précis pour ce simple scan.
+   * stratégie que `NotificationsInboxPage.waitForNotification`. `tl().findByText()` avec
+   * timeout court : le titre d'une carte est un seul nœud de texte (contrairement à
+   * `assertVisibleDemarcheWith`, qui a besoin de lire le badge/lien voisins via `$$()`) —
+   * une correspondance exacte par texte visible convient, pas besoin de sous-chaîne manuelle.
    */
   async waitForDemarche(title: string): Promise<void> {
     const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
@@ -26,10 +28,7 @@ class DemarchesPage {
         await pullToRefresh()
       }
       const found = await withWebView(() =>
-        driver.execute(
-          (t: string) => document.body.innerText.includes(t),
-          title
-        ) as Promise<boolean>
+        tl().findByText(title, {}, { timeout: 500 }).then(() => true).catch(() => false)
       )
       if (found) return
     }
