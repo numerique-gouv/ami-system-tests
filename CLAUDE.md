@@ -21,32 +21,17 @@ just open-report             # générer et ouvrir le rapport Allure
 
 > Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits.
 
-## Skills vs Guidelines
+## Skills vs règles du projet
 
 | Type | Emplacement | Usage |
 |------|-------------|-------|
 | **Skills** (capacités Claude exécutables) | `.agents/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
-| **Guidelines** (savoir-faire du projet) | `guidelines/` | Documentation humain+IA. Lire avant d'écrire du code. |
+| **Règles générales** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | POM, sélection des éléments, WebView, assertions, isolation, retry, Allure, débogage. Lire avant d'écrire du code. |
+| **Cas particuliers** | commentaires dans le fichier de code concerné | `docs/guidelines/` a été vidé au profit de cette organisation — ne pas y chercher de contenu. |
 
-Tous les fichiers de guidelines sont dans `docs/guidelines/`.
-
-| Fichier | Sujet |
-|---------|-------|
-| `semantic-locators.md` | Testing Library en WebView, `accessibility id` en natif, dispatch via `getXxxLocators()` |
-| `selection-strategy-catalog.md` | Index : type de page × action → quelle API (`tl()`/`$()`/`driver.execute()`), tableau des défis Android/iOS |
-| `cross-platform-page-objects.md` | POM 3 niveaux : tests → pages → pages/locators |
-| `webview-context-switching.md` | `withWebView()` seul autorisé, jamais `switchContext` direct |
-| `webview-quirks.md` | `refreshAxTree()`, scriptTimeout (iOS), `executeAsync` tué pendant navigation (iOS + Android) |
-| `oidc-redirect-handling.md` | Flow FranceConnect complet dans un seul `withWebView()` |
-| `assertion-quality.md` | `waitUntil` avec `timeoutMsg`, pas de `browser.pause` comme sync, règle `await` |
-| `test-isolation.md` | Décision `before`/`beforeEach`, `driver.reset()` interdit → `terminateApp`/`activateApp` |
-| `spa-navigation.md` | Navigation SPA hybride : clic vs JS hash, pull-to-refresh natif, tab switching, responsabilité PO |
-| `retry-strategies.md` | `specFileRetries` vs `mochaOpts.retries` vs retry applicatif |
-| `allure-reporting.md` | `addStep`, `addFeature`, `addSeverity`, `addAttachment` |
-| `appium-configuration.md` | Ports (Android 4723, iOS 4724), timeouts, `chromedriverAutodownload` |
-| `device-state-reset.md` | `xcrun simctl` iOS, `beforeSession` Android, idempotence |
-| `debugging-workflow.md` | inspect → run → commit |
-| `interactive-debugging.md` | Boucle `browser.debug()` + `listInteractive()` pour mettre au point un scénario sans relancer la session |
+Le raisonnement détaillé (tableaux page × action) derrière la règle de sélection résumée dans
+CONTRIBUTING.md §2 est archivé dans l'ADR
+`docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`.
 
 ## Architecture
 
@@ -102,7 +87,7 @@ Les singletons sont exportés (`export default new XxxPage()`).
 | Fichier | Rôle |
 |---------|------|
 | `wdio.base.conf.ts` | Config partagée (reporters Allure, `afterTest` screenshot+attachement) |
-| `wdio.android.conf.ts` | Capabilities Android, port 4723, `beforeSession` force-stop |
+| `wdio.android.conf.ts` | Capabilities Android, port 4723, `onPrepare` force-stop |
 | `wdio.ios.conf.ts` | Capabilities iOS, port 4724 |
 | `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
 | `src/helpers/webview.ts` | `withWebView<T>()`, `tl()`, `refreshAxTree()`, `waitForWebViewContext()` |

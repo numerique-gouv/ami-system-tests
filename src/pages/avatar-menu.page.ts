@@ -159,9 +159,12 @@ class AvatarMenuPage {
   /**
    * Ouvre le menu avatar et clique "Me déconnecter".
    * Le bouton est dans la WebView SPA (menu avatar, même niveau que "Mon profil" et "Paramètres").
-   * Après le clic, attend l'écran de connexion :
-   *   - iOS : réapparition d'un contexte WEBVIEW (login SPA)
-   *   - Android : bouton FranceConnect natif affiché
+   *
+   * Pas de branchement iOS/Android pour confirmer la fin du logout : la disparition de la
+   * modale de confirmation (ci-dessous) est un signal DOM observable identiquement sur les
+   * deux plateformes, plus simple et plus fiable qu'un branchement qui aurait comparé
+   * `driver.getContexts()` (iOS, réapparition d'un contexte WEBVIEW) au bouton FranceConnect
+   * natif (Android) — deux chemins de code pour un seul événement métier.
    */
   async logout(): Promise<void> {
     const loc = getProfileLocators()

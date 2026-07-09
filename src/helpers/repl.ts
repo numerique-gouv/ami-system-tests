@@ -4,7 +4,7 @@
  * Tout ce qui est enregistré ici via `register()` devient appelable directement
  * dans le REPL (sans `driver.` ni import) et apparaît dans `help()`.
  *
- * Voir guidelines/interactive-debugging.md pour les recettes d'usage.
+ * Voir README.md § Débogage interactif pour les recettes d'usage.
  */
 
 import fs from 'fs'
@@ -95,7 +95,7 @@ export function help(): void {
     console.log(`  ${h.signature.padEnd(sigWidth)}  — ${h.description}`)
   }
   // eslint-disable-next-line no-console
-  console.log('\nVoir guidelines/interactive-debugging.md pour les recettes.\n')
+  console.log('\nVoir README.md § Débogage interactif pour les recettes.\n')
 }
 
 register({

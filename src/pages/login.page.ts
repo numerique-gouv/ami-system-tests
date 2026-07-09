@@ -42,6 +42,9 @@ class LoginPage {
      */
     async tapFranceConnect(oidcConcurrencyBugOnIOs = false): Promise<void> {
         const loc = getLoginLocators()
+        // Retry court en Page Object (5s) : distingue le cas attendu (2e apparition du bouton,
+        // best-effort) du cas normal (15s, absence signale un vrai bug de sélecteur). Le catch
+        // reste loggé même en best-effort — un catch {} vide masquerait un sélecteur cassé.
         const timeout = oidcConcurrencyBugOnIOs ? 5000 : 15000
 
         if (loc.fcButtonInWebView) {

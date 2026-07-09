@@ -27,8 +27,8 @@ export interface ProfileLocators {
   // DETTE : data-testid non justifié pour ces 3 champs. Choisi à l'origine (commit 09e9798)
   // parce que c'est le premier attribut remonté par `just inspect`, pas parce qu'un
   // tl().findByRole()/findByText() aurait été essayé et aurait échoué — "ce que just inspect
-  // montre en premier" n'est pas une raison valable (cf. semantic-locators.md §"Quand data-testid
-  // est justifié"). À retester avec une query sémantique avant de considérer ce champ comme figé.
+  // montre en premier" n'est pas une raison valable (cf. CONTRIBUTING.md §2 "data-testid : dernier
+  // recours documenté"). À retester avec une query sémantique avant de considérer ce champ comme figé.
   profileMenuButtonTestId: string  // "Mon profil" dans le menu avatar
   settingsMenuButtonTestId: string // "Paramètres" dans le menu avatar
   profileContainerTestId: string   // conteneur de la page profil

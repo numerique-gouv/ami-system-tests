@@ -24,8 +24,8 @@ export interface DemarchesLocators {
    * DETTE : data-testid non justifié. cardLink est ciblé via son attribut href
    * (getAttribute('href')), pas son texte — rien n'indique qu'un tl()/card.$() par rôle ou
    * texte aurait échoué. Choisi à l'origine parce que c'est ce que `just inspect` a montré,
-   * pas parce qu'une alternative sémantique aurait été essayée. Cf. semantic-locators.md
-   * §"Quand data-testid est justifié".
+   * pas parce qu'une alternative sémantique aurait été essayée. Cf. CONTRIBUTING.md §2
+   * "data-testid : dernier recours documenté".
    */
   cardLink: string
   /** Sélecteur des onglets (role="tab" explicite dans le DOM) */

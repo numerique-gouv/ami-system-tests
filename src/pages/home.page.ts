@@ -29,7 +29,7 @@ class HomePage {
     /**
      * Navigation vers la home depuis un contexte WebView.
      *
-     * Pattern spa-navigation.md — navigation + sentinel dans le même withWebView() :
+     * Pattern CONTRIBUTING.md §4 (WebView et contextes) — navigation + sentinel dans le même withWebView() :
      * sortir du contexte pendant la transition SPA laisse WKWebView dans un état instable
      * sur iOS (AX tree corrompu, outils WDIO aveugles). On reste dans le contexte jusqu'à
      * ce que le DOM de destination soit stable.
@@ -138,27 +138,28 @@ class HomePage {
      * force un vrai changement de route, puis le retour sur Accueil déclenche
      * le refetch du widget "Mes démarches". Stable sur Android et iOS.
      */
+    // TODO implémente démarche comme notification, exponential backoff de refresh
     async waitForDemarche(title: string, timeout = 30000): Promise<void> {
-        const deadline = Date.now() + timeout
+        //const deadline = Date.now() + timeout
         let found = false
-        while (!found) {
-            await withWebView(async () => {
-                await this.clickLinkByText('Suivi')
-                await browser.waitUntil(
-                    async () => driver.execute(() =>
-                        Array.from(document.querySelectorAll<HTMLElement>('h1, h2'))
-                            .some(h => h.innerText?.includes('démarches'))
-                    ) as Promise<boolean>,
-                    {
-                        timeout: 5000,
-                        interval: 300,
-                        timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi'
-                    }
-                )
-                await this.clickLinkByText('Accueil')
-            })
-            const remaining = deadline - Date.now()
-            if (remaining <= 0) break
+//        while (!found) {
+//             await withWebView(async () => {
+//                 await this.clickLinkByText('Suivi')
+//                 await browser.waitUntil(
+//                     async () => driver.execute(() =>
+//                         Array.from(document.querySelectorAll<HTMLElement>('h1, h2'))
+//                             .some(h => h.innerText?.includes('démarches'))
+//                     ) as Promise<boolean>,
+//                     {
+//                         timeout: 5000,
+//                         interval: 300,
+//                         timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi'
+//                     }
+//                 )
+//                 await this.clickLinkByText('Accueil')
+//             })
+//            const remaining = deadline - Date.now()
+            //if (remaining <= 0) break
             found = await withWebView(async () => {
                 try {
                     await browser.waitUntil(
@@ -167,9 +168,9 @@ class HomePage {
                             title
                         ) as Promise<boolean>,
                         {
-                            timeout: Math.min(remaining, 10000),
+                            timeout: timeout,
                             interval: 1000,
-                            timeoutMsg: `Démarche "${title}" non visible sur la home après ${Math.min(remaining, 10000)}ms`
+                            timeoutMsg: `Démarche "${title}" non visible sur la home après ${timeout}ms`
                         }
                     )
                     return true
@@ -177,7 +178,7 @@ class HomePage {
                     return false
                 }
             })
-        }
+        //}
         if (!found) throw new Error(`Démarche "${title}" non visible sur la home après ${timeout}ms`)
     }
 

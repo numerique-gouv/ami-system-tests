@@ -13,7 +13,8 @@ class FranceConnectPage {
         // La navigation vers le serveur FC est asynchrone (surtout sur iOS) : on peut
         // arriver ici avant que la page eIDAS ait remplacé la SPA. On attend la tuile
         // elle-même. driver.execute() est synchrone donc survit à une navigation en cours
-        // (cf. webview-quirks.md), contrairement aux queries Testing Library (executeAsync).
+        // (cf. CONTRIBUTING.md §2 règle canonique tl() vs driver.execute()), contrairement aux
+        // queries Testing Library (executeAsync).
         const tileTimeoutMs = 5000
         const labelLower = fcpLocators.eidasFaibleLabel.toLowerCase()
         let eIDASSelectionDisplayed = await browser.waitUntil(
@@ -41,7 +42,7 @@ class FranceConnectPage {
      */
     async fillCredentials(identifier: string, password: string): Promise<void> {
         // Sentinelle de navigation post-redirect (AMI → FCP-LOW, cross-origin) — driver.execute,
-        // pas $() : cf. oidc-redirect-handling.md, cette page appartient au flow OIDC où une
+        // pas $() : cf. CONTRIBUTING.md §4 (WebView et contextes), cette page appartient au flow OIDC où une
         // navigation peut encore être en cours après le switch de contexte.
         await browser.waitUntil(
             async () => driver.execute((sel: string) => !!document.querySelector(sel), fcpLocators.fcpLowHeading) as Promise<boolean>,
@@ -90,6 +91,9 @@ class FranceConnectPage {
         await withWebView(async () => {
             await this.selectEidasFaible()
             try {
+                // refreshAxTree() avant d'interagir avec la page credentials : sur iOS, l'AX tree
+                // WKWebView peut être figé juste après le redirect vers fcp-low, faisant échouer
+                // getByLabelText() dans fillCredentials() alors que le formulaire est bien rendu.
                 await refreshAxTree()
                 await this.fillCredentials(user.login, user.password)
                 await this.submit()

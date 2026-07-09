@@ -15,6 +15,11 @@ class DemarchesPage {
    * trouvée, lire le badge/lien voisins nécessiterait de remonter du titre vers son parent
    * avec tl() — traversée interdite par CLAUDE.md. $$() donne directement la carte, badge
    * et lien se lisent dedans sans remonter le DOM.
+   *
+   * Les 3 critères (titre, statut, URL) sont vérifiés dans le même `waitUntil` avec un seul
+   * `failReason`, plutôt que 3 méthodes séparées à un critère chacune : ça évite de reparcourir
+   * la liste de cartes 3 fois, et le message d'échec pointe précisément lequel des 3 critères
+   * n'a jamais été atteint (au lieu d'un "timeout" générique sur le dernier appel).
    */
   async assertVisibleDemarcheWith(
     title: string,

@@ -5,7 +5,7 @@ import AllureReporter from '@wdio/allure-reporter'
  *
  * Vérifie l'affichage des contenus et catalogues partenaires (Service Public, DN)
  * récupérés après FranceConnexion, ainsi que la personnalisation via API Particulier.
- * Driver : Appium mobile, contexte mixte natif + WebView (cf. guidelines/webview-context-switching.md).
+ * Driver : Appium mobile, contexte mixte natif + WebView (cf. CONTRIBUTING.md §4 WebView et contextes).
  */
 describe('Démarches intégrées — catalogue et contenus partenaires', () => {
   before(async () => {

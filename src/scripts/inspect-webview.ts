@@ -88,7 +88,7 @@ Helpers disponibles dans ce REPL :
   $$('selector')                 — WDIO $$ (liste)
   browser / driver               — session Appium en cours
 
-Voir docs/guidelines/interactive-debugging.md pour les recettes.\n`)
+Voir README.md § Débogage interactif pour les recettes.\n`)
   }
 
   // eslint-disable-next-line no-console

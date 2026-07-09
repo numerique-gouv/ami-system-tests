@@ -66,15 +66,14 @@ src/
   tests/
     *.test.ts              scénarios Mocha (BDD)
 docs/
-  guidelines/              documentation détaillée des patterns (voir ci-dessous)
+  adr/                     décisions d'architecture (ADR)
 ```
 
 ### Principe de sélection des éléments
 
-Les tests s'appuient sur deux couches :
-
-1. **Page Objects** (`src/pages/*.page.ts`) — actions métier sans sélecteurs directs
-2. **Requêtes sémantiques** — trouvent les éléments comme un utilisateur les perçoit
+Les tests s'appuient sur deux couches : les **Page Objects** (`src/pages/*.page.ts`, actions
+métier sans sélecteurs directs) et des **requêtes sémantiques** qui trouvent les éléments comme
+un utilisateur les perçoit (rôle ARIA, texte visible, `accessibility id` en natif).
 
 ```
 test (scénario)
@@ -82,22 +81,11 @@ test (scénario)
         └── tl().getByRole / findByText  — élément par rôle ARIA ou texte visible
 ```
 
-En WebView (SPA Svelte), les éléments sont cherchés par leur **sens**, pas leur structure DOM :
-
-```typescript
-// Résistant aux refactos CSS/layout
-const bell = await tl().getByRole('link', { name: /notifications/i })
-const item = await tl().findByText(title, {}, { timeout: 20000 })
-```
-
-Pour les rares éléments **natifs** (hors WebView — boutons système, dialogs OS), les locators sont spécifiques à la plateforme et passent par `getXxxLocators()` :
-
-```typescript
-// iOS : accessibilityIdentifier SwiftUI
-$('~franceConnect button')
-// Android : resource-id
-$('~franceConnect button')  // si le même id est posé des deux côtés
-```
+Le détail des conventions (POM 3 niveaux, `tl()` vs `$()`/`$$()` vs `driver.execute()`, WebView
+et contextes) est dans **[CONTRIBUTING.md](CONTRIBUTING.md)** — à lire avant d'écrire un test. Le
+raisonnement complet derrière la règle de sélection (tableaux type de page × action) est archivé
+dans l'ADR
+[`docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`](docs/adr/2026-07-09-Strategie-de-selection-des-elements.md).
 
 ---
 
@@ -120,31 +108,101 @@ Voir `.env.example` pour les noms des variables à renseigner.
 
 ### Guidelines
 
-Documentation détaillée des patterns et décisions d'architecture dans `docs/guidelines/` :
+Les règles générales (Page Objects, sélection des éléments, WebView, assertions, isolation,
+retry, Allure, débogage) sont toutes dans **[CONTRIBUTING.md](CONTRIBUTING.md)**. Les cas
+particuliers (un seul écran, une seule méthode) sont documentés en commentaire directement dans
+le fichier de code concerné plutôt que dans un fichier séparé — `docs/guidelines/` a été vidé au
+profit de cette organisation.
 
-| Fichier | Sujet |
-|---------|-------|
-| `semantic-locators.md` | Testing Library en WebView, `accessibility id` en natif |
-| `cross-platform-page-objects.md` | POM 3 niveaux : tests → pages → locators |
-| `webview-context-switching.md` | `withWebView()` seul autorisé |
-| `webview-quirks.md` | `refreshAxTree()`, scriptTimeout iOS, `executeAsync` |
-| `oidc-redirect-handling.md` | Flow FranceConnect complet |
-| `assertion-quality.md` | `waitUntil`, interdiction `browser.pause` |
-| `test-isolation.md` | `terminateApp`/`activateApp`, décision `before`/`beforeEach` |
-| `spa-navigation.md` | Navigation SPA hybride, pull-to-refresh, tab switching |
-| `retry-strategies.md` | `specFileRetries` vs `mochaOpts.retries` |
-| `debugging-workflow.md` | inspect → run → commit |
-| `interactive-debugging.md` | Boucle `browser.debug()` + `listInteractive()` |
-| `allure-reporting.md` | `addStep`, `addFeature`, `addSeverity`, `addAttachment` |
+Le raisonnement détaillé (tableaux page × action) derrière la règle de sélection résumée dans
+CONTRIBUTING.md §2 est archivé dans l'ADR
+[`docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`](docs/adr/2026-07-09-Strategie-de-selection-des-elements.md).
 
-### Workflow de débogage
+### Workflow de débogage : observer avant d'écrire
+
+Les apps hybrides ont deux arbres d'éléments distincts (natif XCUITest/UIAutomator2 et DOM web) :
+sans observation directe, impossible de savoir dans quel contexte on est ni quelle est la
+structure réelle. Les règles de fond (ne jamais commiter un locator non validé, etc.) sont dans
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+1. **Inspecter** l'écran avant d'écrire un sélecteur :
+   ```bash
+   just inspect                  # liste les éléments interactifs de la WebView courante
+   just inspect /notifications   # navigue vers /#/notifications puis liste
+   ```
+   La cible auto-détecte la plateforme via le seul appareil connecté (émulateur Android ou
+   simulateur iOS déjà démarré).
+2. **Tester** un sélecteur sur un scénario isolé plutôt que sur tout le fichier :
+   ```bash
+   just test-android-grep "mot clé du test à isoler"
+   ```
+3. **Consigner** uniquement ce qui a été vérifié : commiter avec un message qui explique le
+   *pourquoi* (bug WKRDP, AX tree périmé, etc.), pas juste le sélecteur qui « devrait marcher ».
+
+Avant toute session de débogage, regarder le dernier rapport Allure (`just open-report`,
+screenshots au moment de l'échec) et `.wdio-logs/appium-android.log` / `appium-ios.log`.
+
+### Débogage interactif : `browser.debug()` + REPL
+
+Le cycle « modifier un locator → relancer `just test-android` » coûte ~60 s (boot émulateur,
+install, login FranceConnect, navigation) ; trouver le bon sélecteur prend souvent 3 à 5 cycles.
+`browser.debug()` suspend le test en cours et ouvre un REPL Node dans la session Appium **vivante** :
+`browser`, `driver`, `$`, `$$` sont disponibles, plus des helpers projet (`listInteractive`,
+`withWebView`, `webViewInfo`, `refreshAxTree`, `getContexts`, `saveScreenshot`). Taper `help()`
+dans le REPL pour la liste à jour.
 
 ```bash
-just inspect              # explorer l'écran courant en live
-just inspect /suivi       # naviguer vers une route puis inspecter
-# → repérer les accessibility ids ou textes → mettre à jour les locators
-just test-android-grep "MonTest"   # relancer uniquement ce scénario
+# App déjà buildée et installée, émulateur/simulateur démarré
+just build-android && just start-android   # ou build-ios / start-ios
+
+export WDIO_DEBUG=1   # désactive le timeout Mocha (2 min par défaut) — sans ça le REPL se fait tuer
 ```
+
+```typescript
+// Dans src/tests/, test scratch qui navigue jusqu'à l'écran à explorer puis se suspend
+it('debug — explorer la page notifications', async () => {
+  await LoginPage.loginViaFranceConnect()
+  await HomePage.waitForSpaReady()
+  await NotificationsInboxPage.openFromHome()
+  await browser.debug()  // ← suspend ici, le REPL s'ouvre dans le terminal
+})
+```
+
+```bash
+WDIO_DEBUG=1 just test-android "debug — explorer"
+```
+
+Dans le REPL :
+
+```js
+> help()                                          // liste des helpers disponibles
+> await getContexts()                             // ['NATIVE_APP', 'WEBVIEW_fr.gouv.ami.staging']
+> await listInteractive()                         // éléments natifs du contexte courant
+> await withWebView(async () => await listInteractive())  // éléments de la WebView
+> await webViewInfo()                             // { url, visible: 'visible'|'hidden', title }
+> await $('~Notifications').click()               // tester un locator natif
+> await withWebView(async () => {                 // tester un locator WebView
+    const el = await tl().findByRole('link', { name: /Notifications/i })
+    await el.click()
+  })
+> await saveScreenshot('inbox-empty')             // → /tmp/inbox-empty.png
+> .exit                                           // ou Ctrl-C deux fois
+```
+
+Recopier les locators validés dans `src/pages/locators/*.locators.ts` — jamais un locator non
+testé dans le REPL ou en run complet.
+
+**Autres outils utiles** : `chrome://inspect/#devices` dans Chrome pendant une session
+`browser.debug()` inspecte visuellement la WebView Android. **Appium Inspector** (app desktop),
+connecté sur `localhost:4724`, inspecte le contexte natif iOS. `logLevel: 'debug'` dans
+`wdio.base.conf.ts` affiche chaque commande Appium — à ne pas commiter. `wdio repl` (CLI
+standalone) est déconseillé pour AMI : il faudrait redéclarer toutes les capabilities à la main, et
+l'app ne serait pas dans son état post-login — toujours préférer `browser.debug()` dans un test scratch.
+
+Sur iOS, ne jamais appeler `driver.switchContext('NATIVE_APP')` au milieu du flow FranceConnect —
+voir [CONTRIBUTING.md §4](CONTRIBUTING.md#4-webview-et-contextes). Si `listInteractive()` retourne
+une liste vide en WebView alors que la page est visuellement rendue (AX tree iOS périmé après un
+redirect), appeler `await refreshAxTree()` puis relister.
 
 ### Docs utiles
 
@@ -158,3 +216,5 @@ just test-android-grep "MonTest"   # relancer uniquement ce scénario
 - [ ] Sur android constater le fonctionnement des notifications push native (login en refusant, notif envoyée, on les accepte, notif envoyée et vue en push)
 - [ ] Agenda : élections et auto-promo OTV, ... c'est fluctuant selon les dates, a tester en auto ?
 - [ ] Teste de démarche utilisant OTV 
+- [ ] le reste du [cahier de recettes](https://docs.numerique.gouv.fr/docs/26b382cc-68fd-4a80-be43-dd3eb4bd102c/)
+

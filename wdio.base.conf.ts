@@ -57,7 +57,12 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   reporters: [
     'spec',
-    ['allure', { outputDir: 'allure-results', disableWebdriverStepsReporting: false, addConsoleLogs: true }],
+    ['allure', {
+      outputDir: 'allure-results',
+      disableWebdriverStepsReporting: false, // commandes WDIO bas niveau visibles dans le rapport
+      addConsoleLogs: true,                  // inclut console.log/warn/error — utile pour tracer
+                                              // les context switches et les erreurs réseau côté SPA
+    }],
   ],
 
   // specFileRetries relance le fichier de spec entier dans un nouveau processus Appium
@@ -76,11 +81,11 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   // Hooks globaux
   beforeSuite: (suite): void => {
-    log.info(`▶ describe : ${suite.title}`)
+    log.info(`-> describe : ${suite.title}`)
   },
 
   beforeTest: (test): void => {
-    log.info(`  → it : ${test.title}`)
+    log.info(`  -> it : ${test.title}`)
   },
 
   before: async (): Promise<void> => {
