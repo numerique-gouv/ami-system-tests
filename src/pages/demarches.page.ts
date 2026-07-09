@@ -1,4 +1,4 @@
-import { withWebView, tl } from '../helpers/webview'
+import { withWebView, tl, pullToRefresh } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getDemarchesLocators } from './locators/demarches.locators'
 import HomePage from './home.page'
@@ -6,6 +6,36 @@ import HomePage from './home.page'
 const DEMARCHES_TIMEOUT_MS = 20000
 
 class DemarchesPage {
+  /**
+   * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
+   * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
+   *
+   * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information asynchrone") :
+   * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
+   * stratégie que `NotificationsInboxPage.waitForNotification`. `driver.execute` + `innerText`
+   * plutôt que `tl()` : pas de dépendance sur un rôle/texte ARIA précis pour ce simple scan.
+   */
+  async waitForDemarche(title: string): Promise<void> {
+    const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
+    for (const delay of backoffMs) {
+      await browser.pause(delay) // hors withWebView : laisse la page respirer entre deux rafraîchissements
+      if (driver.isIOS) {
+        // UIRefreshControl iOS peut bloquer le geste de swipe — reload direct en WebView
+        await withWebView(async () => { await driver.execute(() => window.location.reload()) })
+      } else {
+        await pullToRefresh()
+      }
+      const found = await withWebView(() =>
+        driver.execute(
+          (t: string) => document.body.innerText.includes(t),
+          title
+        ) as Promise<boolean>
+      )
+      if (found) return
+    }
+    throw new Error(`Démarche "${title}" non visible sur le Suivi après ${backoffMs.reduce((a, b) => a + b, 0)}ms`)
+  }
+
   /**
    * Attend qu'une carte de démarche visible corresponde à `title`, `statusLabel` et,
    * si fourni, `expectedUrl` (lien externe). `expectedUrl` à `null` ignore ce critère.

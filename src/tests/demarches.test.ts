@@ -68,7 +68,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         })
 
         await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur la page d\'accueil')
-        await HomePage.waitForDemarche(titleNew)
+        await DemarchesPage.waitForDemarche(titleNew)
 
         await AllureReporter.addStep('4. Vérifier la présence de la démarche avec le statut "Brouillon"')
         await DemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon', urlV1)
@@ -97,7 +97,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         // await DemarchesPage.goToHome()
         await AllureReporter.addStep('3. Attendre que la démarche apparaisse sur la page d\'accueil')
 
-        await HomePage.waitForDemarche(titleUpdate)
+        await DemarchesPage.waitForDemarche(titleUpdate)
 
         await AllureReporter.addStep('5. Vérifier que la démarche utilise la nouvelle URL (V2)')
         await DemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours', urlV2)

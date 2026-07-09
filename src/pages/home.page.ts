@@ -1,5 +1,5 @@
 import {getHomeLocators} from './locators/home.locators'
-import {withWebView, pullToRefresh} from '../helpers/webview';
+import {withWebView} from '../helpers/webview';
 import { traced } from '../helpers/traced'
 
 class HomePage {
@@ -128,37 +128,6 @@ class HomePage {
             console.warn('isHomeVisible: home non atteinte', ex)
             return false
         }
-    }
-
-    /**
-     * Attend que la démarche identifiée par son titre apparaisse sur la page courante
-     * (Suivi ou Accueil — appeler `ouvreSuivi()` avant si besoin d'être sur le Suivi).
-     *
-     * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information
-     * asynchrone") : poll par backoff exponentiel avec rafraîchissement explicite à
-     * chaque tentative — même stratégie que `NotificationsInboxPage.waitForNotification`.
-     * `driver.execute` + `innerText` plutôt que `tl()` : cohérent avec le reste de cette
-     * page (isHomeVisible, clickLinkByText), pas de dépendance sur un rôle/texte ARIA précis.
-     */
-    async waitForDemarche(title: string): Promise<void> {
-        const backoffMs = [500, 1000, 2000, 4000, 8000]
-        for (const delay of backoffMs) {
-            await browser.pause(delay) // hors withWebView : laisse la page respirer entre deux rafraîchissements
-            if (driver.isIOS) {
-                // UIRefreshControl iOS peut bloquer le geste de swipe — reload direct en WebView
-                await withWebView(async () => { await driver.execute(() => window.location.reload()) })
-            } else {
-                await pullToRefresh()
-            }
-            const found = await withWebView(() =>
-                driver.execute(
-                    (t: string) => document.body.innerText.includes(t),
-                    title
-                ) as Promise<boolean>
-            )
-            if (found) return
-        }
-        throw new Error(`Démarche "${title}" non visible sur la home après ${backoffMs.reduce((a, b) => a + b, 0)}ms`)
     }
 
     /**
