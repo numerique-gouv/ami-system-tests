@@ -48,8 +48,11 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
     })
 
     it("crée une démarche visible dans le suivi (statut new)", async () => {
-        await AllureReporter.addStep('1. Publier la notification avec tous les champs')
         let titleNew = `${title} 0`;
+        await AllureReporter.addStep('3. Ouvrir la page de suivi des démarches')
+        await HomePage.ouvreSuivi()
+
+        await AllureReporter.addStep('1. Publier la notification avec tous les champs')
         await publishNotification({
             title: titleNew,
             body: 'Corps de la notification E2E',
@@ -67,9 +70,6 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur la page d\'accueil')
         await HomePage.waitForDemarche(titleNew)
 
-        await AllureReporter.addStep('3. Ouvrir la page de suivi des démarches')
-        await HomePage.ouvreSuivi()
-
         await AllureReporter.addStep('4. Vérifier la présence de la démarche avec le statut "Brouillon"')
         await DemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon', urlV1)
 
@@ -77,7 +77,10 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     it("met à jour l'URL externe de la démarche (statut wip)", async () => {
         let titleUpdate = `${title} 1`
+        await AllureReporter.addStep('4. Ouvrir la page de suivi des démarches')
+        await HomePage.ouvreSuivi()
         await AllureReporter.addStep('1. Publier la notification avec la nouvelle URL')
+
         await publishNotification({
             title: titleUpdate,
             body: 'Mise à jour E2E',
@@ -89,16 +92,12 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             itemGenericStatus: 'wip',
             itemCanal: 'AMI',
         })
+        // await AllureReporter.addStep("2. Retour sur la page d'accueil")
 
-        await AllureReporter.addStep("2. Retour sur la page d'accueil")
-
-        await DemarchesPage.goToHome()
-
+        // await DemarchesPage.goToHome()
         await AllureReporter.addStep('3. Attendre que la démarche apparaisse sur la page d\'accueil')
-        await HomePage.waitForDemarche(titleUpdate)
 
-        await AllureReporter.addStep('4. Ouvrir la page de suivi des démarches')
-        await HomePage.ouvreSuivi()
+        await HomePage.waitForDemarche(titleUpdate)
 
         await AllureReporter.addStep('5. Vérifier que la démarche utilise la nouvelle URL (V2)')
         await DemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours', urlV2)
@@ -107,6 +106,9 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     it("ferme la démarche (statut closed)", async () => {
         let titleClosing = `${title} 2`
+        await AllureReporter.addStep('3. Ouvrir la page de suivi des démarches')
+        await HomePage.ouvreSuivi()
+
         await AllureReporter.addStep('1. Publier la notification de clôture')
         await publishNotification({
             title: titleClosing,
@@ -119,13 +121,9 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             itemGenericStatus: 'closed',
             itemCanal: 'AMI',
         })
+        // await AllureReporter.addStep("2. Retour sur la page d'accueil")
 
-        await AllureReporter.addStep("2. Retour sur la page d'accueil")
-        await DemarchesPage.goToHome()
-
-        await AllureReporter.addStep('3. Ouvrir la page de suivi des démarches')
-        await HomePage.ouvreSuivi()
-
+        // await DemarchesPage.goToHome()
         await AllureReporter.addStep('4. Vérifier que la démarche est clôturée avec le statut "Terminé"')
         await DemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé', urlV2)
 

@@ -1,5 +1,5 @@
 import {getHomeLocators} from './locators/home.locators'
-import {withWebView} from '../helpers/webview';
+import {withWebView, pullToRefresh} from '../helpers/webview';
 import { traced } from '../helpers/traced'
 
 class HomePage {
@@ -68,8 +68,9 @@ class HomePage {
      * Clique un lien <a> par son texte visible. driver.execute (find + click atomique en un
      * seul appel JS) plutôt que tl()/$$() : ces deux derniers résolvent l'élément dans un appel
      * puis cliquent dans un second — si la SPA se re-rend entre les deux (cas réel constaté dans
-     * waitForDemarche, qui boucle en attendant un état réactif), le handle devient stale
-     * ("Request encountered a stale element"). driver.execute élimine cette fenêtre.
+     * ouvreSuivi(), appelé dans une boucle waitUntil pendant une navigation potentiellement
+     * active), le handle devient stale ("Request encountered a stale element"). driver.execute
+     * élimine cette fenêtre.
      * Retourne false si le lien n'existe pas (l'appelant décide du fallback).
      */
     private async clickLinkByText(text: string): Promise<boolean> {
@@ -130,56 +131,34 @@ class HomePage {
     }
 
     /**
-     * Attend que la démarche identifiée par son titre apparaisse sur la home.
+     * Attend que la démarche identifiée par son titre apparaisse sur la page courante
+     * (Suivi ou Accueil — appeler `ouvreSuivi()` avant si besoin d'être sur le Suivi).
      *
-     * Stratégie : Suivi → Accueil (double changement de route SPA).
-     * Un clic sur "Accueil" depuis la route home est un no-op pour le routeur SPA
-     * (même route → pas de re-render, pas de refetch). Passer par Suivi d'abord
-     * force un vrai changement de route, puis le retour sur Accueil déclenche
-     * le refetch du widget "Mes démarches". Stable sur Android et iOS.
+     * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information
+     * asynchrone") : poll par backoff exponentiel avec rafraîchissement explicite à
+     * chaque tentative — même stratégie que `NotificationsInboxPage.waitForNotification`.
+     * `driver.execute` + `innerText` plutôt que `tl()` : cohérent avec le reste de cette
+     * page (isHomeVisible, clickLinkByText), pas de dépendance sur un rôle/texte ARIA précis.
      */
-    // TODO implémente démarche comme notification, exponential backoff de refresh
-    async waitForDemarche(title: string, timeout = 30000): Promise<void> {
-        //const deadline = Date.now() + timeout
-        let found = false
-//        while (!found) {
-//             await withWebView(async () => {
-//                 await this.clickLinkByText('Suivi')
-//                 await browser.waitUntil(
-//                     async () => driver.execute(() =>
-//                         Array.from(document.querySelectorAll<HTMLElement>('h1, h2'))
-//                             .some(h => h.innerText?.includes('démarches'))
-//                     ) as Promise<boolean>,
-//                     {
-//                         timeout: 5000,
-//                         interval: 300,
-//                         timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi'
-//                     }
-//                 )
-//                 await this.clickLinkByText('Accueil')
-//             })
-//            const remaining = deadline - Date.now()
-            //if (remaining <= 0) break
-            found = await withWebView(async () => {
-                try {
-                    await browser.waitUntil(
-                        async () => driver.execute(
-                            (t: string) => document.body.innerText.includes(t),
-                            title
-                        ) as Promise<boolean>,
-                        {
-                            timeout: timeout,
-                            interval: 1000,
-                            timeoutMsg: `Démarche "${title}" non visible sur la home après ${timeout}ms`
-                        }
-                    )
-                    return true
-                } catch {
-                    return false
-                }
-            })
-        //}
-        if (!found) throw new Error(`Démarche "${title}" non visible sur la home après ${timeout}ms`)
+    async waitForDemarche(title: string): Promise<void> {
+        const backoffMs = [500, 1000, 2000, 4000, 8000]
+        for (const delay of backoffMs) {
+            await browser.pause(delay) // hors withWebView : laisse la page respirer entre deux rafraîchissements
+            if (driver.isIOS) {
+                // UIRefreshControl iOS peut bloquer le geste de swipe — reload direct en WebView
+                await withWebView(async () => { await driver.execute(() => window.location.reload()) })
+            } else {
+                await pullToRefresh()
+            }
+            const found = await withWebView(() =>
+                driver.execute(
+                    (t: string) => document.body.innerText.includes(t),
+                    title
+                ) as Promise<boolean>
+            )
+            if (found) return
+        }
+        throw new Error(`Démarche "${title}" non visible sur la home après ${backoffMs.reduce((a, b) => a + b, 0)}ms`)
     }
 
     /**

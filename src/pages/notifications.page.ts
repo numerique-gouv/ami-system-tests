@@ -1,4 +1,4 @@
-import { withWebView, tl } from '../helpers/webview'
+import { withWebView, tl, pullToRefresh } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 
 class NotificationsInboxPage {
@@ -30,21 +30,6 @@ class NotificationsInboxPage {
   }
   
   /**
-   * Geste natif vers le bas pour déclencher le SwipeRefreshLayout Android.
-   * Doit être appelé hors withWebView : le geste est intercepté par la WebView
-   * si on est en contexte WebView, et n'atteint pas le conteneur natif.
-   */
-  private async pullToRefresh(): Promise<void> {
-    const { width, height } = await driver.getWindowSize()
-    await driver.action('pointer', { parameters: { pointerType: 'touch' } })
-      .move({ duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.25) })
-      .down({ button: 0 })
-      .move({ duration: 800, x: Math.round(width / 2), y: Math.round(height * 0.65) })
-      .up({ button: 0 })
-      .perform()
-  }
-
-  /**
    * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
    *
    * Stratégie : backoff exponentiel, un withWebView minimal par tentative.
@@ -61,7 +46,7 @@ class NotificationsInboxPage {
           await driver.execute(() => window.location.reload())
         })
       } else {
-        await this.pullToRefresh()
+        await pullToRefresh()
       }
       const found = await withWebView(() =>
         tl().findByText(title, {}, { timeout: 500 }).then(() => true).catch(() => false)

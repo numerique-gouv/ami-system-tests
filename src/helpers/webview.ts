@@ -100,6 +100,23 @@ export async function refreshAxTree(): Promise<void> {
 }
 
 /**
+ * Geste natif vers le bas pour déclencher le SwipeRefreshLayout Android.
+ * Doit être appelé hors withWebView : le geste est intercepté par la WebView
+ * si on est en contexte WebView, et n'atteint pas le conteneur natif.
+ * Sur iOS, préférer `driver.execute(() => window.location.reload())` en WebView —
+ * un `UIRefreshControl` peut bloquer ce geste de swipe.
+ */
+export async function pullToRefresh(): Promise<void> {
+  const { width, height } = await driver.getWindowSize()
+  await driver.action('pointer', { parameters: { pointerType: 'touch' } })
+    .move({ duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.25) })
+    .down({ button: 0 })
+    .move({ duration: 800, x: Math.round(width / 2), y: Math.round(height * 0.65) })
+    .up({ button: 0 })
+    .perform()
+}
+
+/**
  * Attend qu'au moins un contexte WEBVIEW_* soit disponible, avec timeout.
  */
 async function waitForWebViewContext(): Promise<string[]> {
