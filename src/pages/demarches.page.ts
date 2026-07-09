@@ -9,6 +9,12 @@ class DemarchesPage {
   /**
    * Attend qu'une carte de démarche visible corresponde à `title`, `statusLabel` et,
    * si fourni, `expectedUrl` (lien externe). `expectedUrl` à `null` ignore ce critère.
+   *
+   * $$()/card.$() plutôt que tl() : on ne sait pas à l'avance quelle carte contient `title`,
+   * il faut donc lire le titre de chaque carte pour le comparer. Une fois la bonne carte
+   * trouvée, lire le badge/lien voisins nécessiterait de remonter du titre vers son parent
+   * avec tl() — traversée interdite par CLAUDE.md. $$() donne directement la carte, badge
+   * et lien se lisent dedans sans remonter le DOM.
    */
   async assertVisibleDemarcheWith(
     title: string,

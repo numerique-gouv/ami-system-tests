@@ -40,7 +40,13 @@ class FranceConnectPage {
      * Doit être appelé dans un contexte WebView (ou via withWebView).
      */
     async fillCredentials(identifier: string, password: string): Promise<void> {
-        await $(fcpLocators.fcpLowHeading).waitForDisplayed({timeout: 10000})
+        // Sentinelle de navigation post-redirect (AMI → FCP-LOW, cross-origin) — driver.execute,
+        // pas $() : cf. oidc-redirect-handling.md, cette page appartient au flow OIDC où une
+        // navigation peut encore être en cours après le switch de contexte.
+        await browser.waitUntil(
+            async () => driver.execute((sel: string) => !!document.querySelector(sel), fcpLocators.fcpLowHeading) as Promise<boolean>,
+            { timeout: 10000, interval: 300, timeoutMsg: `Page FCP-LOW non chargée — ${fcpLocators.fcpLowHeading} absent après 10s` }
+        )
         const idField = await tl().getByLabelText(/identifiant/i)
         await idField.scrollIntoView()
         await idField.clearValue()
@@ -56,21 +62,13 @@ class FranceConnectPage {
      * Doit être appelé dans un contexte WebView (ou via withWebView).
      */
     async submit(): Promise<void> {
-        try {
-            // Clic natif via Testing Library : passe par le vrai hit-testing (un overlay
-            // natif comme le clavier ou la toolbar Android peut l'intercepter, contrairement
-            // à un clic JS synthétique).
-            const submitBtn = await tl().getByRole('button', {name: /valider/i})
-            await submitBtn.click()
-        } catch (e) {
-            // Fallback confirmé nécessaire sur iOS/fip1-low : $() ne trouve pas les éléments
-            // de cette page même après refreshAxTree() (bug WKRDP documenté, cf. fillCredentials).
-            console.warn('[franceconnect] submit(): clic natif tl() en échec, fallback driver.execute()', e)
-            await driver.execute(() => {
-                const btn = document.querySelector<HTMLButtonElement>('button[type="submit"]')
-                btn?.click()
-            })
-        }
+        // Clic natif via Testing Library : passe par le vrai hit-testing (un overlay
+        // natif comme le clavier ou la toolbar Android peut l'intercepter, contrairement
+        // à un clic JS synthétique). Même page que fillCredentials() (avant la redirection
+        // vers fip1-low) — pas encore concernée par le bug WKRDP multi-redirections,
+        // pas de fallback driver.execute nécessaire ici (cf. franceconnect.locators.ts).
+        const submitBtn = await tl().getByRole('button', {name: /valider/i})
+        await submitBtn.click()
         const urlBeforeSubmit = await driver.getUrl().catch(() => '')
         await browser.waitUntil(
             async () => (await driver.getUrl().catch(() => urlBeforeSubmit)) !== urlBeforeSubmit,
@@ -85,8 +83,8 @@ class FranceConnectPage {
      * Un seul withWebView couvre tout le flow OIDC (SPA → fcp-low → fip1-low).
      * Sur iOS/WKWebView, sortir du contexte WEBVIEW après une navigation cross-origin
      * rend le contexte WKRDP non-ré-inspectable (waitForWebViewContext bloque 25s).
-     * Les interactions sur fip1-low utilisent driver.execute() car $() échoue
-     * après plusieurs redirections cross-origin (bug WKRDP connu sur iOS).
+     * fip1-low (callback final) n'est jamais interagi directement ici — submit() se contente
+     * d'attendre le changement d'URL (driver.getUrl()), pas de sélecteur sur cette page.
      */
     async loginWithSandbox(user: TestUser): Promise<void> {
         await withWebView(async () => {

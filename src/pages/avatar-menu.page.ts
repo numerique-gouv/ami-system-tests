@@ -21,26 +21,14 @@ class AvatarMenuPage {
       await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })
       await $(loc.toggleMenuButton).click()
 
-      // 2. Attendre que le bouton "Mon profil" soit présent dans le menu ouvert
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.profileMenuButton) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Menu avatar non ouvert — [data-testid="profile-button"] absent après 5s' }
-      )
-
-      // 3. Cliquer "Mon profil"
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.profileMenuButton)
+      // 2-3. Attendre le bouton "Mon profil" dans le menu ouvert puis le cliquer —
+      // findByTestId attend la résolution avant de retourner le handle, pas besoin
+      // d'un waitUntil séparé.
+      const profileBtn = await tl().findByTestId(loc.profileMenuButtonTestId, {}, { timeout: 5000 })
+      await profileBtn.click()
 
       // 4. Attendre le conteneur de la page profil
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.profileContainer) as Promise<boolean>,
-        { timeout: 10000, interval: 300, timeoutMsg: 'Page "Mon profil" non chargée — [data-testid="profile"] absent après 10s' }
-      )
+      await tl().findByTestId(loc.profileContainerTestId, {}, { timeout: 10000 })
     })
   }
 
@@ -50,13 +38,14 @@ class AvatarMenuPage {
    */
   async getIdentityBolds(): Promise<string[]> {
     const loc = getProfileLocators()
-    return await withWebView(async () =>
-      driver.execute((sel: string) =>
-        Array.from(document.querySelectorAll<HTMLElement>(`${sel} b`))
-          .map(b => b.innerText.trim())
-          .filter(Boolean)
-      , loc.identitySection) as Promise<string[]>
-    )
+    return await withWebView(async () => {
+      const texts: string[] = []
+      for await (const b of $$(`${loc.identitySection} b`)) {
+        const text = (await b.getText()).trim()
+        if (text) texts.push(text)
+      }
+      return texts
+    })
   }
 
   /**
@@ -65,9 +54,7 @@ class AvatarMenuPage {
   async getEmailBold(): Promise<string> {
     const loc = getProfileLocators()
     return await withWebView(async () =>
-      driver.execute((sel: string) =>
-        document.querySelector<HTMLElement>(`${sel} b`)?.innerText.trim() ?? ''
-      , loc.emailSection) as Promise<string>
+      (await $(`${loc.emailSection} b`).getText().catch(() => '')).trim()
     )
   }
 
@@ -77,13 +64,14 @@ class AvatarMenuPage {
    */
   async getAddressBolds(): Promise<string[]> {
     const loc = getProfileLocators()
-    return await withWebView(async () =>
-      driver.execute((sel: string) =>
-        Array.from(document.querySelectorAll<HTMLElement>(`${sel} b`))
-          .map(b => b.innerText.trim())
-          .filter(Boolean)
-      , loc.addressSection) as Promise<string[]>
-    )
+    return await withWebView(async () => {
+      const texts: string[] = []
+      for await (const b of $$(`${loc.addressSection} b`)) {
+        const text = (await b.getText()).trim()
+        if (text) texts.push(text)
+      }
+      return texts
+    })
   }
 
   /**
@@ -98,16 +86,8 @@ class AvatarMenuPage {
       await $(loc.toggleMenuButton).waitForClickable({ timeout: 5000 })
       await $(loc.toggleMenuButton).click()
 
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.settingsMenuButton) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Menu avatar non ouvert — [data-testid="settings-button"] absent après 5s' }
-      )
-
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.settingsMenuButton)
+      const settingsBtn = await tl().findByTestId(loc.settingsMenuButtonTestId, {}, { timeout: 5000 })
+      await settingsBtn.click()
     })
   }
 
@@ -119,12 +99,7 @@ class AvatarMenuPage {
     const loc = getProfileLocators()
     await withWebView(async () => {
       await driver.execute(() => { window.location.hash = '/profile' })
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.profileContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non chargée après navigation directe par hash' }
-      )
+      await tl().findByTestId(loc.profileContainerTestId, {}, { timeout: 5000 })
     })
   }
 
@@ -138,18 +113,13 @@ class AvatarMenuPage {
   async editPreferredUsername(newValue: string): Promise<void> {
     const loc = getProfileLocators()
     await withWebView(async () => {
-      // Clic "Modifier" : data-testid requis, les 3 boutons ont le même texte "Modifier"
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.preferredUsernameEditButton)
+      // Clic "Modifier" : data-testid requis (findByTestId), les 3 boutons ont le même texte
+      // "Modifier" — un findByRole({name:'Modifier'}) ne pourrait pas les distinguer.
+      const editBtn = await tl().findByTestId(loc.preferredUsernameEditButtonTestId)
+      await editBtn.click()
 
-      // Sentinelle : attendre que le formulaire soit rendu (driver.execute, nav active)
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.editContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Formulaire "Mon identité" non chargé après clic Modifier' }
-      )
+      // Sentinelle : attendre que le formulaire soit rendu
+      await tl().findByTestId(loc.editContainerTestId, {}, { timeout: 5000 })
 
       // Page stable → tl() : label "Nom d'usage" associé à l'input via for/id
       const input = await tl().findByLabelText("Nom d'usage")
@@ -159,12 +129,7 @@ class AvatarMenuPage {
       await submitBtn.click()
 
       // Sentinelle retour profil
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.profileContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non affichée après enregistrement du nom d\'usage' }
-      )
+      await tl().findByTestId(loc.profileContainerTestId, {}, { timeout: 5000 })
     })
   }
 
@@ -175,16 +140,10 @@ class AvatarMenuPage {
   async editEmail(newValue: string): Promise<void> {
     const loc = getProfileLocators()
     await withWebView(async () => {
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.emailEditButton)
+      const editBtn = await tl().findByTestId(loc.emailEditButtonTestId)
+      await editBtn.click()
 
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.editContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Formulaire "Contact" non chargé après clic Modifier' }
-      )
+      await tl().findByTestId(loc.editContainerTestId, {}, { timeout: 5000 })
 
       // Label "E-mail" — libellé observé dans l'APK staging (différent du code source Svelte)
       const input = await tl().findByLabelText('E-mail')
@@ -193,12 +152,7 @@ class AvatarMenuPage {
       const submitBtn = await tl().findByRole('button', { name: 'Enregistrer' })
       await submitBtn.click()
 
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.profileContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non affichée après enregistrement de l\'email' }
-      )
+      await tl().findByTestId(loc.profileContainerTestId, {}, { timeout: 5000 })
     })
   }
 
@@ -225,9 +179,13 @@ class AvatarMenuPage {
     await withWebView(async () => {
       // Sentinelle : la modale de confirmation apparaît après le clic "Me déconnecter"
       await tl().findByRole('heading', { name: 'Suppression de vos données' })
-      const confirmBtn = await tl().findByRole('button', { name: 'Confirmer' })
+      // $() plutôt que tl() : ChainablePromiseElement paresseux, se ré-résout à chaque appel
+      // (.click(), puis .waitForDisplayed()) tant qu'on ne l'await pas isolément — contrairement
+      // à tl() qui résout un handle figé. Le clic supprime cet élément du DOM ; réutiliser un
+      // handle figé pour confirmer l'absence produit des "stale element" pendant le polling.
+      const confirmBtn = $('button=Confirmer')
       await confirmBtn.click()
-      await confirmBtn.waitForDisplayed({ timeout: 5000,  reverse: true })
+      await confirmBtn.waitForDisplayed({ timeout: 5000, reverse: true })
     })
   }
 
@@ -243,43 +201,25 @@ class AvatarMenuPage {
   async editAddress(query: string): Promise<void> {
     const loc = getProfileLocators()
     await withWebView(async () => {
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.addressEditButton)
+      const editBtn = await tl().findByTestId(loc.addressEditButtonTestId)
+      await editBtn.click()
 
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.editContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Formulaire "Mon adresse" non chargé après clic Modifier' }
-      )
+      await tl().findByTestId(loc.editContainerTestId, {}, { timeout: 5000 })
 
       // Label "Adresse" — setValue envoie des keystrokes qui déclenchent oninput + debounce
       const input = await tl().findByLabelText('Adresse')
       await input.setValue(query)
 
-      // Sentinelle autocomplete : debounce 750 ms + latence API BAN
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.autocompleteFirstItemButton) as Promise<boolean>,
-        { timeout: 6000, interval: 300, timeoutMsg: 'Suggestions BAN non affichées après saisie de l\'adresse' }
-      )
-
-      // data-testid requis : texte de l'item inconnu à l'avance (retour BAN variable)
-      await driver.execute((sel: string) => {
-        document.querySelector<HTMLElement>(sel)?.click()
-      }, loc.autocompleteFirstItemButton)
+      // Sentinelle autocomplete : debounce 750 ms + latence API BAN, data-testid requis
+      // (texte de l'item inconnu à l'avance, retour BAN variable) — findByTestId attend et
+      // résout en un seul appel.
+      const firstItem = await tl().findByTestId(loc.autocompleteFirstItemButtonTestId, {}, { timeout: 6000 })
+      await firstItem.click()
 
       const submitBtn = await tl().findByRole('button', { name: 'Enregistrer' })
       await submitBtn.click()
 
-      await browser.waitUntil(
-        async () => driver.execute((sel: string) =>
-          !!document.querySelector(sel)
-        , loc.profileContainer) as Promise<boolean>,
-        { timeout: 5000, interval: 200, timeoutMsg: 'Page profil non affichée après enregistrement de l\'adresse' }
-      )
+      await tl().findByTestId(loc.profileContainerTestId, {}, { timeout: 5000 })
     })
   }
 }

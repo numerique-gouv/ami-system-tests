@@ -25,25 +25,16 @@ class NotificationsInboxPage {
       await bell.waitForDisplayed({ timeout: 15000 })
       await bell.click()
 
-      const hash = await driver.execute(() => window.location.hash) as string
-
-      // Sur iOS/WKWebView, le clic sur <a> via WKRDP ne déclenche pas toujours la navigation —
-      // fallback : forcer le hash directement pour contourner la limitation WKWebView.
-      if (!hash.includes('/notifications')) {
-        await driver.execute(() => { window.location.hash = '/notifications' })
-      }
-
-      // Exception documentée (spa-navigation.md) : la page notifications n'a pas de heading
-      // identifiable — c'est une liste pure de <a>. Le hash est ici la sentinelle légitime :
-      // soit le clic l'a positionné, soit le fallback vient de le forcer ; la SPA Svelte
-      // re-rend synchronement après un changement de hash. Le rendu réel est confirmé
-      // ensuite par waitForNotification() qui attend un item spécifique.
+      // Sentinelle de navigation post-clic — driver.execute (pas tl()) car la navigation
+      // peut être en cours (executeAsync serait tué, cf. semantic-locators.md). Le heading
+      // "Notifications" confirme le rendu réel de la page, pas juste le changement d'URL
+      // (le hash peut être mis à jour avant que le contenu soit rendu, cf. spa-navigation.md).
       await browser.waitUntil(
-        async () => {
-          const h = await driver.execute(() => window.location.hash) as string
-          return h.includes('/notifications')
-        },
-        { timeout: 15000, interval: 500, timeoutMsg: 'page /#/notifications non atteinte en 15s' }
+        async () => driver.execute(() =>
+          Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
+            .some(h => h.innerText?.trim() === 'Notifications')
+        ) as Promise<boolean>,
+        { timeout: 15000, interval: 500, timeoutMsg: 'Heading "Notifications" absent après navigation' }
       )
     })
   }
@@ -107,16 +98,30 @@ class NotificationsInboxPage {
       // la WKWebView a peut-être un UIRefreshControl qui bloque le refresh avec swipe down (pullToRefresh)
       await withWebView(async () => {
         await driver.execute(() => window.location.reload())
-        await browser.waitUntil(
-          async () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
-          { timeout: 10000, timeoutMsg: 'Rechargement iOS non terminé en 10s' }
-        )
+        // Attendre la fin du reload AVANT de sortir de ce withWebView : sinon le prochain
+        // withWebView() (ligne suivante) relance un executeAsync (tl().findByText) pendant que
+        // la page est encore en unload/reload — "Detected a page unload event" puis
+        // StaleElementReferenceError en cascade (observé en usage réel iOS, cf. webview-quirks.md).
+        // await browser.waitUntil(
+        //   async () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
+        //   { timeout: 10000, timeoutMsg: 'Rechargement iOS non terminé en 10s' }
+        // )
       })
     } else {
       await this.pullToRefresh()
     }
 
-    await withWebView(async () => { await tl().findByText(title, {}, { timeout: timeoutMs }) })
+    // driver.execute (pas tl()) : même après readyState==='complete', la SPA Svelte peut
+    // encore se réhydrater et déclencher une navigation interne (redirection du routeur,
+    // reconnexion WebSocket) — un executeAsync lancé à ce moment produit la même erreur
+    // "Detected a page unload event" que le reload lui-même (observé en usage réel iOS).
+    // driver.execute survit à ces navigations et le waitUntil retente à chaque poll.
+    await withWebView(async () => {
+      await browser.waitUntil(
+        async () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>,
+        { timeout: timeoutMs, interval: 500, timeoutMsg: `"${title}" non visible après rechargement (${timeoutMs}ms)` }
+      )
+    })
   }
 
   /**
@@ -143,7 +148,13 @@ class NotificationsInboxPage {
 
   /**
    * Retourne le texte du premier heading visible sur la page de détail d'une notification.
-   * Utilise driver.execute plutôt que getByRole({ level: 1 }) car la SPA AMI utilise
+   * Utilise driver.execute plutôt que $$()/.getText() : la page notifications reçoit des
+   * mises à jour WebSocket en continu (cf. waitForNotification) — un $$() suivi de .getText()
+   * par élément laisse une fenêtre entre la capture de la liste et sa lecture, pendant laquelle
+   * le DOM peut se re-rendre et invalider les handles ("stale element", cf. semantic-locators.md
+   * §"$$() + .getText()" pour le cas général où driver.execute reste préférable).
+   * driver.execute lit tout dans le même instantané JS synchrone, pas de fenêtre de staleness.
+   * Utilise driver.execute plutôt que getByRole({ level: 1 }) également car la SPA AMI utilise
    * <h2> / <h3> (composants DSFR fr-tile) et non systématiquement <h1>.
    */
   async getTopNotificationTitle(): Promise<string> {

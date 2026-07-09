@@ -12,38 +12,54 @@ import type { Locator } from './onboarding.locators'
  *     #profile-address                  ← section "Mon adresse" (rue, code postal)
  *
  * Toute la page est dans la WebView SPA — sélecteurs CSS identiques iOS et Android.
+ *
+ * Deux formats de valeur cohabitent selon le consommateur :
+ *   Locator (CSS)  — pour $()/$$()/driver.execute(document.querySelector(...))
+ *   string (id nu) — pour tl().findByTestId(), qui attend la valeur brute de
+ *                     l'attribut data-testid, pas un sélecteur CSS
  */
 export interface ProfileLocators {
   toggleMenuButton: Locator   // bouton avatar (initiales) — ouvre le menu utilisateur
-  profileMenuButton: Locator  // "Mon profil" dans le menu avatar
-  settingsMenuButton: Locator // "Paramètres" dans le menu avatar
-  profileContainer: Locator   // conteneur de la page profil
   identitySection: Locator    // section "Mon identité"
   emailSection: Locator       // section "Contact"
   addressSection: Locator     // section "Mon adresse"
-  // Boutons "Modifier" dans la page profil (data-testid requis : les 3 boutons ont le même texte)
-  preferredUsernameEditButton: Locator // [data-testid="preferred-username-button"]
-  emailEditButton: Locator             // [data-testid="email-button"]
-  addressEditButton: Locator           // [data-testid="address-button"]
-  // Sentinelle de navigation — les pages d'édition partagent [data-testid="container"]
-  editContainer: Locator               // [data-testid="container"]
-  // Premier item d'autocomplétion BAN (texte imprévisible → data-testid)
-  autocompleteFirstItemButton: Locator // [data-testid="autocomplete-item-button-0"]
+
+  // DETTE : data-testid non justifié pour ces 3 champs. Choisi à l'origine (commit 09e9798)
+  // parce que c'est le premier attribut remonté par `just inspect`, pas parce qu'un
+  // tl().findByRole()/findByText() aurait été essayé et aurait échoué — "ce que just inspect
+  // montre en premier" n'est pas une raison valable (cf. semantic-locators.md §"Quand data-testid
+  // est justifié"). À retester avec une query sémantique avant de considérer ce champ comme figé.
+  profileMenuButtonTestId: string  // "Mon profil" dans le menu avatar
+  settingsMenuButtonTestId: string // "Paramètres" dans le menu avatar
+  profileContainerTestId: string   // conteneur de la page profil
+
+  // Ambiguïté CONFIRMÉE : les 3 boutons "Modifier" de la page profil partagent le même rôle
+  // (button) et le même texte visible — tl().findByRole('button', {name:'Modifier'}) ne peut
+  // pas les distinguer, data-testid est ici la seule option (pas un choix de confort).
+  preferredUsernameEditButtonTestId: string
+  emailEditButtonTestId: string
+  addressEditButtonTestId: string
+  // DETTE, même raison non justifiée que profileMenuButtonTestId ci-dessus.
+  editContainerTestId: string
+  // Texte imprévisible CONFIRMÉ : dépend de la réponse de l'API BAN, connu seulement à l'exécution
+  // — aucune requête par nom accessible n'est possible par construction.
+  autocompleteFirstItemButtonTestId: string
 }
 
 export const profileLocators: ProfileLocators = {
   toggleMenuButton: '[data-testid="toggle-menu-button"]',
-  profileMenuButton: '[data-testid="profile-button"]',
-  settingsMenuButton: '[data-testid="settings-button"]',
-  profileContainer: '[data-testid="profile"]',
   identitySection: '#profile-identity',
   emailSection: '#profile-email',
   addressSection: '#profile-address',
-  preferredUsernameEditButton: '[data-testid="preferred-username-button"]',
-  emailEditButton: '[data-testid="email-button"]',
-  addressEditButton: '[data-testid="address-button"]',
-  editContainer: '[data-testid="container"]',
-  autocompleteFirstItemButton: '[data-testid="autocomplete-item-button-0"]',
+
+  profileMenuButtonTestId: 'profile-button',
+  settingsMenuButtonTestId: 'settings-button',
+  profileContainerTestId: 'profile',
+  preferredUsernameEditButtonTestId: 'preferred-username-button',
+  emailEditButtonTestId: 'email-button',
+  addressEditButtonTestId: 'address-button',
+  editContainerTestId: 'container',
+  autocompleteFirstItemButtonTestId: 'autocomplete-item-button-0',
 }
 
 export function getProfileLocators(): ProfileLocators {

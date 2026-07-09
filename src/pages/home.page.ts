@@ -47,12 +47,7 @@ class HomePage {
             ) as boolean
 
             if (!alreadyHome) {
-                const clicked = await driver.execute(() => {
-                    const link = Array.from(document.querySelectorAll('a'))
-                        .find(a => (a as HTMLElement).innerText?.trim() === 'Accueil') as HTMLElement | undefined
-                    if (link) { link.click(); return true }
-                    return false
-                }) as boolean
+                const clicked = await this.clickLinkByText('Accueil')
 
                 if (!clicked) {
                     await driver.execute(() => { window.location.hash = '/' })
@@ -67,6 +62,24 @@ class HomePage {
                 { timeout, interval: 500, timeoutMsg: 'Home non atteinte — lien "Suivi" absent après navigation' }
             )
         })
+    }
+
+    /**
+     * Clique un lien <a> par son texte visible. driver.execute (find + click atomique en un
+     * seul appel JS) plutôt que tl()/$$() : ces deux derniers résolvent l'élément dans un appel
+     * puis cliquent dans un second — si la SPA se re-rend entre les deux (cas réel constaté dans
+     * waitForDemarche, qui boucle en attendant un état réactif), le handle devient stale
+     * ("Request encountered a stale element"). driver.execute élimine cette fenêtre.
+     * Retourne false si le lien n'existe pas (l'appelant décide du fallback).
+     */
+    private async clickLinkByText(text: string): Promise<boolean> {
+        return await driver.execute((t: string) => {
+            const link = Array.from(document.querySelectorAll('a'))
+                .find(a => (a as HTMLElement).innerText?.trim() === t) as HTMLElement | undefined
+            if (!link) return false
+            link.click()
+            return true
+        }, text) as boolean
     }
 
     /**
@@ -85,12 +98,6 @@ class HomePage {
         await $(loc.screenRoot).waitForDisplayed({timeout})
     }
 
-    /**
-     * Attend que la SPA home authentifiée soit chargée.
-     * Vérifie la couche native (waitForVisible) puis la nav WebView (lien "Suivi" visible).
-     * Remplace waitForSpaReady — un seul point de vérité pour "la home est prête".
-     * Retourne true si prête dans le délai, false sinon (ne throw pas).
-     */
     /**
      * Attend que la SPA home authentifiée soit chargée.
      * Utilise driver.execute (JS sync) pour détecter le lien "Suivi" visible dans la nav.
@@ -136,11 +143,7 @@ class HomePage {
         let found = false
         while (!found) {
             await withWebView(async () => {
-                await driver.execute(() => {
-                    const suivi = Array.from(document.querySelectorAll('a'))
-                        .find(el => el.innerText?.trim() === 'Suivi') as HTMLElement | undefined
-                    suivi?.click()
-                })
+                await this.clickLinkByText('Suivi')
                 await browser.waitUntil(
                     async () => driver.execute(() =>
                         Array.from(document.querySelectorAll<HTMLElement>('h1, h2'))
@@ -152,11 +155,7 @@ class HomePage {
                         timeoutMsg: 'Heading "Mes démarches" absent après navigation vers Suivi'
                     }
                 )
-                await driver.execute(() => {
-                    const accueil = Array.from(document.querySelectorAll('a'))
-                        .find(el => el.innerText?.trim() === 'Accueil') as HTMLElement | undefined
-                    accueil?.click()
-                })
+                await this.clickLinkByText('Accueil')
             })
             const remaining = deadline - Date.now()
             if (remaining <= 0) break
@@ -188,14 +187,11 @@ class HomePage {
      */
     async ouvreSuivi(): Promise<void> {
         await withWebView(async () => {
+            // Retry pendant potentiellement une navigation active — clickLinkByText() est
+            // atomique (driver.execute), donc utilisable ici sans risque d'élément stale
+            // ni d'executeAsync tué par une navigation en cours.
             await browser.waitUntil(
-                async () => await driver.execute(() => {
-                    const link = Array.from(document.querySelectorAll('a'))
-                        .find(a => a.textContent?.trim() === 'Suivi') as HTMLElement | undefined
-                    if (!link) return false
-                    link.click()
-                    return true
-                }) as boolean,
+                async () => this.clickLinkByText('Suivi'),
                 {timeout: 10000, interval: 500, timeoutMsg: 'Lien "Suivi" introuvable dans la nav'}
             )
             await browser.waitUntil(

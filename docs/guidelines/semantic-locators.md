@@ -197,6 +197,17 @@ const el = Array.from(document.querySelectorAll<Element>('[aria-label]'))
   .find((e) => !EXCLUDED.has(e.getAttribute('aria-label') ?? ''))
 ```
 
+### Quand `data-testid` est justifié malgré la priorité aux sélecteurs sémantiques
+
+L'app expose des attributs `data-testid` sur une partie de ses éléments interactifs. Ce catalogue donne la priorité au rôle ARIA/texte visible (`tl()`) sur `data-testid` — mais deux cas, observés dans le dépôt, rendent `data-testid` nécessaire plutôt qu'un choix de confort :
+
+1. **Plusieurs éléments partagent le même rôle et le même nom accessible** — `tl().findByRole('button', { name: 'Modifier' })` ne peut pas distinguer trois boutons "Modifier" identiques. Cas confirmé : `avatar-menu.page.ts` `editPreferredUsername`/`editEmail`/`editAddress`, boutons `[data-testid="preferred-username-button"|"email-button"|"address-button"]` (cf. `profile.locators.ts`).
+2. **Le texte affiché est imprévisible à l'écriture du test** — aucune requête par nom accessible n'est possible puisque le nom n'est pas connu à l'avance. Cas confirmé : premier item d'autocomplétion BAN (`[data-testid="autocomplete-item-button-0"]`, `profile.locators.ts`), dont le texte dépend de la réponse de l'API BAN.
+
+**Cas non justifiés (dette à corriger)** : plusieurs `data-testid` du dépôt (`toggle-menu-button`, `profile-button`, `settings-button`, `profile`, `container` dans `profile.locators.ts` ; `request-item-link`/`followup-item-link` dans `demarches.locators.ts`) n'ont **aucune des deux raisons ci-dessus** derrière eux. Le commit d'origine (09e9798) indique seulement "structure DOM observée via `just inspect`" — c'est-à-dire que `data-testid` a été retenu parce que c'est le premier attribut visible dans l'arbre inspecté, pas parce qu'un `tl().findByRole()`/`findByText()` aurait été essayé et aurait échoué. **"C'est ce que `just inspect` montre en premier" n'est pas une justification** : `just inspect` liste tous les attributs disponibles sans indiquer lequel est le plus stable/sémantique, choisir le premier revenu est un raccourci d'exploration, pas une décision de sélecteur. Ces cas sont à retester (`tl().getByRole()`/`findByText()` suffit-il ?) et à migrer si oui — pas à documenter comme acceptables en l'état.
+
+**Règle pratique** : avant d'ajouter un nouveau `data-testid` dans un fichier locators, essayer d'abord `tl().getByRole()`/`findByText()` et ne basculer sur `data-testid` que si cette requête échoue réellement (ambiguïté ou texte imprévisible) — documenter alors l'échec observé dans le commentaire du champ, pas "structure observée via just inspect".
+
 ### Sélecteurs CSS WebView dans les fichiers locators
 
 Les sélecteurs CSS utilisés dans les callbacks `driver.execute` doivent être centralisés dans `pages/locators/*.locators.ts`, au même titre que les sélecteurs natifs. Cela permet de choisir des sélecteurs différents selon la plateforme si l'app venait à exposer des structures DOM distinctes sur iOS et Android, et de ne pas dupliquer les chaînes CSS dans les Page Objects.

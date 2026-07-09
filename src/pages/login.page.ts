@@ -1,6 +1,6 @@
 import {getLoginLocators} from './locators/login.locators'
 import {traced} from '../helpers/traced'
-import {withWebView} from '../helpers/webview'
+import {tl, withWebView} from '../helpers/webview'
 import {setBackendUrl} from '../helpers/notifications-api'
 
 class LoginPage {
@@ -48,10 +48,8 @@ class LoginPage {
             // iOS : bouton dans la WebView SPA.
             await withWebView(async () => {
                     try {
-                        await $(loc.fcButton).waitForDisplayed({timeout})
-                        await $(loc.fcButton).click()
-                        // const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
-                        // await fcButton?.click()
+                        const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
+                        await fcButton.click()
                     } catch (ex) {
                         if (!oidcConcurrencyBugOnIOs) {
                             console.warn("bouton de mire de connexion introuvable", ex)
