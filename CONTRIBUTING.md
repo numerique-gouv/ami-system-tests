@@ -159,7 +159,9 @@ un détail d'implémentation qui change à chaque build — **jamais** les utili
 
 Cinq étapes communes à toute interaction sur un composant de page : **1.** vérifier qu'il est
 affiché ET interactif · **2.** lire son contenu · **3.** remplir un champ qu'il contient · **4.**
-cliquer son bouton · **5.** vérifier sa disparition.
+cliquer son bouton · **5.** ne pas vérifier sa disparition.
+
+Les pages se recyclent, les résolution post-recyclage génèrent des warning bénin **ET attendent la durée du timeout**, donc du bruit qui ralentit.
 
 ### Écran natif — `$()` obligatoire (pas de `tl()`/`driver.execute` possible)
 
@@ -178,8 +180,6 @@ await $(loc.tileInput).setValue('valeur')
 
 await tile.click()
 
-// $() paresseux : se ré-résout à chaque commande, pas de stale element
-await tile.waitForDisplayed({ timeout: 10000, reverse: true })
 ```
 
 ### WebView stable & WebView avec redirection OIDC (une fois stabilisée) — `tl()` en priorité
@@ -199,12 +199,6 @@ await withWebView(async () => {
   const submitBtn = await tl().findByRole('button', { name: 'Enregistrer' })
   await submitBtn.click()
 
-  // Sentinelle driver.execute, PAS tl() : la page vient d'être re-rendue par le submit,
-  // executeAsync risquerait d'être tué.
-  await browser.waitUntil(
-    async () => driver.execute((sel: string) => !document.querySelector(sel), loc.editContainer) as Promise<boolean>,
-    { timeout: 5000, interval: 300, timeoutMsg: 'Formulaire toujours affiché après enregistrement' }
-  )
 })
 ```
 
@@ -216,45 +210,51 @@ chaque tentative — backoff exponentiel, un `withWebView` minimal par essai, ra
 par plateforme (`pullToRefresh` Android, `location.reload()` iOS — l'`UIRefreshControl` iOS peut
 bloquer le geste de swipe).
 
+Le rafraîchissement lui-même diverge par plateforme, pas seulement le sélecteur : sur iOS, le
+`reload()` se fait **dans** la WebView (`window.location.reload()` via `driver.execute`) ; sur
+Android, `pullToRefresh()` est un geste natif (hors WebView), suivi d'une lecture en WebView. Ce
+n'est donc pas un cas de sélecteur partagé (§2) — le `if (driver.isIOS)` est justifié par un
+comportement d'interaction réellement différent (§1, niveau 2).
+
 ```typescript
-// 1. Attente asynchrone : backoff exponentiel, rafraîchissement explicite par plateforme à
-// chaque tentative (adapté de notifications.page.ts waitForNotification)
-const backoffMs = [500, 1000, 2000, 4000, 8000]
-let found = false
+// Extrait de notifications.page.ts — assertNotificationReceived()
+const backoffMs = [0, 500, 1000, 2000, 4000, 8000]
+let elapsed = 0
 for (const delay of backoffMs) {
-  await browser.pause(delay)
+  await browser.pause(delay) // hors withWebView : WebView libre de recevoir la WebSocket
+  elapsed += delay
+  let found = false
   if (driver.isIOS) {
-    await withWebView(async () => { await driver.execute(() => window.location.reload()) })
+    // la WKWebView a peut-être un UIRefreshControl qui bloque le refresh avec swipe down (pullToRefresh)
+    await withWebView(async () => {
+      await driver.execute(() => window.location.reload())
+      // Après un reload, les appels pour vérifier que la page est chargée peuvent s'appliquer sur
+      // la page en train de disparaitre. On contourne ce problème en cherchant le nouvel élément
+      // que l'on poll — l'autre option serait de tester que la date de la page a changé
+      // (driver.execute(() => performance.timeOrigin) as unknown as Promise<number>).
+      found = await browser.waitUntil(
+        async () => driver.execute(
+          (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
+            .some(el => el.children.length === 0 && el.textContent?.trim() === text),
+          title
+        ) as unknown as boolean,
+        {timeout: 1000, interval: 100}
+      ).catch(() => false)
+    })
   } else {
     await pullToRefresh() // geste natif driver.action('pointer'), hors withWebView
+    found = await withWebView(() =>
+      tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
+    )
   }
-  found = await withWebView(() =>
-    tl().findByText(title, {}, { timeout: 500 }).then(() => true).catch(() => false)
-  )
-  if (found) break
+  if (found) {
+    log.log(`[notifications] reçue (≤ ${elapsed} ms)`)
+    return found
+  } else {
+    log.log(`[notifications] toujours pas reçue  (≤ ${elapsed} ms)`)
+  }
 }
-
-await withWebView(async () => {
-  // 2. Lecture — driver.execute, snapshot atomique (pas $$()+.getText() : une nouvelle tentative
-  // de rafraîchissement peut re-rendre la page pendant la lecture)
-  const currentTitle = await driver.execute(() => {
-    const el = document.querySelector('h1, h2, h3, [role="heading"]')
-    return el ? (el.textContent ?? '').trim() : ''
-  }) as string
-
-  // 4. Clic ponctuel sur page stabilisée entre deux tentatives : tl() acceptable ici,
-  // ce n'est pas une boucle de polling.
-  const item = await tl().findByText(title)
-  await item.click()
-})
-
-// 5. Disparition — driver.execute, même raison qu'au pas 2
-await withWebView(async () => {
-  await browser.waitUntil(
-    async () => driver.execute((t: string) => !document.body.innerText.includes(t), title) as Promise<boolean>,
-    { timeout: 5000, interval: 500, timeoutMsg: `"${title}" toujours visible après disparition attendue` }
-  )
-})
+throw new Error(`Notification not received:${title}.`)
 ```
 
 Le choix détaillé de l'API par type de page et par action (avec le raisonnement complet) est

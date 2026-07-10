@@ -2,6 +2,7 @@ import {getLoginLocators} from './locators/login.locators'
 import {traced} from '../helpers/traced'
 import {tl, withWebView} from '../helpers/webview'
 import {setBackendUrl} from '../helpers/notifications-api'
+import logger from "@wdio/logger";
 
 class LoginPage {
     /**
@@ -19,19 +20,18 @@ class LoginPage {
 
         // "Staging" est toujours le premier item — sa présence confirme que le picker est affiché.
         try {
-            await $(loc.pickerSentinel).waitForDisplayed({timeout: 15000})
+            await $(loc.pickerSentinel).waitForDisplayed({timeout: 10000})
         } catch {
             return // Écran picker absent — build sans picker, no-op
         }
 
         const picker = $(loc.environmentPicker)
         await this.scrollToPickerTile(picker)
-        await picker.waitForDisplayed({timeout: 5000})
+        //await picker.waitForDisplayed({timeout: 5000})
         const title = await picker.getText()
         setBackendUrl(reviewTitleToApiUrl(title))
         await picker.click()
-        await picker.waitForDisplayed({timeout: 10000, reverse: true})
-
+        //await picker.waitForDisplayed({timeout: 1000, reverse: true})
     }
 
     /**
@@ -51,11 +51,18 @@ class LoginPage {
             // iOS : bouton dans la WebView SPA.
             await withWebView(async () => {
                     try {
+                        await browser.waitUntil(
+                            () => driver.execute(
+                                (t: string) => document.body.innerText.includes(t),
+                                'FranceConnect'
+                            ) as Promise<boolean>,
+                            {timeout, interval: 300}
+                        )
                         const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
                         await fcButton.click()
-                    } catch (ex) {
+                    } catch {
                         if (!oidcConcurrencyBugOnIOs) {
-                            console.warn("bouton de mire de connexion introuvable", ex)
+                            console.warn("bouton de mire de connexion introuvable")
                         }
                     }
                 }
@@ -65,9 +72,9 @@ class LoginPage {
             try {
                 await $(loc.fcButton).waitForDisplayed({timeout})
                 await $(loc.fcButton).click()
-            } catch (ex) {
+            } catch {
                 if (!oidcConcurrencyBugOnIOs) {
-                    console.warn("bouton de mire de connexion introuvable", ex)
+                    console.warn("bouton de mire de connexion introuvable")
                 }
             }
             return

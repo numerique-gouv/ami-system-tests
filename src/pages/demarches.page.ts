@@ -6,34 +6,37 @@ import HomePage from './home.page'
 const DEMARCHES_TIMEOUT_MS = 20000
 
 class DemarchesPage {
-  /**
-   * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
-   * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
-   *
-   * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information asynchrone") :
-   * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
-   * stratégie que `NotificationsInboxPage.waitForNotification`. `tl().findByText()` avec
-   * timeout court : le titre d'une carte est un seul nœud de texte (contrairement à
-   * `assertVisibleDemarcheWith`, qui a besoin de lire le badge/lien voisins via `$$()`) —
-   * une correspondance exacte par texte visible convient, pas besoin de sous-chaîne manuelle.
-   */
-  async waitForDemarche(title: string): Promise<void> {
-    const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
-    for (const delay of backoffMs) {
-      await browser.pause(delay) // hors withWebView : laisse la page respirer entre deux rafraîchissements
-      if (driver.isIOS) {
-        // UIRefreshControl iOS peut bloquer le geste de swipe — reload direct en WebView
-        await withWebView(async () => { await driver.execute(() => window.location.reload()) })
-      } else {
-        await pullToRefresh()
-      }
-      const found = await withWebView(() =>
-        tl().findByText(title, {}, { timeout: 500 }).then(() => true).catch(() => false)
-      )
-      if (found) return
+    /**
+     * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
+     * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
+     *
+     * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information asynchrone") :
+     * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
+     * stratégie que `NotificationsInboxPage.waitForNotification`. `tl().findByText()` avec
+     * timeout court : le titre d'une carte est un seul nœud de texte (contrairement à
+     * `assertVisibleDemarcheWith`, qui a besoin de lire le badge/lien voisins via `$$()`) —
+     * une correspondance exacte par texte visible convient, pas besoin de sous-chaîne manuelle.
+     */
+    async waitForDemarche(title: string): Promise<void> {
+        const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
+        for (const delay of backoffMs) {
+            await browser.pause(delay) // hors withWebView : laisse la page respirer entre deux rafraîchissements
+            await withWebView(async () => {
+                await driver.execute(() => window.location.reload())
+                await browser.waitUntil(
+                    () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
+                    {timeout: 5000, interval: 200, timeoutMsg: 'Page Suivi non stabilisée après reload'}
+                )
+            })
+            const found = await withWebView(
+                () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
+                //tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
+            )
+
+            if (found) return
+        }
+        throw new Error(`Démarche "${title}" non visible sur le Suivi après ${backoffMs.reduce((a, b) => a + b, 0)}ms`)
     }
-    throw new Error(`Démarche "${title}" non visible sur le Suivi après ${backoffMs.reduce((a, b) => a + b, 0)}ms`)
-  }
 
   /**
    * Attend qu'une carte de démarche visible corresponde à `title`, `statusLabel` et,

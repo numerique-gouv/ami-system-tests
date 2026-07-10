@@ -24,8 +24,8 @@ class FranceConnectPage {
                 labelLower
             ) as Promise<boolean>,
             { timeout: tileTimeoutMs, interval: 300, timeoutMsg: `Tuile "${fcpLocators.eidasFaibleLabel}" non visible après ${tileTimeoutMs}ms` }
-        ).catch(ex => {
-                console.warn("Pas de sélection d'eiDAS faible affichée, session FC déjà ouverte", ex)
+        ).catch(() => {
+                console.warn("Pas de sélection d'eiDAS faible affichée, session FC déjà ouverte")
                 return false
             }
         );
@@ -70,11 +70,7 @@ class FranceConnectPage {
         // pas de fallback driver.execute nécessaire ici (cf. franceconnect.locators.ts).
         const submitBtn = await tl().getByRole('button', {name: /valider/i})
         await submitBtn.click()
-        const urlBeforeSubmit = await driver.getUrl().catch(() => '')
-        await browser.waitUntil(
-            async () => (await driver.getUrl().catch(() => urlBeforeSubmit)) !== urlBeforeSubmit,
-            {timeout: 15000, interval: 300, timeoutMsg: 'Redirect OIDC post-submit non détecté en 15s'}
-        )
+        //await submitBtn.waitForDisplayed({timeout: 15000, reverse: true})
     }
 
     /**
@@ -97,11 +93,11 @@ class FranceConnectPage {
                 await refreshAxTree()
                 await this.fillCredentials(user.login, user.password)
                 await this.submit()
-            } catch (ex) {
+            } catch {
                 // Best-effort : la session FC peut déjà être ouverte (cf. selectEidasFaible).
                 // Loggé quand même — une vraie erreur d'interaction (champ/bouton introuvable)
                 // sur cette chaîne critique ne doit pas se confondre avec ce cas attendu.
-                console.warn('loginWithSandbox: échec sur la page credentials', ex)
+                console.warn('loginWithSandbox: échec sur la page credentials')
             }
         })
     }

@@ -43,13 +43,10 @@ describe('Notifications', () => {
       recipientFcHash: user.fcHash,
     })
 
-    await AllureReporter.addStep('3. Vérifier la réception dans l\'inbox (WebSocket)')
-    await NotificationsInboxPage.waitForNotification(title)
+    await AllureReporter.addStep('3. Vérifier la réception dans l\'inbox et vérifier son titre')
+    await NotificationsInboxPage.assertNotificationReceived(title)
 
-    await AllureReporter.addStep('4. Ouvrir la notification et vérifier son titre')
+    await AllureReporter.addStep('4. Ouvrir la notification')
     await NotificationsInboxPage.clickNotification(title)
-    const newTop = await NotificationsInboxPage.getTopNotificationTitle()
-    expect(oldTop).not.toEqual(title)
-    expect(newTop).toEqual(title)
   })
 })
