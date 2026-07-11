@@ -1,6 +1,7 @@
 import {pullToRefresh, tl, withWebView} from '../helpers/webview'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
+import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
 
@@ -47,7 +48,7 @@ class NotificationsInboxPage {
             await browser.pause(delay) // hors withWebView : WebView libre de recevoir la WebSocket
             elapsed += delay
             let found = false;
-            if (driver.isIOS) {
+//            if (driver.isIOS) {
                 // la WKWebView a peut-être un UIRefreshControl qui bloque le refresh avec swipe down (pullToRefresh)
                 await withWebView(async () => {
                     await driver.execute(() => window.location.reload())
@@ -63,12 +64,12 @@ class NotificationsInboxPage {
                         {timeout: 1000, interval: 100}
                     ).catch(() => false)
                 })
-            } else {
-                await pullToRefresh()
-                found = await withWebView(() =>
-                    tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
-                )
-            }
+            // if (isAndroid) {
+            //     await pullToRefresh()
+            //     found = await withWebView(() =>
+            //         tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
+            //     )
+            // }
             if (found) {
                 log.log(`[notifications] reçue (≤ ${elapsed} ms)`)
                 return found
@@ -76,7 +77,7 @@ class NotificationsInboxPage {
                 log.log(`[notifications] toujours pas reçue  (≤ ${elapsed} ms)`)
             }
         }
-        throw new Error(`Notification not received:${title}.`)
+        throw new AssertionError({ message:`Notification not received:${title}.`})
     }
 
     /**

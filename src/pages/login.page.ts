@@ -4,6 +4,8 @@ import {tl, withWebView} from '../helpers/webview'
 import {setBackendUrl} from '../helpers/notifications-api'
 import logger from "@wdio/logger";
 
+const log = logger('page-object')
+
 class LoginPage {
     /**
      * Sélectionne l'environnement dans le review-picker staging si visible (no-op sinon).
@@ -62,7 +64,7 @@ class LoginPage {
                         await fcButton.click()
                     } catch {
                         if (!oidcConcurrencyBugOnIOs) {
-                            console.warn("bouton de mire de connexion introuvable")
+                            log.warn("bouton de mire de connexion introuvable")
                         }
                     }
                 }
@@ -74,7 +76,7 @@ class LoginPage {
                 await $(loc.fcButton).click()
             } catch {
                 if (!oidcConcurrencyBugOnIOs) {
-                    console.warn("bouton de mire de connexion introuvable")
+                    log.warn("bouton de mire de connexion introuvable")
                 }
             }
             return

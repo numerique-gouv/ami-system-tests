@@ -2,6 +2,9 @@ import {fcpLocators} from './locators/franceconnect.locators'
 import {traced} from '../helpers/traced'
 import {withWebView, refreshAxTree, tl} from '../helpers/webview'
 import type {TestUser} from '../helpers/test-users'
+import logger from "@wdio/logger";
+
+const log = logger('page-object')
 
 class FranceConnectPage {
     /**
@@ -25,7 +28,7 @@ class FranceConnectPage {
             ) as Promise<boolean>,
             { timeout: tileTimeoutMs, interval: 300, timeoutMsg: `Tuile "${fcpLocators.eidasFaibleLabel}" non visible après ${tileTimeoutMs}ms` }
         ).catch(() => {
-                console.warn("Pas de sélection d'eiDAS faible affichée, session FC déjà ouverte")
+                log.warn("Pas de sélection d'eiDAS faible affichée, session FC déjà ouverte")
                 return false
             }
         );
@@ -42,12 +45,18 @@ class FranceConnectPage {
      */
     async fillCredentials(identifier: string, password: string): Promise<void> {
         // Sentinelle de navigation post-redirect (AMI → FCP-LOW, cross-origin) — driver.execute,
-        // pas $() : cf. CONTRIBUTING.md §4 (WebView et contextes), cette page appartient au flow OIDC où une
-        // navigation peut encore être en cours après le switch de contexte.
+        // synchrone, survit à une navigation en cours (cf. commentaire selectEidasFaible ci-dessus).
         await browser.waitUntil(
-            async () => driver.execute((sel: string) => !!document.querySelector(sel), fcpLocators.fcpLowHeading) as Promise<boolean>,
-            { timeout: 10000, interval: 300, timeoutMsg: `Page FCP-LOW non chargée — ${fcpLocators.fcpLowHeading} absent après 10s` }
+            async () => driver.execute(
+                (text: string) => document.body?.textContent?.includes(text) ?? false,
+                fcpLocators.fcpLowHeadingText
+            ) as Promise<boolean>,
+            { timeout: 10000, interval: 300, timeoutMsg: `Page FCP-LOW non chargée — texte "${fcpLocators.fcpLowHeadingText}" absent après 10s` }
         )
+        // refreshAxTree() avant d'interagir avec la page credentials : sur iOS, l'AX tree
+        // WKWebView peut être figé juste après le redirect vers fcp-low, faisant échouer
+        // getByLabelText() dans fillCredentials() alors que le formulaire est bien rendu.
+        await refreshAxTree()
         const idField = await tl().getByLabelText(/identifiant/i)
         await idField.scrollIntoView()
         await idField.clearValue()
@@ -87,17 +96,13 @@ class FranceConnectPage {
         await withWebView(async () => {
             await this.selectEidasFaible()
             try {
-                // refreshAxTree() avant d'interagir avec la page credentials : sur iOS, l'AX tree
-                // WKWebView peut être figé juste après le redirect vers fcp-low, faisant échouer
-                // getByLabelText() dans fillCredentials() alors que le formulaire est bien rendu.
-                await refreshAxTree()
                 await this.fillCredentials(user.login, user.password)
                 await this.submit()
             } catch {
                 // Best-effort : la session FC peut déjà être ouverte (cf. selectEidasFaible).
                 // Loggé quand même — une vraie erreur d'interaction (champ/bouton introuvable)
                 // sur cette chaîne critique ne doit pas se confondre avec ce cas attendu.
-                console.warn('loginWithSandbox: échec sur la page credentials')
+                log.warn('loginWithSandbox: échec sur la page credentials')
             }
         })
     }

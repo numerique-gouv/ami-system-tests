@@ -3,6 +3,7 @@ import FranceConnectPage from '../pages/franceconnect.page'
 import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
 import { getUser } from './test-users'
+import {AssertionError} from "node:assert";
 
 /**
  * Flow d'authentification complet, sans step Allure.
@@ -22,5 +23,5 @@ export async function authenticate(alreadyStarted = false): Promise<void> {
   // Sur iOS, le bouton FC peut réapparaître brièvement pendant la fin du redirect OIDC
   await LoginPage.tapFranceConnect(true)
   const ready = await HomePage.isHomeVisible(30000)
-  if (!ready) throw new Error("La page d'accueil n'est pas visible après authentification")
+  if (!ready) throw new AssertionError({ message: "La page d'accueil n'est pas visible après authentification" })
 }

@@ -3,6 +3,9 @@ import {getProfileLocators} from './locators/profile.locators'
 import {tl, withWebView} from '../helpers/webview';
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
+import {AssertionError} from "node:assert";
+
+const log = logger('page-object')
 
 class HomePage {
     /**
@@ -19,7 +22,7 @@ class HomePage {
             try {
                 await this.navigateHomeFromWebview(timeout)
             } catch (ex) {
-                console.warn('isHomeReachable: navigation vers la home en échec', ex)
+                log.warn('isHomeReachable: navigation vers la home en échec', ex)
                 return false
             }
             return true
@@ -69,8 +72,7 @@ class HomePage {
                 return true
             })
         } catch {
-            logger('page-object').warn('isHomeVisible: (toggle-menu-button) absent')
-            return false
+            throw new AssertionError({message: 'isHomeVisible: (toggle-menu-button) absent'})
         }
     }
 

@@ -14,8 +14,9 @@ documentés en commentaire directement dans le fichier de code concerné.
 5. [Qualité des assertions](#5-qualité-des-assertions)
 6. [Isolation des tests](#6-isolation-des-tests)
 7. [Stratégies de retry](#7-stratégies-de-retry)
-8. [Rapports Allure](#8-rapports-allure)
-9. [Règles de débogage](#9-règles-de-débogage)
+8. [Erreurs de test vs erreurs techniques](#8-erreurs-de-test-vs-erreurs-techniques)
+9. [Rapports Allure](#9-rapports-allure)
+10. [Règles de débogage](#10-règles-de-débogage)
 
 ---
 
@@ -64,6 +65,15 @@ repasser au dual-object plutôt que d'ajouter un `driver.isIOS ? ... : ...` ponc
 - **Avant d'écrire un branchement plateforme**, chercher si un signal DOM/WebView commun couvre
   déjà les deux cas (ex. la disparition d'une modale de confirmation est un événement observable
   identiquement sur iOS et Android — pas besoin de détecter la fin d'un logout différemment par plateforme).
+- **Jamais `console.*`** — utiliser le logger `@wdio/logger`, qui s'intègre au flux de logs WDIO/Allure :
+
+  ```typescript
+  import logger from '@wdio/logger'
+  const log = logger('page-object')
+  ```
+
+  N'ajouter cette constante que dans les fichiers qui l'utilisent réellement — `no-unused-vars` est
+  une erreur de lint, pas un avertissement.
 
 ### Niveau 3 — `tests/*.test.ts`
 
@@ -254,7 +264,9 @@ for (const delay of backoffMs) {
     log.log(`[notifications] toujours pas reçue  (≤ ${elapsed} ms)`)
   }
 }
-throw new Error(`Notification not received:${title}.`)
+// AssertionError, pas Error : ce timeout signale que l'application n'a pas fait ce qui est
+// attendu d'elle (la notification n'est jamais arrivée), pas un problème d'infra — cf. §8.
+throw new AssertionError({ message: `Notification not received:${title}.` })
 ```
 
 Le choix détaillé de l'API par type de page et par action (avec le raisonnement complet) est
@@ -379,8 +391,8 @@ Trois niveaux, à ne pas confondre :
   sur 4xx (erreur client, non transitoire).
 - **Retry court en Page Object** (élément instable qui réapparaît brièvement, ex. bouton FranceConnect
   en fin de redirect OIDC) : le `catch` best-effort **ne doit jamais être totalement silencieux** —
-  logger avec un `console.warn` conditionné au cas attendu documenté. Un `catch {}` vide masque un
-  vrai bug (sélecteur cassé, timeout réseau) derrière un « comportement normal ».
+  logger avec `log.warn()` (voir §1, jamais `console.warn`) conditionné au cas attendu documenté. Un
+  `catch {}` vide masque un vrai bug (sélecteur cassé, timeout réseau) derrière un « comportement normal ».
 - **Ne pas retrier les `findBy*` de Testing Library** — ils intègrent déjà une attente interne
   (`timeout` en 3e argument). Augmenter ce timeout plutôt que d'enrouler l'appel dans une boucle de
   retry manuelle.
@@ -389,7 +401,45 @@ En débogage, mettre `specFileRetries: 0` (voir la vraie cause plutôt que le re
 
 ---
 
-## 8. Rapports Allure
+## 8. Erreurs de test vs erreurs techniques
+
+Deux catégories d'échec, à ne jamais mélanger dans le type d'exception levée :
+
+| Catégorie | Signification | Type levé |
+|---|---|---|
+| **Erreur de test** | L'application n'a pas fait ce qu'on attendait d'elle (le test s'est exécuté correctement, le résultat observé est faux) | Librairie d'assertion (`expect(...).toXxx()`) ou, hors contexte `expect-webdriverio` (boucle de polling manuelle, réponse HTTP), `AssertionError` (`node:assert`) |
+| **Erreur technique** | Le test n'a pas pu s'exécuter (infra, environnement, configuration — rien à voir avec le comportement de l'application) | `Error` |
+
+- **Pourquoi la distinction compte** : `@wdio/allure-reporter` classe chaque échec en `failed` (rouge) ou
+  `broken` (jaune) selon que le message/stack de l'exception contient `"expect"` ou commence par
+  `"AssertionError"`. Lever le bon type au bon endroit rend le rapport Allure directement actionnable :
+  `failed` → suivre un bug applicatif ; `broken` → réparer le test ou l'environnement, pas l'application.
+- **`expect(...).toXxx()` reste le premier choix** dès qu'un matcher `expect-webdriverio` existe pour le
+  cas — il lève déjà le bon type en interne. `AssertionError` explicite est réservé aux échecs métier
+  qui ne passent pas par un `expect()` : sortie d'une boucle de backoff (`waitForDemarche`,
+  `assertNotificationReceived`), réponse HTTP inattendue d'une API partenaire (`publishNotification`),
+  élément de confirmation attendu absent.
+- **`throw new Error(...)` reste réservé au technique** : contexte `WEBVIEW_*` introuvable
+  (`withWebView`), variable d'environnement manquante (`requireEnv`) — un humain doit corriger la
+  configuration ou l'environnement, pas relire le comportement de l'app.
+
+```typescript
+import {AssertionError} from 'node:assert'
+
+// ✅ Erreur de test — l'API partenaire a répondu, mais avec un statut d'échec après épuisement des
+// retries applicatifs (cf. §7) : ça révèle un vrai problème d'application/API, pas un test cassé.
+lastError = new AssertionError({ message: `PUT /api/v2/event → HTTP ${response.status}: ${text}` })
+
+// ✅ Erreur technique — rien à voir avec l'application : la WebView n'existe pas, il faut corriger
+// les capabilities Appium ou l'environnement, pas enquêter sur un comportement métier.
+throw new Error(
+  `Aucun contexte WEBVIEW_* trouvé après ${WEBVIEW_WAIT_MS}ms. Contextes disponibles : [${contexts.join(', ')}].`
+)
+```
+
+---
+
+## 9. Rapports Allure
 
 - **`addFeature` et `addSeverity` sont obligatoires** dans chaque `describe` ou `it` — ils permettent
   le filtrage par feature/sévérité en CI. `addStory` et `addTag` sont optionnels.
@@ -411,6 +461,8 @@ AllureReporter.addStep('1. Login FranceConnect')
 try {
   await publishNotification({ title, body })
 } catch (err) {
+  // addAttachment puis re-throw tel quel — ne jamais changer le type de l'exception ici : publishNotification()
+  // lève déjà AssertionError (échec API, §8) ou Error (config manquante, §8) selon la nature réelle de l'échec.
   AllureReporter.addAttachment('Erreur API', String(err), 'text/plain')
   throw err
 }
@@ -422,7 +474,7 @@ documentée dans le [README](README.md).
 
 ---
 
-## 9. Règles de débogage
+## 10. Règles de débogage
 
 - **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just inspect`) plutôt que
   deviner un sélecteur « qui devrait marcher ».

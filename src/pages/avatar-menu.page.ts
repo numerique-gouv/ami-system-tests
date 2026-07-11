@@ -1,6 +1,10 @@
 import {refreshAxTree, tl, withWebView} from '../helpers/webview'
 import {traced} from '../helpers/traced'
 import {getProfileLocators} from './locators/profile.locators'
+import {AssertionError} from "node:assert";
+import logger from "@wdio/logger";
+
+const log = logger('page-object')
 
 class AvatarMenuPage {
     /**
@@ -173,7 +177,7 @@ class AvatarMenuPage {
 
         await withWebView(async () => {
             if (!await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})) {
-                console.warn("avatar menu is not clickable...")
+                log.warn("avatar menu is not clickable...")
                 return
             }
             await $(loc.toggleMenuButton).click()
@@ -186,7 +190,7 @@ class AvatarMenuPage {
                 await confirmBtn.click()
                 await confirmBtn.waitForDisplayed({timeout: 15000, reverse: true})
             } else {
-                throw new Error("La modale de confirmation de suppression des données ne s'affiche pas.")
+                throw new AssertionError({ message: "La modale de confirmation de suppression des données ne s'affiche pas." })
             }
         })
     }

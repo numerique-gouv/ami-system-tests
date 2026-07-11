@@ -2,6 +2,7 @@ import { withWebView, tl, pullToRefresh } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getDemarchesLocators } from './locators/demarches.locators'
 import HomePage from './home.page'
+import {AssertionError} from "node:assert";
 
 const DEMARCHES_TIMEOUT_MS = 20000
 
@@ -35,7 +36,7 @@ class DemarchesPage {
 
             if (found) return
         }
-        throw new Error(`Démarche "${title}" non visible sur le Suivi après ${backoffMs.reduce((a, b) => a + b, 0)}ms`)
+        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${backoffMs.reduce((a, b) => a + b, 0)}ms` })
     }
 
   /**
@@ -92,10 +93,10 @@ class DemarchesPage {
         )
       } catch {
         if (failReason === 'card-not-found')
-          throw new Error(`Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms`)
+          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms` })
         if (failReason === 'status-not-found')
-          throw new Error(`Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus})`)
-        throw new Error(`URL externe "${expectedUrl}" non trouvée pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastHref})`)
+          throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus})` })
+        throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastHref})` })
       }
     })
   }

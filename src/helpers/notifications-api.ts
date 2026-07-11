@@ -9,6 +9,7 @@
  * L'URL backend est définie via setBackendUrl(), appelé par LoginPage.reviewEnvironmentPicker()
  * depuis le titre de l'item cliqué dans le picker — jamais par variable d'environnement.
  */
+import {AssertionError} from "node:assert";
 
 type ItemGenericStatus = 'new' | 'wip' | 'closed'
 
@@ -97,7 +98,7 @@ export async function publishNotification({
         if (response.ok || response.status === 201) return
 
         const text = await response.text().catch(() => '(corps illisible)')
-        lastError = new Error(`PUT /api/v2/event → HTTP ${response.status}: ${text}`)
+        lastError = new AssertionError({ message: `PUT /api/v2/event → HTTP ${response.status}: ${text}` })
 
         // Pas de retry sur les erreurs 4xx (erreur client, pas transitoire)
         if (response.status < 500) break

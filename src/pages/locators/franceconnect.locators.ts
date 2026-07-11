@@ -1,5 +1,3 @@
-import type { Locator } from './onboarding.locators'
-
 /**
  * Sélecteurs du flux FranceConnect OIDC — formulaire FCP-LOW mock.
  *
@@ -17,7 +15,7 @@ import type { Locator } from './onboarding.locators'
 
 export interface FranceConnectLocators {
   eidasFaibleLabel: string   // nom accessible du lien eIDAS faible (pour tl().getByRole dans le PO)
-  fcpLowHeading:    Locator  // titre de confirmation que la page FCP-LOW est chargée
+  fcpLowHeadingText: string  // texte de confirmation que la page FCP-LOW est chargée
 }
 
 /**
@@ -29,15 +27,16 @@ export interface FranceConnectLocators {
  *   Le PO utilise : tl().getByRole('link', { name: new RegExp(fcpLocators.eidasFaibleLabel, 'i') })
  *
  * Page 2 — formulaire FCP-LOW :
- *   Conteneur : id="mire". Les champs identifiant/mot de passe et le bouton de soumission
- *   sont ciblés via tl() (getByLabelText / getByRole) directement dans le PO, pas ici.
+ *   Titre affiché : "Fournisseur d'identité de démonstration - FCP-LOW". Les champs
+ *   identifiant/mot de passe et le bouton de soumission sont ciblés via tl()
+ *   (getByLabelText / getByRole) directement dans le PO, pas ici.
  */
 export const fcpLocators: FranceConnectLocators = {
   // Nom accessible confirmé via just inspect (2026-06-26)
   eidasFaibleLabel: 'eIDAS faible',
 
-  // Outer container de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
-  fcpLowHeading: '#mire',
+  // Texte de titre de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
+  fcpLowHeadingText: "Fournisseur d'identité de démonstration - FCP-LOW",
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform
