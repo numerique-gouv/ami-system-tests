@@ -176,7 +176,7 @@ Cela permet de fournir une connexion directe à votre service sans page intermé
     1. Envoyer la demande à support.partenaires@franceconnect.gouv.fr 
         - FC aura besoin de votre identification de Fournisseur de Service
         - Pour accélérer la demande, vous pouvez mettre equipe-ami@numerique.gouv.fr (cela nous permet de suivre l'avancement à nos points réguliers avec FranceConnect)
-        - Ne pas communiquer ces mails à des usagers comme des mails de supports à leur intention (même s'ils sont facilement récupérable sur Internet)
+        - Ne pas communiquer ces mails à des usagers comme des mails de supports à leur intention (même s'ils sont facilement récupérables sur Internet)
 	2. Vous devez nous fournir l'ensemble des consentements nécéssaires à l'utilisation de votre service pour que nous puissions l'inclure en amont lors de la FranceConnexion à AMI.
 2. **Échanger les certificats** avec l'équipe AMI (récupération du certificat public AMI pour vérifier les JWT).
 3. **Implémenter la vérification du JWT** sur votre route d'entrée (signature, expiration, URL de destination).
