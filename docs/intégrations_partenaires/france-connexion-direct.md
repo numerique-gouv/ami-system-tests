@@ -170,9 +170,16 @@ sequenceDiagram
 
 ## 5. Étapes d'intégration côté partenaire
 
+Cela permet de fournir une connexion directe à votre service sans page intermédiaire ni attente sur cette page.
+
+Cela permet de fournir une connexion directe à votre service sans page intermédiaire ni attente sur cette page.
+
 1. **Demander l'autorisation FranceConnect** pour le paramètre `prompt=login`.
-	1. Vous devez nous fournir l'ensemble des consentements nécéssaires à l'utilisation de votre service pour que nous puissions l'inclure en amont lors de la FranceConnexion à AMI.
-	2. Cela nous permet de fournir une connexion directe à votre service sans page intermédiaire ni attente sur cette page.
+    1. Envoyer la demande à support.partenaires@franceconnect.gouv.fr 
+        - FC aura besoin de votre identification de Fournisseur de Service
+        - Pour accélérer la demande, vous pouvez mettre equipe-ami@numerique.gouv.fr (cela nous permet de suivre l'avancement à nos points réguliers avec FranceConnect)
+        - Ne pas communiquer ce mail à des usagers
+	2. Vous devez nous fournir l'ensemble des consentements nécéssaires à l'utilisation de votre service pour que nous puissions l'inclure en amont lors de la FranceConnexion à AMI.
 2. **Échanger les certificats** avec l'équipe AMI (récupération du certificat public AMI pour vérifier les JWT).
 3. **Implémenter la vérification du JWT** sur votre route d'entrée (signature, expiration, URL de destination).
 4. **Adapter votre déclenchement OIDC** :
