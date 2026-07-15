@@ -172,8 +172,6 @@ sequenceDiagram
 
 Cela permet de fournir une connexion directe à votre service sans page intermédiaire ni attente sur cette page.
 
-Cela permet de fournir une connexion directe à votre service sans page intermédiaire ni attente sur cette page.
-
 1. **Demander l'autorisation FranceConnect** pour le paramètre `prompt=login`.
     1. Envoyer la demande à support.partenaires@franceconnect.gouv.fr 
         - FC aura besoin de votre identification de Fournisseur de Service
