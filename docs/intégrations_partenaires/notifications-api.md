@@ -1,3 +1,14 @@
+---
+title: API de notifications
+layout: layouts/page.njk
+description: Envoi de notifications push et suivi de démarches via l'API AMI
+eleventyNavigation:
+	- key: API de notifications
+	- parent: Intégrations partenaires
+	- order: 2
+showBreadcrumb: true
+---
+
 # Intégration partenaire : API de publication d'événement partenaire
 
 > Statut : ** v1.0, diffusable**
@@ -104,19 +115,18 @@ Ces champs sont marqués **\+++
 
 Leur présence crée ou met à jour une entrée dans le **suivi de démarches** de l'usager (écran « Mes démarches »).
 
-| Champ                       | Type              | Requis si item | Description                                                                                                                                                                                                           |
-|-----------------------------|-------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `item_type`                 | string            | **\***         | Type de la démarche, champ libre défini par le partenaire (ex. `OTV` pour Opération Tranquillité Vacances). Ce type sert à regrouper les notifications d'une même famille de démarches.                               |
-| `item_id`                   | string            | **\***         | Identifiant unique de la démarche en cours (comme un numéro de dossier) dans le référentiel partenaire.                                                                                                               |
-| `item_parent_partner_id`    | string            | **\+++         | Identifiant du partenaire émetteur de la démarche parente dans le cas de démarche multi-partenaire (comme un déménagement)                                                                                            |
-| `item_parent_type`          | string            | **\+++         | Type de la démarche parente (cf `item_type`)                                                                                                                                                                          |
-| `item_parent_id`            | string            | **\+++         | Identifiant unique de la démarche parente dans le référentiel partenaire (cf `item_id`)                                                                                                                               |
-| `item_subheading`           | string            | non            | Sous-titre de la démarche, typiquement le service instructeur ou le motif de rendez-vous. Par défaut : le nom du partenaire appelant l'API pour une démarche sans parent, ou l'item_id pour une démarche avec parent. |
-| `item_status_label`         | string            | **\***         | Libellé de statut affiché à l'usager (ex. `Brouillon`, `En cours`, `Terminé`). Généralement, le nom de l'étape selon le partenaire.                                                                                   |
-| `item_generic_status`       | enum              | **\***         | Statut normalisé côté AMI. Valeurs autorisées : `new` (création), `wip` (mise à jour), `closed` (clôture). Pilote le comportement de l'application.                                                                   |
-| `item_canal`                | string            | non            | Canal d'origine de la démarche (ex. `AMI`, `PSL`). Sert à la mesure d'impact pour le partenaire.                                                                                                                      |
-| `item_milestone_start_date` | datetime ISO 8601 | non            | Date de début de la période liée à la démarche (eg. début de surveillance OTV).                                                                                                                                       |
-| `item_milestone_end_date`   | datetime ISO 8601 | non            | Date de fin de la période. Doit être postérieure à `item_milestone_start_date` (eg. date de fin de surveillance OTV).                                                                                                 |
+| Champ                       | Type              | Requis si item | Description                                                                                                                                                                             |
+|-----------------------------|-------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `item_type`                 | string            | **\***         | Type de la démarche, champ libre défini par le partenaire (ex. `OTV` pour Opération Tranquillité Vacances). Ce type sert à regrouper les notifications d'une même famille de démarches. |
+| `item_id`                   | string            | **\***         | Identifiant unique de la démarche en cours (comme un numéro de dossier) dans le référentiel partenaire.                                                                                 |
+| `item_parent_partner_id`    | string            | **\+++         | Identifiant du partenaire émetteur de la démarche parente dans le cas de démarche multi-partenaire (comme un déménagement)                                                              |
+| `item_parent_type`          | string            | **\+++         | Type de la démarche parente (cf `item_type`)                                                                                                                                            |
+| `item_parent_id`            | string            | **\+++         | Identifiant unique de la démarche parente dans le référentiel partenaire (cf `item_id`)                                                                                                 |
+| `item_status_label`         | string            | **\***         | Libellé de statut affiché à l'usager (ex. `Brouillon`, `En cours`, `Terminé`). Généralement, le nom de l'étape selon le partenaire.                                                     |
+| `item_generic_status`       | enum              | **\***         | Statut normalisé côté AMI. Valeurs autorisées : `new` (création), `wip` (mise à jour), `closed` (clôture). Pilote le comportement de l'application.                                     |
+| `item_canal`                | string            | non            | Canal d'origine de la démarche (ex. `AMI`, `PSL`). Sert à la mesure d'impact pour le partenaire.                                                                                        |
+| `item_milestone_start_date` | datetime ISO 8601 | non            | Date de début de la période liée à la démarche (eg. début de surveillance OTV).                                                                                                         |
+| `item_milestone_end_date`   | datetime ISO 8601 | non            | Date de fin de la période. Doit être postérieure à `item_milestone_start_date` (eg. date de fin de surveillance OTV).                                                                   |
 
 > A noter, les champs `item_milestone_` donnent des dates de début et de fin d'événements et leurs présences sont indépendantes l'une de l'autre.
 > Elles permettent d'afficher la démarche dans l'agenda AMI de l'usager.
@@ -166,6 +176,7 @@ Conséquences pratiques :
 - **Date de création** de la démarche dans AMI : `event_date` de la **première notification**.
 - **Date de mise à jour** : `event_date` de la **dernière notification**.
 
+
 ### 6.5 L'URL externe (`content_link`) et la FranceConnexion Direct
 
 Lorsqu'un usager clique sur la flèche d'une démarche dans AMI, il est redirigé vers `content_link`.
@@ -189,18 +200,18 @@ Implémentation de référence :
 
 ```python
 def fc_ami_hash(
-        given_name: str,
-        family_name: str,
-        birthdate: str,
-        gender: str,
-        birthplace: str,
-        birthcountry: str,
+	given_name: str,
+	family_name: str,
+	birthdate: str,
+	gender: str,
+	birthplace: str,
+	birthcountry: str,
 ) -> str:
-    recipient_fc_hash = hashlib.sha256()
-    recipient_fc_hash.update(
-        f"{given_name}{family_name}{birthdate}{gender}{birthplace}{birthcountry}".encode("utf-8")
-    )
-    return recipient_fc_hash.hexdigest()
+	recipient_fc_hash = hashlib.sha256()
+	recipient_fc_hash.update(
+		f"{given_name}{family_name}{birthdate}{gender}{birthplace}{birthcountry}".encode("utf-8")
+	)
+	return recipient_fc_hash.hexdigest()
 ```
 
 Quelques exemples pour les utilisateurs de
@@ -325,9 +336,9 @@ Un [compte de test FC - AMI (sandbox)](https://github.com/france-connect/sources
 1. Récupérer le `recipient_fc_hash` du compte de test (voir [§ 6](#7-identifier-le-destinataire--recipient_fc_hash)).
 2. Envoyer les trois appels successifs des exemples ci-dessus (§ 9.1, 9.2, 9.3).
 3. Dans l'application AMI (connectée avec le compte de test) :
-    - Après le premier appel : la démarche apparaît en page d'accueil et dans **En cours** avec le statut « Brouillon ».
-    - Après le deuxième appel : le statut passe à « En cours » et l'URL est mise à jour.
-    - Après le troisième appel : la démarche obtient le statut « Terminé ».
+	- Après le premier appel : la démarche apparaît en page d'accueil et dans **En cours** avec le statut « Brouillon ».
+	- Après le deuxième appel : le statut passe à « En cours » et l'URL est mise à jour.
+	- Après le troisième appel : la démarche obtient le statut « Terminé ».
 
 ### 11.3 Procédure via l'espace web partenaire (sans API)
 
