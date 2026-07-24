@@ -19,11 +19,88 @@ showBreadcrumb: true
 
 L'API de publication d'événements AMI permet à un fournisseur de service (FS) partenaire de :
 
-1. **Notifier** un usager AMI (notification push sur mobile + entrée dans le centre de notifications).
-2. **Alimenter le suivi de démarches** de l'usager dans l'application AMI, sans que l'usager ait à saisir quoi que ce
+1. **Vérifier le consentement** de l'usager à suivre ses démarche sur AMI pour le recueillir explicitement dans le cas inverse
+2. **Notifier** un usager AMI (notification push sur mobile + entrée dans le centre de notifications).
+3. **Alimenter le suivi de démarches** de l'usager dans l'application AMI, sans que l'usager ait à saisir quoi que ce
    soit.
 
-Ces deux fonctions passent par **le même appel API** : `PUT /api/v2/event`.
+La première fonction passe par l'appel API `GET /api/v1/consent`, et les deux dernières fonctions passent par **le même appel API** : `PUT /api/v2/event`.
+
+Le schéma général est le suivant :
+
+```mermaid
+sequenceDiagram
+  actor user as Usager
+  participant PTR as votre app
+  participant API as API AMI
+  
+  user -->> PTR: (France Connexion)
+  PTR ->> PTR: sauvegarde du userinfo ou du recipient_fc_hash
+  user -->> PTR: (Appel de la démarche)
+  note right of user: Au premier événement envoyé
+  PTR ->> API: GET /v1/consent/{recipient_fc_hash}
+  alt Pas de consentement global côté AMI
+    API -->> PTR: HTTP Response 404
+    PTR ->> PTR: consentement global = faux
+  else Consentement global recueilli côté AMI
+    API -->> PTR: HTTP Response 200
+    PTR -->> PTR : consentement global = vrai
+  end
+  alt Événement création de brouillon et consentement global == vrai
+    PTR ->> API: POST /api/v2/event [dont recipient_fc_hash stocké au login ou recalculé à partir du userinfo stocké au login]
+  end
+  user ->> PTR: (Appel avant dernière page)
+  alt Consentement global == faux
+    PTR -->> user: avant dernière page avec demande de consentement pour ce dossier précis
+    alt Usager refuse consentement
+       user -->> PTR: valide la demande sans consentement AMI
+       PTR ->> PTR: consentement dossier = faux
+    else Consentement dossier recueilli
+       user -->> PTR: valide la demande avec consentement AMI
+       PTR ->> PTR : consentement dossier = vrai
+    end
+  else Consentement global == vrai
+    PTR -->> PTR : consentement dossier = vrai
+  end
+  user ->> PTR: bouton de fin de démarche
+  PTR ->> PTR: sauvegarde de la démarche etc.
+  alt Consentement dossier == vrai
+    PTR ->> API: POST /api/v2/event [dont recipient_fc_hash stocké au login ou recalculé à partir du userinfo stocké au login]
+    API -->> PTR: 200 OK
+  end
+  PTR -->> user: Page de récapitulatif de la démarche avec promotion AMI
+
+note over user, API : le temps passe 
+    PTR ->> PTR: changement de statut, message à envoyer...
+  alt Consentement dossier == vrai
+    PTR ->> API: POST /api/v2/event [dont recipient_fc_hash stocké au login ou recalculé à partir du userinfo stocké au login]
+    API -->> PTR: 200 OK
+  end
+```
+
+1. Lors de la connexion via FranceConnect, l'application conserve soit le userinfo, soit le recipient_fc_hash calculé à partir de ce dernier (Voir [§ 6](#6-identifier-le-destinataire-recipient_fc_hash)).
+
+1. Au premier événement envoyé à AMI, l'application interroge l'API `GET /v1/consent/{recipient_fc_hash}` pour vérifier l'existence d'un consentement global.
+
+   - Si l'API renvoie 404, l'application doit considérer que le consentement *global* n'existe pas, sinon c'est qu'il a été recueilli.
+
+1. S'il y a un événement de création de brouillon, et que le consentement *global* a été recueilli, l'application envoie cet un événement à `POST /api/v2/event`.
+
+1. A l'affichage de l'avant-dernière page de la démarche :
+   1. En l'absence de consentement *global*, l'application affiche une demande de consentement spécifique à ce dossier.
+      - Si l'usager refuse, l'application positionne le consentement du *dossier* à faux.
+      - Si l'usager accepte, l'application positionne le consentement du *dossier* à vrai.
+
+   1. Si un consentement *global* existe déjà, l'application positionne directement le consentement du *dossier* a vrai.
+
+1. Lorsque l'usager termine la démarche :
+
+   - Si le consentement du dossier est vrai, l'application transmet un événement à AMI via `POST /api/v2/event`, avec le `recipient_fc_hash` calculé à la connexion ou recalculé à partir du `userinfo`.
+
+
+1. L'application affiche ensuite une page récapitulative de la démarche avec une promotion d'AMI.
+
+1. Par la suite, lorsque d'autres événements surviennent, par exemple un changement de statut ou l'envoi d'un message, si le consentement du dossier est vrai alors l'application continue à envoyer des événements à AMI, toujours avec le `recipient_fc_hash` calculé à la connexion ou recalculé à partir du `userinfo`.
 
 ---
 
@@ -53,6 +130,15 @@ Les valeurs de `partner_id` et `partner_secret` vous sont fournies par l'équipe
 
 ## 4. Endpoint
 
+### 4.1 Récupération de l'état de consentement dans AMI
+
+```
+GET /api/v1/consent/{recipient_fc_hash}
+Content-Type: application/json
+Authorization: Basic <credentials>
+```
+
+### 4.2 Envoi d'événément
 ```
 PUT /api/v2/event
 Content-Type: application/json
