@@ -67,14 +67,6 @@ export async function withWebView<T>(callback: () => Promise<T>): Promise<T> {
   try {
     return await callback()
   } finally {
-    // Sur iOS, un UIAlert système (ex. permission push) peut apparaître juste après
-    // la fin du flow OIDC. WDA bloque switchContext tant que l'alerte est présente.
-    // On refuse l'alerte en aveugle pour déverrouiller le context switch.
-/*
-    if (driver.isIOS) {
-      try { await driver.dismissAlert() } catch {}
-    }
-*/
     await driver.switchContext('NATIVE_APP')
   }
 }
@@ -85,11 +77,6 @@ export async function withWebView<T>(callback: () => Promise<T>): Promise<T> {
  * Symptôme corrigé : après un redirect OIDC (ex. page eIDAS → FCP-LOW), `$(selector)`
  * retourne "not found" alors que la page est visuellement rendue — WKWebView en mode
  * automation interroge un AX tree périmé jusqu'à ce qu'un trigger force la re-sync.
- * Maestro évite ce bug en faisant un inspect implicite avant chaque commande.
- *
- * Stratégie primaire : `driver.execute(() => 0)` — round-trip WKRDP sans sérialiser le DOM.
- * Si insuffisant : essayer dans l'ordre getPageSource() → screenshot → switch contexte.
- * No-op sur Android (Chromedriver gère la sync automatiquement via CDP).
  */
 export async function refreshAxTree(): Promise<void> {
   if (!driver.isIOS) return
