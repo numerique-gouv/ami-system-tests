@@ -3,6 +3,7 @@ import {traced} from '../helpers/traced'
 import {tl, withWebView} from '../helpers/webview'
 import {setBackendUrl} from '../helpers/notifications-api'
 import logger from "@wdio/logger";
+import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
 
@@ -43,43 +44,53 @@ class LoginPage {
      * Cet écran peut apparaitre une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC.
      */
     async tapFranceConnect(oidcConcurrencyBugOnIOs = false): Promise<void> {
-        const loc = getLoginLocators()
         // Retry court en Page Object (5s) : distingue le cas attendu (2e apparition du bouton,
         // best-effort) du cas normal (15s, absence signale un vrai bug de sélecteur). Le catch
         // reste loggé même en best-effort — un catch {} vide masquerait un sélecteur cassé.
         const timeout = oidcConcurrencyBugOnIOs ? 5000 : 15000
 
-        if (loc.fcButtonInWebView) {
-            // iOS : bouton dans la WebView SPA.
+        if (driver.isIOS) {
             await withWebView(async () => {
-                    try {
-                        await browser.waitUntil(
-                            () => driver.execute(
-                                (t: string) => document.body.innerText.includes(t),
-                                'FranceConnect'
-                            ) as Promise<boolean>,
-                            {timeout, interval: 300}
-                        )
-                        const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
-                        await fcButton.click()
-                    } catch {
-                        if (!oidcConcurrencyBugOnIOs) {
-                            log.warn("bouton de mire de connexion introuvable")
-                        }
+                try {
+                    await browser.waitUntil(
+                        () => driver.execute(
+                            (t: string) => document.body.innerText.includes(t),
+                            'FranceConnect'
+                        ) as Promise<boolean>,
+                        {timeout, interval: 300}
+                    )
+                    const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
+                    await fcButton.click()
+                } catch {
+                    let message = "bouton de connexion avec FranceConnect introuvable";
+                    if (oidcConcurrencyBugOnIOs) {
+                            // it is never found on Android
+                            // when this message stops appearing with iOS,
+                            // than the second call to tapFranceConnect will have become useless.
+                            log.info(message)
+                    } else {
+                        throw new AssertionError({message: message})
                     }
                 }
-            )
+            })
         } else {
-        // Android : bouton natif (contentDescription), en dehors de toute WebView.
+            // Bouton natif Android (contentDescription "franceConnect button") : pas de WebView
+            // à ce stade de l'écran de login, donc pas de withWebView() ici (cf. androidLoginLocators
+            // .fcButtonInWebView = false). Même distinction best-effort / erreur réelle que iOS.
+            const loc = getLoginLocators()
             try {
-                await $(loc.fcButton).waitForDisplayed({timeout})
+                await $(loc.fcButton).waitForDisplayed({timeout: timeout, interval: 300, timeoutMsg: "bouton de connexion avec FranceConnect introuvable" })
+                log.info('btn FC trouvé !!!')
                 await $(loc.fcButton).click()
             } catch {
-                if (!oidcConcurrencyBugOnIOs) {
-                    log.warn("bouton de mire de connexion introuvable")
+                const message = "bouton de connexion avec FranceConnect introuvable"
+                if (oidcConcurrencyBugOnIOs) {
+                    log.info(message)
+                } else {
+                    log.info('Arrfffff')
+                    throw new AssertionError({message})
                 }
             }
-            return
         }
     }
 
