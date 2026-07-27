@@ -3,7 +3,7 @@ import LoginPage from '../pages/login.page'
 import FranceConnectPage from '../pages/franceconnect.page'
 import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
-import { getUser } from '../helpers/test-users'
+import {getUser} from '../helpers/test-users'
 
 /**
  * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
@@ -25,7 +25,9 @@ describe('Authentification', () => {
 
     await AllureReporter.addStep('2. Démarrer le flow FranceConnect (eIDAS faible)')
     await LoginPage.tapFranceConnect()
-    await FranceConnectPage.loginWithSandbox(user)
+    if (!await FranceConnectPage.selectEidasFaible()) {
+      await FranceConnectPage.fillCredentials(user)
+    }
 
     await AllureReporter.addStep('3. Passer l\'onboarding des notifications')
     await OnboardingNotificationsPage.dismiss()
