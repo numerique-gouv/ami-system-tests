@@ -82,7 +82,7 @@ class HomePage {
      */
     async ouvreSuivi(): Promise<void> {
         await withWebView(async () => {
-            let suivi = await tl().findByRole('link', { name: /Suivi/ } )
+            let suivi = await tl().findByRole('link', {name: /Suivi/})
             await suivi.click()
         })
     }
@@ -96,28 +96,21 @@ class HomePage {
      * ce que le DOM de destination soit stable.
      *
      * Stratégie :
-     *   1. Déjà sur #/ → rien à faire.
-     *   2. Sinon, clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
-     *   3. Fallback hash si aucun lien de nav présent (état de départ inconnu).
-     *   4. Sentinel : lien "Suivi" visible → DOM home stable.
+     *   1. clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
+     *   2. Fallback hash si aucun lien de nav présent (état de départ inconnu).
+     *   3. Sentinel : lien "Suivi" visible → DOM home stable.
      */
     private async navigateHomeFromWebview(timeout: number): Promise<void> {
         await withWebView(async () => {
-            const alreadyHome = await driver.execute(
-                () => window.location.hash === '#/'
-            ) as boolean
-
-            if (!alreadyHome) {
-                const clicked = await this.clickLinkByText('Accueil')
-
-                if (!clicked) {
-                    await driver.execute(() => {
-                        window.location.hash = '/'
-                    })
-                }
+            const clicked = await this.clickLinkByText('Accueil')
+            if (!clicked) {
+                await driver.execute(() => {
+                    window.location.hash = '/'
+                })
             }
         })
-        await this.isHomeVisible(10000)
+        // TODO all page code must start with a sentinel tobe sure, they are on the good page. This is an anti-pattern.
+        await this.isHomeVisible(timeout)
     }
 
     /**
@@ -133,9 +126,11 @@ class HomePage {
         return await driver.execute((t: string) => {
             const link = Array.from(document.querySelectorAll('a'))
                 .find(a => (a as HTMLElement).innerText?.trim() === t) as HTMLElement | undefined
-            if (!link) return false
-            link.click()
-            return true
+            if (link) {
+                link.click()
+                return true
+            }
+            return false
         }, text) as boolean
     }
 
