@@ -37,12 +37,16 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // Passer à 'info' ou 'debug' ponctuellement pour diagnostiquer un test flaky.
   logLevel: 'warn',
 
-  // Le logger 'page-object' (traced()) reste à 'info' même si le niveau
-  // global est 'warn', pour tracer les appels de méthodes de Page Object
-  // sans réactiver le bruit Appium.
+  // Chaque logger nommé (voir CONTRIBUTING.md §1 Niveau 2 et §10) reste à 'info'
+  // même si le niveau global est 'warn', pour tracer page objects/tests/api/config
+  // sans réactiver le bruit Appium (niveau info du logger par défaut).
   logLevels: {
     'page-object': 'info',
     'scenario': 'info',
+    'test': 'info',
+    'api': 'info',
+    'config': 'info',
+    'helper': 'info',
   },
 
   bail: 0,

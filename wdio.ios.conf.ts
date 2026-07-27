@@ -1,9 +1,11 @@
 import { execFileSync } from 'child_process'
 import type { Options } from '@wdio/types'
+import logger from '@wdio/logger'
 import { baseConfig } from './wdio.base.conf'
 import { iosCapabilities } from './src/driver/capabilities'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
+const log = logger('config')
 
 export const config: Options.Testrunner = {
   ...baseConfig,
@@ -34,7 +36,7 @@ export const config: Options.Testrunner = {
     const udid = execFileSync('xcrun', ['simctl', 'list', 'devices', 'booted'], { encoding: 'utf-8' })
       .match(/[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i)?.[0]
     if (!udid) {
-      console.warn('[onPrepare] Aucun simulateur iOS démarré — reset FC ignoré.')
+      log.warn('onPrepare : aucun simulateur iOS démarré — reset FC ignoré.')
       return
     }
     const sim = (args: string[]): void => { try { execFileSync('xcrun', ['simctl', ...args], { stdio: 'ignore' }) } catch {} }

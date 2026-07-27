@@ -8,6 +8,7 @@ documentés en commentaire directement dans le fichier de code concerné.
 ## Sommaire
 
 1. [Page Objects — architecture 3 niveaux](#1-page-objects--architecture-3-niveaux)
+   - [1bis. Logging](#1bis-logging)
 2. [Sélection des éléments](#2-sélection-des-éléments)
 3. [Cycle complet d'une « tuile » par type de page](#3-cycle-complet-dune-tuile-par-type-de-page)
 4. [WebView et contextes](#4-webview-et-contextes)
@@ -65,20 +66,50 @@ repasser au dual-object plutôt que d'ajouter un `driver.isIOS ? ... : ...` ponc
 - **Avant d'écrire un branchement plateforme**, chercher si un signal DOM/WebView commun couvre
   déjà les deux cas (ex. la disparition d'une modale de confirmation est un événement observable
   identiquement sur iOS et Android — pas besoin de détecter la fin d'un logout différemment par plateforme).
-- **Jamais `console.*`** — utiliser le logger `@wdio/logger`, qui s'intègre au flux de logs WDIO/Allure :
-
-  ```typescript
-  import logger from '@wdio/logger'
-  const log = logger('page-object')
-  ```
-
-  N'ajouter cette constante que dans les fichiers qui l'utilisent réellement — `no-unused-vars` est
-  une erreur de lint, pas un avertissement.
+- **Jamais `console.*`** — utiliser le logger `@wdio/logger` (namespace `'page-object'`), voir
+  [§1bis Logging](#1bis-logging).
 
 ### Niveau 3 — `tests/*.test.ts`
 
 Appelle uniquement des méthodes de Page Object. Le test se lit comme un scénario métier, sans détail
 d'implémentation ni sélecteur.
+
+- **Jamais `console.*`** — utiliser le logger `@wdio/logger` (namespace `'test'`), voir
+  [§1bis Logging](#1bis-logging).
+
+---
+
+## 1bis. Logging
+
+**Jamais `console.*`** dans le code qui tourne dans une session WDIO/Mocha (pages, tests, helpers
+appelés par ce code, hooks de config) — utiliser `@wdio/logger`, qui s'intègre au flux de logs
+WDIO/Allure (`addConsoleLogs: true` dans `wdio.base.conf.ts`) :
+
+```typescript
+import logger from '@wdio/logger'
+const log = logger('<namespace>')
+```
+
+N'ajouter cette constante que dans les fichiers qui l'utilisent réellement — `no-unused-vars` est
+une erreur de lint, pas un avertissement.
+
+Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.conf.ts`) même quand
+le niveau global est `'warn'` :
+
+| Couche                                    | Namespace     |
+|--------------------------------------------|--------------|
+| `pages/*.page.ts` (via `traced()`)          | `page-object` |
+| Hooks globaux `wdio.base.conf.ts`           | `scenario`    |
+| `tests/*.test.ts`                           | `test`        |
+| `helpers/*-api.ts` (clients HTTP)           | `api`         |
+| `wdio.android.conf.ts` / `wdio.ios.conf.ts` (`onPrepare`, etc.) | `config` |
+| Autres `helpers/*.ts` appelés en session    | `helper`      |
+
+**Exception : scripts CLI et REPL hors session de test.** `src/scripts/*.ts` (lancés via `just` en
+dehors d'une suite WDIO, ex. `push-notification.ts`, `inspect-webview.ts`) ainsi que
+`src/helpers/repl.ts` et `src/helpers/inspect.ts` (sortie destinée à un humain dans le REPL
+`browser.debug()`) restent en `console.*` : `@wdio/logger` n'apporte rien hors du flux
+WDIO/Allure, et cette sortie est un affichage terminal direct, pas un log de scénario.
 
 ---
 

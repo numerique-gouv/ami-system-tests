@@ -1,7 +1,10 @@
 import AllureReporter from '@wdio/allure-reporter'
+import logger from '@wdio/logger'
 import HomePage from '../pages/home.page'
 import ProfilePage from '@pages/avatar-menu.page'
 import { authenticate } from '@helpers/authenticate'
+
+const log = logger('test')
 
 describe('Profil usager — déconnexion suivie d\'une reconnexion', () => {
   it.skip('log out suivi d un log in', async () => {
@@ -9,9 +12,8 @@ describe('Profil usager — déconnexion suivie d\'une reconnexion', () => {
     await AllureReporter.addSeverity('critical')
 
     if (!await HomePage.isHomeReachable(1000)) {
-      console.warn("You are not home, let's authenticate")
       await authenticate()
-    } else console.warn("You are home, and laready authenticated")
+    } else log.info("You are home, and already authenticated")
 
     await AllureReporter.addStep('Taper Me déconnecter depuis le menu avatar')
     await ProfilePage.logout()

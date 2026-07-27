@@ -10,6 +10,9 @@
  * depuis le titre de l'item cliqué dans le picker — jamais par variable d'environnement.
  */
 import {AssertionError} from "node:assert";
+import logger from "@wdio/logger";
+
+const log = logger('api')
 
 type ItemGenericStatus = 'new' | 'wip' | 'closed'
 
@@ -57,7 +60,7 @@ export async function publishNotification({
     const partnerId = requireEnv('NOTIF_PARTNER_ID')
     const secret = requireEnv('NOTIF_PARTNER_SECRET')
 
-    console.warn(`[notifications-api] publishNotification → hôte: ${apiUrl}  partner: ${partnerId}  fc_hash: ${recipientFcHash}`)
+    log.info(`publishNotification → hôte: ${apiUrl}  partner: ${partnerId}  fc_hash: ${recipientFcHash}`)
 
     const credentials = Buffer.from(`${partnerId}:${secret}`).toString('base64')
 

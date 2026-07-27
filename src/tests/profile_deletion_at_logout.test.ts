@@ -1,7 +1,10 @@
 import AllureReporter from '@wdio/allure-reporter'
+import logger from '@wdio/logger'
 import HomePage from '../pages/home.page'
 import ProfilePage from '@pages/avatar-menu.page'
 import { authenticate } from '@helpers/authenticate'
+
+const log = logger('test')
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
@@ -26,9 +29,8 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     await AllureReporter.addSeverity('critical')
 
     if (!await HomePage.isHomeReachable(1000)) {
-      console.warn("You are not home, let's authenticate")
       await authenticate()
-    } else console.warn("You are home, and laready authenticated")
+    } else log.info("You are home, and already authenticated")
 
     await AllureReporter.addStep('Naviguer vers Mon profil')
     await ProfilePage.navigate()
