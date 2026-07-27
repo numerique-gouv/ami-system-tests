@@ -33,7 +33,6 @@ describe('Notifications', () => {
     // La livraison WebSocket Android (~22 s) reste dans le timeout Mocha global (120 s)
     await AllureReporter.addStep("1. Ouvrir l'inbox notifications")
     await NotificationsInboxPage.openFromHome()
-    const oldTop = await NotificationsInboxPage.getTopNotificationTitle()
 
     await AllureReporter.addStep("2. Publier la notification via l'API partenaire")
     const title = `AMI-vanilla-${Date.now()}`

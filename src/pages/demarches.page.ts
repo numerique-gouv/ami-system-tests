@@ -1,4 +1,4 @@
-import { withWebView, tl, pullToRefresh } from '../helpers/webview'
+import { withWebView, tl } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getDemarchesLocators } from './locators/demarches.locators'
 import HomePage from './home.page'

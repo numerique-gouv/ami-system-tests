@@ -1,4 +1,4 @@
-import {pullToRefresh, tl, withWebView} from '../helpers/webview'
+import {tl, withWebView} from '../helpers/webview'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
