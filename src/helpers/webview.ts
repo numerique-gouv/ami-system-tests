@@ -81,7 +81,7 @@ const BACK_BUTTON_NAME = 'Retour à la page précédente'
  * sinon `browser.back()` natif) jusqu'à ce que `sentinel` confirme l'arrivée sur la page
  * cible, ou jusqu'au timeout. Doit être appelé à l'intérieur d'un withWebView() — comme tl().
  */
-export async function goBackUntilVisible(
+export async function retourJusquATexteVisible(
   sentinel: () => Promise<boolean>,
   timeoutMs: number,
   intervalMs = 500

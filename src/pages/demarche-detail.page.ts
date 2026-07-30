@@ -1,4 +1,4 @@
-import { withWebView, tl, goBackUntilVisible } from '../helpers/webview'
+import { withWebView, tl, retourJusquATexteVisible } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getDemarcheDetailLocators } from './locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
@@ -69,7 +69,7 @@ class DemarcheDetailPage {
       // (profondeur de pile variable selon le point d'entrée) : goBackUntilVisible répète le
       // geste retour (bouton "Retour à la page précédente" si présent, sinon browser.back())
       // jusqu'à la sentinelle de détail plutôt que de supposer qu'un seul geste suffit.
-      await goBackUntilVisible(
+      await retourJusquATexteVisible(
         () => tl()
           .queryByRole('button', { name: loc.detailExternalButtonName })
           .then((el) => el !== null)

@@ -61,7 +61,7 @@ Légende : **Sync** = `execute` (JS synchrone, atomique) / `executeAsync` (Testi
 | `home.page.ts` `isHomeReachable`/`navigateHomeFromWebview` | `driver.execute` sur lien "Suivi" | execute | Oui | innerText |
 | `home.page.ts` `clickLinkByText` | `driver.execute` | execute | Oui | innerText |
 | `home.page.ts` `waitForVisible` | geste tap + `$(loc.screenRoot).waitForDisplayed()` | WebDriver | Partiel | data-testid/CSS |
-| `demarches.page.ts` `assertVisibleDemarcheWith` | `for await ($$(loc.cardContent))` + `.getText()`, dans un `waitUntil` | WebDriver | Partiel (re-capturé à chaque interval, mais fenêtre stale intra-carte) | textContent/testid |
+| `suivi-demarches.page.ts` `assertVisibleDemarcheWith` | `for await ($$(loc.cardContent))` + `.getText()`, dans un `waitUntil` | WebDriver | Partiel (re-capturé à chaque interval, mais fenêtre stale intra-carte) | textContent/testid |
 | `login.page.ts` `scrollToPickerTile` | boucle `isDisplayed()` sinon swipe natif `driver.action('pointer')` | WebDriver | Partiel | testid/CSS natif |
 | `onboarding-notifications.page.ts` `dismiss` | `$(loc.dismiss).waitForExist()` (natif) | WebDriver | Partiel | testid/CSS natif |
 
@@ -72,7 +72,7 @@ Légende : **Sync** = `execute` (JS synchrone, atomique) / `executeAsync` (Testi
 | `notifications.page.ts` `getTopNotificationTitle` | `driver.execute` : trouve + lit dans le même appel | execute | Oui (snapshot unique) | textContent |
 | `avatar-menu.page.ts` `getIdentityBolds`/`getAddressBolds` | `for await ($$(...))` + `.getText()` | WebDriver | Partiel | textContent/CSS |
 | `avatar-menu.page.ts` `getEmailBold` | `$(...).getText().catch(() => '')` | WebDriver | Partiel | textContent/CSS |
-| `demarches.page.ts` `assertVisibleDemarcheWith` | `card.$(cardBadge).getText()` / `.getAttribute('href')` | WebDriver | Partiel | textContent + attribut |
+| `suivi-demarches.page.ts` `assertVisibleDemarcheWith` | `card.$(cardBadge).getText()` / `.getAttribute('href')` | WebDriver | Partiel | textContent + attribut |
 
 #### 3. Attendre qu'un contenu apparaisse de façon asynchrone (backend sans push testé)
 
@@ -100,7 +100,7 @@ Légende : **Sync** = `execute` (JS synchrone, atomique) / `executeAsync` (Testi
 | Fichier:méthode | API | Sync | Résiste | Accès |
 |---|---|---|---|---|
 | `home.page.ts` `clickLinkByText` | find+click dans le même appel `driver.execute` | execute | Oui (atomique) | innerText |
-| `demarches.page.ts` `goToHome` | `tl().getByRole('link', {name:/Accueil/i})` + `.click()` | executeAsync | Non | ARIA role/name |
+| `suivi-demarches.page.ts` `goToHome` | `tl().getByRole('link', {name:/Accueil/i})` + `.click()` | executeAsync | Non | ARIA role/name |
 | `notifications.page.ts` `pullToRefresh` | geste natif `driver.action('pointer')`, hors `withWebView` | WebDriver natif | n/a | geste natif |
 | `webview.ts` `refreshAxTree` | `driver.getPageSource()` — force la resync AX tree iOS | WebDriver | n/a | AX tree |
 | `webview.ts` `withWebView` | switch de contexte + reset `scriptTimeout` + re-sélection window handle | `driver.switchContext()` | n/a | contexte |

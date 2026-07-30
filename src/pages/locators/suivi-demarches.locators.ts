@@ -20,7 +20,9 @@
  * les faux positifs entre cartes "En cours" et "Passées".
  */
 
-export interface DemarchesLocators {
+export interface SuiviDemarchesLocators {
+  /** Titre principal de la page **/
+  pageTitle: string
   /** Conteneurs de carte scopés au tabpanel actif */
   cardContent: string
   /** Titre visible dans une carte (peut contenir un <a>, peut ne pas en avoir) */
@@ -31,7 +33,8 @@ export interface DemarchesLocators {
   tabSelector: string
 }
 
-export const demarchesLocators: DemarchesLocators = {
+export const demarchesLocators: SuiviDemarchesLocators = {
+  pageTitle:                 'Mes démarches',
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',
@@ -39,6 +42,6 @@ export const demarchesLocators: DemarchesLocators = {
 }
 
 /** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */
-export function getDemarchesLocators(): DemarchesLocators {
+export function getSuiviDemarchesLocators(): SuiviDemarchesLocators {
   return demarchesLocators
 }

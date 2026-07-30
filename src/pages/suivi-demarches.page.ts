@@ -1,12 +1,12 @@
-import { withWebView, tl, goBackUntilVisible } from '../helpers/webview'
+import { withWebView, tl, retourJusquATexteVisible } from '../helpers/webview'
 import { traced } from '../helpers/traced'
-import { getDemarchesLocators } from './locators/demarches.locators'
+import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import HomePage from './home.page'
 import {AssertionError} from "node:assert";
 
 const DEMARCHES_TIMEOUT_MS = 20000
 
-class DemarchesPage {
+class SuiviDemarchesPage {
     /**
      * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
      * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
@@ -57,7 +57,7 @@ class DemarchesPage {
     statusLabel: string,
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
-    const loc = getDemarchesLocators()
+    const loc = getSuiviDemarchesLocators()
     await withWebView(async () => {
       let failReason: 'card-not-found' | 'status-not-found' = 'card-not-found'
       let lastStatus: string | null = null
@@ -122,18 +122,19 @@ class DemarchesPage {
 
     /**
      * Revient sur la page Suivi (profondeur de navigation enfant inconnue) en répétant un
-     * back natif jusqu'à ce que la démarche `title` soit de nouveau visible dans la liste.
+     * back natif jusqu'à ce que la démarche `visibleText` soit de nouveau visible dans la liste.
      * Pas de bouton retour dédié sur cet écran (contrairement au détail) : fallback direct
      * sur browser.back() à chaque itération de `goBackUntilVisible`.
      */
-    async navigueBackJusqua(title: string): Promise<void> {
+    async retourJusquAPageSuivi(): Promise<void> {
+        let demarchesLocators = getSuiviDemarchesLocators();
         await withWebView(async () => {
-            await goBackUntilVisible(
-                () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>,
-                DEMARCHES_TIMEOUT_MS
+            await retourJusquATexteVisible(
+                () => driver.execute((t: string) => document.body.innerText.includes(t), demarchesLocators.pageTitle) as Promise<boolean>,
+                5000
             )
         })
     }
 }
 
-export default traced(new DemarchesPage(), 'DemarchesPage')
+export default traced(new SuiviDemarchesPage(), 'SuiviDemarchesPage')

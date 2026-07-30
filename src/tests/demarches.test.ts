@@ -1,6 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../pages/home.page'
-import DemarchesPage from '../pages/demarches.page'
+import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../pages/demarche-detail.page'
 import {getBackendUrl, publishNotification} from '../helpers/notifications-api'
 import {getUser} from '../helpers/test-users'
@@ -28,7 +28,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     after(async () => {
         try {
-            await DemarchesPage.goToHome()
+            await SuiviDemarchesPage.goToHome()
         } catch { /* session déjà terminée */
         }
     })
@@ -69,21 +69,21 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         })
 
         await AllureReporter.addStep('3. Attendre que la démarche apparaisse sur le Suivi')
-        await DemarchesPage.waitForDemarche(titleNew)
+        await SuiviDemarchesPage.waitForDemarche(titleNew)
 
         await AllureReporter.addStep('4. Vérifier statut sur la liste')
-        await DemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
+        await SuiviDemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
 
         await AllureReporter.addStep('5. Ouvrir la démarche et vérifier le lien externe V1')
-        await DemarchesPage.ouvreDemarche(titleNew)
+        await SuiviDemarchesPage.ouvreDemarche(titleNew)
         await DemarcheDetailPage.assertLienExterne(urlV1)
-        await DemarchesPage.navigueBackJusqua(titleNew)
+        await SuiviDemarchesPage.retourJusquAPageSuivi()
     })
 
     it("met à jour l'URL externe de la démarche (statut wip)", async () => {
         let titleUpdate = `${title} 1`
         // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
-        // laissé l'app sur la page Suivi (cf. demarches.page.ts).
+        // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
         await AllureReporter.addStep('1. Publier la notification avec la nouvelle URL')
 
         await publishNotification({
@@ -99,20 +99,21 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         })
 
         await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur le Suivi')
-        await DemarchesPage.waitForDemarche(titleUpdate)
+        await SuiviDemarchesPage.waitForDemarche(titleUpdate)
 
         await AllureReporter.addStep('3. Vérifier statut sur la liste')
-        await DemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
+        await SuiviDemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
 
         await AllureReporter.addStep('4. Ouvrir la démarche et vérifier le lien externe V2')
-        await DemarchesPage.ouvreDemarche(titleUpdate)
+        await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
         await DemarcheDetailPage.assertLienExterne(urlV2)
+        await SuiviDemarchesPage.retourJusquAPageSuivi()
     })
 
     it("ferme la démarche (statut closed)", async () => {
         let titleClosing = `${title} 2`
         // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
-        // laissé l'app sur la page Suivi (cf. demarches.page.ts).
+        // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
         await AllureReporter.addStep('1. Publier la notification de clôture')
         await publishNotification({
             title: titleClosing,
@@ -126,13 +127,14 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             itemCanal: 'AMI',
         })
         await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur le Suivi')
-        await DemarchesPage.waitForDemarche(titleClosing)
+        await SuiviDemarchesPage.waitForDemarche(titleClosing)
 
         await AllureReporter.addStep('3. Vérifier statut sur la liste')
-        await DemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
+        await SuiviDemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
 
         await AllureReporter.addStep('4. Ouvrir la démarche et vérifier le lien externe V2')
-        await DemarchesPage.ouvreDemarche(titleClosing)
+        await SuiviDemarchesPage.ouvreDemarche(titleClosing)
         await DemarcheDetailPage.assertLienExterne(urlV2)
+        await SuiviDemarchesPage.retourJusquAPageSuivi()
     })
 })
