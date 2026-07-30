@@ -1,7 +1,6 @@
-import { withWebView, tl } from '../helpers/webview'
+import { withWebView, tl, goBackUntilVisible } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getDemarcheDetailLocators } from './locators/demarche-detail.locators'
-import { getDemarchesLocators } from './locators/demarches.locators'
 import {AssertionError} from "node:assert";
 
 const DEMARCHE_DETAIL_TIMEOUT_MS = 20000
@@ -39,7 +38,6 @@ class DemarcheDetailPage {
    */
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
     const loc = getDemarcheDetailLocators()
-    const listLoc = getDemarchesLocators()
     await withWebView(async () => {
 
       let externalButton
@@ -68,28 +66,15 @@ class DemarcheDetailPage {
       }
 
       // Le nombre de gestes retour nécessaires pour revoir le détail n'est pas garanti fixe
-      // (profondeur de pile variable selon le point d'entrée) : on répète le geste retour
-      // (bouton WebView si présent, sinon back natif) jusqu'à la sentinelle de détail plutôt
-      // que de supposer qu'un seul geste suffit.
-      await browser.waitUntil(
-        async () => {
-          const onDetail = await tl()
-            .queryByRole('button', { name: loc.detailExternalButtonName })
-            .then((el) => el !== null)
-            .catch(() => false)
-          if (onDetail) return true
-
-          const backBtn = await tl()
-            .queryByRole('button', { name: loc.detailBackButtonName })
-            .catch(() => null)
-          if (backBtn) {
-            await backBtn.click()
-          } else {
-            await browser.back()
-          }
-          return false
-        },
-        { timeout: timeoutMs, interval: 500, timeoutMsg: `Retour sur le détail non confirmé après ${timeoutMs}ms` }
+      // (profondeur de pile variable selon le point d'entrée) : goBackUntilVisible répète le
+      // geste retour (bouton "Retour à la page précédente" si présent, sinon browser.back())
+      // jusqu'à la sentinelle de détail plutôt que de supposer qu'un seul geste suffit.
+      await goBackUntilVisible(
+        () => tl()
+          .queryByRole('button', { name: loc.detailExternalButtonName })
+          .then((el) => el !== null)
+          .catch(() => false),
+        timeoutMs
       )
 
     })

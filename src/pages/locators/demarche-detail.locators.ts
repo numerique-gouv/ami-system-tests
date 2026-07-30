@@ -20,17 +20,10 @@ export interface DemarcheDetailLocators {
    * accessible s'avère instable : `#external-item-button`.
    */
   detailExternalButtonName: string
-  /**
-   * Nom accessible du bouton de retour sur la page de détail.
-   * Sélectionné par rôle+nom via `tl().getByRole('button', { name: ... })` dans le PO.
-   * Fallback documenté : `[data-testid="back-button"]`.
-   */
-  detailBackButtonName: string
 }
 
 export const demarcheDetailLocators: DemarcheDetailLocators = {
   detailExternalButtonName:  'Accéder à ma démarche',
-  detailBackButtonName:      'Retour à la page précédente',
 }
 
 /** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */

@@ -1,4 +1,4 @@
-import { withWebView, tl } from '../helpers/webview'
+import { withWebView, tl, goBackUntilVisible } from '../helpers/webview'
 import { traced } from '../helpers/traced'
 import { getDemarchesLocators } from './locators/demarches.locators'
 import HomePage from './home.page'
@@ -120,8 +120,19 @@ class DemarchesPage {
     await HomePage.goToHomeFromAnywhere(15000)
   }
 
-    async navigueBackJusqua(titleNew: string) {
-
+    /**
+     * Revient sur la page Suivi (profondeur de navigation enfant inconnue) en répétant un
+     * back natif jusqu'à ce que la démarche `title` soit de nouveau visible dans la liste.
+     * Pas de bouton retour dédié sur cet écran (contrairement au détail) : fallback direct
+     * sur browser.back() à chaque itération de `goBackUntilVisible`.
+     */
+    async navigueBackJusqua(title: string): Promise<void> {
+        await withWebView(async () => {
+            await goBackUntilVisible(
+                () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>,
+                DEMARCHES_TIMEOUT_MS
+            )
+        })
     }
 }
 
