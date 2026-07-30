@@ -1,7 +1,8 @@
 import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../pages/home.page'
 import DemarchesPage from '../pages/demarches.page'
-import {publishNotification} from '../helpers/notifications-api'
+import DemarcheDetailPage from '../pages/demarche-detail.page'
+import {getBackendUrl, publishNotification} from '../helpers/notifications-api'
 import {getUser} from '../helpers/test-users'
 import {authenticate} from '../helpers/authenticate'
 
@@ -36,11 +37,11 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         this.timeout(180000)
         await AllureReporter.addFeature('Démarches')
         await AllureReporter.addSeverity('critical')
-
+        const domainUrl = getBackendUrl()
         itemId = `E2E-${new Date().toISOString()}`
         title = `Demarche E2E ${itemId}` // Démarche avec l'accent plante la recherche par innerText (document.body.innerText.includes(t))
-        urlV1 = `https://staging.partenaire.example/demarches/${itemId}/v1`
-        urlV2 = `https://staging.partenaire.example/demarches/${itemId}/v2`
+        urlV1 = domainUrl+`/demarches/${itemId}/v1`
+        urlV2 = domainUrl+`/demarches/${itemId}/v2`
 
         if (!await HomePage.isHomeReachable(1000)) {
             await authenticate()
@@ -75,7 +76,8 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
         await AllureReporter.addStep('5. Ouvrir la démarche et vérifier le lien externe V1')
         await DemarchesPage.ouvreDemarche(titleNew)
-        await DemarchesPage.assertLienExterne(urlV1)
+        await DemarcheDetailPage.assertLienExterne(urlV1)
+        await DemarchesPage.navigueBackJusqua(titleNew)
     })
 
     it("met à jour l'URL externe de la démarche (statut wip)", async () => {
@@ -104,7 +106,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
         await AllureReporter.addStep('4. Ouvrir la démarche et vérifier le lien externe V2')
         await DemarchesPage.ouvreDemarche(titleUpdate)
-        await DemarchesPage.assertLienExterne(urlV2)
+        await DemarcheDetailPage.assertLienExterne(urlV2)
     })
 
     it("ferme la démarche (statut closed)", async () => {
@@ -131,6 +133,6 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
         await AllureReporter.addStep('4. Ouvrir la démarche et vérifier le lien externe V2')
         await DemarchesPage.ouvreDemarche(titleClosing)
-        await DemarchesPage.assertLienExterne(urlV2)
+        await DemarcheDetailPage.assertLienExterne(urlV2)
     })
 })

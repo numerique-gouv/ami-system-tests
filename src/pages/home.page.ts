@@ -20,7 +20,7 @@ class HomePage {
         const contexts = await driver.getContexts() as string[]
         if (contexts.some(c => c.startsWith('WEBVIEW_'))) {
             try {
-                await this.navigateHomeFromWebview(timeout)
+                await this.goToHomeFromAnywhere(timeout)
             } catch (ex) {
                 log.warn('isHomeReachable: navigation vers la home en échec', ex)
                 return false
@@ -88,7 +88,8 @@ class HomePage {
     }
 
     /**
-     * Navigation vers la home depuis un contexte WebView.
+     * Navigue vers la home depuis n'importe quel écran WebView, avec ou sans nav basse
+     * (ex. page de détail d'une démarche — cf. `demarche-detail.page.ts`, pas de lien "Accueil").
      *
      * Pattern CONTRIBUTING.md §4 (WebView et contextes) — navigation + sentinel dans le même withWebView() :
      * sortir du contexte pendant la transition SPA laisse WKWebView dans un état instable
@@ -97,10 +98,10 @@ class HomePage {
      *
      * Stratégie :
      *   1. clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
-     *   2. Fallback hash si aucun lien de nav présent (état de départ inconnu).
+     *   2. Fallback hash si aucun lien de nav présent (état de départ inconnu, ex. pas de nav basse).
      *   3. Sentinel : lien "Suivi" visible → DOM home stable.
      */
-    private async navigateHomeFromWebview(timeout: number): Promise<void> {
+    async goToHomeFromAnywhere(timeout: number): Promise<void> {
         await withWebView(async () => {
             const clicked = await this.clickLinkByText('Accueil')
             if (!clicked) {
