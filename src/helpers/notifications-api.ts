@@ -124,6 +124,9 @@ let _backendUrl: string = STAGING_BASE_URL
 export function setBackendUrl(url: string): void {
     _backendUrl = url
 }
+export function getBackendUrl(): string {
+    return _backendUrl
+}
 
 function resolveApiUrl(): string {
     return _backendUrl
