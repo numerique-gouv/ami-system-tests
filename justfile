@@ -44,12 +44,22 @@ setup:
 setup-claude:
     npx skills add klamping/webdriverio-skills
 
+# Repartir d'un node_modules propre, strictement conforme au lockfile
+clean-install:
+    @echo "🧹 Suppression de node_modules…"
+    rm -rf node_modules
+    @echo "📥 Réinstallation stricte depuis package-lock.json…"
+    npm ci
+    @echo "📥 Installation des drivers Appium…"
+    npm run appium:install || true
+    @echo "✅ node_modules reconstruit."
+
 # Afficher les dépendances dépassées (sans modifier package.json)
 check-deps:
     npx npm-check-updates
 
 # Mettre à jour package.json vers les dernières versions puis réinstaller
-upgrade-deps:
+upgrade:
     npx npm-check-updates --upgrade
     @just setup
 
