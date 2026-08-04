@@ -17,13 +17,15 @@ class AvatarMenuPage {
     async navigate(): Promise<void> {
         const loc = getProfileLocators()
         await withWebView(async () => {
-            // 1. Ouvrir le menu avatar (initiales)
-            // iOS/WKWebView : driver.execute(?.click()) ne propage pas l'intégralité des événements
-            // nécessaires à Svelte. On utilise le click WDIO natif, précédé de refreshAxTree()
-            // pour invalider un éventuel AX tree périmé post-OIDC.
-            await refreshAxTree()
-            await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
-            await $(loc.toggleMenuButton).click()
+            // Le menu avatar peut déjà être ouvert (ex. re-navigation après un logout) —
+            // ne cliquer toggleMenuButton que si "Mon profil" n'est pas déjà visible.
+            await tl()
+                .findByTestId(loc.profileMenuButtonTestId, {}, {timeout: 500})
+                .then(async () => {
+                    await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
+                    await $(loc.toggleMenuButton).click()
+                })
+                .catch(() => {})
 
             // 2-3. Attendre le bouton "Mon profil" dans le menu ouvert puis le cliquer —
             // findByTestId attend la résolution avant de retourner le handle, pas besoin

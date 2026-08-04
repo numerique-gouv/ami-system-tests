@@ -1,5 +1,4 @@
 import {getHomeLocators} from './locators/home.locators'
-import {getProfileLocators} from './locators/profile.locators'
 import {tl, withWebView} from '../helpers/webview';
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
@@ -49,30 +48,30 @@ class HomePage {
 
     /**
      * Attend que la SPA home authentifiée soit chargée.
-     * Sentinel : bouton avatar (toggle-menu-button) — seul le header de la home l'affiche ;
-     * le hash de route `#/` n'est pas fiable (parfois vide) et les 3 boutons de nav
-     * (Accueil, Agenda, Suivi) sont affichés ensemble sur tous les écrans, donc ne
-     * discriminent pas Home.
+     * Sentinel : texte de salutation "Bonjour <prénom>" en haut à gauche du header —
+     * seul le header de la home l'affiche ; le hash de route `#/` n'est pas fiable
+     * (parfois vide) et les 3 boutons de nav (Accueil, Agenda, Suivi) sont affichés
+     * ensemble sur tous les écrans, donc ne discriminent pas Home.
+     * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
      */
     async isHomeVisible(timeout = 30000): Promise<boolean> {
-        const loc = getProfileLocators()
         try {
             return await withWebView(async () => {
                 await browser.waitUntil(
-                    async () => driver.execute(
-                        (sel: string) => !!document.querySelector(sel),
-                        loc.toggleMenuButton
+                    async () => driver.execute(() =>
+                        Array.from(document.querySelectorAll('p'))
+                            .some(p => (p as HTMLElement).innerText?.trim().startsWith('Bonjour'))
                     ) as Promise<boolean>,
                     {
                         timeout,
                         interval: 300,
-                        timeoutMsg: 'Home non atteinte — bouton avatar (toggle-menu-button) absent'
+                        timeoutMsg: 'Home non atteinte — texte de salutation ("Bonjour ...") absent'
                     }
                 )
                 return true
             })
         } catch {
-            throw new AssertionError({message: 'isHomeVisible: (toggle-menu-button) absent'})
+            throw new AssertionError({message: 'isHomeVisible: texte de salutation ("Bonjour ...") absent'})
         }
     }
 

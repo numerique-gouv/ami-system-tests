@@ -3,8 +3,9 @@ import type { Locator } from './onboarding.locators'
 /**
  * Sélecteurs WebView de la page "Mon profil" (SPA Svelte, route /#/profile).
  *
- * Structure DOM observée via just inspect (2026-06-29) :
- *   [data-testid="toggle-menu-button"]  ← bouton avatar (initiales) dans le header home
+ * Structure DOM observée via just inspect (2026-08-04) :
+ *   button "Plus" (accessible name)     ← bouton avatar (initiales) dans le header home ;
+ *                                          l'ancien data-testid="toggle-menu-button" n'existe plus
  *   [data-testid="profile-button"]      ← "Mon profil" dans le menu déroulant avatar
  *   [data-testid="profile"]             ← conteneur principal de la page profil
  *     #profile-identity                 ← section "Mon identité" (nom, date/lieu de naissance)
@@ -19,7 +20,7 @@ import type { Locator } from './onboarding.locators'
  *                     l'attribut data-testid, pas un sélecteur CSS
  */
 export interface ProfileLocators {
-  toggleMenuButton: Locator   // bouton avatar (initiales) — ouvre le menu utilisateur
+  toggleMenuButton: Locator   // bouton Plus (3 petits points)
   identitySection: Locator    // section "Mon identité"
   emailSection: Locator       // section "Contact"
   addressSection: Locator     // section "Mon adresse"
@@ -47,7 +48,7 @@ export interface ProfileLocators {
 }
 
 export const profileLocators: ProfileLocators = {
-  toggleMenuButton: '[data-testid="toggle-menu-button"]',
+  toggleMenuButton: 'button=Plus',
   identitySection: '#profile-identity',
   emailSection: '#profile-email',
   addressSection: '#profile-address',
