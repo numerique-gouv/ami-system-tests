@@ -2,7 +2,10 @@
 # Pré-requis : just, Android SDK (adb, gradle), Xcode, Node.js >= 20
 
 set dotenv-path := ".env.local"
-set dotenv-required := true
+# `just` interdit les settings booléens calculés (voir doc `set`), donc ce flag ne peut pas
+# être conditionné sur CI/GITHUB_ACTIONS ici. Le caractère obligatoire de .env.local en dev
+# local est réimplémenté par la recette de garde `_require-dotenv` ci-dessous.
+set dotenv-required := false
 
 # ─── Variables ──────────────────────────────────────────────────────────────
 
@@ -161,9 +164,19 @@ check-code:
 #   just test-android-suite all              → tous les tests en session partagée (auth une fois)
 #   just test-android-suite CI              → smoke suite (auth + tests critiques)
 
+# Garde-fou : hors CI, .env.local est obligatoire (AMI_ENV, NOTIF_*).
+# En CI ces variables sont injectées par le workflow via `env:` — pas de fichier requis.
+_require-dotenv:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "${CI:-}${GITHUB_ACTIONS:-}" ] && [ ! -f .env.local ]; then
+        echo "❌ .env.local manquant — copier .env puis renseigner AMI_ENV et NOTIF_*." >&2
+        exit 1
+    fi
+
 # Lancer les tests E2E Android — démarre l'émulateur, lance les tests sur les fichiers fournis
 # Usage : just test-android [glob…]   — un ou plusieurs globs de fichiers (optionnels)
-test-android *globs="": start-android
+test-android *globs="": _require-dotenv start-android
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🤖 Tests E2E Android…"
@@ -179,7 +192,7 @@ test-android *globs="": start-android
 
 # Lancer les tests E2E iOS — démarre le simulateur, lance les tests sur les fichiers fournis
 # Usage : just test-ios [glob…]       — un ou plusieurs globs de fichiers (optionnels)
-test-ios *globs="": start-ios
+test-ios *globs="": _require-dotenv start-ios
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🍎 Tests E2E iOS…"
@@ -195,13 +208,18 @@ test-ios *globs="": start-ios
 
 # Lancer les tests E2E Android avec une suite nommée (session partagée — auth une seule fois)
 # Usage : just test-android-suite <suite>   ex: just test-android-suite all
-test-android-suite suite: start-android
+test-android-suite suite: _require-dotenv start-android
     WDIO_SUITE={{suite}} npm run test:android
 
 # Lancer les tests E2E iOS avec une suite nommée (session partagée — auth une seule fois)
 # Usage : just test-ios-suite <suite>   ex: just test-ios-suite CI
-test-ios-suite suite: start-ios
+test-ios-suite suite: _require-dotenv start-ios
     WDIO_SUITE={{suite}} npm run test:ios
+
+# Lancer la suite de tests webapp (non implémentée — stub CI)
+# Usage : just test-web-suite <suite>   ex: just test-web-suite all
+test-web-suite suite: _require-dotenv
+    @echo "🌐 Suite webapp '{{suite}}' : non implémentée pour l'instant — rien à exécuter."
 
 # ─── Inspection / Reporting ─────────────────────────────────────────────────
 
@@ -269,7 +287,7 @@ open-report:
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
 # Usage : just push-notification avec_nom_dusage
 #         just push-notification avec_nom_dusage "Mon titre personnalisé"
-push-notification login title="":
+push-notification login title="": _require-dotenv
     npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
 
 # ─── Documentation ──────────────────────────────────────────────────────────

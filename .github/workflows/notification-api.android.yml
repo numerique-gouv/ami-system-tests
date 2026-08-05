@@ -1,0 +1,103 @@
+name: Notification API — Android
+
+# se lance en local depuis la racine du projet avec: 
+# act workflow_dispatch -W .github/workflows/notification-api.pr.yml --container-architecture linux/amd64 --input ref_name=staging --input run_android=true 
+# Workflow réutilisable, appelé par notification-api.pr.yml.
+# Stub pour l'instant : la vraie suite Android (via `just test-android-suite`,
+# émulateur Pixel_modern) sera branchée dans un ticket ultérieur.
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_android:
+        type: boolean
+        default: false
+      run_old_device:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  android-E2E:
+    runs-on: ubuntu-latest
+    env:
+      REF_NAME: ${{ inputs.ref_name }}
+      RUN_ANDROID: ${{ inputs.run_android }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: extractions/setup-just@v3
+      - name: install project dependencies
+        run: npm ci
+
+      # adb (platform-tools) requis par `just start-android`. Ne pas compter sur un SDK
+      # préinstallé sur le runner : cette étape installe et exporte ANDROID_HOME / ANDROID_SDK_ROOT.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # packages: 'platform-tools' (au lieu du défaut 'tools platform-tools') — le paquet
+      # legacy `tools` dépend de `emulator`, indisponible pour linux-aarch64 (ex. `act` sur
+      # Mac Apple Silicon), ce qui fait échouer sdkmanager avec exit code 1. `adb` (seul
+      # besoin ici, via `just start-android`) vient de `platform-tools`.
+      # Source : https://github.com/android-actions/setup-android/issues/283
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools"
+      #    accept-android-sdk-licenses: true # already true by default
+
+      # KVM requis par reactivecircus/android-emulator-runner sur runner Linux (accélération
+      # matérielle) — les runners GitHub-hosted x86_64 l'exposent mais il faut ouvrir les
+      # permissions du device node. https://github.com/ReactiveCircus/android-emulator-runner
+      # Ignoré sous `act` : pas de démon udev dans le conteneur (/etc/udev/rules.d absent) et
+      # /dev/kvm non relayé par Docker Desktop sur Mac de toute façon — non testable en local.
+      # `env.ACT` est positionné par act lui-même : https://nektosact.com/usage/index.html
+      - name: Activer KVM
+        if: ${{ !env.ACT }}
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Un seul des deux appareils tourne par run, choisi par `run_old_device` (porté par
+      # l'appelant notification-api.pr.yml) : le plus ancien encore ciblé (Pixel 6, Android 12 /
+      # API 31) ou le plus récent (Pixel 8, Android 15 / API 35). google_apis (Play Services
+      # sans le Store) : requis pour les notifications push testées par ce projet.
+      # arch x86_64 : seule architecture d'image système publiée par Google pour API ≥ 31 sur
+      # Linux (x86 abandonné, arm64 non disponible hors macOS — cf. le contournement adb plus haut).
+      # Ignoré sous `act` (même raison que le step KVM) : sans /dev/kvm, l'émulateur tourne sans
+      # accélération et n'atteint jamais adb — la step boucle jusqu'au timeout de 10 min pour rien.
+      - name: Tests E2E — Pixel 6 (API 31)
+        if: ${{ inputs.run_old_device && !env.ACT }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          avd-name: pixel_6_api31
+          disable-animations: true
+          script: just test-android-suite all
+        env:
+          ANDROID_DEVICE_NAME: pixel_6_api31
+
+      - name: Tests E2E — Pixel 8 (API 35)
+        if: ${{ !inputs.run_old_device && !env.ACT }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_8
+          avd-name: pixel_8_api35
+          disable-animations: true
+          script: just test-android-suite all
+        env:
+          ANDROID_DEVICE_NAME: pixel_8_api35

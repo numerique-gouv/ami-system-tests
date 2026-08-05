@@ -1,0 +1,35 @@
+name: Notification API — iOS
+
+# Workflow réutilisable, appelé par notification-api.pr.yml.
+# Stub pour l'instant : la vraie suite iOS (via `just test-ios-suite`,
+# simulateur "iPhone 17 Pro") sera branchée dans un ticket ultérieur.
+#
+# ⚠️ Runner macOS : requis à terme pour le simulateur iOS (xcrun simctl), mais ~10× plus cher
+# qu'un runner Linux — macOS 3-4 core $0.062/min contre $0.006/min pour Linux 2-core.
+# Source : https://docs.github.com/en/billing/concepts/product-billing/github-actions
+# (gratuit tant que le dépôt est public : « The use of standard GitHub-hosted runners is free:
+# In public repositories »). Tant que ce workflow est un stub, il ne consomme que quelques secondes.
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_ios:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  iOS-E2E:
+    runs-on: macos-latest
+    env:
+      REF_NAME: ${{ inputs.ref_name }}
+      RUN_IOS: ${{ inputs.run_ios }}
+    steps:
+      - run: |
+          echo "Hello world — suite iOS (stub)"
+          echo "ref_name:    $REF_NAME"
+          echo "run_ios:     $RUN_IOS"
