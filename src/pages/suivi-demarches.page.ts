@@ -25,9 +25,14 @@ class SuiviDemarchesPage {
             await browser.pause(delay) // hors inWebContext : laisse la page respirer entre deux rafraîchissements
             await platform().inWebContext(async () => {
                 await driver.execute(() => window.location.reload())
+                // `readyState === 'complete'` ne signale que la fin du chargement du bundle JS,
+                // pas le montage Svelte ni la résolution du fetch de la liste — juste après reload,
+                // document.body.innerText est encore vide la quasi-totalité du temps (constaté en
+                // debug). On attend un contenu textuel réel (liste ou état vide rendu) avant de
+                // lire la page, sans quoi chaque tentative lit un DOM non peint et échoue à tort.
                 await browser.waitUntil(
-                    () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
-                    {timeout: 5000, interval: 200, timeoutMsg: 'Page Suivi non stabilisée après reload'}
+                    () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
+                    {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
                 )
             })
             const found = await platform().inWebContext(
