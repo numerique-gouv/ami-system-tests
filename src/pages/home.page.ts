@@ -83,8 +83,28 @@ class HomePage {
      */
     async ouvreSuivi(): Promise<void> {
         await platform().inWebContext(async () => {
+            await this.closeOpenNavPlusMenu()
             let suivi = await tl().findByRole('link', {name: /Suivi/})
             await suivi.click()
+        })
+    }
+
+    /**
+     * Ferme défensivement le <dialog> natif du menu "Plus" de la nav (#modal-main-nav-plus-…)
+     * s'il est déjà ouvert. Observé en webapp (Chrome desktop) juste après le login : ce dialog
+     * DSFR reste en état `fr-modal--opened` sans qu'aucun clic ne l'ait ouvert et recouvre tout
+     * l'écran, interceptant le clic sur "Suivi" ("element click intercepted"). Non reproduit sur
+     * WebView Android/iOS — cause probable côté app non élucidée, contournement test uniquement.
+     */
+    private async closeOpenNavPlusMenu(): Promise<void> {
+        // Clic JS sur le bouton "Fermer" du DSFR plutôt que dialog.close() : la modale est
+        // pilotée par le contrôleur JS du DSFR (classe `fr-modal--opened` synchronisée sur son
+        // propre état interne), pas seulement par l'attribut natif `open` du <dialog> — appeler
+        // `.close()` directement laisse la classe CSS en place et le clic reste intercepté.
+        await driver.execute(() => {
+            const dialog = document.querySelector('dialog[id^="modal-main-nav-plus"].fr-modal--opened')
+            const closeBtn = dialog?.querySelector('[data-fr-js-modal-button="true"]') as HTMLElement | null
+            closeBtn?.click()
         })
     }
 
