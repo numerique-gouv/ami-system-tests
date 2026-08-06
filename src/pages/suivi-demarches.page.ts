@@ -131,8 +131,13 @@ class SuiviDemarchesPage {
         let demarchesLocators = getSuiviDemarchesLocators();
         await platform().inWebContext(async () => {
             await retourJusquATexteVisible(
-                () => driver.execute((t: string) => document.body.innerText.includes(t), demarchesLocators.pageTitle) as Promise<boolean>,
-                5000
+                () => tl()
+                    .queryByRole('heading', { name: demarchesLocators.pageTitle })
+                    .then((el) => el !== null)
+                    .catch(() => false),
+                // () => driver.execute((t: string) => document.body.innerText.includes(t),
+                //     demarchesLocators.pageTitle) as Promise<boolean>,
+                10000
             )
         })
     }
