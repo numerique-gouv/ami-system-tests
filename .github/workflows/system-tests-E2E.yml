@@ -1,0 +1,214 @@
+name: System tests E2E
+
+# Deux points d'entrée :
+# - workflow_dispatch : manuel, et exécution locale via `act` (cf. android.yml
+#   pour la commande).
+# - workflow_call : appelé par les dépôts frères (ami-app-android, ami-app-ios,
+#   ami-notifications-api) sur PR/push/tag, via
+#   `uses: numerique-gouv/ami-system-tests/.github/workflows/system-tests-E2E.yml@ref` +
+#   `secrets: inherit`. Aucun token requis pour cet appel (contrairement à un déclenchement par
+#   API/dispatch) — voir vault "Github Action multi repo".
+#
+# Aucun token cross-repo nulle part dans ce fichier : ni pour être appelé (ci-dessus), ni pour
+# récupérer l'app à tester (android.yml/ios.yml téléchargent un artefact buildé par le job
+# `build` du dépôt appelant, uploadé dans le MÊME run — cf. leurs commentaires), ni pour
+# rapporter le résultat (ce workflow expose juste le NOM de l'artefact allure-report en output,
+# cf. `report_artifact_name` ci-dessous ; c'est au dépôt appelant, qui a nativement les droits sur
+# sa propre PR, de le télécharger et de le poster lui-même via `allure-framework/allure-action`).
+# Le partage d'artefact cross-repo au sein d'un même run n'est pas documenté noir sur blanc par
+# GitHub à ma connaissance — comportement observé/attendu du modèle des reusable workflows, à
+# valider empiriquement au premier run réel cross-repo.
+#
+# `pr_number` n'est connu que sur un événement pull_request côté appelant (`github.event
+# .pull_request.number`) — sur un push (merge) ou une pose de tag, il vaut 0 (défaut) : c'est
+# alors au caller de décider quoi faire du rapport (pas de PR à commenter).
+# Déclenche au choix les suites webapp / Android / iOS — chacune un workflow réutilisable appelé
+# en parallèle (`webapp.yml`, `android.yml`,
+# `ios.yml`).
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_webapp:
+        type: boolean
+        default: false
+      run_android:
+        type: boolean
+        default: false
+      run_old_device:
+        type: boolean
+        default: true
+      run_ios:
+        type: boolean
+        default: false
+      source_repo:
+        type: string
+        required: true
+      pr_number:
+        type: number
+        default: 0
+    outputs:
+      report_artifact_name:
+        description: "Nom de l'artefact allure-report (dossier généré, pas les résultats bruts) uploadé dans ce run — à télécharger côté caller via actions/download-artifact (même run, aucun token) puis passer à allure-framework/allure-action"
+        value: ${{ jobs.report.outputs.artifact_name }}
+
+permissions:
+  contents: read
+  # actions:read pour interroger/télécharger les artifacts d'historique (propres à ce repo).
+  actions: read
+
+# Un groupe par PR (source_repo + pr_number, pas ref_name — un nom de branche peut se répéter
+# entre dépôts frères ou être renommé en cours de PR) : sérialise les runs d'une même PR (la
+# restauration/publication de l'historique Allure est un cycle lecture-modification-écriture
+# non concurrent-safe) sans bloquer les autres PR, qui ont chacune leur propre groupe.
+concurrency:
+  group: allure-${{ inputs.source_repo }}-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  webapp:
+    if: ${{ inputs.run_webapp }}
+    uses: ./.github/workflows/webapp.yml
+    with:
+      ref_name: ${{ inputs.ref_name }}
+      run_webapp: ${{ inputs.run_webapp }}
+    secrets: inherit
+
+  android:
+    if: ${{ inputs.run_android }}
+    uses: ./.github/workflows/android.yml
+    with:
+      ref_name: ${{ inputs.ref_name }}
+      run_android: ${{ inputs.run_android }}
+      run_old_device: ${{ inputs.run_old_device }}
+    secrets: inherit
+
+  ios:
+    if: ${{ inputs.run_ios }}
+    uses: ./.github/workflows/ios.yml
+    with:
+      ref_name: ${{ inputs.ref_name }}
+      run_ios: ${{ inputs.run_ios }}
+    secrets: inherit
+
+  report:
+    name: Allure report
+    needs: [webapp, android, ios]
+    # `needs` seul court-circuiterait le job si un des jobs conditionnels (if: false) est
+    # "skipped" plutôt que "success" — always() force l'évaluation de la condition ci-dessous
+    # même dans ce cas.
+    if: ${{ always() && (inputs.run_webapp || inputs.run_android || inputs.run_ios) }}
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # source_repo (owner/repo, contient "/") + pr_number → un identifiant utilisable comme
+      # nom d'artifact (caractères interdits : / : < > | * ? \ "). Sert de clé d'isolation pour
+      # tout ce qui suit : c'est source_repo+pr_number, pas ref_name, qui distingue deux PR même
+      # en cas de nom de branche identique entre dépôts frères ou de renommage en cours de PR.
+      - name: Calculer la clé d'isolation (slug)
+        id: slug
+        run: |
+          RAW="${{ inputs.source_repo }}-pr${{ inputs.pr_number }}"
+          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+
+      # Fusionne les artifacts allure-results-{webapp,android,ios} (uploadés par les 3 workflows
+      # appelés — pour l'instant, seul android.yml le fait, via un résultat
+      # factice sous `act`) dans un même dossier. merge-multiple:true les met à plat ensemble
+      # plutôt que dans des sous-dossiers par artifact, condition requise pour qu'`allure generate`
+      # les traite comme un seul run (cf. labels/paramètre `platform` posés côté wdio.base.conf.ts
+      # pour les distinguer malgré la fusion).
+      # Non vérifié : le comportement de `pattern` quand aucun artifact ne matche (ex. webapp/ios
+      # avant leur câblage) — à surveiller au premier run réel.
+      - name: Télécharger et fusionner les allure-results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: allure-results-*
+          path: allure-results
+          merge-multiple: true
+
+      # L'historique Allure (courbes de tendance) n'existe que si un dossier history/ est présent
+      # dans allure-results/ AVANT génération — Allure ne le gère pas lui-même, cf. discussion
+      # précédente. On le retrouve via l'artifact allure-history-<slug> publié par le run
+      # précédent de cette même PR (download-artifact ne cherche que dans le run courant sauf à
+      # lui donner un artifact-id explicite, d'où la recherche via `gh api` ci-dessous).
+      - name: Chercher l'historique Allure de la PR
+        id: history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARTIFACT=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=allure-history-${{ steps.slug.outputs.slug }}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last')
+          if [ -z "$ARTIFACT" ] || [ "$ARTIFACT" = "null" ]; then
+            echo "Aucun historique existant — premier run de cette PR."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "artifact_id=$(echo "$ARTIFACT" | jq -r '.id')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Télécharger l'historique Allure de la PR
+        if: steps.history.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.history.outputs.artifact_id }}
+          path: allure-results/history
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Sans executor.json, les points de la courbe de tendance ne sont pas identifiables
+      # (nom de build, lien vers le run) — indispensable pour que l'historique du scénario
+      # "PR mise à jour plusieurs fois" soit exploitable, pas juste présent.
+      - name: Écrire executor.json
+        run: |
+          mkdir -p allure-results
+          cat > allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildName": "PR #${{ inputs.pr_number }} — run ${{ github.run_number }}",
+            "buildOrder": ${{ github.run_number }},
+            "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: extractions/setup-just@v3
+      - run: npm ci
+
+      - name: Générer le rapport Allure
+        run: just generate-report
+
+      - name: Exporter le rapport Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
+          path: allure-report
+          retention-days: 14
+
+      # Entrée du run suivant de cette PR (cf. step "Chercher l'historique" ci-dessus) — seul
+      # allure-report/history/ est publié, pas le rapport HTML complet.
+      - name: Exporter l'historique Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-history-${{ steps.slug.outputs.slug }}
+          path: allure-report/history
+          retention-days: 90
+
+      # Ni token ni App GitHub ici : system-tests-E2E.yml ne poste plus lui-même de commentaire
+      # cross-repo (la PR vit dans source_repo, où GITHUB_TOKEN n'a de toute façon aucun droit
+      # d'écriture). C'est au workflow appelant — qui tourne nativement dans source_repo, avec son
+      # propre GITHUB_TOKEN — de télécharger l'artefact allure-report ci-dessus (nom exposé via
+      # `report_artifact_name`, cf. `on.workflow_call.outputs` en tête de fichier) et de le
+      # commenter lui-même sur sa PR avec `allure-framework/allure-action`, ou d'en faire ce qu'il
+      # veut si le run ne vient pas d'une PR (push/tag). Aucun token cross-repo n'est donc
+      # nécessaire sur ce chemin.

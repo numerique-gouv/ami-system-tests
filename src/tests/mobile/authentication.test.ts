@@ -1,9 +1,9 @@
 import AllureReporter from '@wdio/allure-reporter'
-import LoginPage from '../pages/login.page'
-import FranceConnectPage from '../pages/franceconnect.page'
-import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
-import HomePage from '../pages/home.page'
-import {getUser} from '../helpers/test-users'
+import LoginPage from '../../pages/login.page'
+import FranceConnectPage from '../../pages/franceconnect.page'
+import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
+import HomePage from '../../pages/home.page'
+import {getUser} from '../../helpers/test-users'
 
 /**
  * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.

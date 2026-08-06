@@ -25,7 +25,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
       log.warn(`On utilise la suite ${suiteName}:`, suite)
       return suite
     }
-    return [path.resolve(__dirname, 'src/tests/**/*.test.ts')]
+    return [path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')]
   })(),
 
   exclude: [],
@@ -88,8 +88,20 @@ export const baseConfig: Partial<Options.Testrunner> = {
     log.info(`-> describe : ${suite.title}`)
   },
 
-  beforeTest: (test): void => {
+  beforeTest: async (test): Promise<void> => {
     log.info(`  -> it : ${test.title}`)
+    // Distingue les 3 plateformes dans le rapport Allure fusionné (webapp/android/ios) :
+    // addLabel pour le regroupement/filtrage dans l'UI, addArgument pour que le historyId
+    // diverge — sans ça, des tests de même nom sur 2 plateformes seraient vus comme des
+    // retries l'un de l'autre (même historyId) et écraseraient leur historique mutuel.
+    const platform = browser.isAndroid ? 'android' : browser.isIOS ? 'ios' : 'webapp'
+    AllureReporter.addLabel('platform', platform)
+    await AllureReporter.addArgument('platform', platform)
+    // run_old_device : uniquement pertinent pour Android (Pixel 6 API 31 vs Pixel 8 API 35),
+    // et seulement en CI où RUN_OLD_DEVICE est exporté par notification-api.android.yml.
+    if (process.env.RUN_OLD_DEVICE !== undefined) {
+      AllureReporter.addLabel('run_old_device', String(process.env.RUN_OLD_DEVICE === 'true'))
+    }
   },
 
   before: async (): Promise<void> => {

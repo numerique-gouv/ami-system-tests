@@ -1,5 +1,5 @@
 import AllureReporter from '@wdio/allure-reporter'
-import HomePage from '../pages/home.page'
+import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/avatar-menu.page'
 import { authenticate } from '@helpers/authenticate'
 

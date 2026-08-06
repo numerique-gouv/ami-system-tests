@@ -220,6 +220,7 @@ test-ios-suite suite: _require-dotenv start-ios
 # Usage : just test-web-suite <suite>   ex: just test-web-suite all
 test-web-suite suite: _require-dotenv
     @echo "🌐 Suite webapp '{{suite}}' : non implémentée pour l'instant — rien à exécuter."
+    WDIO_SUITE={{suite}} npm run test:webapp
 
 # ─── Inspection / Reporting ─────────────────────────────────────────────────
 
@@ -282,6 +283,10 @@ inspect:
 # Générer et ouvrir le rapport Allure du dernier run
 open-report:
     npm run report
+
+# Générer le rapport Allure sans l'ouvrir (CI — `allure open` bloquerait en démarrant un serveur)
+generate-report:
+    npm run generate-report
 
 # Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).

@@ -22,27 +22,27 @@ export const testSuites: Record<string, string[][]> = {
      */
     /** Tous les tests en session partagée — auth une seule fois. */
     all: [[
-        r('src/tests/authentication.test.ts'),
-        r('src/tests/**/*.test.ts'),
+        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/**/*.test.ts'),
     ]],
 
     /** Smoke suite CI : authentification + scénarios critiques uniquement. */
     CI: [[
-        r('src/tests/authentication.test.ts'),
-        r('src/tests/notifications.test.ts'),
-        r('src/tests/demarches.test.ts'),
-        r('src/tests/profile.test.ts'),
+        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/notifications.test.ts'),
+        r('src/tests/mobile/demarches.test.ts'),
+        r('src/tests/mobile/profile.test.ts'),
     ]],
 
     /** Tous les tests d'authentifications en session séparées. */
     auth: [[
-        r('src/tests/authentication.test.ts'),
+        r('src/tests/mobile/authentication.test.ts'),
 //  ],[
-//    r('src/tests/authentication_2.test.ts'),
+//    r('src/tests/mobile/authentication_2.test.ts'),
     ],
     ],
     api: [[
-        r('src/tests/notifications.test.ts'),
-        r('src/tests/demarches.test.ts'),
+        r('src/tests/mobile/notifications.test.ts'),
+        r('src/tests/mobile/demarches.test.ts'),
     ]]
 }

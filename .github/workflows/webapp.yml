@@ -1,6 +1,6 @@
 name: Notification API — Webapp
 
-# Workflow réutilisable, appelé par notification-api.pr.yml.
+# Workflow réutilisable, appelé par system-tests-E2E.yml.
 # Suite webapp encore au stade stub (voir `just test-web-suite` dans le justfile).
 on:
   workflow_call:
@@ -38,3 +38,16 @@ jobs:
       - run: npm ci
       - uses: extractions/setup-just@v3
       - run: just test-web-suite all
+
+      # Exporté même en cas d'échec (if: always()) pour que le report Allure reflète aussi
+      # les runs cassés. Le report job (system-tests-E2E.yml) le télécharge et le fusionne
+      # avec les artifacts webapp/ios — publication du rapport fusionné laissée à un ticket
+      # ultérieur (cf. TODO dans system-tests-E2E.yml).
+      - name: Exporter les résultats Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-webapp
+          path: allure-results
+          retention-days: 7
+          if-no-files-found: warn

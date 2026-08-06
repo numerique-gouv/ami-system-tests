@@ -1,9 +1,9 @@
 import AllureReporter from '@wdio/allure-reporter'
-import HomePage from '../pages/home.page'
-import NotificationsInboxPage from '../pages/notifications.page'
-import { publishNotification } from '../helpers/notifications-api'
-import { getUser } from '../helpers/test-users'
-import { authenticate } from '../helpers/authenticate'
+import HomePage from '../../pages/home.page'
+import NotificationsInboxPage from '../../pages/notifications.page'
+import { publishNotification } from '../../helpers/notifications-api'
+import { getUser } from '../../helpers/test-users'
+import { authenticate } from '../../helpers/authenticate'
 
 describe('Notifications', () => {
   const user = getUser('avec_nom_dusage')

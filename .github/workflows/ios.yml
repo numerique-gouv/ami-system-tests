@@ -1,0 +1,49 @@
+name: Notification API — iOS
+
+# Workflow réutilisable, appelé par system-tests-E2E.yml.
+# Stub pour l'instant : la vraie suite iOS (via `just test-ios-suite`,
+# simulateur "iPhone 17 Pro") sera branchée dans un ticket ultérieur.
+#
+# ⚠️ Runner macOS : requis à terme pour le simulateur iOS (xcrun simctl), mais ~10× plus cher
+# qu'un runner Linux — macOS 3-4 core $0.062/min contre $0.006/min pour Linux 2-core.
+# ami-system-tests est un dépôt PRIVÉ : ces minutes sont décomptées du quota gratuit du plan
+# (2 000 à 50 000 min/mois selon le palier), puis facturées au-delà — pas gratuites comme sur un
+# dépôt public. Tant que ce workflow est un stub, il ne consomme que quelques secondes par run.
+# Source : https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_ios:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    env:
+      REF_NAME: ${{ inputs.ref_name }}
+      RUN_IOS: ${{ inputs.run_ios }}
+    steps:
+      - run: |
+          echo "Hello world — suite iOS (stub)"
+          echo "ref_name:    $REF_NAME"
+          echo "run_ios:     $RUN_IOS"
+
+      # L'app est buildée par le job `build` du workflow APPELANT (ami-app-ios), pas ici — cf.
+      # android.yml pour le détail du raisonnement (download-artifact sans repository:/run-id:,
+      # même run partagé entre appelant et reusable workflow cross-repo — à valider
+      # empiriquement au premier run réel). Nom d'artefact `ios-app` : convention à respecter
+      # côté ami-app-ios (cf. vault "Github Action multi repo").
+      # Ignoré sous `act` : pas de job `build` réel dans ce contexte local pour l'instant.
+      - name: Récupérer l'app buildée par le workflow appelant
+        if: ${{ !env.ACT }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-app
+          path: ../ami-app-ios/build/Build/Products/Debug-iphonesimulator

@@ -30,7 +30,7 @@ describe("Publications partenaires — diffusion vers le terminal usager", () =>
     // 2. Publier une notification via l'API partenaire
     // 3. Vérifier l'absence de push natif
     // 4. Vérifier la présence de la notification dans l'inbox in-app
-    // Référence : src/tests/notifications.test.ts (scénario vanilla déjà implémenté)
+    // Référence : src/tests/mobile/notifications.test.ts (scénario vanilla déjà implémenté)
   })
 
   it.skip("reçoit la notification en temps réel via websocket quand l'app est ouverte", async () => {
