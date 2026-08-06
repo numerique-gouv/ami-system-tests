@@ -15,6 +15,7 @@
       "@locators/*": ["src/pages/locators/*"],
       "@driver/*": ["src/driver/*"],
       "@helpers/*": ["src/helpers/*"],
+      "@platform/*": ["src/platform/*"],
       "@scripts/*": ["src/scripts/*"],
     },
     "types": ["node", "@wdio/globals/types", "@wdio/mocha-framework"]

@@ -1,4 +1,5 @@
 import {getOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
+import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 
 /**
@@ -26,6 +27,8 @@ class OnboardingNotificationsPage {
      * isDisplayed=false pendant l'animation d'entrée de la sheet.
      */
     async dismiss(): Promise<void> {
+        // Écran natif — inexistant en webapp (pas de permission OS à demander).
+        if (platform().kind === 'webapp') return
         const loc = getOnboardingNotifLocators()
         if (await $(loc.dismiss).waitForExist({timeout: 10000}).catch(() => false)) {
             await $(loc.dismiss).click()

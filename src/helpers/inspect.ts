@@ -6,7 +6,7 @@
  *   await browser.debug()
  *   // Dans le REPL :
  *   > await listInteractive()                                   // contexte natif courant
- *   > await withWebView(async () => await listInteractive())    // contenu WebView
+ *   > await inWebContext(async () => await listInteractive())    // contenu WebView
  */
 
 export type InteractiveElement = {
@@ -33,7 +33,7 @@ type WebInteractiveElement = {
  * affiche un tableau dans la console, et retourne les éléments pour usage programmatique.
  *
  * Ne fait aucun switch de contexte. L'appelant doit se placer dans le bon contexte
- * avant d'appeler cette fonction (withWebView() pour la WebView, rien pour NATIVE_APP).
+ * avant d'appeler cette fonction (inWebContext() pour la WebView, rien pour NATIVE_APP).
  */
 export async function listInteractive(opts?: {
   limit?: number

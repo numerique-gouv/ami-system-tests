@@ -1,7 +1,8 @@
 name: Notification API — Webapp
 
 # Workflow réutilisable, appelé par system-tests-E2E.yml.
-# Suite webapp encore au stade stub (voir `just test-web-suite` dans le justfile).
+# Suite webapp encore au stade stub (voir `just test-webci-suite` dans le justfile ;
+# la suite nommée "all" n'existe pas encore pour la webapp dans test-suites.ts).
 on:
   workflow_call:
     inputs:
@@ -37,7 +38,7 @@ jobs:
           echo "run_webapp: $RUN_WEBAPP"
       - run: npm ci
       - uses: extractions/setup-just@v3
-      - run: just test-web-suite all
+      - run: just test-webci-suite all
 
       # Exporté même en cas d'échec (if: always()) pour que le report Allure reflète aussi
       # les runs cassés. Le report job (system-tests-E2E.yml) le télécharge et le fusionne

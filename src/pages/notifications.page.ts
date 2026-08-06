@@ -1,4 +1,5 @@
-import {tl, withWebView} from '../helpers/webview'
+import {tl} from '../helpers/webview'
+import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
@@ -13,7 +14,7 @@ class NotificationsInboxPage {
      * Pré-condition : l'onboarding notifications a déjà été refusé.
      */
     async openFromHome(): Promise<void> {
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             // getByRole('link') cible l'<a href="/#/notifications"> par son rôle ARIA et son
             // nom accessible — plus robuste que le sélecteur CSS structurel '#notification-icon a'.
             const bell = await tl().getByRole('link', {name: /notifications/i})
@@ -36,7 +37,7 @@ class NotificationsInboxPage {
     /**
      * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
      *
-     * Stratégie : backoff exponentiel, un withWebView minimal par tentative.
+     * Stratégie : backoff exponentiel, un inWebContext minimal par tentative.
      * 
      * Pour tester qu'une démarche arrive dans la page d'Accueil (une seule, la plus récente affichée, il faut faire un test sans concurrent.
      * Ou si on teste iOS et Android en parallèle, on a intérêt a utiliser 2 comptes utilisateurs différents. 
@@ -45,12 +46,12 @@ class NotificationsInboxPage {
         const backoffMs = [0, 500, 1000, 2000, 4000, 8000]
         let elapsed = 0
         for (const delay of backoffMs) {
-            await browser.pause(delay) // hors withWebView : WebView libre de recevoir la WebSocket
+            await browser.pause(delay) // hors inWebContext : WebView libre de recevoir la WebSocket
             elapsed += delay
             let found = false;
 //            if (driver.isIOS) {
                 // la WKWebView a peut-être un UIRefreshControl qui bloque le refresh avec swipe down (pullToRefresh)
-                await withWebView(async () => {
+                await platform().inWebContext(async () => {
                     await driver.execute(() => window.location.reload())
                     // Après un reload, les appels pour vérifier que la page est chargée peuvent s'appliquer sur la page en train de disparaitre.
                     // On contourne ce problème en cherchant le nouvel élément que l'on poll.
@@ -66,7 +67,7 @@ class NotificationsInboxPage {
                 })
             // if (isAndroid) {
             //     await pullToRefresh()
-            //     found = await withWebView(() =>
+            //     found = await platform().inWebContext(() =>
             //         tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
             //     )
             // }
@@ -86,7 +87,7 @@ class NotificationsInboxPage {
      * Pré-condition : la notification est déjà visible dans l'inbox (utiliser waitForNotification avant).
      */
     async clickNotification(title: string): Promise<void> {
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             const item = await tl().findByText(title)
             await item.click()
         })
@@ -104,7 +105,7 @@ class NotificationsInboxPage {
      * <h2> / <h3> (composants DSFR fr-tile) et non systématiquement <h1>.
      */
     async getTopNotificationTitle(): Promise<string> {
-        return withWebView(async () => {
+        return platform().inWebContext(async () => {
             const text = await driver.execute(() => {
                 // Le titre de la notification est rendu comme un <a> (composant fr-tile DSFR), pas un heading.
                 // On exclut les liens de navigation pour ne garder que le titre métier. 

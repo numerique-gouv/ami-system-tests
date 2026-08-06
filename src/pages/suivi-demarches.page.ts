@@ -1,4 +1,5 @@
-import { withWebView, tl, retourJusquATexteVisible } from '../helpers/webview'
+import { tl, retourJusquATexteVisible } from '../helpers/webview'
+import { platform } from '../platform'
 import { traced } from '../helpers/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import HomePage from './home.page'
@@ -21,15 +22,15 @@ class SuiviDemarchesPage {
     async waitForDemarche(title: string): Promise<void> {
         const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
         for (const delay of backoffMs) {
-            await browser.pause(delay) // hors withWebView : laisse la page respirer entre deux rafraîchissements
-            await withWebView(async () => {
+            await browser.pause(delay) // hors inWebContext : laisse la page respirer entre deux rafraîchissements
+            await platform().inWebContext(async () => {
                 await driver.execute(() => window.location.reload())
                 await browser.waitUntil(
                     () => driver.execute(() => document.readyState === 'complete') as Promise<boolean>,
                     {timeout: 5000, interval: 200, timeoutMsg: 'Page Suivi non stabilisée après reload'}
                 )
             })
-            const found = await withWebView(
+            const found = await platform().inWebContext(
                 () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
                 //tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
             )
@@ -58,7 +59,7 @@ class SuiviDemarchesPage {
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
     const loc = getSuiviDemarchesLocators()
-    await withWebView(async () => {
+    await platform().inWebContext(async () => {
       let failReason: 'card-not-found' | 'status-not-found' = 'card-not-found'
       let lastStatus: string | null = null
       const statusLabelLower = statusLabel.toLowerCase()
@@ -99,7 +100,7 @@ class SuiviDemarchesPage {
    * - demarcheDetailPage.assertLienExterne(...)
    */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
-    await withWebView(async () => {
+    await platform().inWebContext(async () => {
       // tl() par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
       // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
       try {
@@ -128,7 +129,7 @@ class SuiviDemarchesPage {
      */
     async retourJusquAPageSuivi(): Promise<void> {
         let demarchesLocators = getSuiviDemarchesLocators();
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             await retourJusquATexteVisible(
                 () => driver.execute((t: string) => document.body.innerText.includes(t), demarchesLocators.pageTitle) as Promise<boolean>,
                 5000

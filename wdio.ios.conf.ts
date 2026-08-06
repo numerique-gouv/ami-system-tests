@@ -1,14 +1,18 @@
 import { execFileSync } from 'child_process'
+import path from 'path'
 import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
 import { baseConfig } from './wdio.base.conf'
 import { iosCapabilities } from './src/driver/capabilities'
+import { resolveSpecs } from './test-suites'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
 const log = logger('config')
 
 export const config: Options.Testrunner = {
   ...baseConfig,
+
+  specs: resolveSpecs(path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')),
 
   capabilities: [iosCapabilities],
 

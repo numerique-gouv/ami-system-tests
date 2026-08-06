@@ -5,28 +5,18 @@ import dotenv from 'dotenv'
 import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
 import { registerReplHelpers } from './src/helpers/repl'
-import { testSuites } from './test-suites'
+import { platform } from './src/platform'
 
 const log = logger('scenario')
 
 // Les variables déjà définies dans le shell ne sont pas écrasées (override: false).
 dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
 
+// `specs` n'est PAS définie ici : chaque config de plateforme (wdio.android.conf.ts,
+// wdio.ios.conf.ts, wdio.webapp.conf.ts) appelle resolveSpecs() de test-suites.ts avec
+// son propre glob par défaut — mobile et webapp n'ont pas le même arbre sous src/tests/.
 export const baseConfig: Partial<Options.Testrunner> = {
   runner: 'local',
-
-  specs: (() => {
-    const suiteName = process.env.WDIO_SUITE
-    if (suiteName) {
-      const suite = testSuites[suiteName]
-      if (!suite) throw new Error(
-        `Suite inconnue : "${suiteName}". Suites disponibles : ${Object.keys(testSuites).join(', ')}`
-      )
-      log.warn(`On utilise la suite ${suiteName}:`, suite)
-      return suite
-    }
-    return [path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')]
-  })(),
 
   exclude: [],
 
@@ -94,9 +84,9 @@ export const baseConfig: Partial<Options.Testrunner> = {
     // addLabel pour le regroupement/filtrage dans l'UI, addArgument pour que le historyId
     // diverge — sans ça, des tests de même nom sur 2 plateformes seraient vus comme des
     // retries l'un de l'autre (même historyId) et écraseraient leur historique mutuel.
-    const platform = browser.isAndroid ? 'android' : browser.isIOS ? 'ios' : 'webapp'
-    AllureReporter.addLabel('platform', platform)
-    await AllureReporter.addArgument('platform', platform)
+    const platformKind = platform().kind
+    AllureReporter.addLabel('platform', platformKind)
+    await AllureReporter.addArgument('platform', platformKind)
     // run_old_device : uniquement pertinent pour Android (Pixel 6 API 31 vs Pixel 8 API 35),
     // et seulement en CI où RUN_OLD_DEVICE est exporté par notification-api.android.yml.
     if (process.env.RUN_OLD_DEVICE !== undefined) {
@@ -108,6 +98,10 @@ export const baseConfig: Partial<Options.Testrunner> = {
     // Expose les helpers d'inspection sur globalThis pour le REPL browser.debug().
     // Tape `help()` dans le REPL pour voir la liste complète.
     registerReplHelpers()
+    // La navigation initiale et la capture du window handle sont spécifiques à la webapp
+    // (pas de notion d'onglet côté Appium/mobile) — gérées dans le before() propre à
+    // wdio.webapp.conf.ts, qui compose par-dessus celui-ci plutôt que de dupliquer
+    // registerReplHelpers().
   },
 
   afterTest: async (test, _context, result): Promise<void> => {
@@ -125,9 +119,14 @@ export const baseConfig: Partial<Options.Testrunner> = {
     }
     // Captures de débogage selon le contexte courant — sans changement de contexte (évite le blocage iOS ~25 s)
     try {
-      const ctx = await browser.getContext()
-      const ctxName = typeof ctx === 'string' ? ctx : ((ctx as { id?: string })?.id ?? '')
-      if (ctxName.startsWith('WEBVIEW')) {
+      // En webapp, browser.getContext() n'existe pas (commande Appium absente d'une session
+      // navigateur classique) — la session entière EST déjà le contenu web, pas besoin de sonder.
+      const isWebContent = platform().kind === 'webapp' || await (async () => {
+        const ctx = await browser.getContext()
+        const ctxName = typeof ctx === 'string' ? ctx : ((ctx as { id?: string })?.id ?? '')
+        return ctxName.startsWith('WEBVIEW')
+      })()
+      if (isWebContent) {
         const html = await browser.getPageSource()
         await AllureReporter.addAttachment('DOM snapshot (WebView)', html, 'text/html')
 

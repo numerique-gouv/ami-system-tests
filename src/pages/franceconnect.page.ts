@@ -1,9 +1,10 @@
 import {fcpLocators} from './locators/franceconnect.locators'
 import {traced} from '../helpers/traced'
-import {tl, withWebView} from '../helpers/webview'
+import {tl} from '../helpers/webview'
+import {platform} from '../platform'
 import type {TestUser} from '../helpers/test-users'
 import logger from "@wdio/logger";
-import HomePage from "@pages/home.page";
+import HomePage from "./home.page";
 
 const log = logger('page-object')
 
@@ -11,7 +12,7 @@ const log = logger('page-object')
 
 class FranceConnectPage {
      async selectEidasFaible() : Promise<boolean>  {
-        return await withWebView(async () => {
+        return await platform().inWebContext(async () => {
             // queries Testing Library (executeAsync).
             const tileTimeoutMs = 5000
             const labelLower = fcpLocators.eidasFaibleLabel.toLowerCase()
@@ -43,7 +44,7 @@ class FranceConnectPage {
     }
 
     async fillCredentials(user: TestUser) {
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             try {
                 // synchrone, survit à une navigation en cours (cf. commentaire selectEidasFaible ci-dessus).
                 await browser.waitUntil(

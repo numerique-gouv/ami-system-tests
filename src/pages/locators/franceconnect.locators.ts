@@ -2,7 +2,7 @@
  * Sélecteurs du flux FranceConnect OIDC — formulaire FCP-LOW mock.
  *
  * Ces sélecteurs sont des XPath WebView (CSS/XPath standard, comme dans un navigateur).
- * Ils s'utilisent exclusivement après switchContext('WEBVIEW_*') via withWebView().
+ * Ils s'utilisent exclusivement après switchContext('WEBVIEW_*') via inWebContext().
  *
  * Le formulaire FCP-LOW est identique sur Android et iOS (même HTML de mock OIDC),
  * donc un seul jeu de sélecteurs sans split plateforme.

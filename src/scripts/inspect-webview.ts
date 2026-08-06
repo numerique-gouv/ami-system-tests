@@ -13,13 +13,14 @@ import nodeRepl from 'node:repl'
 import { remote } from 'webdriverio'
 import { androidCapabilities, iosCapabilities } from '../driver/capabilities'
 import { listInteractiveAll, getContexts, saveScreenshot, webViewInfo } from '../helpers/repl'
-import { withWebView, refreshAxTree, tl } from '../helpers/webview'
+import { tl } from '../helpers/webview'
+import { platform } from '../platform'
 import { listInteractive } from '../helpers/inspect'
 
-const [,, platform] = process.argv
+const [,, targetPlatform] = process.argv
 
 async function main(): Promise<void> {
-  const baseCaps = platform === 'ios' ? iosCapabilities : androidCapabilities
+  const baseCaps = targetPlatform === 'ios' ? iosCapabilities : androidCapabilities
 
   // Retirer les capabilities qui relancent ou terminent l'app :
   //   - 'appium:app'              → déclenche une vérification d'installation + lancement depuis le .apk/.app
@@ -34,7 +35,7 @@ async function main(): Promise<void> {
   caps['appium:fullReset'] = false
 
   // eslint-disable-next-line no-console
-  console.log(`\n🔌 Connexion à Appium (localhost:4723, ${platform})…`)
+  console.log(`\n🔌 Connexion à Appium (localhost:4723, ${targetPlatform})…`)
   const browser = await remote({
     hostname: 'localhost',
     port: 4723,
@@ -51,9 +52,9 @@ async function main(): Promise<void> {
   g.$$      = browser.$$.bind(browser)
   g.listInteractive    = listInteractive
   g.listInteractiveAll = listInteractiveAll
-  g.withWebView        = withWebView
+  g.inWebContext       = (callback: () => Promise<unknown>): Promise<unknown> => platform().inWebContext(callback)
   g.webViewInfo        = webViewInfo
-  g.refreshAxTree      = refreshAxTree
+  g.refreshAxTree      = (): Promise<void> => platform().refreshAxTree()
   g.getContexts        = getContexts
   g.saveScreenshot     = saveScreenshot
   g.tl                 = tl
@@ -71,15 +72,15 @@ Helpers disponibles dans ce REPL :
   help()                         — affiche ce message
   await listInteractive()        — éléments du contexte courant (natif ou webview)
   await listInteractiveAll()     — natif + webview en un appel
-  await withWebView(async () =>  — exécuter une action dans le contexte WebView
+  await inWebContext(async () =>  — exécuter une action dans le contexte WebView
     { ... })
   await webViewInfo()            — { url, visible, title } de la WebView active
   await refreshAxTree()          — force le re-scan accessibilité (iOS)
   await getContexts()            — liste les contextes Appium
   await saveScreenshot('name')   — sauve /tmp/name.png
 
-  tl()                           — Testing Library (à utiliser dans withWebView)
-    ex : await withWebView(async () => {
+  tl()                           — Testing Library (à utiliser dans inWebContext)
+    ex : await inWebContext(async () => {
            const el = await tl().findByText('Mon texte')
            console.log(await el.getText())
          })

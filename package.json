@@ -6,6 +6,7 @@
   "scripts": {
     "test:android": "wdio run wdio.android.conf.ts",
     "test:ios": "wdio run wdio.ios.conf.ts",
+    "test:webapp": "wdio run wdio.webapp.conf.ts",
     "test:android:staging": "APP_ENV=staging wdio run wdio.android.conf.ts",
     "test:ios:staging": "APP_ENV=staging wdio run wdio.ios.conf.ts",
     "lint": "eslint src --ext .ts",

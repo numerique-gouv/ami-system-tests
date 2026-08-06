@@ -1,6 +1,7 @@
 import {getLoginLocators} from './locators/login.locators'
 import {traced} from '../helpers/traced'
-import {tl, withWebView} from '../helpers/webview'
+import {tl} from '../helpers/webview'
+import {platform} from '../platform'
 import {setBackendUrl} from '../helpers/notifications-api'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
@@ -19,6 +20,8 @@ class LoginPage {
      * malgré le scroll, l'erreur se propage (configuration AMI_ENV incorrecte).
      */
     async reviewEnvironmentPicker(): Promise<void> {
+        // Écran natif — inexistant en webapp, où l'URL de la session détermine déjà l'environnement.
+        if (platform().kind === 'webapp') return
         const loc = getLoginLocators()
 
         // "Staging" est toujours le premier item — sa présence confirme que le picker est affiché.
@@ -40,7 +43,7 @@ class LoginPage {
     /**
      * Tape le bouton "S'identifier avec FranceConnect".
      * Sur Android : bouton natif (NATIVE_APP, contentDescription).
-     * Sur iOS : bouton dans la WebView SPA (context switch automatique).
+     * Sur iOS et en webapp : bouton dans le DOM de la SPA (context switch automatique sur iOS).
      * Cet écran peut apparaitre une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC.
      */
     async tapFranceConnect(oidcConcurrencyBugOnIOs = false): Promise<void> {
@@ -49,8 +52,8 @@ class LoginPage {
         // reste loggé même en best-effort — un catch {} vide masquerait un sélecteur cassé.
         const timeout = oidcConcurrencyBugOnIOs ? 5000 : 15000
 
-        if (driver.isIOS) {
-            await withWebView(async () => {
+        if (!platform().fcButtonIsNative) {
+            await platform().inWebContext(async () => {
                 try {
                     await browser.waitUntil(
                         () => driver.execute(
@@ -59,7 +62,8 @@ class LoginPage {
                         ) as Promise<boolean>,
                         {timeout, interval: 300}
                     )
-                    const fcButton = await tl().findByRole('button', {name: /identifier avec franceconnect/i}, {timeout})
+                    const fcButton = await tl().findByRole('button', {name: /franceconnect/i}, {timeout})
+                    log.info('btn FC trouvé !!!')
                     await fcButton.click()
                 } catch {
                     let message = "bouton de connexion avec FranceConnect introuvable";
@@ -75,7 +79,7 @@ class LoginPage {
             })
         } else {
             // Bouton natif Android (contentDescription "franceConnect button") : pas de WebView
-            // à ce stade de l'écran de login, donc pas de withWebView() ici (cf. androidLoginLocators
+            // à ce stade de l'écran de login, donc pas de inWebContext() ici (cf. androidLoginLocators
             // .fcButtonInWebView = false). Même distinction best-effort / erreur réelle que iOS.
             const loc = getLoginLocators()
             try {

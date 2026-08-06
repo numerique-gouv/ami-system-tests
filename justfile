@@ -216,11 +216,53 @@ test-android-suite suite: _require-dotenv start-android
 test-ios-suite suite: _require-dotenv start-ios
     WDIO_SUITE={{suite}} npm run test:ios
 
-# Lancer la suite de tests webapp (non implémentée — stub CI)
-# Usage : just test-web-suite <suite>   ex: just test-web-suite all
-test-web-suite suite: _require-dotenv
-    @echo "🌐 Suite webapp '{{suite}}' : non implémentée pour l'instant — rien à exécuter."
+# Lancer les tests E2E webapp (CI) — Chrome headless, pas d'émulateur/simulateur à démarrer
+# Usage : just test-webci [glob…]   — un ou plusieurs globs de fichiers (optionnels)
+test-webci *globs="": _require-dotenv
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🌐 Tests E2E webapp (headless)…"
+    if [ -n "{{globs}}" ]; then
+        SPEC_ARGS=""
+        for glob in {{globs}}; do
+            SPEC_ARGS="$SPEC_ARGS --spec $glob"
+        done
+        npm run test:webapp -- $SPEC_ARGS
+    else
+        npm run test:webapp
+    fi
+
+# Lancer les tests E2E webapp (CI) avec une suite nommée (session partagée — auth une seule fois)
+# Usage : just test-webci-suite <suite>   ex: just test-webci-suite all
+test-webci-suite suite: _require-dotenv
     WDIO_SUITE={{suite}} npm run test:webapp
+
+# Lancer les tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver
+#
+# ATTENTION : ne pas ouvrir le panneau DevTools (F12 / Cmd+Opt+I) sur l'onglet de l'app pendant
+# le run — si un breakpoint est actif ou "Pause on exceptions" activé, le débogueur JS suspend
+# réellement l'exécution de la page, ce qui bloque toute commande WebDriver (échoue au bout de
+# 20s avec un message explicite plutôt qu'un hang silencieux, cf. ENSURE_APP_WINDOW_TIMEOUT_MS
+# dans src/platform/browser.adapter.ts).
+# Usage : just test-webapp [glob…]   — un ou plusieurs globs de fichiers (optionnels)
+test-webapp *globs="": _require-dotenv
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🌐 Tests E2E webapp (Chrome visible)…"
+    if [ -n "{{globs}}" ]; then
+        SPEC_ARGS=""
+        for glob in {{globs}}; do
+            SPEC_ARGS="$SPEC_ARGS --spec $glob"
+        done
+        WEBAPP_HEADLESS=false npm run test:webapp -- $SPEC_ARGS
+    else
+        WEBAPP_HEADLESS=false npm run test:webapp
+    fi
+
+# Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (session partagée — auth une seule fois)
+# Usage : just test-webapp-suite <suite>   ex: just test-webapp-suite all
+test-webapp-suite suite: _require-dotenv
+    WEBAPP_HEADLESS=false WDIO_SUITE={{suite}} npm run test:webapp
 
 # ─── Inspection / Reporting ─────────────────────────────────────────────────
 

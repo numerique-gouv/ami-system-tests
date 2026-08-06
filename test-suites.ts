@@ -1,4 +1,7 @@
 import path from 'path'
+import logger from '@wdio/logger'
+
+const log = logger('scenario')
 
 const r = (p: string) => path.resolve(__dirname, p)
 
@@ -45,4 +48,22 @@ export const testSuites: Record<string, string[][]> = {
         r('src/tests/mobile/notifications.test.ts'),
         r('src/tests/mobile/demarches.test.ts'),
     ]]
+}
+
+/**
+ * Résout la valeur `specs` d'une config WDIO : suite nommée via WDIO_SUITE si définie,
+ * sinon `defaultGlob` propre à la plateforme appelante (mobile ou webapp — chacune a son
+ * propre arbre sous src/tests/, cf. CLAUDE.md §Architecture).
+ */
+export function resolveSpecs(defaultGlob: string): string[] | string[][] {
+    const suiteName = process.env.WDIO_SUITE
+    if (suiteName) {
+        const suite = testSuites[suiteName]
+        if (!suite) throw new Error(
+            `Suite inconnue : "${suiteName}". Suites disponibles : ${Object.keys(testSuites).join(', ')}`
+        )
+        log.warn(`On utilise la suite ${suiteName}:`, suite)
+        return suite
+    }
+    return [defaultGlob]
 }

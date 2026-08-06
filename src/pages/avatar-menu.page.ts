@@ -1,4 +1,5 @@
-import {refreshAxTree, tl, withWebView} from '../helpers/webview'
+import {tl} from '../helpers/webview'
+import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import {getProfileLocators} from './locators/profile.locators'
 import {AssertionError} from "node:assert";
@@ -11,12 +12,12 @@ class AvatarMenuPage {
      * Navigue vers la page "Mon profil" depuis la home :
      *   clic toggle-menu-button → attente profile-button → clic profile-button → attente conteneur profil.
      *
-     * Toute la navigation est dans un seul withWebView — la page /#/profile est dans la même
+     * Toute la navigation est dans un seul inWebContext — la page /#/profile est dans la même
      * WebView que la home, la navigation hash ne nécessite pas de re-switch de contexte.
      */
     async navigate(): Promise<void> {
         const loc = getProfileLocators()
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             // Le menu avatar peut déjà être ouvert (ex. re-navigation après un logout) —
             // ne cliquer toggleMenuButton que si "Mon profil" n'est pas déjà visible.
             await tl()
@@ -44,7 +45,7 @@ class AvatarMenuPage {
      */
     async getIdentityBolds(): Promise<string[]> {
         const loc = getProfileLocators()
-        return await withWebView(async () => {
+        return await platform().inWebContext(async () => {
             const texts: string[] = []
             for await (const b of $$(`${loc.identitySection} b`)) {
                 const text = (await b.getText()).trim()
@@ -59,7 +60,7 @@ class AvatarMenuPage {
      */
     async getEmailBold(): Promise<string> {
         const loc = getProfileLocators()
-        return await withWebView(async () =>
+        return await platform().inWebContext(async () =>
             (await $(`${loc.emailSection} b`).getText().catch(() => '')).trim()
         )
     }
@@ -70,7 +71,7 @@ class AvatarMenuPage {
      */
     async getAddressBolds(): Promise<string[]> {
         const loc = getProfileLocators()
-        return await withWebView(async () => {
+        return await platform().inWebContext(async () => {
             const texts: string[] = []
             for await (const b of $$(`${loc.addressSection} b`)) {
                 const text = (await b.getText()).trim()
@@ -87,8 +88,8 @@ class AvatarMenuPage {
      */
     async navigateToSettings(): Promise<void> {
         const loc = getProfileLocators()
-        await withWebView(async () => {
-            await refreshAxTree()
+        await platform().inWebContext(async () => {
+            await platform().refreshAxTree()
             await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
             await $(loc.toggleMenuButton).click()
 
@@ -103,7 +104,7 @@ class AvatarMenuPage {
      */
     async navigateToProfileDirect(): Promise<void> {
         const loc = getProfileLocators()
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             await driver.execute(() => {
                 window.location.hash = '/profile'
             })
@@ -120,7 +121,7 @@ class AvatarMenuPage {
      */
     async editPreferredUsername(newValue: string): Promise<void> {
         const loc = getProfileLocators()
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             // Clic "Modifier" : data-testid requis (findByTestId), les 3 boutons ont le même texte
             // "Modifier" — un findByRole({name:'Modifier'}) ne pourrait pas les distinguer.
             const editBtn = await tl().findByTestId(loc.preferredUsernameEditButtonTestId)
@@ -147,7 +148,7 @@ class AvatarMenuPage {
      */
     async editEmail(newValue: string): Promise<void> {
         const loc = getProfileLocators()
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             const editBtn = await tl().findByTestId(loc.emailEditButtonTestId)
             await editBtn.click()
 
@@ -177,7 +178,7 @@ class AvatarMenuPage {
     async logout(): Promise<void> {
         const loc = getProfileLocators()
 
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             if (!await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})) {
                 log.warn("avatar menu is not clickable...")
                 return
@@ -208,7 +209,7 @@ class AvatarMenuPage {
      */
     async editAddress(query: string): Promise<void> {
         const loc = getProfileLocators()
-        await withWebView(async () => {
+        await platform().inWebContext(async () => {
             const editBtn = await tl().findByTestId(loc.addressEditButtonTestId)
             await editBtn.click()
 

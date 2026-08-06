@@ -10,7 +10,7 @@
 import fs from 'fs'
 import path from 'path'
 import { listInteractive } from './inspect'
-import { withWebView, refreshAxTree } from './webview'
+import { platform } from '../platform'
 
 type ReplHelper = {
   name: string
@@ -53,7 +53,7 @@ export async function saveScreenshot(name?: string): Promise<string> {
  * natif) et titre. Throw si aucune WebView vivante dans le process.
  */
 export async function webViewInfo(): Promise<{ url: string; visible: string; title: string }> {
-  return await withWebView(async () => ({
+  return await platform().inWebContext(async () => ({
     url: await browser.getUrl(),
     visible: (await driver.execute(() => document.visibilityState)) as string,
     title: (await driver.execute(() => document.title)) as string,
@@ -74,7 +74,7 @@ export async function listInteractiveAll(): Promise<{
   // eslint-disable-next-line no-console
   console.log('=== WEBVIEW ===')
   try {
-    const webview = await withWebView(async () => await listInteractive())
+    const webview = await platform().inWebContext(async () => await listInteractive())
     return { native, webview }
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -117,10 +117,10 @@ register({
   fn: listInteractiveAll,
 })
 register({
-  name: 'withWebView',
-  signature: 'await withWebView(async () => …)',
+  name: 'inWebContext',
+  signature: 'await inWebContext(async () => …)',
   description: 'Exécute le callback dans le contexte WEBVIEW_* puis restaure NATIVE_APP',
-  fn: withWebView,
+  fn: (callback: () => Promise<unknown>) => platform().inWebContext(callback),
 })
 register({
   name: 'webViewInfo',
@@ -132,7 +132,7 @@ register({
   name: 'refreshAxTree',
   signature: 'await refreshAxTree()',
   description: 'Force le re-scan de l\'arbre d\'accessibilité (iOS uniquement)',
-  fn: refreshAxTree,
+  fn: () => platform().refreshAxTree(),
 })
 register({
   name: 'getContexts',

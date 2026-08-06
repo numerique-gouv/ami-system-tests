@@ -1,10 +1,14 @@
 import { execFileSync } from 'child_process'
+import path from 'path'
 import type { Options } from '@wdio/types'
 import { baseConfig } from './wdio.base.conf'
 import { androidCapabilities } from './src/driver/capabilities'
+import { resolveSpecs } from './test-suites'
 
 export const config: Options.Testrunner = {
   ...baseConfig,
+
+  specs: resolveSpecs(path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')),
 
   capabilities: [androidCapabilities],
 
