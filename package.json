@@ -43,12 +43,12 @@
     "node": ">=20.0.0"
   },
   "allowScripts": {
-    "appium@3.5.2": true,
     "sharp@0.34.5": true,
-    "appium-ios-tuntap@1.1.0": true,
     "edgedriver@6.3.0": true,
     "esbuild@0.28.0": true,
     "fsevents@2.3.3": true,
-    "geckodriver@6.1.0": true
+    "appium@3.6.0": true,
+    "geckodriver@6.1.1": true,
+    "appium-ios-tuntap@1.2.2": true
   }
 }
