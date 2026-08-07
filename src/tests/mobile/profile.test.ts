@@ -1,6 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
-import ProfilePage from '@pages/avatar-menu.page'
+import ProfilePage from '@pages/profile.page'
 import { authenticate } from '@helpers/authenticate'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.

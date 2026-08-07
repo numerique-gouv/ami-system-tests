@@ -3,11 +3,14 @@ import type { Locator } from './onboarding.locators'
 /**
  * Sélecteurs WebView de la page "Mon profil" (SPA Svelte, route /#/profile).
  *
- * Structure DOM observée via just inspect (2026-08-04) :
+ * Structure DOM observée via just inspect (2026-08-04) et src/lib/components/NavWithBackButton.svelte
+ * (dépôt ami-notifications-api, public/mobile-app) :
  *   button "Plus" (accessible name)     ← bouton avatar (initiales) dans le header home ;
  *                                          l'ancien data-testid="toggle-menu-button" n'existe plus
  *   [data-testid="profile-button"]      ← "Mon profil" dans le menu déroulant avatar
- *   [data-testid="profile"]             ← conteneur principal de la page profil
+ *   <h2>Mon profil</h2>                 ← titre de la page, rendu par NavWithBackButton — sentinelle
+ *                                          d'arrivée (le conteneur [data-testid="profile"] existe
+ *                                          toujours dans le DOM mais n'est plus utilisé comme sélecteur)
  *     #profile-identity                 ← section "Mon identité" (nom, date/lieu de naissance)
  *     #profile-email                    ← section "Contact" (email)
  *     #profile-address                  ← section "Mon adresse" (rue, code postal)
@@ -25,14 +28,17 @@ export interface ProfileLocators {
   emailSection: Locator       // section "Contact"
   addressSection: Locator     // section "Mon adresse"
 
-  // DETTE : data-testid non justifié pour ces 3 champs. Choisi à l'origine (commit 09e9798)
+  // Titre <h2> de la page (NavWithBackButton) — sentinelle d'arrivée par requête sémantique
+  // (tl().findByRole('heading', {name: pageTitle})), plutôt qu'un data-testid sur le conteneur.
+  pageTitle: string
+
+  // DETTE : data-testid non justifié pour ces 2 champs. Choisi à l'origine (commit 09e9798)
   // parce que c'est le premier attribut remonté par `just inspect`, pas parce qu'un
   // tl().findByRole()/findByText() aurait été essayé et aurait échoué — "ce que just inspect
   // montre en premier" n'est pas une raison valable (cf. CONTRIBUTING.md §2 "data-testid : dernier
   // recours documenté"). À retester avec une query sémantique avant de considérer ce champ comme figé.
   profileMenuButtonTestId: string  // "Mon profil" dans le menu avatar
   settingsMenuButtonTestId: string // "Paramètres" dans le menu avatar
-  profileContainerTestId: string   // conteneur de la page profil
 
   // Ambiguïté CONFIRMÉE : les 3 boutons "Modifier" de la page profil partagent le même rôle
   // (button) et le même texte visible — tl().findByRole('button', {name:'Modifier'}) ne peut
@@ -53,9 +59,9 @@ export const profileLocators: ProfileLocators = {
   emailSection: '#profile-email',
   addressSection: '#profile-address',
 
+  pageTitle: 'Mon profil',
   profileMenuButtonTestId: 'profile-button',
   settingsMenuButtonTestId: 'settings-button',
-  profileContainerTestId: 'profile',
   preferredUsernameEditButtonTestId: 'preferred-username-button',
   emailEditButtonTestId: 'email-button',
   addressEditButtonTestId: 'address-button',

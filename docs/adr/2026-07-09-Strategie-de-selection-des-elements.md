@@ -45,7 +45,7 @@ Accepté.
 | Type de page | Rechargement DOM | Requêtes async stale/tuées | ARIA disponible | Texte visible disponible | data-testid disponible | Moyens de sélection |
 |---|---|---|---|---|---|---|
 | **Écran natif simple** (ex. `onboarding-notifications.page.ts`, review-picker) | Total au niveau vue (recyclage de vues sur listes longues : RecyclerView Android / LazyColumn iOS) | Non concerné (pas de JS/WebView) — mais `waitForExist` préféré à `waitForDisplayed` sur iOS (élément SwiftUI présent dans l'arbre XCUITest avec `isDisplayed=false` pendant l'animation d'entrée) | Non — accessibilité native (`accessibilityIdentifier`/`contentDescription`), pas ARIA web | Oui, mais dépendant de la locale/casse | Non (pas de concept data-testid natif) | Android : resource-id / `UiSelector().text()` / `textContent()` ; iOS : `accessibilityIdentifier` (`~xxx`) / predicate string `label CONTAINS[c]`. Convergent vers un seul `~xxx` si le même identifiant est posé des deux côtés (SwiftUI `accessibilityIdentifier` = Compose `contentDescription`) |
-| **WebView simple stable** (ex. `avatar-menu.page.ts` profil) | Partiel, réactif Svelte, pas de reload complet | Faible risque si l'appel a lieu après stabilisation de la page | Oui (rôle, label associé à un input) | Oui | Oui (`[data-testid="..."]` posés côté app) | `tl()` (role/label), `$()`/`$$()` (CSS/testid), `driver.execute` |
+| **WebView simple stable** (ex. `profile.page.ts` profil) | Partiel, réactif Svelte, pas de reload complet | Faible risque si l'appel a lieu après stabilisation de la page | Oui (rôle, label associé à un input) | Oui | Oui (`[data-testid="..."]` posés côté app) | `tl()` (role/label), `$()`/`$$()` (CSS/testid), `driver.execute` |
 | **WebView avec redirections OIDC** (ex. `franceconnect.page.ts`) | Total à chaque redirect cross-origin (SPA AMI → serveur FC → fip1-low → callback AMI → SPA AMI) | Élevé : AX tree WKWebView figé pendant les transitions iOS ; contexte WKRDP non-ré-inspectable ~25s si on sort de `withWebView` pendant une navigation cross-origin | Variable selon la page tierce (FranceConnect, hors contrôle de l'app AMI) | Variable | Non (pages hors app AMI) | `driver.execute()` quasi systématique sur iOS/fip1-low (`$()` échoue après plusieurs redirections cross-origin, bug WKRDP documenté) ; `tl()` seulement pour les interactions sur la page eIDAS initiale, avant tout redirect |
 | **WebView à information asynchrone** (ex. `notifications.page.ts`, backend sans push testé) | Partiel, déclenché par un rafraîchissement explicite (reload/pull-to-refresh) **pendant** que le test lit la page | `executeAsync` (`tl()`) risque timeout si tué par un re-render concurrent ; **`$$()`+`.getText()` risque un `stale element`** entre capture et lecture (constaté sur `getTopNotificationTitle`) | Partiel (headings noyés dans une longue liste de `<a>`, cf. heading "Notifications" longtemps cru absent) | Oui, mais change sous les yeux du test | Non systématique | `driver.execute()` en priorité pour toute lecture (snapshot atomique) ; `tl()` seulement en interaction ponctuelle post-stabilisation |
 | **Écran natif/WebView avec geste physique** (scroll longue liste native, pull-to-refresh) | Recyclage de vues pendant le geste (listes natives) | Non concerné directement, mais le geste doit s'exécuter en `NATIVE_APP` — intercepté par la WebView sinon, n'atteint jamais le conteneur natif sous-jacent (`SwipeRefreshLayout` Android) | — | — | — | `driver.action('pointer', {parameters:{pointerType:'touch'}})` hors `withWebView`. Sur iOS, `UIRefreshControl` peut bloquer le swipe pull-to-refresh — préférer `driver.execute(() => window.location.reload())` en WebView à la place |
@@ -70,8 +70,8 @@ Légende : **Sync** = `execute` (JS synchrone, atomique) / `executeAsync` (Testi
 | Fichier:méthode | API | Sync | Résiste | Accès |
 |---|---|---|---|---|
 | `notifications.page.ts` `getTopNotificationTitle` | `driver.execute` : trouve + lit dans le même appel | execute | Oui (snapshot unique) | textContent |
-| `avatar-menu.page.ts` `getIdentityBolds`/`getAddressBolds` | `for await ($$(...))` + `.getText()` | WebDriver | Partiel | textContent/CSS |
-| `avatar-menu.page.ts` `getEmailBold` | `$(...).getText().catch(() => '')` | WebDriver | Partiel | textContent/CSS |
+| `profile.page.ts` `getIdentityBolds`/`getAddressBolds` | `for await ($$(...))` + `.getText()` | WebDriver | Partiel | textContent/CSS |
+| `profile.page.ts` `getEmailBold` | `$(...).getText().catch(() => '')` | WebDriver | Partiel | textContent/CSS |
 | `suivi-demarches.page.ts` `assertVisibleDemarcheWith` | `card.$(cardBadge).getText()` / `.getAttribute('href')` | WebDriver | Partiel | textContent + attribut |
 
 #### 3. Attendre qu'un contenu apparaisse de façon asynchrone (backend sans push testé)
@@ -85,14 +85,14 @@ Légende : **Sync** = `execute` (JS synchrone, atomique) / `executeAsync` (Testi
 
 | Fichier:méthode | API | Sync | Résiste | Accès |
 |---|---|---|---|---|
-| `avatar-menu.page.ts` `editPreferredUsername`/`editEmail`/`editAddress` | `tl().findByLabelText(...)` + `.setValue()` | executeAsync | Non (page stable requise) | ARIA/label |
+| `profile.page.ts` `editPreferredUsername`/`editEmail`/`editAddress` | `tl().findByLabelText(...)` + `.setValue()` | executeAsync | Non (page stable requise) | ARIA/label |
 | `franceconnect.page.ts` `fillCredentials` | `tl().getByLabelText(/identifiant/i)` + `.setValue()` | executeAsync | Non | ARIA/label |
 
 #### 5. Vérifier qu'une page/tuile n'est plus affichée
 
 | Fichier:méthode | API | Sync | Résiste | Accès |
 |---|---|---|---|---|
-| `avatar-menu.page.ts` `logout` | `$('button=Confirmer').waitForDisplayed({reverse:true})` — `$()` paresseux, jamais pré-`await`é | WebDriver | Oui (ré-résolution à chaque commande) | testid/CSS/texte |
+| `profile.page.ts` `logout` | `$('button=Confirmer').waitForDisplayed({reverse:true})` — `$()` paresseux, jamais pré-`await`é | WebDriver | Oui (ré-résolution à chaque commande) | testid/CSS/texte |
 | `franceconnect.page.ts` `submit` | `waitUntil(() => getUrl() !== urlBefore)` — disparition détectée par changement d'URL, pas par le DOM | WebDriver (`getUrl`) | Oui | URL |
 
 #### 6. Autres (clic par texte/rôle, changement d'onglet, geste natif, switch de contexte)

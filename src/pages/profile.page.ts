@@ -7,7 +7,7 @@ import logger from "@wdio/logger";
 
 const log = logger('page-object')
 
-class AvatarMenuPage {
+class ProfilePage {
     /**
      * Navigue vers la page "Mon profil" depuis la home :
      *   clic toggle-menu-button → attente profile-button → clic profile-button → attente conteneur profil.
@@ -35,7 +35,7 @@ class AvatarMenuPage {
             await profileBtn.click()
 
             // 4. Attendre le conteneur de la page profil
-            await tl().findByTestId(loc.profileContainerTestId, {}, {timeout: 10000})
+            await tl().findByRole('heading', {name: loc.pageTitle}, {timeout: 10000})
         })
     }
 
@@ -108,7 +108,7 @@ class AvatarMenuPage {
             await driver.execute(() => {
                 window.location.hash = '/profile'
             })
-            await tl().findByTestId(loc.profileContainerTestId, {}, {timeout: 5000})
+            await tl().findByRole('heading', {name: loc.pageTitle}, {timeout: 5000})
         })
     }
 
@@ -138,7 +138,7 @@ class AvatarMenuPage {
             await submitBtn.click()
 
             // Sentinelle retour profil
-            await tl().findByTestId(loc.profileContainerTestId, {}, {timeout: 5000})
+            await tl().findByRole('heading', {name: loc.pageTitle}, {timeout: 5000})
         })
     }
 
@@ -161,7 +161,7 @@ class AvatarMenuPage {
             const submitBtn = await tl().findByRole('button', {name: 'Enregistrer'})
             await submitBtn.click()
 
-            await tl().findByTestId(loc.profileContainerTestId, {}, {timeout: 5000})
+            await tl().findByRole('heading', {name: loc.pageTitle}, {timeout: 5000})
         })
     }
 
@@ -211,6 +211,9 @@ class AvatarMenuPage {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
             const editBtn = await tl().findByTestId(loc.addressEditButtonTestId)
+            // waitForClickable vérifie aussi qu'aucun élément (info-tip laissé par une étape
+            // précédente du scénario) ne recouvre le bouton au point de clic.
+            await editBtn.waitForClickable({timeout: 5000})
             await editBtn.click()
 
             await tl().findByTestId(loc.editContainerTestId, {}, {timeout: 5000})
@@ -228,9 +231,9 @@ class AvatarMenuPage {
             const submitBtn = await tl().findByRole('button', {name: 'Enregistrer'})
             await submitBtn.click()
 
-            await tl().findByTestId(loc.profileContainerTestId, {}, {timeout: 5000})
+            await tl().findByRole('heading', {name: loc.pageTitle}, {timeout: 5000})
         })
     }
 }
 
-export default traced(new AvatarMenuPage(), 'AvatarMenuPage')
+export default traced(new ProfilePage(), 'ProfilePage')
