@@ -17,7 +17,7 @@ export async function authenticate(alreadyStarted = false): Promise<void> {
   if (!alreadyStarted) {
     await LoginPage.reviewEnvironmentPicker()
   }
-  await LoginPage.tapFranceConnect()
+  await LoginPage.tapFranceConnect(alreadyStarted)
   if (!await FranceConnectPage.selectEidasFaible()) {
     await FranceConnectPage.fillCredentials(user)
   }

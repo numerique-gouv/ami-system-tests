@@ -27,11 +27,16 @@ class FranceConnectPage {
                     interval: 300,
                     timeoutMsg: `Tuile "${fcpLocators.eidasFaibleLabel}" non visible après ${tileTimeoutMs}ms`
                 }
-            ).catch(() => {
-                    log.warn("Pas de sélection d'eiDAS faible affichée, session FC déjà ouverte")
-                    return false
-                }
-            );
+            ).catch(async () => {
+                // Toujours à l'intérieur de inWebContext() : document.title et browser.getUrl()
+                // ciblent le même DOM sur android/ios (WebView) comme sur webapp, sans branche par plateforme.
+                const [title, url] = await Promise.all([
+                    driver.execute(() => document.title) as Promise<string>,
+                    browser.getUrl(),
+                ]).catch(() => ['?', '?'])
+                log.warn(`Pas de sélection d'eiDAS faible affichée (title="${title}", url="${url}") — session FC déjà ouverte ?`)
+                return false
+            });
             if (eIDASSelectionDisplayed) {
                 //await refreshAxTree()
                 const eidasLink = await tl().getByRole('link', {name: new RegExp(fcpLocators.eidasFaibleLabel, 'i')})

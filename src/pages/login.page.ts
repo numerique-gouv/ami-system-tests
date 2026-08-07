@@ -23,7 +23,7 @@ class LoginPage {
         // Écran natif — inexistant en webapp, où l'URL de la session détermine déjà l'environnement.
         if (platform().kind === 'webapp') return
         const loc = getLoginLocators()
-
+    
         // "Staging" est toujours le premier item — sa présence confirme que le picker est affiché.
         try {
             await $(loc.pickerSentinel).waitForDisplayed({timeout: 10000})
@@ -46,11 +46,11 @@ class LoginPage {
      * Sur iOS et en webapp : bouton dans le DOM de la SPA (context switch automatique sur iOS).
      * Cet écran peut apparaitre une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC.
      */
-    async tapFranceConnect(oidcConcurrencyBugOnIOs = false): Promise<void> {
+    async tapFranceConnect(isOkToFail = false): Promise<void> {
         // Retry court en Page Object (5s) : distingue le cas attendu (2e apparition du bouton,
         // best-effort) du cas normal (15s, absence signale un vrai bug de sélecteur). Le catch
         // reste loggé même en best-effort — un catch {} vide masquerait un sélecteur cassé.
-        const timeout = oidcConcurrencyBugOnIOs ? 5000 : 15000
+        const timeout = isOkToFail ? 5000 : 15000
 
         if (!platform().fcButtonIsNative) {
             await platform().inWebContext(async () => {
@@ -62,12 +62,36 @@ class LoginPage {
                         ) as Promise<boolean>,
                         {timeout, interval: 300}
                     )
-                    const fcButton = await tl().findByRole('button', {name: /franceconnect/i}, {timeout})
-                    log.info('btn FC trouvé !!!')
-                    await fcButton.click()
+                    // Même pattern que la branche native Android ci-dessous : reclique tant que le
+                    // bouton n'a pas été trouvé, plutôt qu'un clic unique après un seul findByRole —
+                    // un clic isolé peut être avalé par une transition en cours (concurrence OIDC,
+                    // cf. commentaire de la méthode). queryByRole (non bloquant, cf. webview.ts) est
+                    // l'équivalent WebView de isDisplayed() côté natif.
+                    await browser.waitUntil(
+                        async () => {
+                            const fcButtonDisplayed = await driver.execute(
+                                (t: string) => document.body.innerText.includes(t),
+                                'FranceConnect'
+                            ).catch(() => false)
+                            if (fcButtonDisplayed) {
+                                const fcButton = await tl().queryByRole('button', {name: /franceconnect/i})
+                                if (fcButton)
+                                   await fcButton.click()
+                                else return false
+                            }
+                            return fcButtonDisplayed
+                        },
+                        {timeout, interval: 500, timeoutMsg: "bouton de connexion avec FranceConnect introuvable, ou tap sans effet"}
+                    )
+                    log.info('btn web FC trouvé et tap effectif !!!')
                 } catch {
+                    const [title, url] = await Promise.all([
+                        driver.execute(() => document.title) as Promise<string>,
+                        browser.getUrl(),
+                    ]).catch(() => ['?', '?'])
+                    log.warn(`Pas de bouton FranceConnect affiché (title="${title}", url="${url}") — session FC déjà ouverte ?`)
                     let message = "bouton de connexion avec FranceConnect introuvable";
-                    if (oidcConcurrencyBugOnIOs) {
+                    if (isOkToFail) {
                             // it is never found on Android
                             // when this message stops appearing with iOS,
                             // than the second call to tapFranceConnect will have become useless.
@@ -83,15 +107,29 @@ class LoginPage {
             // .fcButtonInWebView = false). Même distinction best-effort / erreur réelle que iOS.
             const loc = getLoginLocators()
             try {
-                await $(loc.fcButton).waitForDisplayed({timeout: timeout, interval: 300, timeoutMsg: "bouton de connexion avec FranceConnect introuvable" })
-                log.info('btn FC trouvé !!!')
-                await $(loc.fcButton).click()
+                await browser.waitUntil(
+                    async () => {
+                        const displayed = await $(loc.fcButton).isDisplayed().catch(() => false)
+                        if (displayed) {
+                            await $(loc.fcButton).click()
+                        }
+                        return displayed
+                    },
+                    {timeout, interval: 500, timeoutMsg: "bouton de connexion avec FranceConnect introuvable, ou tap sans effet"}
+                )
+                log.info('btn natif FC trouvé et tap effectif (bouton disparu) !!!')
             } catch {
+                // Branche native Android (pas de WebView à ce stade, cf. commentaire ci-dessus) —
+                // pas de document.title/getUrl() ici, l'équivalent natif est l'activity/package au premier plan.
+                const [activity, pkg] = await Promise.all([
+                    driver.getCurrentActivity(),
+                    driver.getCurrentPackage(),
+                ]).catch(() => ['?', '?'])
+                log.warn(`Pas de bouton FranceConnect affiché (activity="${activity}", package="${pkg}") — session FC déjà ouverte ?`)
                 const message = "bouton de connexion avec FranceConnect introuvable"
-                if (oidcConcurrencyBugOnIOs) {
+                if (isOkToFail) {
                     log.info(message)
                 } else {
-                    log.info('Arrfffff')
                     throw new AssertionError({message})
                 }
             }

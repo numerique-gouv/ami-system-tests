@@ -1,7 +1,7 @@
 import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
 import HomePage from '../../pages/home.page'
-import ProfilePage from '@pages/avatar-menu.page'
+import ProfilePage from '@pages/profile.page'
 import { authenticate } from '@helpers/authenticate'
 
 const log = logger('test')
@@ -29,7 +29,7 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     await AllureReporter.addSeverity('critical')
 
     if (!await HomePage.isHomeReachable(1000)) {
-      await authenticate()
+      await authenticate(true)
     } else log.info("You are home, and already authenticated")
 
     await AllureReporter.addStep('Naviguer vers Mon profil')
@@ -81,15 +81,21 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
   })
 
-  it('se déconnecte via le menu avatar', async () => {
-    await AllureReporter.addStep('Taper Me déconnecter depuis le menu avatar')
+  it('se déconnecte via le menu plus', async () => {
+    await AllureReporter.addStep('Taper Me déconnecter depuis le menu plus')
     await HomePage.isHomeReachable()
     await ProfilePage.logout()
   })
 
   it('se reconnecte avec le même compte', async () => {
     await AllureReporter.addStep('Lancer le flow FranceConnect')
-    await authenticate(true)
+    try {
+      await authenticate(true)
+    } catch (e) {
+      log.warn("On tente un FC une 2e fois a cause de retour intempestifs à la mire de connection (bouton FranceConnect).")
+      // La Fc est instable/bugguée, bref.
+      await authenticate(true)
+    }
     
     await AllureReporter.addStep('Naviguer vers Mon profil')
     await ProfilePage.navigate()

@@ -29,7 +29,7 @@ describe('Authentification', () => {
     await LoginPage.reviewEnvironmentPicker() // no-op en webapp (cf. platform().kind), exercé ici pour non-régression
 
     await AllureReporter.addStep('2. Démarrer le flow FranceConnect (eIDAS faible)')
-    await LoginPage.tapFranceConnect()
+    await LoginPage.tapFranceConnect(false)
     if (!await FranceConnectPage.selectEidasFaible()) {
       await FranceConnectPage.fillCredentials(user)
     }
