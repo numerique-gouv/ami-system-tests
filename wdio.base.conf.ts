@@ -78,6 +78,14 @@ export const baseConfig: Partial<Options.Testrunner> = {
     log.info(`-> describe : ${suite.title}`)
   },
 
+  // Un seul callback pour les 4 hooks Mocha (before/beforeEach/after/afterEach) — hookName les
+  // distingue ("before all", "before each", "after all", "after each"). test.parent porte le
+  // titre du describe englobant : le titre du hook lui-même est un texte Mocha générique
+  // ("before each" hook), pas discriminant.
+  beforeHook: (test, _context, hookName): void => {
+    log.info(`  -> ${hookName} : ${test.parent ?? test.title}`)
+  },
+
   beforeTest: async (test): Promise<void> => {
     log.info(`  -> it : ${test.title}`)
     // Distingue les 3 plateformes dans le rapport Allure fusionné (webapp/android/ios) :
