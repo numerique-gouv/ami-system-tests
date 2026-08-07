@@ -1,6 +1,6 @@
 # CLAUDE.md — WebdriverIO / Appium
 
-Tests E2E mobiles (iOS + Android) pour l'application AMI.
+Tests E2E mobiles (iOS + Android) et webapp (Chrome) pour l'application AMI.
 Stack : WebdriverIO v9 + Appium 3 + TypeScript + Testing Library.
 
 Les apps cibles sont dans les dépôts frères `../ami-app-android` et `../ami-app-ios`.
@@ -10,16 +10,19 @@ Les commandes se lancent toujours via `just`.
 Ne jamais appeler directement `npm`, `npx`, `adb`, `xcrun`, `xcodebuild` ou `appium`. Ces appels doivent être encapsulés dans le `justfile`.
 
 ```bash
-just --list                  # voir toutes les cibles disponibles
-just check-code              # lint + typecheck (avant tout commit)
-just test-android            # lancer les tests Android
-just test-ios                # lancer les tests iOS
-just test-android "Home"     # filtrer par nom de describe/it
-just inspect                 # explorer la WebView (auto-détecte Android ou iOS via le seul appareil connecté)
-just open-report             # générer et ouvrir le rapport Allure
+just --list                                        # voir toutes les cibles disponibles
+just check-code                                     # lint + typecheck (avant tout commit)
+just test-android                                   # tous les tests Android
+just test-ios                                       # tous les tests iOS
+just test-webapp                                    # tests webapp, Chrome visible
+just test-webci                                     # tests webapp, headless (mode CI)
+just test-android "src/tests/mobile/notifications*" # un ou plusieurs fichiers (glob)
+just test-android-suite CI                          # suite nommée (test-suites.ts), idem test-ios-suite / test-webapp-suite / test-webci-suite
+just inspect                                        # explorer la WebView (auto-détecte Android ou iOS via le seul appareil connecté)
+just open-report                                    # générer et ouvrir le rapport Allure
 ```
 
-> Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits.
+> Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits. La webapp ne lance aucun serveur Appium (Chromedriver direct).
 
 ## Skills vs règles du projet
 
@@ -27,7 +30,7 @@ just open-report             # générer et ouvrir le rapport Allure
 |------|-------------|-------|
 | **Skills** (capacités Claude exécutables) | `.agents/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
 | **Règles générales** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | POM, sélection des éléments, WebView, assertions, isolation, retry, Allure, débogage. Lire avant d'écrire du code. |
-| **Cas particuliers** | commentaires dans le fichier de code concerné | `docs/guidelines/` a été vidé au profit de cette organisation — ne pas y chercher de contenu. |
+| **Cas particuliers** | commentaires dans le fichier de code concerné | non documentés dans un fichier séparé. |
 
 Le raisonnement détaillé (tableaux page × action) derrière la règle de sélection résumée dans
 CONTRIBUTING.md §2 est archivé dans l'ADR
@@ -39,18 +42,28 @@ CONTRIBUTING.md §2 est archivé dans l'ADR
 wdio.base.conf.ts          # config partagée (timeouts, reporters Allure, hooks)
 wdio.android.conf.ts       # capabilities Android + service Appium port 4723
 wdio.ios.conf.ts           # capabilities iOS + service Appium port 4724
+wdio.webapp.conf.ts        # capabilities Chrome (headless ou visible), pas de service Appium
+test-suites.ts             # suites nommées (all, CI, auth, api) + resolveSpecs(), lu via WDIO_SUITE
 src/
   driver/
     capabilities.ts        # androidCapabilities / iosCapabilities (Appium)
+  platform/
+    index.ts               # platform() : PlatformAdapter — dispatch android/ios/webapp
+    types.ts                # interface PlatformAdapter
+    appium.adapter.ts       # implémentation mobile (Appium)
+    browser.adapter.ts      # implémentation webapp (Chrome)
   helpers/
-    webview.ts             # withWebView<T>(), tl(), refreshAxTree(), waitForWebViewContext()
+    webview.ts             # tl(), retourJusquATexteVisible()
     notifications-api.ts   # publishNotification() avec retry 5xx
   pages/
     *.page.ts              # Page Objects — actions métier, sans sélecteurs directs
     locators/
       *.locators.ts        # sélecteurs par plateforme + fonction getXxxLocators()
+  scripts/
+    *.ts                   # scripts CLI lancés via just (inspect-webview, push-notification)
   tests/
-    *.test.ts              # scénarios Mocha (BDD)
+    mobile/*.test.ts        # scénarios Mocha Android + iOS
+    webapp/*.test.ts        # scénarios Mocha webapp
 ```
 
 ### Pattern locators
@@ -62,11 +75,14 @@ Le dispatch `getXxxLocators()` n'est nécessaire que pour les **éléments natif
 - `iosXxxLocators` — `accessibility id` (SwiftUI `accessibilityIdentifier`)
 - `getXxxLocators()` — retourne le bon objet selon `driver.isIOS`
 
+Le dispatch de **comportement d'interaction** (pas de sélecteur) passe par `platform()` — voir
+[Patterns critiques](#patterns-critiques-résumé).
+
 ### Page Objects
 
 Les Pages Objects (`*.page.ts`) ne contiennent **aucun sélecteur** : ils appellent `getXxxLocators()` à chaque méthode. Cela permet de tester la même page sur les deux plateformes sans duplication.
 
-Les singletons sont exportés (`export default new XxxPage()`).
+Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'XxxPage')` (voir `src/helpers/traced.ts`).
 
 ## Patterns critiques (résumé)
 
@@ -78,7 +94,9 @@ Les singletons sont exportés (`export default new XxxPage()`).
 
 **Pas de `browser.pause` comme sync** : remplacer par `waitUntil`, `waitForDisplayed`, ou `waitForClickable`.
 
-**`withWebView()` unique pour OIDC iOS** : sortir du contexte WebView au milieu du flow FranceConnect provoque un blocage ~25 s.
+**Abstraction de plateforme (`src/platform/`)** : `platform()` retourne un `PlatformAdapter` (android, ios ou webapp) qui isole les points de couplage mobile — `inWebContext()` (atteindre le DOM de la SPA), `isWebContextAvailable()`, `refreshAxTree()`, `pullToRefresh()`, `fcButtonIsNative`. Sur webapp, `inWebContext()` est quasi-identité (la session est déjà ce contexte).
+
+**`platform().inWebContext()` unique pour OIDC iOS** : sortir du contexte WebView au milieu du flow FranceConnect provoque un blocage ~25 s.
 
 **`isVisible()` try/catch + `return await`** : sans `await`, les rejections de Promise ne sont pas interceptées par `try/catch`.
 
@@ -89,8 +107,11 @@ Les singletons sont exportés (`export default new XxxPage()`).
 | `wdio.base.conf.ts` | Config partagée (reporters Allure, `afterTest` screenshot+attachement) |
 | `wdio.android.conf.ts` | Capabilities Android, port 4723, `onPrepare` force-stop |
 | `wdio.ios.conf.ts` | Capabilities iOS, port 4724 |
+| `wdio.webapp.conf.ts` | Capabilities Chrome, `baseUrl` dérivée de `AMI_ENV`, pas de service Appium |
+| `test-suites.ts` | Suites nommées (`WDIO_SUITE`) consommées par les recettes `just *-suite` et la CI |
 | `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
-| `src/helpers/webview.ts` | `withWebView<T>()`, `tl()`, `refreshAxTree()`, `waitForWebViewContext()` |
+| `src/platform/` | `platform()` / `PlatformAdapter` — abstraction android/ios/webapp |
+| `src/helpers/webview.ts` | `tl()`, `retourJusquATexteVisible()` |
 | `src/helpers/notifications-api.ts` | `publishNotification()` avec retry 5xx |
 | `src/pages/locators/` | Un fichier par écran, `getXxxLocators()` dispatch plateforme |
 
@@ -106,7 +127,7 @@ Les singletons sont exportés (`export default new XxxPage()`).
 
 ## Secrets
 
-Variables `NOTIF_*` dans `.env.local` à la racine (non commité, gabarit dans `.env`). Ne jamais écrire leurs valeurs dans du code ou du cache.
+Variables `AMI_ENV` (environnement backend, pilote aussi le picker mobile et `resolveEnvironment()` webapp) et `NOTIF_*` dans `.env.local` à la racine (non commité, gabarit dans `.env`). Ne jamais écrire leurs valeurs dans du code ou du cache.
 Dans les permissions, tu ne dois pas avoir le droit de lire `.env.local`, les commande shell s'en servent comme WDIO, scalingo, mais tu ne doit jamais utiliser d'outil pour l'afficher.
 
 ## Section Documentation
