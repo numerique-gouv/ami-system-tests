@@ -131,7 +131,8 @@ class HomePage {
                 })
             }
         })
-        // TODO all page code must start with a sentinel tobe sure, they are on the good page. This is an anti-pattern.
+        // Comme on part de n'importe où, on ne peut pas détécter qu'on a quitté la page précédente.
+        // donc on attend l'arrivée sur la page cible.
         await this.isHomeVisible(timeout)
     }
 

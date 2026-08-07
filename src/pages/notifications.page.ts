@@ -17,7 +17,7 @@ class NotificationsInboxPage {
         await platform().inWebContext(async () => {
             // getByRole('link') cible l'<a href="/#/notifications"> par son rôle ARIA et son
             // nom accessible — plus robuste que le sélecteur CSS structurel '#notification-icon a'.
-            const bell = await tl().getByRole('link', {name: /notifications/i})
+            const bell = await tl().getByRole('button', {name: /notifications/i})
             await bell.waitForDisplayed({timeout: 15000})
             await bell.click()
 
