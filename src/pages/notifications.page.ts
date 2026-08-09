@@ -9,6 +9,25 @@ const log = logger('page-object')
 class NotificationsInboxPage {
 
     /**
+     * Sentinelle de rendu de la page inbox — driver.execute (pas tl()) car une navigation peut
+     * être en cours (executeAsync serait tué, cf. CONTRIBUTING.md §2). Le heading "Notifications"
+     * confirme le rendu réel de la page, pas juste le changement d'URL (le hash peut être mis à
+     * jour avant que le contenu soit rendu, cf. CONTRIBUTING.md §4). Appeler avant tout tl() dans
+     * cette classe évite de faire courir l'injection de Testing Library (3 commandes WebDriver
+     * distinctes côté @testing-library/webdriverio) contre une navigation ou un reload en cours,
+     * ce qui laisserait window.TestingLibraryDom indéfini entre son injection et son .configure().
+     */
+    private async waitForNotificationsHeading(timeout = 15000): Promise<void> {
+        await browser.waitUntil(
+            async () => driver.execute(() =>
+                Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
+                    .some(h => h.innerText?.trim() === 'Notifications')
+            ) as Promise<boolean>,
+            {timeout, interval: 500, timeoutMsg: 'Heading "Notifications" absent'}
+        )
+    }
+
+    /**
      * Ouvre l'inbox en tapant l'icône cloche dans la WebView SPA,
      * puis attend que le hash d'URL /#/notifications soit atteint.
      * Pré-condition : l'onboarding notifications a déjà été refusé.
@@ -20,18 +39,6 @@ class NotificationsInboxPage {
             const bell = await tl().getByRole('button', {name: /notifications/i})
             await bell.waitForDisplayed({timeout: 15000})
             await bell.click()
-
-            // Sentinelle de navigation post-clic — driver.execute (pas tl()) car la navigation
-            // peut être en cours (executeAsync serait tué, cf. CONTRIBUTING.md §2). Le heading
-            // "Notifications" confirme le rendu réel de la page, pas juste le changement d'URL
-            // (le hash peut être mis à jour avant que le contenu soit rendu, cf. CONTRIBUTING.md §4).
-            await browser.waitUntil(
-                async () => driver.execute(() =>
-                    Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
-                        .some(h => h.innerText?.trim() === 'Notifications')
-                ) as Promise<boolean>,
-                {timeout: 15000, interval: 500, timeoutMsg: 'Heading "Notifications" absent après navigation'}
-            )
         })
     }
     /**
@@ -85,11 +92,30 @@ class NotificationsInboxPage {
      * Clique sur la notification dont le texte visible correspond exactement à `title`,
      * puis attend que le routeur Svelte navigue vers la page de détail (changement de hash).
      * Pré-condition : la notification est déjà visible dans l'inbox (utiliser waitForNotification avant).
+     *
+     * driver.execute plutôt que tl() : le reload forcé par assertNotificationReceived pour obtenir
+     * la notification fraîche laisse souvent la page encore en cours de (re)construction à ce stade
+     * (WKWebView sur iOS notamment) — le heading peut déjà être visible alors que le document est
+     * encore en train d'être remplacé. tl() a tendance à planter dans ce contexte : son injection
+     * de Testing Library tient en 3 aller-retours WebDriver non atomiques (vérifier présence,
+     * injecter le script, appeler .configure()), et une navigation qui se termine entre ces 3
+     * étapes vide window.TestingLibraryDom avant que .configure() ne s'exécute
+     * ("window.TestingLibraryDom.configure" undefined). driver.execute trouve et clique l'élément
+     * en un seul aller-retour synchrone, sans cette fenêtre de course.
      */
     async clickNotification(title: string): Promise<void> {
         await platform().inWebContext(async () => {
-            const item = await tl().findByText(title)
-            await item.click()
+            await this.waitForNotificationsHeading()
+            const clicked = await driver.execute((text: string) => {
+                const el = Array.from(document.querySelectorAll<HTMLElement>('*'))
+                    .find((e) => e.children.length === 0 && e.textContent?.trim() === text)
+                const clickable = (el?.closest('a, button') as HTMLElement | null) ?? el
+                clickable?.click()
+                return !!clickable
+            }, title) as boolean
+            if (!clicked) {
+                throw new AssertionError({ message: `Notification "${title}" introuvable pour le clic` })
+            }
         })
     }
 

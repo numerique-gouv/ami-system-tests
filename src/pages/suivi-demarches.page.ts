@@ -1,9 +1,12 @@
-import { tl, retourJusquATexteVisible } from '../helpers/webview'
+import { tl, retourJusquATexteVisible } from '@helpers/webview'
 import { platform } from '../platform'
-import { traced } from '../helpers/traced'
+import { traced } from '@helpers/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import HomePage from './home.page'
 import {AssertionError} from "node:assert";
+import logger from "@wdio/logger";
+
+const log = logger('page-object')
 
 const DEMARCHES_TIMEOUT_MS = 20000
 
@@ -21,28 +24,42 @@ class SuiviDemarchesPage {
      */
     async waitForDemarche(title: string): Promise<void> {
         const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
+        let elapsed = 0
         for (const delay of backoffMs) {
             await browser.pause(delay) // hors inWebContext : laisse la page respirer entre deux rafraîchissements
-            await platform().inWebContext(async () => {
+            elapsed += delay
+            // Un reload lent (cold-start backend, etc.) ne doit pas interrompre le backoff : on le
+            // traite comme "pas encore trouvé" et on retente, au lieu de laisser l'AssertionError
+            // du waitUntil interne remonter et court-circuiter les tentatives restantes.
+            const rendered = await platform().inWebContext(async () => {
                 await driver.execute(() => window.location.reload())
                 // `readyState === 'complete'` ne signale que la fin du chargement du bundle JS,
                 // pas le montage Svelte ni la résolution du fetch de la liste — juste après reload,
                 // document.body.innerText est encore vide la quasi-totalité du temps (constaté en
                 // debug). On attend un contenu textuel réel (liste ou état vide rendu) avant de
                 // lire la page, sans quoi chaque tentative lit un DOM non peint et échoue à tort.
-                await browser.waitUntil(
+                return await browser.waitUntil(
                     () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
                     {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
-                )
+                ).then(() => true).catch(() => false)
             })
+            if (!rendered) {
+                log.log(`[suivi] reload non rendu, on retente (≤ ${elapsed}ms)`)
+                continue
+            }
+
             const found = await platform().inWebContext(
                 () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
                 //tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
             )
 
-            if (found) return
+            if (found) {
+                log.log(`[suivi] démarche "${title}" visible (≤ ${elapsed}ms)`)
+                return
+            }
+            log.log(`[suivi] démarche "${title}" toujours pas visible (≤ ${elapsed}ms)`)
         }
-        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${backoffMs.reduce((a, b) => a + b, 0)}ms` })
+        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms` })
     }
 
   /**
