@@ -2,7 +2,7 @@ import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
 import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
-import { authenticate } from '@helpers/authenticate'
+import { authenticate } from '@pages/authenticate.process'
 
 const log = logger('test')
 
@@ -18,6 +18,6 @@ describe('Profil usager — déconnexion suivie d\'une reconnexion', () => {
     await AllureReporter.addStep('Taper Me déconnecter depuis le menu avatar')
     await ProfilePage.logout()
     await AllureReporter.addStep('Lancer le flow FranceConnect')
-    await authenticate(true)
+    await authenticate()
   })
 })

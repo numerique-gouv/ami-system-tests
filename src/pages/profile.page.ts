@@ -187,8 +187,16 @@ class ProfilePage {
             const logoutBtn = await tl().findByRole('button', {name: 'Me déconnecter'})
             await logoutBtn.click()
 
-            const element = await tl().findByRole('heading', {name: 'Suppression de vos données'});
-            if (await element.isDisplayed()) {
+            const modaleAffichee = await browser.waitUntil(
+                async () => driver.execute((heading) =>
+                    Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
+                        .some(h => h.textContent?.trim() === heading),
+                    'Suppression de vos données'
+                ) as unknown as boolean,
+                {timeout: 5000, interval: 300}
+            ).catch(() => false)
+
+            if (modaleAffichee) {
                 const confirmBtn = await tl().findByRole('button', {name: 'Confirmer'})
                 await confirmBtn.click()
                 await confirmBtn.waitForDisplayed({timeout: 15000, reverse: true})

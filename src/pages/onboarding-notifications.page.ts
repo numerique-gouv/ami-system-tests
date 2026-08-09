@@ -26,14 +26,22 @@ class OnboardingNotificationsPage {
      * sur iOS, un élément SwiftUI présent dans l'arbre XCUITest peut avoir
      * isDisplayed=false pendant l'animation d'entrée de la sheet.
      */
-    async dismiss(): Promise<void> {
+    /**
+     * Sonde dédiée, réutilisée par HomePage.isHomeVisible() (détection d'écran) et par
+     * dismiss() elle-même (même sentinelle, un seul appel).
+     */
+    async isOnboardingVisible(timeout = 5000): Promise<boolean> {
         // Écran natif — inexistant en webapp (pas de permission OS à demander).
-        if (platform().kind === 'webapp') return
+        if (platform().kind === 'webapp') return false
         const loc = getOnboardingNotifLocators()
-        if (await $(loc.dismiss).waitForExist({timeout: 10000}).catch(() => false)) {
-            await $(loc.dismiss).click()
-            await $(loc.title).waitForDisplayed({timeout: 1000, reverse: true})
-        }
+        return await $(loc.dismiss).waitForExist({timeout}).catch(() => false)
+    }
+
+    async dismiss(): Promise<void> {
+        if (!await this.isOnboardingVisible()) return
+        const loc = getOnboardingNotifLocators()
+        await $(loc.dismiss).click()
+        await $(loc.title).waitForDisplayed({timeout: 1000, reverse: true})
     }
 }
 

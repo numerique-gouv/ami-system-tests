@@ -6,7 +6,7 @@
  *   NOTIF_PARTNER_ID     — identifiant partenaire
  *   NOTIF_PARTNER_SECRET — secret partenaire (HTTP Basic auth)
  *
- * L'URL backend est définie via setBackendUrl(), appelé par LoginPage.reviewEnvironmentPicker()
+ * L'URL backend est définie via setBackendUrl(), appelé par EnvironmentPickerPage.reviewEnvironmentPicker()
  * depuis le titre de l'item cliqué dans le picker — jamais par variable d'environnement.
  */
 import {AssertionError} from "node:assert";
@@ -119,7 +119,7 @@ let _backendUrl: string = STAGING_BASE_URL
 
 /**
  * Définit l'URL backend pour toute la session de test.
- * Appelé par LoginPage.reviewEnvironmentPicker() dès que l'environnement est sélectionné.
+ * Appelé par EnvironmentPickerPage.reviewEnvironmentPicker() dès que l'environnement est sélectionné.
  */
 export function setBackendUrl(url: string): void {
     _backendUrl = url

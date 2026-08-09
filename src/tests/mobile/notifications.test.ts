@@ -3,7 +3,7 @@ import HomePage from '../../pages/home.page'
 import NotificationsInboxPage from '../../pages/notifications.page'
 import { publishNotification } from '../../helpers/notifications-api'
 import { getUser } from '../../helpers/test-users'
-import { authenticate } from '../../helpers/authenticate'
+import { authenticate } from '../../pages/authenticate.process'
 
 describe('Notifications', () => {
   const user = getUser('avec_nom_dusage')

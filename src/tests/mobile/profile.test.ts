@@ -1,7 +1,7 @@
 import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
-import { authenticate } from '@helpers/authenticate'
+import { authenticate } from '@pages/authenticate.process'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le hook after() restaure les valeurs d'origine après chaque passage.

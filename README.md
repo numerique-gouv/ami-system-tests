@@ -188,8 +188,7 @@ export WDIO_DEBUG=1   # désactive le timeout Mocha (2 min par défaut) — sans
 ```typescript
 // Dans src/tests/, test scratch qui navigue jusqu'à l'écran à explorer puis se suspend
 it('debug — explorer la page notifications', async () => {
-  await LoginPage.loginViaFranceConnect()
-  await HomePage.waitForSpaReady()
+  await authenticate()
   await NotificationsInboxPage.openFromHome()
   await browser.debug()  // ← suspend ici, le REPL s'ouvre dans le terminal
 })

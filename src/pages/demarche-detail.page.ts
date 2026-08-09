@@ -1,7 +1,7 @@
-import { tl, retourJusquATexteVisible } from '../helpers/webview'
+import { tl } from '@helpers/webview'
 import { platform } from '../platform'
-import { traced } from '../helpers/traced'
-import { getDemarcheDetailLocators } from './locators/demarche-detail.locators'
+import { traced } from '@helpers/traced'
+import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
 
 const DEMARCHE_DETAIL_TIMEOUT_MS = 20000
@@ -40,14 +40,25 @@ class DemarcheDetailPage {
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
     const loc = getDemarcheDetailLocators()
     await platform().inWebContext(async () => {
+      // Sentinelle de rendu — driver.execute (pas tl()) : ouvreDemarche() (SuiviDemarchesPage)
+      // déclenche la navigation SPA vers cette page sans attendre son arrivée (cf. son
+      // commentaire, la sentinelle lui appartient ici). Attendre un <h1> non vide avant le
+      // premier tl() évite de faire courir l'injection de Testing Library (3 commandes WebDriver
+      // distinctes côté @testing-library/webdriverio) contre une navigation encore en cours.
+      await browser.waitUntil(
+        async () => driver.execute(() => {
+          const h1 = document.querySelector('h1')
+          return !!h1 && !!h1.textContent?.trim()
+        }) as Promise<boolean>,
+        { timeout: timeoutMs, interval: 300, timeoutMsg: 'Page de détail non chargée (h1 absent)' }
+      )
 
-      let externalButton
       try {
-        externalButton = await tl().findByRole('button', { name: loc.detailExternalButtonName }, { timeout: timeoutMs })
+        let externalButton = await tl().findByRole('button', { name: loc.detailExternalButtonName }, { timeout: timeoutMs })
+        await externalButton.click()
       } catch {
         throw new AssertionError({ message: `Bouton "${loc.detailExternalButtonName}" absent après ${timeoutMs}ms` })
       }
-      await externalButton.click()
 
       let lastUrl: string | null = null
       try {

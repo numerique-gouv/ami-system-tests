@@ -4,7 +4,7 @@ import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
-import {authenticate} from '../../helpers/authenticate'
+import {authenticate} from '../../pages/authenticate.process'
 
 /**
  * Cycle de vie d'une démarche partenaire dans l'app AMI.
