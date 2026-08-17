@@ -1,0 +1,54 @@
+name: Notification API — Webapp
+
+# Workflow réutilisable, appelé par system-tests-E2E.yml.
+# Suite webapp encore au stade stub (voir `just test-webci-suite` dans le justfile ;
+# la suite nommée "all" n'existe pas encore pour la webapp dans test-suites.ts).
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_webapp:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  webapp-E2E:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ref_name }}
+    env:
+      REF_NAME: ${{ inputs.ref_name }}
+      RUN_WEBAPP: ${{ inputs.run_webapp }}
+      AMI_ENV: ${{ inputs.ref_name }}
+      NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
+      NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: |
+          echo "Hello world — suite Android (stub)"
+          echo "ref_name:    $REF_NAME"
+          echo "run_webapp: $RUN_WEBAPP"
+      - run: npm ci
+      - uses: extractions/setup-just@v3
+      - run: just test-webci-suite all
+
+      # Exporté même en cas d'échec (if: always()) pour que le report Allure reflète aussi
+      # les runs cassés. Le report job (system-tests-E2E.yml) le télécharge et le fusionne
+      # avec les artifacts webapp/ios — publication du rapport fusionné laissée à un ticket
+      # ultérieur (cf. TODO dans system-tests-E2E.yml).
+      - name: Exporter les résultats Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-webapp
+          path: allure-results
+          retention-days: 7
+          if-no-files-found: warn

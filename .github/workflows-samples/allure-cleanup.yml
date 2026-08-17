@@ -1,0 +1,56 @@
+name: Allure cleanup
+
+# Appelé par les dépôts frères (notification-api / ios / android) sur la fermeture de leur PR
+# (pull_request: types: [closed]) — supprime les artifacts Allure associés (résultats
+# d'historique et rapports HTML publiés par system-tests-E2E.yml) pour ne pas les laisser
+# s'accumuler indéfiniment une fois la PR fermée.
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "Dépôt frère à l'origine de la PR fermée (owner/repo)"
+        type: string
+        required: true
+      pr_number:
+        description: "Numéro de la PR fermée dans source_repo"
+        type: number
+        required: true
+
+permissions:
+  contents: read
+  # La suppression a lieu dans CE dépôt (les artifacts y ont été publiés) — le GITHUB_TOKEN
+  # natif suffit, pas besoin du token d'App GitHub utilisé côté commentaire de PR.
+  actions: write
+
+jobs:
+  cleanup:
+    name: Supprimer les artifacts Allure de la PR
+    runs-on: ubuntu-latest
+    steps:
+      # Même calcul que dans system-tests-E2E.yml — les deux doivent rester identiques pour
+      # cibler les mêmes artifacts.
+      - name: Calculer la clé d'isolation (slug)
+        id: slug
+        env:
+          SOURCE_REPO: ${{ inputs.source_repo }}
+        run: |
+          RAW="${SOURCE_REPO}-pr${{ inputs.pr_number }}"
+          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+
+      - name: Supprimer les artifacts allure-history-<slug> et allure-report-<slug>-*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLUG: ${{ steps.slug.outputs.slug }}
+        run: |
+          IDS=$(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" --paginate | \
+            jq -r --arg slug "$SLUG" \
+              '.artifacts[] | select(.name == ("allure-history-" + $slug) or (.name | startswith("allure-report-" + $slug + "-"))) | .id')
+          if [ -z "$IDS" ]; then
+            echo "Aucun artifact Allure trouvé pour $SLUG."
+            exit 0
+          fi
+          for id in $IDS; do
+            echo "Suppression de l'artifact $id"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+          done
