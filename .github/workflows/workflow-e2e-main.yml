@@ -1,0 +1,56 @@
+name: workflow-e2e-main.yml
+on:
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_webapp:
+        type: boolean
+        default: false
+      run_android:
+        type: boolean
+        default: false
+      run_old_device:
+        type: boolean
+        default: true
+      run_ios:
+        type: boolean
+        default: false
+      source_repo:
+        type: string
+        required: true
+      pr_number:
+        type: number
+        default: 0
+    outputs:
+      report_artifact_name:
+        description: "Nom de l'artefact allure-report (dossier généré, pas les résultats bruts) uploadé dans ce run — à télécharger côté caller via actions/download-artifact (même run, aucun token) puis passer à allure-framework/allure-action"
+        value: ${{ jobs.report.outputs.artifact_name }}
+
+#permissions:
+#  contents: read
+#  # actions:read pour interroger/télécharger les artifacts d'historique (propres à ce repo).
+#  actions: read
+
+jobs:
+  poc:
+    name: output to validate it works
+    runs-on: ubuntu-latest
+    uses: 
+    with:
+      ref_name: ${{ inputs.ref_name }}
+      run_webapp: ${{ inputs.run_webapp }}
+      run_android: ${{ inputs.run_android }}
+      run_old_device: ${{ inputs.run_old_device }}
+      run_ios: ${{ inputs.run_ios }}
+      source_repo: ${{ inputs.source_repo }}
+      pr_number: ${{ inputs.pr_number }}
+    run: |
+      echo "ref_name is $ref_name and run_webapp is $run_webapp"
+      env
+      echo "ref_name is $ref_name and run_webapp is $run_webapp" >> "$GITHUB_OUTPUT"
+      env >> "$GITHUB_OUTPUT"
+    
+    
+    
