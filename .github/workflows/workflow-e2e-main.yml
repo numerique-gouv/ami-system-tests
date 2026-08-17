@@ -24,9 +24,12 @@ on:
         type: number
         default: 0
     outputs:
-      report_artifact_name:
-        description: "Nom de l'artefact allure-report (dossier généré, pas les résultats bruts) uploadé dans ce run — à télécharger côté caller via actions/download-artifact (même run, aucun token) puis passer à allure-framework/allure-action"
-        value: ${{ jobs.report.outputs.artifact_name }}
+      out_ref_name:
+        description: "variable lue et modifiée pour poc"
+        value: ${{ jobs.poc.outputs.out_ref_name }}
+      out_webapp:
+        description: "variable lue et modifiée pour poc"
+        value: ${{ jobs.poc.outputs.out_webapp }}
 
 #permissions:
 #  contents: read
@@ -37,20 +40,24 @@ jobs:
   poc:
     name: output to validate it works
     runs-on: ubuntu-latest
-    uses: 
-    with:
-      ref_name: ${{ inputs.ref_name }}
-      run_webapp: ${{ inputs.run_webapp }}
-      run_android: ${{ inputs.run_android }}
-      run_old_device: ${{ inputs.run_old_device }}
-      run_ios: ${{ inputs.run_ios }}
-      source_repo: ${{ inputs.source_repo }}
-      pr_number: ${{ inputs.pr_number }}
-    run: |
-      echo "ref_name is $ref_name and run_webapp is $run_webapp"
-      env
-      echo "ref_name is $ref_name and run_webapp is $run_webapp" >> "$GITHUB_OUTPUT"
-      env >> "$GITHUB_OUTPUT"
-    
-    
-    
+    steps:
+      - name: dump variables
+        id: dump
+        # with: accès au script github ou un step uses
+        # env: accès au shell pour un step run
+        env:
+          ref_name: ${{ inputs.ref_name }}
+          run_webapp: ${{ inputs.run_webapp }}
+          run_android: ${{ inputs.run_android }}
+          run_old_device: ${{ inputs.run_old_device }}
+          run_ios: ${{ inputs.run_ios }}
+          source_repo: ${{ inputs.source_repo }}
+          pr_number: ${{ inputs.pr_number }}
+        run: |
+          echo "ref_name is $ref_name and run_webapp is $run_webapp"
+          env
+          echo "out_ref_name=my_$ref_name" >> "$GITHUB_OUTPUT"
+          echo "out_webapp=my_$run_webapp" >> "$GITHUB_OUTPUT"
+    outputs:
+      out_ref_name: ${{ steps.dump.outputs.out_ref_name }}
+      out_webapp: ${{ steps.dump.outputs.out_webapp }}    

@@ -2,11 +2,6 @@
 
 ## Problème
 
-Le dépôt ne contenait aucun `.github/workflows/` : il n'existait aucun moyen déclenché depuis
-GitHub de lancer les suites E2E (webapp, Android, iOS) contre un environnement donné (`staging`
-ou une review app Scalingo identifiée par un numéro de PR). Toute exécution passait par `just`
-en local.
-
 Plusieurs contraintes structurent la solution :
 - Les trois suites n'ont pas le même coût ni la même maturité : la suite webapp n'existe pas
   encore côté ce dépôt (`test-web-suite` est un stub), Android et iOS s'appuient sur des
