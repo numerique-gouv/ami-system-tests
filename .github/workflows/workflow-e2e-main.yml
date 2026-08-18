@@ -6,34 +6,30 @@ on:
         type: string
         default: staging
       run_webapp:
-        description: "nom de la suite webapp à lancer (test-suites.ts, ex: short, CI, all) — vide = ne pas lancer"
-        type: string
-        default: ''
+        type: boolean
+        default: false
       run_android:
-        description: "nom de la suite android à lancer (test-suites.ts) — vide = ne pas lancer"
-        type: string
-        default: ''
+        type: boolean
+        default: false
       run_old_device:
         type: boolean
         default: true
       run_ios:
-        description: "nom de la suite ios à lancer (test-suites.ts) — vide = ne pas lancer"
-        type: string
-        default: ''
+        type: boolean
+        default: false
       source_repo:
         type: string
         required: true
       pr_number:
         type: number
         default: 0
-      checkout_ref:
-        description: "ref (branche/tag/sha) d'ami-system-tests à checkout — doit correspondre au ref utilisé dans le uses: qui pointe vers ce workflow"
-        type: string
-        required: true
     outputs:
-      allure_report:
-        description: "nom de l'artefact allure-results publié par le job e2e, à télécharger par le workflow appelant"
-        value: ${{ jobs.e2e.outputs.allure_report }}
+      out_ref_name:
+        description: "variable lue et modifiée pour poc"
+        value: ${{ jobs.poc.outputs.out_ref_name }}
+      out_webapp:
+        description: "variable lue et modifiée pour poc"
+        value: ${{ jobs.poc.outputs.out_webapp }}
 
 #permissions:
 #  contents: read
@@ -41,73 +37,37 @@ on:
 #  actions: read
 
 jobs:
-  # iOS reste isolé : reusable workflow classique → job/VM macOS dédié (pas de partage de
-  # disque avec webapp/android), tant que la CI macOS est en pause.
-  ios:
-    if: ${{ inputs.run_ios != '' }}
-    uses: ./.github/workflows/workflow-e2e-ios.yml
+  poc:
+    name: output to validate it works
+    runs-on: ubuntu-latest
+    steps:
+      - name: dump variables
+        id: dump
+        # with: accès au script github ou un step uses
+        # env: accès au shell pour un step run
+        env:
+          ref_name: ${{ inputs.ref_name }}
+          run_webapp: ${{ inputs.run_webapp }}
+          run_android: ${{ inputs.run_android }}
+          run_old_device: ${{ inputs.run_old_device }}
+          run_ios: ${{ inputs.run_ios }}
+          source_repo: ${{ inputs.source_repo }}
+          pr_number: ${{ inputs.pr_number }}
+        run: |
+          echo "ref_name is $ref_name and run_webapp is $run_webapp"
+          env
+          echo "out_ref_name=my_$ref_name" >> "$GITHUB_OUTPUT"
+          echo "out_webapp=my_$run_webapp" >> "$GITHUB_OUTPUT"
+    outputs:
+      out_ref_name: ${{ steps.dump.outputs.out_ref_name }}
+      out_webapp: ${{ steps.dump.outputs.out_webapp }}    
+
+  webapp:
+    if: ${{ inputs.run_webapp }}
+    uses: ./.github/workflows/workflow-e2e-webapp.yml
     with:
       ref_name: ${{ inputs.ref_name }}
-      checkout_ref: ${{ inputs.checkout_ref }}
-      suite: ${{ inputs.run_ios }}
+      run_webapp: ${{ inputs.run_webapp }}
+      checkout_ref: ${{ github.workflow_sha }}
     secrets: inherit
 
-  # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même allure-report)
-  # iOS a besoin d'un MacOs (10x plus cher qu'Ubuntu), donc d'une autre VM, donc d'un autre job avec transimission de rapport Aluure par upload et download d'artefacts.
-  e2e:
-    if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
-    name: webapp + android (shared VM)
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.ref_name }}
-    env:
-      AMI_ENV: ${{ inputs.pr_number != 0 && inputs.pr_number || 'staging' }}
-      NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
-      NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
-      WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
-    outputs:
-      allure_report: ${{ steps.publish-allure.outputs.allure_report }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          repository: numerique-gouv/ami-system-tests
-          ref: ${{ inputs.checkout_ref }}
-          path: ami-system-tests
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: ami-system-tests/package-lock.json
-      - working-directory: ami-system-tests
-        run: npm ci
-      - uses: extractions/setup-just@v4
-
-      - if: ${{ inputs.run_webapp != '' }}
-        uses: ./ami-system-tests/.github/actions/e2e-webapp
-        with:
-          suite: ${{ inputs.run_webapp }}
-
-      - if: ${{ inputs.run_android != '' }}
-        uses: ./ami-system-tests/.github/actions/e2e-android
-        with:
-          suite: ${{ inputs.run_android }}
-
-      - if: ${{ inputs.run_ios != '' }}
-        name: download iOS allure results
-        run: echo TODO download allure artefact
-      
-      - name: build allure report
-        shell: bash
-        working-directory: ami-system-tests
-        run: just generate-report
-      
-      - name: set artifact name
-        id: publish-allure
-        run: echo "allure_report=allure-report-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-
-      - name: publish allure report
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.publish-allure.outputs.allure_report }}
-          path: ami-system-tests/allure-report
-          retention-days: 7
-          if-no-files-found: warn
