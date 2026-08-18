@@ -61,3 +61,12 @@ jobs:
     outputs:
       out_ref_name: ${{ steps.dump.outputs.out_ref_name }}
       out_webapp: ${{ steps.dump.outputs.out_webapp }}    
+
+  webapp:
+    if: ${{ inputs.run_webapp }}
+    uses: ./.github/workflows/workflow-e2e-webapp.yml
+    with:
+      ref_name: ${{ inputs.ref_name }}
+      run_webapp: ${{ inputs.run_webapp }}
+    secrets: inherit
+
