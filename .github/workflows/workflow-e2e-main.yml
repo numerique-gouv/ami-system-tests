@@ -68,5 +68,6 @@ jobs:
     with:
       ref_name: ${{ inputs.ref_name }}
       run_webapp: ${{ inputs.run_webapp }}
+      checkout_ref: ${{ github.workflow_sha }}
     secrets: inherit
 
