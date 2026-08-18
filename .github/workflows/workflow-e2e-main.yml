@@ -23,6 +23,10 @@ on:
       pr_number:
         type: number
         default: 0
+      checkout_ref:
+        description: "ref (branche/tag/sha) d'ami-system-tests à checkout — doit correspondre au ref utilisé dans le uses: qui pointe vers ce workflow"
+        type: string
+        required: true
     outputs:
       out_ref_name:
         description: "variable lue et modifiée pour poc"
@@ -68,6 +72,6 @@ jobs:
     with:
       ref_name: ${{ inputs.ref_name }}
       run_webapp: ${{ inputs.run_webapp }}
-      checkout_ref: ${{ github.workflow_sha }}
+      checkout_ref: ${{ inputs.checkout_ref }}
     secrets: inherit
 
