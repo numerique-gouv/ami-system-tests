@@ -37,6 +37,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
     'api': 'info',
     'config': 'info',
     'helper': 'info',
+    'access-code': 'info',
   },
 
   bail: 0,
