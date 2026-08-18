@@ -1,9 +1,40 @@
 name: workflow-e2e-webapp.yml
 on:
-  workflow_call: 
-    
+  workflow_call:
+    inputs:
+      ref_name:
+        type: string
+        default: staging
+      run_webapp:
+        type: boolean
+        default: false
+
 jobs:
   sample:
     runs-on: ubuntu-latest
     steps:
       - run: echo hello world of webapp
+        
+  webapp-E2E:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ref_name }}
+    env:
+      REF_NAME: ${{ inputs.ref_name }}
+      RUN_WEBAPP: ${{ inputs.run_webapp }}
+      AMI_ENV: staging
+      NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
+      NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: |
+          echo "Hello world — suite webapp"
+          echo "ref_name:    $REF_NAME"
+          echo "run_webapp: $RUN_WEBAPP"
+          ls *
+      - run: npm ci
+      - uses: extractions/setup-just@v3
+      - run: just test-webci-suite all
