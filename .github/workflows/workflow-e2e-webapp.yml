@@ -26,12 +26,12 @@ jobs:
       run:
         working-directory: ami-system-tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: numerique-gouv/ami-system-tests
           ref: ${{ inputs.checkout_ref }}
           path: ami-system-tests
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -40,5 +40,5 @@ jobs:
           echo "ref_name:    $REF_NAME"
           echo "run_webapp: $RUN_WEBAPP"
       - run: npm ci
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
       - run: just test-webci-suite all
