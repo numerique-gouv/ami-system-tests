@@ -1,0 +1,9 @@
+name: workflow-e2e-android.yml
+on:
+  workflow_call: 
+    
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello world of android

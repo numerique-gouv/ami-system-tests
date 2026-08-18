@@ -1,0 +1,25 @@
+# Variables d'environnement locales
+.*local
+*.local.ts
+
+# ide
+.idea/
+
+
+# dépendances, fichiers dérivés (compilés, logs, ...)
+node_modules/
+dist/
+.wdio-logs/
+logs/
+allure-results/
+allure-report/
+*.log
+apps/
+.playwright-mcp/
+build/
+
+# Variables d'environnement locales
+.env.local
+
+# macOS
+.DS_Store

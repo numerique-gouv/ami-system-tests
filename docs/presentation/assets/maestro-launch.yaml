@@ -1,0 +1,13 @@
+appId: ${APP_ID}
+# résout les problèmes d'arbre d'accessibilité non chargé
+# par les webviews sur Android (iOS : pas d'équivalent)
+androidWebViewHierarchy: devtools
+---
+- clearState              # état vierge (base locale effacée)
+- launchApp:
+    clearKeychain: true   # iOS : vide le keychain entre les tests
+- extendedWaitUntil:
+    visible:
+      id: "splash_screen"
+    timeout: 5000
+    optional: true        # le splash peut ne pas exister
