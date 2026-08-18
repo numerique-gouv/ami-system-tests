@@ -8,14 +8,12 @@ on:
       run_webapp:
         type: boolean
         default: false
+      checkout_ref:
+        type: string
+        required: true
 
 jobs:
-  sample:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo hello world of webapp
-        
-  webapp-E2E:
+  webapp-e2e:
     runs-on: ubuntu-latest
     environment: ${{ inputs.ref_name }}
     env:
@@ -24,16 +22,25 @@ jobs:
       AMI_ENV: staging
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
+    defaults:
+      run:
+        working-directory: ami-system-tests
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: numerique-gouv/ami-system-tests
+          ref: ${{ inputs.checkout_ref }}
+          path: ami-system-tests
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
+          cache-dependency-path: ami-system-tests/package-lock.json
       - run: |
           echo "Hello world — suite webapp"
           echo "ref_name:    $REF_NAME"
           echo "run_webapp: $RUN_WEBAPP"
+          echo "running ls *:"
           ls *
       - run: npm ci
       - uses: extractions/setup-just@v3
