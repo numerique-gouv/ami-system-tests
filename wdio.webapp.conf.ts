@@ -5,6 +5,7 @@ import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { registerReplHelpers } from './src/helpers/repl'
+import { handleAccessCodePrompt } from './src/helpers/access-code'
 
 const { webappUrl } = resolveEnvironment()
 
@@ -56,6 +57,10 @@ export const config: Options.Testrunner = {
     // sa propre navigation (c'est le cas de tous les specs mobiles, l'app se lançant déjà
     // sur le bon écran) échouerait dès le premier sélecteur.
     await browser.url('/')
+    // Le popup window.prompt() ("Un code d'accès est nécessaire.", gate de staging côté SPA)
+    // bloque le thread JS de la page tant qu'il n'est pas résolu : à traiter avant tout ce qui
+    // suit, en particulier captureAppWindow() ci-dessous.
+    await handleAccessCodePrompt()
     // Capture le handle de cet onglet une fois pour toutes, avant qu'un flow OIDC ne puisse
     // en ouvrir d'autres — cf. src/platform/browser.adapter.ts pour pourquoi (partenaires
     // FranceConnect/DN/CNSM/OTC… inconnus à l'avance, un handle stable évite d'avoir à les
