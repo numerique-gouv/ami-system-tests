@@ -27,6 +27,7 @@ jobs:
         working-directory: ami-system-tests
     steps:
       - uses: actions/checkout@v7
+        secrets: inherit
         with:
           repository: numerique-gouv/ami-system-tests
           ref: ${{ inputs.checkout_ref }}
@@ -39,6 +40,7 @@ jobs:
       - run: |
           echo "ref_name:    $REF_NAME"
           echo "run_webapp: $RUN_WEBAPP"
+          echo "notif partner id: $NOTIF_PARTNER_ID"
       - run: npm ci
       - uses: extractions/setup-just@v4
       - run: just test-webci-suite all
