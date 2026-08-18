@@ -101,7 +101,7 @@ class FranceConnectMirePage {
                     async () => {
                         const fcButtonDisplayed = await this.isFranceConnectTextVisible().catch(() => false)
                         if (fcButtonDisplayed) {
-                            const fcButton = await tl().queryByRole('button', {name: /franceconnect/i})
+                            const fcButton = await tl().queryByRole('button', {name: /^S.identifier avec FranceConnect$/i})
                             if (fcButton)
                                await fcButton.click()
                             else return false
