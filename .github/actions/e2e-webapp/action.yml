@@ -1,0 +1,15 @@
+name: e2e-webapp
+description: Lance la suite E2E webapp (Chrome headless) — exécuté inline dans le job appelant, pas de VM dédiée.
+
+inputs:
+  suite:
+    description: "Suite nommée (test-suites.ts), ex: all, CI"
+    required: false
+    default: all
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      working-directory: ami-system-tests
+      run: just test-webci-suite "${{ inputs.suite }}"
