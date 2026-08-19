@@ -28,7 +28,11 @@ export const testSuites: Record<string, string[][]> = {
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
     ]],
-
+    
+    /** short suite to shorten CI debug **/
+    short: [[
+        r('src/tests/mobile/authentication.test.ts'),
+    ]], 
     /** Smoke suite CI : authentification + scénarios critiques uniquement. */
     CI: [[
         r('src/tests/mobile/authentication.test.ts'),
