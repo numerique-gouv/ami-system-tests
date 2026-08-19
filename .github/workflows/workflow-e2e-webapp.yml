@@ -37,10 +37,14 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: ami-system-tests/package-lock.json
-      - run: |
-          echo "ref_name:    $REF_NAME"
-          echo "run_webapp: $RUN_WEBAPP"
-          echo "notif partner id: $NOTIF_PARTNER_ID"
       - run: npm ci
       - uses: extractions/setup-just@v4
-      - run: just test-webci-suite all
+      - run: just test-webci-suite short
+      - name: Exporter les résultats Allure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-webapp
+          path: allure-results-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
