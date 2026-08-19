@@ -22,6 +22,7 @@ jobs:
       AMI_ENV: staging
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
+      WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
     defaults:
       run:
         working-directory: ami-system-tests
