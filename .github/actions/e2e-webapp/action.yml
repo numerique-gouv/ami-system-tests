@@ -12,4 +12,4 @@ runs:
   steps:
     - shell: bash
       working-directory: ami-system-tests
-      run: just test-webci-suite "${{ inputs.suite }}" || echo "Test suite has failed"
+      run: just test-webci-suite "${{ inputs.suite }}"
