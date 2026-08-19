@@ -9,13 +9,9 @@ on:
         description: "ref (branche/tag/sha) d'ami-system-tests à checkout"
         type: string
         required: true
-      suite:
-        description: "nom de la suite ios à lancer (test-suites.ts)"
-        type: string
-        default: ''
 
 jobs:
   sample:
     runs-on: macos-latest
     steps:
-      - run: echo "hello world of iOS — suite ${{ inputs.suite }}"
+      - run: echo hello world of iOS

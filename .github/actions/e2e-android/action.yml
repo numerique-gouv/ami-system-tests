@@ -27,4 +27,4 @@ runs:
     # artifact) sera tranchée. `just start-android` échouera tant que le SDK n'est pas présent.
     - shell: bash
       working-directory: ami-system-tests
-      run: just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
+      run: just test-android-suite "${{ inputs.suite }}"
