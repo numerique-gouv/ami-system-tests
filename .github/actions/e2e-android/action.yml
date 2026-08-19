@@ -1,0 +1,30 @@
+name: e2e-android
+description: >
+  Lance la suite E2E Android (émulateur) — exécuté inline dans le job appelant,
+  sur ubuntu-latest avec KVM activé (pas de VM macOS dédiée).
+
+inputs:
+  suite:
+    description: "Suite nommée (test-suites.ts), ex: all, CI"
+    required: false
+    default: CI
+
+runs:
+  using: composite
+  steps:
+    # KVM matériel dispo sur les runners Linux hébergés GitHub depuis janvier 2024,
+    # mais pas activé par défaut : sans ça l'émulateur tourne en émulation logicielle pure
+    # (boot ~2min30 au lieu de ~15s). Voir https://github.com/ReactiveCircus/android-emulator-runner
+    - name: Enable KVM
+      shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    # TODO(wip): provisionnement du SDK Android + de l'AVD "Pixel_modern" (cf. justfile) pas
+    # encore câblé ici — à faire quand la stratégie d'obtention de l'APK (build sibling repo vs
+    # artifact) sera tranchée. `just start-android` échouera tant que le SDK n'est pas présent.
+    - shell: bash
+      working-directory: ami-system-tests
+      run: just test-android-suite "${{ inputs.suite }}"
