@@ -19,7 +19,7 @@ async function isAlertPresent(): Promise<boolean> {
     .catch(() => false)
 }
 
-async function handleAccessCodePrompt(): Promise<void> {
+export async function handleAccessCodePrompt(): Promise<void> {
   const present = await browser
     .waitUntil(() => isAlertPresent(), {
       timeout: ALERT_POLL_TIMEOUT_MS,
@@ -43,20 +43,4 @@ async function handleAccessCodePrompt(): Promise<void> {
   await browser.sendAlertText(code)
   await browser.acceptAlert()
   log.info("Popup de code d'accès détecté et renseigné.")
-}
-
-function isUnexpectedAlertOpenError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes('unexpected alert open')
-}
-
-export async function navigateAndHandleAccessCode(path: string): Promise<void> {
-  try {
-    await browser.url(path)
-  } catch (error) {
-    if (!isUnexpectedAlertOpenError(error)) {
-      throw error
-    }
-    log.info("Alerte de code d'accès déjà ouverte pendant la navigation — traitement avant nouvelle tentative.")
-    await handleAccessCodePrompt()
-  }
 }
