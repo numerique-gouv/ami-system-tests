@@ -5,7 +5,7 @@ import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { registerReplHelpers } from './src/helpers/repl'
-import { navigateAndHandleAccessCode } from './src/helpers/access-code'
+import { handleAccessCodePrompt } from './src/helpers/access-code'
 
 const { webappUrl } = resolveEnvironment()
 
@@ -56,7 +56,8 @@ export const config: Options.Testrunner = {
     // Les mobiles commenent sur une première page (review picker, login, home)
     // Cette première navigation vers home ammène les scenario en webapp sur les mêmes endroits que les senarios mobiles.
     // On en profite pour valider le code d'accès.
-    await navigateAndHandleAccessCode('/')
+    await browser.url('/')
+    await handleAccessCodePrompt()
     // Capture le handle de cet onglet une fois pour toutes, avant qu'un flow OIDC ne puisse
     // en ouvrir d'autres — cf. src/platform/browser.adapter.ts pour pourquoi (partenaires
     // FranceConnect/DN/CNSM/OTC… inconnus à l'avance, un handle stable évite d'avoir à les
