@@ -1,9 +1,8 @@
 /**
  * Gestion du popup natif window.prompt() demandant un code d'accès au chargement de la
- * webapp (gate de staging côté SPA, distinct du Basic Auth backend — cf. NOTIF_PARTNER_SECRET
- * dans src/helpers/notifications-api.ts). Géré via l'API WebDriver dédiée aux dialogues JS
- * (getAlertText/sendAlertText/acceptAlert) plutôt que via un sélecteur DOM : un window.prompt()
- * n'est pas dans le DOM, il bloque le thread JS de la page tant qu'il n'est pas résolu.
+ * webapp (gate de staging côté SPA).
+ * Les scénaio mobiles commencent sur un review picker ou une page d'auth.
+ * En webapp, une navigation vers la page d'accueil permet aux scenario webapp de commencer aux mêmes endroits que les senario mobiles.
  */
 
 import logger from '@wdio/logger'
@@ -20,13 +19,7 @@ async function isAlertPresent(): Promise<boolean> {
     .catch(() => false)
 }
 
-/**
- * À appeler juste après la navigation initiale (browser.url('/')) dans le before() de
- * wdio.webapp.conf.ts. N'échoue pas silencieusement si WEBAPP_ACCESS_CODE est absent alors
- * qu'un prompt apparaît : mieux vaut une erreur explicite ici qu'un test qui échoue plus loin
- * sur un premier sélecteur introuvable, sans lien apparent avec la vraie cause.
- */
-export async function handleAccessCodePrompt(): Promise<void> {
+async function handleAccessCodePrompt(): Promise<void> {
   const present = await browser
     .waitUntil(() => isAlertPresent(), {
       timeout: ALERT_POLL_TIMEOUT_MS,
@@ -50,4 +43,20 @@ export async function handleAccessCodePrompt(): Promise<void> {
   await browser.sendAlertText(code)
   await browser.acceptAlert()
   log.info("Popup de code d'accès détecté et renseigné.")
+}
+
+function isUnexpectedAlertOpenError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('unexpected alert open')
+}
+
+export async function navigateAndHandleAccessCode(path: string): Promise<void> {
+  try {
+    await browser.url(path)
+  } catch (error) {
+    if (!isUnexpectedAlertOpenError(error)) {
+      throw error
+    }
+    log.info("Alerte de code d'accès déjà ouverte pendant la navigation — traitement avant nouvelle tentative.")
+    await handleAccessCodePrompt()
+  }
 }

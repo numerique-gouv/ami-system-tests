@@ -5,7 +5,7 @@ import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { registerReplHelpers } from './src/helpers/repl'
-import { handleAccessCodePrompt } from './src/helpers/access-code'
+import { navigateAndHandleAccessCode } from './src/helpers/access-code'
 
 const { webappUrl } = resolveEnvironment()
 
@@ -52,15 +52,11 @@ export const config: Options.Testrunner = {
     // de le dupliquer ou de le remplacer — la navigation initiale + capture du handle sont
     // spécifiques à la webapp (pas de notion d'onglet côté Appium/mobile), donc gérées ici.
     registerReplHelpers()
-    // Équivalent webapp du lancement automatique de l'app mobile via les capabilities :
-    // sans ce hook, une session Chrome démarre sur about:blank et tout spec qui ne fait pas
-    // sa propre navigation (c'est le cas de tous les specs mobiles, l'app se lançant déjà
-    // sur le bon écran) échouerait dès le premier sélecteur.
-    await browser.url('/')
-    // Le popup window.prompt() ("Un code d'accès est nécessaire.", gate de staging côté SPA)
-    // bloque le thread JS de la page tant qu'il n'est pas résolu : à traiter avant tout ce qui
-    // suit, en particulier captureAppWindow() ci-dessous.
-    await handleAccessCodePrompt()
+    // Équivalent webapp du lancement automatique de l'app mobile via les capabilities.
+    // Les mobiles commenent sur une première page (review picker, login, home)
+    // Cette première navigation vers home ammène les scenario en webapp sur les mêmes endroits que les senarios mobiles.
+    // On en profite pour valider le code d'accès.
+    await navigateAndHandleAccessCode('/')
     // Capture le handle de cet onglet une fois pour toutes, avant qu'un flow OIDC ne puisse
     // en ouvrir d'autres — cf. src/platform/browser.adapter.ts pour pourquoi (partenaires
     // FranceConnect/DN/CNSM/OTC… inconnus à l'avance, un handle stable évite d'avoir à les
