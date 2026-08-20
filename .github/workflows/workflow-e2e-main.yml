@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.ref_name }}
     env:
-      AMI_ENV: staging
+      AMI_ENV: ${{ inputs.pr_number != 0 && inputs.pr_number || 'staging' }}
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
       WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
