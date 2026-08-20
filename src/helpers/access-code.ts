@@ -9,7 +9,7 @@ import logger from '@wdio/logger'
 
 const log = logger('access-code')
 
-const ALERT_POLL_TIMEOUT_MS = 5000
+const ALERT_POLL_TIMEOUT_MS = 10000
 const ALERT_POLL_INTERVAL_MS = 250
 
 async function isAlertPresent(): Promise<boolean> {
