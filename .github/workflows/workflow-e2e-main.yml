@@ -6,17 +6,20 @@ on:
         type: string
         default: staging
       run_webapp:
-        type: boolean
-        default: false
+        description: "nom de la suite webapp à lancer (test-suites.ts, ex: short, CI, all) — vide = ne pas lancer"
+        type: string
+        default: ''
       run_android:
-        type: boolean
-        default: false
+        description: "nom de la suite android à lancer (test-suites.ts) — vide = ne pas lancer"
+        type: string
+        default: ''
       run_old_device:
         type: boolean
         default: true
       run_ios:
-        type: boolean
-        default: false
+        description: "nom de la suite ios à lancer (test-suites.ts) — vide = ne pas lancer"
+        type: string
+        default: ''
       source_repo:
         type: string
         required: true
@@ -41,17 +44,18 @@ jobs:
   # iOS reste isolé : reusable workflow classique → job/VM macOS dédié (pas de partage de
   # disque avec webapp/android), tant que la CI macOS est en pause.
   ios:
-    if: ${{ inputs.run_ios }}
+    if: ${{ inputs.run_ios != '' }}
     uses: ./.github/workflows/workflow-e2e-ios.yml
     with:
       ref_name: ${{ inputs.ref_name }}
       checkout_ref: ${{ inputs.checkout_ref }}
+      suite: ${{ inputs.run_ios }}
     secrets: inherit
 
   # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même allure-report)
   # iOS a besoin d'un MacOs (10x plus cher qu'Ubuntu), donc d'une autre VM, donc d'un autre job avec transimission de rapport Aluure par upload et download d'artefacts.
   e2e:
-    if: ${{ inputs.run_webapp || inputs.run_android }}
+    if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
     runs-on: ubuntu-latest
     environment: ${{ inputs.ref_name }}
@@ -77,17 +81,17 @@ jobs:
         run: npm ci
       - uses: extractions/setup-just@v4
 
-      - if: ${{ inputs.run_webapp }}
+      - if: ${{ inputs.run_webapp != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-webapp
         with:
-          suite: short
+          suite: ${{ inputs.run_webapp }}
 
-      - if: ${{ inputs.run_android }}
+      - if: ${{ inputs.run_android != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-android
         with:
-          suite: auth
-        
-      - if: ${{ inputs.run_ios }}
+          suite: ${{ inputs.run_android }}
+
+      - if: ${{ inputs.run_ios != '' }}
         name: download iOS allure results
         run: echo TODO download allure artefact
       
