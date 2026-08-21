@@ -68,7 +68,7 @@ class HomePage {
 
         // est-ce que l'on est sur l'url de la page d'accueil ?
         const looksLikeHome = await platform().inWebContext(() =>
-            driver.execute(() => location.hash === '' || location.hash.startsWith('#/')) as Promise<boolean>
+            driver.execute(() => location.hash === '' || location.hash === '#/') as Promise<boolean>
         ).catch(() => false)
         if (!looksLikeHome) return false
 
