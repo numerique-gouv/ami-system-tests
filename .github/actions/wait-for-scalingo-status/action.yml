@@ -1,0 +1,82 @@
+name: wait-for-scalingo-status
+description: >
+  Attend la fin du (re)déploiement Scalingo de la review app (ou de staging). 
+  On se base sur le commit status GitHub ("deploy/sclng: <app>").
+
+inputs:
+  source_repo:
+    description: "Repo dont le SHA est déployé, ex: numerique-gouv/ami-notifications-api"
+    required: true
+  source_sha:
+    description: "SHA du commit dont on attend le déploiement"
+    required: true
+  pr_number:
+    description: "0 = pas de PR (push sur main / tag) → app 'ami-back-staging' ; sinon → 'ami-back-staging-pr<N>'"
+    required: false
+    default: "0"
+  github_token:
+    description: "Token utilisé pour lire les commit statuses (le GITHUB_TOKEN par défaut du job suffit)"
+    required: true
+  timeout_seconds:
+    description: "Délai maximum d'attente avant d'abandonner"
+    required: false
+    default: "300"
+  poll_interval_seconds:
+    description: "Intervalle entre deux vérifications"
+    required: false
+    default: "10"
+
+runs:
+  using: composite
+  steps:
+    - name: Attendre le commit status "deploy/sclng" de Scalingo
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        SOURCE_REPO: ${{ inputs.source_repo }}
+        SOURCE_SHA: ${{ inputs.source_sha }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        TIMEOUT_SECONDS: ${{ inputs.timeout_seconds }}
+        POLL_INTERVAL_SECONDS: ${{ inputs.poll_interval_seconds }}
+      run: |
+        set -euo pipefail
+
+        if [ "$PR_NUMBER" = "0" ]; then
+          APP_NAME="ami-back-staging"
+        else
+          APP_NAME="ami-back-staging-pr${PR_NUMBER}"
+        fi
+        CONTEXT="deploy/sclng: ${APP_NAME}"
+        echo "En attente du status '${CONTEXT}' sur ${SOURCE_REPO}@${SOURCE_SHA}"
+
+        elapsed=0
+        while [ "$elapsed" -lt "$TIMEOUT_SECONDS" ]; do
+          # /commits/{sha}/status agrège les statuses par context — un seul GET suffit,
+          # pas besoin de paginer /statuses comme pour l'historique complet.
+          state=$(gh api "repos/${SOURCE_REPO}/commits/${SOURCE_SHA}/status" \
+            --jq ".statuses[] | select(.context == \"${CONTEXT}\") | .state" \
+            2>/dev/null | head -n1 || true)
+
+          case "$state" in
+            success)
+              echo "Déploiement Scalingo terminé avec succès (${CONTEXT})."
+              exit 0
+              ;;
+            failure|error)
+              echo "::error::Déploiement Scalingo en échec (${CONTEXT}) : state=${state}" >&2
+              exit 1
+              ;;
+            pending)
+              echo "Déploiement en cours (${CONTEXT}) — attente ${POLL_INTERVAL_SECONDS}s..."
+              ;;
+            *)
+              echo "Status '${CONTEXT}' pas encore posté par Scalingo — attente ${POLL_INTERVAL_SECONDS}s..."
+              ;;
+          esac
+
+          sleep "$POLL_INTERVAL_SECONDS"
+          elapsed=$((elapsed + POLL_INTERVAL_SECONDS))
+        done
+
+        echo "::error::Timeout (${TIMEOUT_SECONDS}s) en attendant '${CONTEXT}' sur ${SOURCE_SHA}." >&2
+        exit 1
