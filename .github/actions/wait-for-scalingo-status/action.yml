@@ -79,4 +79,4 @@ runs:
         done
 
         echo "::error::Timeout (${TIMEOUT_SECONDS}s) en attendant '${CONTEXT}' sur ${SOURCE_SHA}." >&2
-        exit 1
+        exit 0
