@@ -23,6 +23,10 @@ on:
       source_repo:
         type: string
         required: true
+      source_sha:
+        description: "SHA du commit de source_repo dont on attend le déploiement Scalingo avant de lancer les tests"
+        type: string
+        required: true
       pr_number:
         type: number
         default: 0
@@ -80,6 +84,13 @@ jobs:
       - working-directory: ami-system-tests
         run: npm ci
       - uses: extractions/setup-just@v4
+      - if: ${{ (inputs.run_webapp != '' || inputs.run_android != '') && inputs.source_repo == 'numerique-gouv/ami-notifications-api' }}
+        uses: ./ami-system-tests/.github/actions/wait-for-scalingo-status
+        with:
+          source_repo: ${{ inputs.source_repo }}
+          source_sha: ${{ inputs.source_sha }}
+          pr_number: ${{ inputs.pr_number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - if: ${{ inputs.run_webapp != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-webapp
