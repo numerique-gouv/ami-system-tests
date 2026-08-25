@@ -57,6 +57,67 @@ clean-install:
     npm run appium:install || true
     @echo "✅ node_modules reconstruit."
 
+# Télécharger et installer manuellement chromedriver dans le cache WDIO.
+# Utile quand le téléchargement automatique WDIO échoue (proxy/réseau) avec une erreur du type
+# "All providers failed for chromedriver ... the executable is missing".
+# Sans argument : détecte la version depuis le Chrome installé localement (macOS).
+# Usage : just fix-chromedriver                  → auto-détection
+#         just fix-chromedriver 151.0.7922.174   → force une version précise
+fix-chromedriver version="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "arm64" ]; then
+        PLATFORM_TAG="mac_arm"; DOWNLOAD_PLATFORM="mac-arm64"
+    else
+        PLATFORM_TAG="mac_x64"; DOWNLOAD_PLATFORM="mac-x64"
+    fi
+
+    VERSION="{{version}}"
+    if [ -z "$VERSION" ]; then
+        CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if [ ! -x "$CHROME_BIN" ]; then
+            echo "❌ Chrome introuvable à '$CHROME_BIN' — passe la version explicitement : just fix-chromedriver <version>" >&2
+            exit 1
+        fi
+        CHROME_VERSION=$("$CHROME_BIN" --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
+        echo "🔍 Chrome installé : $CHROME_VERSION"
+        VERSION=$(curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
+            | node -e "
+                const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+                const target = '$CHROME_VERSION';
+                const hasDriver = v => v.downloads.chromedriver?.some(d => d.platform === '$DOWNLOAD_PLATFORM');
+                const exact = data.versions.find(v => v.version === target && hasDriver(v));
+                if (exact) { console.log(exact.version); process.exit(0); }
+                const prefix = target.split('.').slice(0, 3).join('.') + '.';
+                const candidates = data.versions.filter(v => v.version.startsWith(prefix) && hasDriver(v));
+                if (!candidates.length) process.exit(1);
+                console.log(candidates[candidates.length - 1].version);
+            ")
+        if [ -z "$VERSION" ]; then
+            echo "❌ Aucun chromedriver publié pour Chrome $CHROME_VERSION." >&2
+            exit 1
+        fi
+        echo "🎯 Chromedriver ciblé : $VERSION"
+    fi
+
+    CACHE_ROOT="${TMPDIR:-/tmp}"
+    CACHE_DIR="${CACHE_ROOT%/}/chromedriver/${PLATFORM_TAG}-${VERSION}"
+    TARGET="$CACHE_DIR/chromedriver-${DOWNLOAD_PLATFORM}/chromedriver"
+    if [ -x "$TARGET" ]; then
+        echo "✅ Déjà présent : $TARGET"
+        exit 0
+    fi
+    mkdir -p "$CACHE_DIR"
+    ZIP="$CACHE_DIR/chromedriver-${DOWNLOAD_PLATFORM}.zip"
+    URL="https://storage.googleapis.com/chrome-for-testing-public/${VERSION}/${DOWNLOAD_PLATFORM}/chromedriver-${DOWNLOAD_PLATFORM}.zip"
+    echo "📥 Téléchargement : $URL"
+    curl -fSL -o "$ZIP" "$URL"
+    unzip -o "$ZIP" -d "$CACHE_DIR"
+    chmod +x "$TARGET"
+    xattr -d com.apple.quarantine "$TARGET" 2>/dev/null || true
+    echo "✅ Chromedriver installé : $TARGET"
+
 # Afficher les dépendances dépassées (sans modifier package.json)
 check-deps:
     npx npm-check-updates
