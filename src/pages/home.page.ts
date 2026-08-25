@@ -1,5 +1,5 @@
 import {getHomeLocators} from './locators/home.locators'
-import {tl} from '../helpers/webview';
+import {tl, describeCurrentPage} from '../helpers/webview';
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import OnboardingNotificationsPage from './onboarding-notifications.page'
@@ -192,7 +192,8 @@ class HomePage {
         // booléen réel, cf. son commentaire) — c'est ici, à l'appelant qui veut un échec dur, de
         // lever l'erreur.
         if (!await this.isHomeVisible(timeout)) {
-            throw new AssertionError({message: 'goToHomeFromAnywhere: Home non atteinte après navigation'})
+            const where = await describeCurrentPage()
+            throw new AssertionError({message: `goToHomeFromAnywhere: Home non atteinte après navigation (${where})`})
         }
     }
 
