@@ -6,8 +6,14 @@ import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { registerReplHelpers } from './src/helpers/repl'
 import { handleAccessCodePrompt } from './src/helpers/access-code'
+import { setBackendUrl } from './src/helpers/notifications-api'
 
-const { webappUrl } = resolveEnvironment()
+const { webappUrl, apiUrl } = resolveEnvironment()
+
+// Pas de picker natif en webapp (cf. resolveEnvironment) pour déclencher setBackendUrl()
+// comme EnvironmentPickerPage.reviewEnvironmentPicker() le fait côté mobile — on le fixe
+// donc ici une fois pour toute la session, dès le chargement de la config.
+setBackendUrl(apiUrl)
 
 // WEBAPP_HEADLESS=false (just test-webapp / test-webapp-suite) ouvre un Chrome dédié visible,
 // lancé par WDIO/Chromedriver — pratique pour observer le run en local. Par défaut (CI via
