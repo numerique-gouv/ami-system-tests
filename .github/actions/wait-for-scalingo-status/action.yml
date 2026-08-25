@@ -48,7 +48,7 @@ runs:
         fi
         CONTEXT="deploy/sclng: ${APP_NAME}"
         echo "En attente du status '${CONTEXT}' sur ${SOURCE_REPO}@${SOURCE_SHA}"
-        echo "running: gh api \"repos/${SOURCE_REPO}/commits/${SOURCE_SHA}/status\" --jq ".statuses\[\] | select\(.context == \"${CONTEXT}\"\) | .state"
+        echo "running: gh api \"repos/${SOURCE_REPO}/commits/${SOURCE_SHA}/status\" --jq '.statuses[] | select(.context == \"${CONTEXT}\") | .state'"
 
         elapsed=0
         while [ "$elapsed" -lt "$TIMEOUT_SECONDS" ]; do
