@@ -60,15 +60,15 @@ runs:
 
           case "$state" in
             success)
-              echo "Déploiement Scalingo terminé avec succès (${CONTEXT})."
+              echo "Déploiement Scalingo terminé avec succès dans ${CONTEXT}."
               exit 0
               ;;
             failure|error)
-              echo "::error::Déploiement Scalingo en échec (${CONTEXT}) : state=${state}" >&2
+              echo "::error::Déploiement Scalingo en échec dans ${CONTEXT} : state=${state}" >&2
               exit 1
               ;;
             pending)
-              echo "Déploiement en cours (${CONTEXT}) — attente ${POLL_INTERVAL_SECONDS}s..."
+              echo "Déploiement en cours dans ${CONTEXT} — attente ${POLL_INTERVAL_SECONDS}s..."
               ;;
             *)
               echo "Status '${CONTEXT}' pas encore posté par Scalingo — attente ${POLL_INTERVAL_SECONDS}s..."
@@ -79,5 +79,5 @@ runs:
           elapsed=$((elapsed + POLL_INTERVAL_SECONDS))
         done
 
-        echo "::error::Timeout (${TIMEOUT_SECONDS}s) en attendant '${CONTEXT}' sur ${SOURCE_SHA}." >&2
+        echo "::error::Timeout ${TIMEOUT_SECONDS}s en attendant '${CONTEXT}' sur ${SOURCE_SHA}." >&2
         exit 0
