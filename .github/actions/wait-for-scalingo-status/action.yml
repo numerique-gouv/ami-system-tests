@@ -20,11 +20,11 @@ inputs:
   timeout_seconds:
     description: "Délai maximum d'attente avant d'abandonner"
     required: false
-    default: "300"
+    default: "30"
   poll_interval_seconds:
     description: "Intervalle entre deux vérifications"
     required: false
-    default: "10"
+    default: "5"
 
 runs:
   using: composite
