@@ -67,19 +67,15 @@ class HomePage {
         if (!await platform().isWebContextAvailable()) return false
 
         // est-ce que l'on est sur l'url de la page d'accueil ?
-        const looksLikeHome = await platform().inWebContext(() =>
-            driver.execute(() => location.hash === '' || location.hash === '#/') as Promise<boolean>
-        ).catch(() => false)
-        if (!looksLikeHome) return false
+        if (!await this.isOnHomeRoute()) return false
 
-        // Bonjour absent malgré une WebView sur la bonne route : détection explicite de
-        // l'écran de blocage (plutôt qu'une cascade aveugle qui tenterait les deux actions
-        // "par élimination") — ne dismiss/ferme que ce qui est réellement affiché.
+        // L'écran d'onboarding peut apparaitre, et doit être refusé (ca évite les pop-in native de notification qui pourraient intercépter les clicks).
         if (await OnboardingNotificationsPage.isOnboardingVisible()) {
             await OnboardingNotificationsPage.dismiss()
             if (await this.probeWelcomeText(5000)) return true
         }
 
+        // Le menu plus reste parfois ouvert même après un reconnexion, au cas où, on le referme
         if (await this.isMenuPlusVisible()) {
             await platform().inWebContext(() => this.closeOpenNavPlusMenu())
             if (await this.probeWelcomeText(5000)) return true
@@ -87,6 +83,16 @@ class HomePage {
 
         // est-ce que la page d'accueil est visible ? texte "Bonjour ...".
         return await this.probeWelcomeText(timeout);
+    }
+
+    /**
+     * Sonde dédiée : le hash courant correspond-il à la route home (`''` ou `'#/'`) ?
+     * Extrait de isHomeVisible() pour être réutilisable ailleurs dans ce fichier.
+     */
+    private async isOnHomeRoute(): Promise<boolean> {
+        return await platform().inWebContext(() =>
+            driver.execute(() => location.hash === '' || location.hash === '#/') as Promise<boolean>
+        ).catch(() => false)
     }
 
     /**
