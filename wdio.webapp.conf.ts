@@ -20,6 +20,10 @@ setBackendUrl(apiUrl)
 // just test-webci / test-webci-suite), headless.
 const headless = process.env.WEBAPP_HEADLESS !== 'false'
 
+// Dimensions du viewport émulé (Pixel 7, cf. mobileEmulation ci-dessous) — réutilisées pour
+// dimensionner la fenêtre réelle en headless (cf. before()).
+const deviceMetrics = { width: 412, height: 915 }
+
 export const config: Options.Testrunner = {
   ...baseConfig,
 
@@ -41,7 +45,7 @@ export const config: Options.Testrunner = {
         // référence (dimensions Pixel 7, cf. src/driver/capabilities.ts:ANDROID_DEVICE_NAME)
         // plutôt qu'un rendu desktop, pour rester cohérent avec les locators partagés.
         mobileEmulation: {
-          deviceMetrics: { width: 412, height: 915, pixelRatio: 2.625 },
+          deviceMetrics: { ...deviceMetrics, pixelRatio: 2.625 },
           userAgent:
             'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) ' +
             'Chrome/128.0.0.0 Mobile Safari/537.36',
@@ -58,6 +62,10 @@ export const config: Options.Testrunner = {
     // de le dupliquer ou de le remplacer — la navigation initiale + capture du handle sont
     // spécifiques à la webapp (pas de notion d'onglet côté Appium/mobile), donc gérées ici.
     registerReplHelpers()
+    // Aligne la fenêtre réelle sur le viewport émulé (cf. deviceMetrics ci-dessus) — sans ça,
+    // la fenêtre headless par défaut est trop petite et les actions WebDriver (scrollIntoView,
+    // click…) échouent en "move target out of bounds" dès qu'un élément sort de cette zone.
+    await browser.setWindowSize(deviceMetrics.width, deviceMetrics.height)
     // Équivalent webapp du lancement automatique de l'app mobile via les capabilities.
     // Les mobiles commenent sur une première page (review picker, login, home)
     // Cette première navigation vers home ammène les scenario en webapp sur les mêmes endroits que les senarios mobiles.
