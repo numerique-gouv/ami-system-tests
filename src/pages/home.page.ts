@@ -86,11 +86,10 @@ class HomePage {
 
     /**
      * Sonde dédiée : le hash courant correspond-il à la route home (`''` ou `'#/'`) ?
-     * Extrait de isHomeVisible() pour être réutilisable ailleurs dans ce fichier.
      */
     private async isOnHomeRoute(): Promise<boolean> {
         return await platform().inWebContext(() =>
-            driver.execute(() => location.hash === '' || location.hash === '#/') as Promise<boolean>
+            driver.execute(() => location.pathname === '/' || location.pathname === '/#/') as Promise<boolean>
         ).catch(() => false)
     }
 
