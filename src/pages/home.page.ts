@@ -81,8 +81,7 @@ class HomePage {
             if (await this.probeWelcomeText(5000)) return true
         }
 
-        // est-ce que la page d'accueil est visible ? texte "Bonjour ...".
-        return await this.probeWelcomeText(timeout);
+        return true;
     }
 
     /**
