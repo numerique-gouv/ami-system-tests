@@ -37,7 +37,9 @@ export const androidLoginLocators: LoginLocators = {
     fcButtonInWebView: false,
 }
 export const iosLoginLocators: LoginLocators = {
-    fcButton: "button=S'identifier avec FranceConnect",
+    // Sélecteur `button=` : matching exact, pas de regex possible — apostrophe typographique
+    // `’` (U+2019) copiée depuis le texte réel de la SPA, pas l'apostrophe droite du clavier.
+    fcButton: "button=S’identifier avec FranceConnect",
     fcButtonInWebView: true, // le bouton est dans la WebView SPA sur iOS
 }
 
@@ -168,6 +170,27 @@ Avant d'ajouter un `data-testid`, essayer `tl().getByRole()`/`findByText()` et n
 Avant d'ajouter un `fr-*`, essayer `data-testid`. Les classes du design system État (`fr-tile__content`, `fr-badge`,
 `fr-tabs__tab--selected`) sont un contrat stable, utilisables comme sélecteur. Les classes générées par Svelte (`svelte-19k7n5y`) sont un détail d'implémentation qui change à chaque build — **jamais** les utiliser comme sélecteur.
 
+### Apostrophe dans un texte matché : regex avec `.`, jamais de caractère littéral
+
+`findByText`/`findByLabelText` font un matching **exact** par défaut. Le contenu FR (DSFR, Svelte) utilise souvent
+l'apostrophe typographique `’` (U+2019), alors qu'on tape naturellement l'apostrophe droite `'` (U+0027) dans le
+code — les deux caractères sont visuellement quasi identiques en review humaine, donc l'erreur ne saute pas aux
+yeux et casse le test au runtime (`Unable to find a label with the text of: ...`).
+
+Préférer une regex avec `.` à la place de l'apostrophe, tolérante aux deux variantes :
+
+```typescript
+// À éviter : dépend du caractère exact utilisé côté app, invisible en review
+const input = await tl().findByLabelText("Nom d'usage")
+
+// Préférer : `.` matche `'` comme `’`, review humaine explicite sur l'intention
+const input = await tl().findByLabelText(/Nom d.usage/)
+```
+
+Cas sans regex possible (sélecteur WDIO natif `button=`, `document.body.textContent.includes()` dans un
+`driver.execute` avec argument sérialisé…) : copier l'apostrophe exacte depuis le DOM réellement rendu (`just
+inspect`), jamais la retaper au clavier, et documenter en commentaire le caractère utilisé (ex. `franceconnect-mire.locators.ts`).
+
 ---
 
 ## 3. Cycle complet d'une « tuile » par type de page
@@ -203,7 +226,7 @@ await platform().inWebContext(async () => {
     const editBtn = await tl().findByRole('button', {name: 'Modifier'})
     await editBtn.click()
 
-    const input = await tl().findByLabelText("Nom d'usage")
+    const input = await tl().findByLabelText(/Nom d.usage/)
     const currentValue = await input.getValue()
 
     await input.setValue('Nouvelle valeur')

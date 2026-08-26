@@ -8,12 +8,15 @@
  */
 
 export interface FranceConnectCredentialsLocators {
-  fcpLowHeadingText: string  // texte de confirmation que la page FCP-LOW est chargée
+  fcpLowHeadingText: string     // texte de confirmation que la page FCP-LOW est chargée (logs/messages)
+  fcpLowHeadingPattern: RegExp  // même texte, pour le matching réel — tolérant à l'apostrophe
 }
 
 export const fcCredentialsLocators: FranceConnectCredentialsLocators = {
   // Texte de titre de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
   fcpLowHeadingText: "Fournisseur d'identité de démonstration - FCP-LOW",
+  // `.` à la place de l'apostrophe : tolère apostrophe droite (') et typographique (’)
+  fcpLowHeadingPattern: /Fournisseur d.identité de démonstration - FCP-LOW/,
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform
