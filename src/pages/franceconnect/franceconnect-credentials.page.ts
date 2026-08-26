@@ -42,11 +42,11 @@ class FranceConnectCredentialsPage {
                     }
                 )
                 const idField = await tl().getByLabelText(/identifiant/i)
-                await idField.scrollIntoView()
+                //await idField.scrollIntoView()
                 await idField.clearValue()
                 await idField.setValue(user.login)
                 const pwdField = await tl().getByLabelText(/mot de passe/i)
-                await pwdField.scrollIntoView()
+                //await pwdField.scrollIntoView()
                 await pwdField.clearValue()
                 await pwdField.setValue(user.password)
                 // pas de fallback driver.execute nécessaire ici (cf. franceconnect-credentials.locators.ts).
