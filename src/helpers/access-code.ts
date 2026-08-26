@@ -11,36 +11,41 @@ const log = logger('access-code')
 
 const ALERT_POLL_TIMEOUT_MS = 10000
 const ALERT_POLL_INTERVAL_MS = 500
+var RETRIES = 10
 
 async function isAlertPresent(): Promise<boolean> {
-  return await browser
-    .getAlertText()
-    .then(() => true)
-    .catch(() => false)
+    return await browser
+        .getAlertText()
+        .then(() => true)
+        .catch(() => false)
 }
 
 export async function handleAccessCodePrompt(): Promise<void> {
-  const code = process.env.WEB_APP_ACCESS_KEYS
-  if (!code) {
-    throw new Error(
-      "La webapp affiche un popup window.prompt() demandant un code d'accès, mais " +
-      'WEB_APP_ACCESS_KEYS est absent de .env.local (cf. gabarit dans .env).'
-    )
-  }
+    const code = process.env.WEB_APP_ACCESS_KEYS
+    if (!code) {
+        throw new Error(
+            "La webapp affiche un popup window.prompt() demandant un code d'accès, mais " +
+            'WEB_APP_ACCESS_KEYS est absent de .env.local (cf. gabarit dans .env).'
+        )
+    }
 
-  const present = await browser
-    .waitUntil(() => isAlertPresent(), {
-      timeout: ALERT_POLL_TIMEOUT_MS,
-      interval: ALERT_POLL_INTERVAL_MS,
-    })
-    .catch(() => false)
+    const present = await browser
+        .waitUntil(() => isAlertPresent(), {
+            timeout: ALERT_POLL_TIMEOUT_MS,
+            interval: ALERT_POLL_INTERVAL_MS,
+        })
+        .catch(() => false)
 
-  if (!present) {
-    log.info("Aucun popup de code d'accès détecté — environnement déjà déverrouillé, ou variante sans popup.")
-    return
-  }
+    if (!present) {
+        log.info("Aucun popup de code d'accès détecté — environnement déjà déverrouillé, ou variante sans popup.")
+        return
+    }
 
-  await browser.sendAlertText(code)
-  await browser.acceptAlert()
-  log.info("Popup de code d'accès détecté et renseigné.")
+    await browser.sendAlertText(code)
+    await browser.acceptAlert()
+    log.info("Popup de code d'accès détecté et renseigné.")
+    if (await isAlertPresent() && RETRIES > 0) {
+        RETRIES = RETRIES - 1
+        await handleAccessCodePrompt()
+    }
 }
