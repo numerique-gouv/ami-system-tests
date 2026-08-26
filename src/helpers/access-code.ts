@@ -10,7 +10,7 @@ import logger from '@wdio/logger'
 const log = logger('access-code')
 
 const ALERT_POLL_TIMEOUT_MS = 10000
-const ALERT_POLL_INTERVAL_MS = 250
+const ALERT_POLL_INTERVAL_MS = 500
 
 async function isAlertPresent(): Promise<boolean> {
   return await browser
@@ -20,6 +20,14 @@ async function isAlertPresent(): Promise<boolean> {
 }
 
 export async function handleAccessCodePrompt(): Promise<void> {
+  const code = process.env.WEB_APP_ACCESS_KEYS
+  if (!code) {
+    throw new Error(
+      "La webapp affiche un popup window.prompt() demandant un code d'accès, mais " +
+      'WEB_APP_ACCESS_KEYS est absent de .env.local (cf. gabarit dans .env).'
+    )
+  }
+
   const present = await browser
     .waitUntil(() => isAlertPresent(), {
       timeout: ALERT_POLL_TIMEOUT_MS,
@@ -30,14 +38,6 @@ export async function handleAccessCodePrompt(): Promise<void> {
   if (!present) {
     log.info("Aucun popup de code d'accès détecté — environnement déjà déverrouillé, ou variante sans popup.")
     return
-  }
-
-  const code = process.env.WEB_APP_ACCESS_KEYS
-  if (!code) {
-    throw new Error(
-      "La webapp affiche un popup window.prompt() demandant un code d'accès, mais " +
-      'WEB_APP_ACCESS_KEYS est absent de .env.local (cf. gabarit dans .env).'
-    )
   }
 
   await browser.sendAlertText(code)
