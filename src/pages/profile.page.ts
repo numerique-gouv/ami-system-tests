@@ -131,7 +131,7 @@ class ProfilePage {
             await tl().findByTestId(loc.editContainerTestId, {}, {timeout: 5000})
 
             // Page stable → tl() : label "Nom d'usage" associé à l'input via for/id
-            const input = await tl().findByLabelText("Nom d'usage")
+            const input = await tl().findByLabelText(/Nom d.usage/)
             await input.setValue(newValue)
 
             const submitBtn = await tl().findByRole('button', {name: 'Enregistrer'})

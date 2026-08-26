@@ -15,8 +15,8 @@ class FranceConnectCredentialsPage {
      */
     private async isCredentialsPageTextVisibleBare(): Promise<boolean> {
         return await driver.execute(
-            (text: string) => document.body?.textContent?.includes(text) ?? false,
-            fcCredentialsLocators.fcpLowHeadingText
+            (pattern: string) => new RegExp(pattern).test(document.body?.textContent ?? ''),
+            fcCredentialsLocators.fcpLowHeadingPattern.source
         ) as boolean
     }
 

@@ -50,7 +50,8 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
       if (Array.from(document.querySelectorAll('button, a'))
         .some(el => el.textContent?.toLowerCase().includes('eidas faible'))) 
         return 'eidas'
-      if (document.body.innerText.includes("Fournisseur d'identité de démonstration - FCP-LOW"))
+      // `.` à la place de l'apostrophe : tolère apostrophe droite (') et typographique (’)
+      if (/Fournisseur d.identité de démonstration - FCP-LOW/.test(document.body.innerText))
         return 'credentials'
       return null
     }) as Promise<FcScreen | null>
