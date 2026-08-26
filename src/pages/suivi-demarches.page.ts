@@ -126,7 +126,7 @@ class SuiviDemarchesPage {
       // tl() par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
       // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
       try {
-        const link = await tl().findByRole('link', { name: title }, { timeout: timeoutMs })
+        const link = await tl().findByRole('button', { name: title }, { timeout: timeoutMs })
         await link.click()
       } catch {
         throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" à ouvrir` })

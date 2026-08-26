@@ -128,7 +128,7 @@ class HomePage {
     async ouvreSuivi(): Promise<void> {
         await platform().inWebContext(async () => {
             await this.closeOpenNavPlusMenu()
-            let suivi = await tl().findByRole('link', {name: /Suivi/})
+            let suivi = await tl().findByRole('button', {name: /Suivi/})
             await suivi.click()
         })
     }
