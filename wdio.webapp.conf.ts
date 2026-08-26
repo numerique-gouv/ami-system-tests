@@ -5,7 +5,7 @@ import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { registerReplHelpers } from './src/helpers/repl'
-import { handleAccessCodePrompt } from './src/helpers/access-code'
+import { handleAccessKeyCookie } from './src/helpers/access-code'
 import { setBackendUrl } from './src/helpers/notifications-api'
 
 const { webappUrl, apiUrl } = resolveEnvironment()
@@ -34,7 +34,8 @@ export const config: Options.Testrunner = {
   capabilities: [
     {
       browserName: 'chrome',
-      'goog:chromeOptions': {
+      webSocketUrl: true,
+      'goog:chromeOptions': { 
         args: headless ? ['--headless=new'] : [],
         // detach:true — le process Chrome ne dépend plus du cycle de vie de la session
         // Chromedriver : il survit à la fin de session normale ET à une interruption
@@ -56,7 +57,6 @@ export const config: Options.Testrunner = {
 
   // Pas de service Appium — session Chrome pilotée directement par WebdriverIO/Chromedriver.
   services: [],
-
   before: async (): Promise<void> => {
     // Compose avec le before() partagé (registerReplHelpers, cf. wdio.base.conf.ts) plutôt que
     // de le dupliquer ou de le remplacer — la navigation initiale + capture du handle sont
@@ -69,9 +69,11 @@ export const config: Options.Testrunner = {
     // Équivalent webapp du lancement automatique de l'app mobile via les capabilities.
     // Les mobiles commenent sur une première page (review picker, login, home)
     // Cette première navigation vers home ammène les scenario en webapp sur les mêmes endroits que les senarios mobiles.
-    // On en profite pour valider le code d'accès.
-    await browser.url('/')
-    await handleAccessCodePrompt()
+    // On en profite pour valider le code d'accès (gate window.prompt() côté SPA) — sans passer
+    // par le popup : handleAccessKeyCookie() pose directement le cookie access_key en amont,
+    // ce qui couvre ensuite toute la session (cookie navigateur, pas besoin de le rejouer).
+    await handleAccessKeyCookie(webappUrl)
+    await browser.url(webappUrl)
     // Capture le handle de cet onglet une fois pour toutes, avant qu'un flow OIDC ne puisse
     // en ouvrir d'autres — cf. src/platform/browser.adapter.ts pour pourquoi (partenaires
     // FranceConnect/DN/CNSM/OTC… inconnus à l'avance, un handle stable évite d'avoir à les
