@@ -1,16 +1,31 @@
 name: "[exemple] Caller — ami-notifications-api"
 
-# Stand-in pour le VRAI workflow qui vit dans ami-notifications-api (déclenché par PR/push sur ce
-# dépôt frère) : `ami-notifications-api/.github/workflows/workflow-e2e-webapp-shared.yml`,
-# `workflow-e2e-webapp-{pr,merge,tag,manual}.yml`. Conservé ici en exemple/test local car `act` ne
-# sait résoudre un `uses:` vers un reusable workflow LOCAL que dans le même dépôt (nektos/act#1423)
-# — impossible de tester le vrai `uses: numerique-gouv/ami-system-tests/...@ref` cross-repo sans
-# un run GitHub réel.
+# Stand-in pour le VRAI workflow qui vit dans ami-notifications-api :
+# `ami-notifications-api/.github/workflows/e2e-after-deploy.yml`, qui appelle
+# `workflow-e2e-webapp-{pr,merge,tag}.yml`, qui appellent eux-mêmes `workflow-e2e-webapp-shared.yml`.
+# Conservé ici en exemple/test local car `act` ne sait résoudre un `uses:` vers un reusable
+# workflow LOCAL que dans le même dépôt (nektos/act#1423) — impossible de tester le vrai
+# `uses: numerique-gouv/ami-system-tests/...@ref` cross-repo sans un run GitHub réel, et `act` ne
+# simule de toute façon pas l'événement `on: status` déclencheur réel de e2e-after-deploy.yml
+# (job `guard` qui poll `deploy/sclng` et résout le cas pr/merge/tag via `gh api`, non simulable
+# sans un vrai commit status).
+#
+# Rappel de l'architecture réelle (cf. ADR docs/adr/2026-08-04-Integration-continue-Github-Actions.md,
+# révision "découplage E2E / gate Scalingo par on: status") :
+# - `pytest.yml` (on: [push], jobs lint-and-format/python/mobile-app) tourne sur push direct, push
+#   de PR, merge et tag — c'est ce que Scalingo surveille avant de déployer. L'e2e n'y est PLUS
+#   chaînée (needs:) : Scalingo attendrait alors le check e2e qui attend lui-même Scalingo (deadlock).
+# - `e2e-after-deploy.yml` se déclenche séparément, sur `on: status`, seulement quand Scalingo a
+#   déjà posté `deploy/sclng: <app>` en `success` sur le commit ; il résout le cas (pr/merge/tag)
+#   et délègue au workflow réutilisable correspondant, qui porte la config e2e propre à son cas.
 #
 # Le job `e2e-report` ci-dessous télécharge l'artefact exposé par workflow-e2e-main.yml (output
-# `allure_report`) et appelle lui-même allure-framework/allure-action@v0 : c'est ce dépôt frère
-# qui a la PR (github.token et permissions natifs, pas de token d'App GitHub), donc c'est lui qui
-# commente — workflow-e2e-main.yml ne fait qu'exposer l'artefact en sortie.
+# `allure_report`) et appelle lui-même `allure-framework/allure-action@v0`, avec un événement
+# pull_request fabriqué (numéro + head.sha connus par construction) injecté via `env:`
+# GITHUB_EVENT_NAME/GITHUB_EVENT_PATH sur ce seul step — cf. commentaire détaillé dans
+# workflow-e2e-webapp-shared.yml : c'est ce dépôt frère qui a la PR (github.token et permissions
+# natifs, pas de token d'App GitHub), donc c'est lui qui commente — workflow-e2e-main.yml ne fait
+# qu'exposer l'artefact en sortie.
 #
 # Se lance en local avec :
 # act workflow_dispatch -W .github/workflows/notification-api.pull-request.yml --container-architecture linux/amd64 --artifact-server-path /tmp/act-artifacts --input pr_number=123456789
@@ -21,7 +36,6 @@ on:
         description: "Simule github.event.pull_request.number — 0 pour simuler un push/tag sans PR"
         type: number
         default: 0
-
 jobs:
   # Pas de job `build` ici, contrairement à l'exemple ami-app-android : l'app webapp testée vient
   # des stores beta (Google Play / TestFlight), pas d'un artefact buildé par ce workflow.
@@ -55,10 +69,22 @@ jobs:
           name: ${{ needs.e2e-launch.outputs.allure_report }}
           path: allure-report
 
-      # En conditions réelles (déclenché par pull_request dans ami-notifications-api),
-      # allure-action poste vraiment sur `context.payload.pull_request.number`. Ici
-      # (workflow_dispatch local, pas de vraie PR), on se contente de vérifier que le
-      # téléchargement a fonctionné plutôt que d'appeler l'action pour de faux.
+      # En conditions réelles (déclenché par `status` dans ami-notifications-api, jamais
+      # `pull_request`), ce step fabrique un événement pull_request minimal pour qu'allure-action
+      # (qui exige eventName === 'pull_request' && payload.pull_request, cf. son src/index.ts)
+      # accepte de commenter — voir le commentaire détaillé dans workflow-e2e-webapp-shared.yml.
+      - name: Fabriquer un événement pull_request pour allure-action (local uniquement)
+        if: ${{ !env.ACT }}
+        id: fake-event
+        run: |
+          path="${RUNNER_TEMP}/fake-pull-request-event.json"
+          cat > "$path" <<EOF
+          {"pull_request": {"number": ${{ inputs.pr_number }}, "head": {"sha": "${{ github.sha }}"}}}
+          EOF
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      # Ici (workflow_dispatch local sous act, pas de vraie PR), on se contente de vérifier que le
+      # téléchargement a fonctionné plutôt que d'appeler l'API pour de faux.
       - name: Vérifier le rapport récupéré (local uniquement)
         if: ${{ env.ACT }}
         run: ls -la allure-report
@@ -66,9 +92,13 @@ jobs:
       - name: Commenter la PR d'origine
         if: ${{ !env.ACT }}
         uses: allure-framework/allure-action@v0
+        env:
+          GITHUB_EVENT_NAME: pull_request
+          GITHUB_EVENT_PATH: ${{ steps.fake-event.outputs.path }}
         with:
           report-directory: allure-report
           github-token: ${{ github.token }}
+          debug: true
 
   # Run sans PR (pr_number == 0, simule un push/tag) : pas de job e2e-report dans ce cas — pas
   # encore défini côté ami-notifications-api ce qu'il doit advenir du rapport sur ce chemin.
