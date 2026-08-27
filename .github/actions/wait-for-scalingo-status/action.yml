@@ -20,7 +20,7 @@ inputs:
   timeout_seconds:
     description: "Délai maximum d'attente avant d'abandonner"
     required: false
-    default: "30"
+    default: "900"
   poll_interval_seconds:
     description: "Intervalle entre deux vérifications"
     required: false
