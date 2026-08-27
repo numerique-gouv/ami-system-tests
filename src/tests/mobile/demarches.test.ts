@@ -35,8 +35,11 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     before(async function () {
         this.timeout(180000)
+        await AllureReporter.addEpic('Démarches')
         await AllureReporter.addFeature('Démarches')
+        await AllureReporter.addStory("Cycle de vie d'une démarche via l'API partenaire")
         await AllureReporter.addSeverity('critical')
+        await AllureReporter.addTag('api-notifications')
         const domainUrl = getBackendUrl()
         itemId = `E2E-${new Date().toISOString()}`
         title = `Demarche E2E ${itemId}` // Démarche avec l'accent plante la recherche par innerText (document.body.innerText.includes(t))

@@ -25,8 +25,11 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
   }
 
   before(async () => {
+    await AllureReporter.addEpic('Profil usager')
     await AllureReporter.addFeature('Profil usager — suppression au logout')
+    await AllureReporter.addStory('Restauration des données au déconnexion/reconnexion')
     await AllureReporter.addSeverity('critical')
+    await AllureReporter.addTag('franceconnect')
 
     if (!await HomePage.isHomeReachable(1000)) {
       await authenticate()

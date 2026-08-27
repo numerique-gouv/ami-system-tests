@@ -10,8 +10,11 @@ describe('Notifications', () => {
 
   before(async function () {
     this.timeout(180000)
+    await AllureReporter.addEpic('Notifications')
     await AllureReporter.addFeature('Notifications')
+    await AllureReporter.addStory("Réception d'une notification dans l'inbox in-app")
     await AllureReporter.addSeverity('critical')
+    await AllureReporter.addTag('api-notifications')
     if (!await HomePage.isHomeReachable(1000)) {
       await authenticate()
     }
