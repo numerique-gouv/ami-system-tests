@@ -1,26 +1,19 @@
 name: "[exemple] Caller — ami-notifications-api"
 
-# Stand-in pour le VRAI workflow qui doit vivre dans ami-notifications-api (déclenché par PR/push
-# sur ce dépôt frère), placé ici temporairement pour deux raisons :
-# - `act` ne sait résoudre un `uses:` vers un reusable workflow LOCAL que dans le même dépôt
-#   (nektos/act#1423) — impossible de tester le vrai `uses: numerique-gouv/ami-system-tests/...@ref`
-#   cross-repo sans un run GitHub réel. Ce fichier permet de tester la mécanique workflow_call +
-#   partage d'artefact/output en local avec `act`, en attendant.
-# - Il documente noir sur blanc, sous forme de code plutôt que de note, ce qui doit être copié
-#   dans ami-notifications-api — cf. android.yml pour le même exemple côté ami-app-android (avec
-#   build+artefact APK en plus, absent ici : la webapp est récupérée depuis les stores beta, pas
-#   buildée par ce workflow).
+# Stand-in pour le VRAI workflow qui vit dans ami-notifications-api (déclenché par PR/push sur ce
+# dépôt frère) : `ami-notifications-api/.github/workflows/workflow-e2e-webapp-shared.yml`,
+# `workflow-e2e-webapp-{pr,merge,tag,manual}.yml`. Conservé ici en exemple/test local car `act` ne
+# sait résoudre un `uses:` vers un reusable workflow LOCAL que dans le même dépôt (nektos/act#1423)
+# — impossible de tester le vrai `uses: numerique-gouv/ami-system-tests/...@ref` cross-repo sans
+# un run GitHub réel.
 #
-# À FAIRE lors de la copie dans ami-notifications-api :
-# - remplacer le trigger `workflow_dispatch` ci-dessous par `on: pull_request:` / `on: push:
-#   {branches: [main], tags: ['v*']}` (le workflow_dispatch n'est là que pour piloter ce fichier
-#   depuis `act` en local, cf. justfile/CLAUDE.md de ce dépôt).
-# - remplacer `uses: ./.github/workflows/system-tests-E2E.yml` par
-#   `uses: numerique-gouv/ami-system-tests/.github/workflows/system-tests-E2E.yml@main`.
-# - supprimer ce fichier de ami-system-tests une fois la copie faite (il n'a plus lieu d'y être).
+# Le job `e2e-report` ci-dessous télécharge l'artefact exposé par workflow-e2e-main.yml (output
+# `allure_report`) et appelle lui-même allure-framework/allure-action@v0 : c'est ce dépôt frère
+# qui a la PR (github.token et permissions natifs, pas de token d'App GitHub), donc c'est lui qui
+# commente — workflow-e2e-main.yml ne fait qu'exposer l'artefact en sortie.
 #
 # Se lance en local avec :
-# act workflow_dispatch -W .github/workflows/notification-api.pull-request.yml --container-architecture linux/amd64 --artifact-server-path /tmp/act-artifacts --input source_repo="my-test-repo" --input pr_number=123456789
+# act workflow_dispatch -W .github/workflows/notification-api.pull-request.yml --container-architecture linux/amd64 --artifact-server-path /tmp/act-artifacts --input pr_number=123456789
 on:
   workflow_dispatch:
     inputs:
@@ -32,26 +25,22 @@ on:
 jobs:
   # Pas de job `build` ici, contrairement à l'exemple ami-app-android : l'app webapp testée vient
   # des stores beta (Google Play / TestFlight), pas d'un artefact buildé par ce workflow.
-  e2e:
-    uses: ./.github/workflows/system-tests-E2E.yml
+  e2e-launch:
+    uses: ./.github/workflows/workflow-e2e-main.yml
     with:
       ref_name: staging
-      run_webapp: true
-      run_android: false
-      run_ios: false
+      run_webapp: CI
+      run_android: ''
+      run_ios: ''
       run_old_device: true
       source_repo: ${{ github.repository }}
+      source_sha: ${{ github.sha }}
+      checkout_ref: main
       pr_number: ${{ inputs.pr_number }}
     secrets: inherit
 
-  # Utilise l'action officielle allure-framework/allure-action
-  # (https://github.com/allure-framework/allure-action) : elle lit
-  # allure-report/widgets/summary.json et poste elle-même le commentaire de
-  # résumé sur la PR — on ne construit plus de Markdown à la main ici. Elle attend le dossier
-  # allure-report DÉJÀ GÉNÉRÉ (pas les allure-results bruts) : c'est exactement ce que
-  # system-tests-E2E.yml upload sous le nom exposé par `report_artifact_name`.
-  comment-pr:
-    needs: e2e
+  e2e-report:
+    needs: e2e-launch
     if: ${{ always() && inputs.pr_number != 0 }}
     runs-on: ubuntu-latest
     permissions:
@@ -59,11 +48,11 @@ jobs:
       checks: write
     steps:
       # download-artifact sans repository:/run-id: → cherche dans le run courant, qui inclut le
-      # job `report` de system-tests-E2E.yml (appelé via workflow_call ci-dessus) : aucun token.
-      - name: Récupérer le rapport Allure généré par system-tests
+      # job `e2e` de workflow-e2e-main.yml (appelé via workflow_call ci-dessus) : aucun token.
+      - name: Récupérer le rapport Allure généré par ami-system-tests
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.e2e.outputs.report_artifact_name }}
+          name: ${{ needs.e2e-launch.outputs.allure_report }}
           path: allure-report
 
       # En conditions réelles (déclenché par pull_request dans ami-notifications-api),
@@ -81,12 +70,12 @@ jobs:
           report-directory: allure-report
           github-token: ${{ github.token }}
 
-  # Run sans PR (pr_number == 0, simule un push/tag) : cf. TODO dans system-tests-E2E.yml sur la
-  # publication du rapport dans ce cas — pas encore défini côté ami-notifications-api non plus.
+  # Run sans PR (pr_number == 0, simule un push/tag) : pas de job e2e-report dans ce cas — pas
+  # encore défini côté ami-notifications-api ce qu'il doit advenir du rapport sur ce chemin.
   no-pr-placeholder:
-    needs: e2e
+    needs: e2e-launch
     if: ${{ always() && inputs.pr_number == 0 }}
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "TODO: publier l'artefact ${{ needs.e2e.outputs.report_artifact_name }} ailleurs qu'en commentaire de PR (site statique privé ?)."
+          echo "TODO: publier l'artefact ${{ needs.e2e-launch.outputs.allure_report }} ailleurs qu'en commentaire de PR (site statique privé ?)."
