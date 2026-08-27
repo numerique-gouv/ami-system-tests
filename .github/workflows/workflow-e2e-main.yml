@@ -130,23 +130,31 @@ jobs:
       # `allure generate` (lu ET ré-écrit, cf. allurerc.mjs historyPath) — plus le dossier
       # allure-report/history/ d'Allure 2. Sans lui, les compteurs new/flaky/retry et les
       # tendances restent à zéro. Absent au premier run d'une PR : ne fait pas échouer le job.
+      # continue-on-error : un aléa transitoire de l'API GitHub (5xx, rate-limit) ne doit pas
+      # faire échouer tout le run e2e pour un historique de tendances — dégradé mais fonctionnel
+      # (found reste vide, donc absent du if du step suivant, comme un vrai premier run).
       - name: chercher l'historique Allure de la PR
         id: history
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ARTIFACT=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=allure-history-${{ steps.slug.outputs.slug }}&per_page=100" \
             --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last')
           if [ -z "$ARTIFACT" ] || [ "$ARTIFACT" = "null" ]; then
-            echo "Aucun historique existant — premier run de cette PR."
+            echo "Aucun historique existant — premier run de cette PR, ou artifact renommé/expiré."
             echo "found=false" >> "$GITHUB_OUTPUT"
           else
             echo "found=true" >> "$GITHUB_OUTPUT"
             echo "artifact_id=$(echo "$ARTIFACT" | jq -r '.id')" >> "$GITHUB_OUTPUT"
           fi
 
+      # continue-on-error : l'artifact repéré ci-dessus peut avoir expiré/être supprimé entre les
+      # deux steps (course bénigne) — un historique manquant ne doit jamais faire échouer le run,
+      # seulement repartir sans tendances pour ce run.
       - name: restaurer l'historique Allure de la PR
         if: steps.history.outputs.found == 'true'
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           artifact-ids: ${{ steps.history.outputs.artifact_id }}
