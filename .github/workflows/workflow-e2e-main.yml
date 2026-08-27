@@ -43,10 +43,18 @@ on:
         description: "nom de l'artefact allure-results publié par le job e2e, à télécharger par le workflow appelant"
         value: ${{ jobs.e2e.outputs.allure_report }}
 
-#permissions:
-#  contents: read
-#  # actions:read pour interroger/télécharger les artifacts d'historique (propres à ce repo).
-#  actions: read
+permissions:
+  contents: read
+  # actions:read pour interroger/télécharger les artifacts d'historique (propres à ce repo).
+  actions: read
+
+# Un groupe par PR (source_repo + pr_number, pas ref_name — un nom de branche peut se répéter
+# entre dépôts frères ou être renommé en cours de PR) : sérialise les runs d'une même PR, la
+# restauration/publication de l'historique Allure étant un cycle lecture-modification-écriture
+# non concurrent-safe. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
+concurrency:
+  group: allure-${{ inputs.source_repo }}-${{ inputs.pr_number }}
+  cancel-in-progress: false
 
 jobs:
   # iOS reste isolé : reusable workflow classique → job/VM macOS dédié (pas de partage de
@@ -109,20 +117,88 @@ jobs:
       - if: ${{ inputs.run_ios != '' }}
         name: download iOS allure results
         run: echo TODO download allure artefact
-      
+
+      # source_repo (contient "/") + pr_number → identifiant utilisable comme nom d'artifact
+      - name: calculer la clé d'isolation (slug)
+        id: slug
+        run: |
+          RAW="${{ inputs.source_repo }}-pr${{ inputs.pr_number }}"
+          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+
+      # Allure 3 : l'historique est un unique fichier JSONL, mis à jour en place par
+      # `allure generate` (lu ET ré-écrit, cf. allurerc.mjs historyPath) — plus le dossier
+      # allure-report/history/ d'Allure 2. Sans lui, les compteurs new/flaky/retry et les
+      # tendances restent à zéro. Absent au premier run d'une PR : ne fait pas échouer le job.
+      - name: chercher l'historique Allure de la PR
+        id: history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARTIFACT=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=allure-history-${{ steps.slug.outputs.slug }}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last')
+          if [ -z "$ARTIFACT" ] || [ "$ARTIFACT" = "null" ]; then
+            echo "Aucun historique existant — premier run de cette PR."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "artifact_id=$(echo "$ARTIFACT" | jq -r '.id')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: restaurer l'historique Allure de la PR
+        if: steps.history.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.history.outputs.artifact_id }}
+          path: ami-system-tests/.allure
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Legacy mais toujours lu par Allure 3 (cf. how-it-works-executor-file) : sans lui, les
+      # points de la courbe de tendance ne sont pas identifiables (build, lien vers le run).
+      - name: écrire executor.json
+        working-directory: ami-system-tests
+        run: |
+          mkdir -p allure-results
+          cat > allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildName": "PR #${{ inputs.pr_number }} — run ${{ github.run_number }}",
+            "buildOrder": ${{ github.run_number }},
+            "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
       - name: build allure report
         shell: bash
         working-directory: ami-system-tests
         run: just generate-report
-      
-      - name: set artifact name
-        id: publish-allure
-        run: echo "allure_report=allure-report-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
-      - name: publish allure report
+      - name: publier le rapport Allure (artefact complet)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.publish-allure.outputs.allure_report }}
+          name: allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
           path: ami-system-tests/allure-report
-          retention-days: 7
+          retention-days: 14
           if-no-files-found: warn
+
+      # Consommé par le step "restaurer l'historique" ci-dessus au run suivant de cette PR —
+      # seul .allure/history.jsonl (quelques Ko) est conservé, pas le rapport HTML complet
+      # (captures d'écran d'échec, ~20 Mo). Rétention longue : doit survivre toute la durée
+      # de vie réaliste d'une PR, sinon une PR ouverte plus de 14 jours perdrait sa tendance.
+      - name: publier l'historique Allure
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-history-${{ steps.slug.outputs.slug }}
+          path: ami-system-tests/.allure/history.jsonl
+          retention-days: 90
+          if-no-files-found: warn
+
+      # Nom de l'artefact "rapport complet" (pas les allure-results bruts) exposé en output
+      # `allure_report` — à télécharger côté appelant (ex. job e2e-report de
+      # workflow-e2e-webapp-shared.yml dans ami-notifications-api), qui appelle lui-même
+      # allure-framework/allure-action sur ami-system-tests/allure-report/summary.json (plugin
+      # `awesome` d'Allure 3, format désormais compatible avec ce que lit l'action).
+      - name: set artifact name
+        id: publish-allure
+        run: echo "allure_report=allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}" >> "$GITHUB_OUTPUT"

@@ -2,8 +2,10 @@ name: Allure cleanup
 
 # Appelé par les dépôts frères (notification-api / ios / android) sur la fermeture de leur PR
 # (pull_request: types: [closed]) — supprime les artifacts Allure associés (résultats
-# d'historique et rapports HTML publiés par system-tests-E2E.yml) pour ne pas les laisser
-# s'accumuler indéfiniment une fois la PR fermée.
+# d'historique et rapports HTML publiés par workflow-e2e-main.yml) pour ne pas les laisser
+# s'accumuler indéfiniment une fois la PR fermée. `retention-days` reste un filet de sécurité
+# si ce dispatch échoue ou n'est jamais câblé côté dépôt frère (cf.
+# docs/adr/2026-08-04-Integration-continue-Github-Actions.md).
 on:
   workflow_dispatch:
     inputs:
@@ -19,7 +21,7 @@ on:
 permissions:
   contents: read
   # La suppression a lieu dans CE dépôt (les artifacts y ont été publiés) — le GITHUB_TOKEN
-  # natif suffit, pas besoin du token d'App GitHub utilisé côté commentaire de PR.
+  # natif suffit, pas besoin de token cross-dépôt.
   actions: write
 
 jobs:
@@ -27,7 +29,7 @@ jobs:
     name: Supprimer les artifacts Allure de la PR
     runs-on: ubuntu-latest
     steps:
-      # Même calcul que dans system-tests-E2E.yml — les deux doivent rester identiques pour
+      # Même calcul que dans workflow-e2e-main.yml — les deux doivent rester identiques pour
       # cibler les mêmes artifacts.
       - name: Calculer la clé d'isolation (slug)
         id: slug
