@@ -216,11 +216,61 @@ Travaux restants, hors périmètre de cette ADR :
   `ami-app-ios`) — aucun mécanisme de récupération d'artefact cross-repo n'est encore défini.
 - Développement du workflow iOS au-delà du stub (simulateur, coût macOS assumé au moment venu).
 
-Prérequis hors de ce dépôt, à faire dans les 3 dépôts frères pour les rapports Allure :
-1. Créer les secrets `ALLURE_APP_ID` / `ALLURE_APP_PRIVATE_KEY` dans `ami-system-tests`.
-2. Ajouter `pull-requests: write` sur les 3 dépôts frères à l'App GitHub existante.
-3. Passer `source_repo` + `pr_number` au dispatch de `system-tests-E2E.yml`.
-4. Brancher un dispatch de `allure-cleanup.yml` sur leur job existant `pull_request: closed`.
+Prérequis hors de ce dépôt, à faire dans les dépôts frères pour les rapports Allure — **obsolète,
+voir § Révision — 2026-08-27 ci-dessous** : ni secrets d'App GitHub ni token cross-dépôt ne sont
+finalement nécessaires, chaque dépôt frère commentant sa propre PR avec son `GITHUB_TOKEN` natif.
+Restent à faire côté dépôts frères :
+1. Passer `source_repo` + `pr_number` au `uses: workflow-e2e-main.yml` (déjà fait dans
+   `ami-notifications-api`, cf. `workflow-e2e-webapp-shared.yml`).
+2. Déclarer `permissions: pull-requests: write / checks: write` sur le job qui télécharge
+   l'artefact `allure_report` et appelle `allure-action` (déjà fait côté `ami-notifications-api`,
+   job `e2e-report`).
+3. Brancher un dispatch de `allure-cleanup.yml` sur leur job existant `pull_request: closed`.
+
+## Révision — 2026-08-27 : adoption d'Allure 3 et `allure-framework/allure-action@v0`
+
+Le motif de rejet de l'action officielle ci-dessus (§ Décision, sous-section « Commentaire
+cross-dépôt via token d'App GitHub ») portait sur le format de rapport — `allure-commandline`
+(Allure 2.44, `allure-report/widgets/summary.json`) est remplacé par le paquet `allure` (Allure 3,
+`allurerc.mjs`, plugin `awesome`), qui écrit `allure-report/summary.json` à la racine — exactement
+ce que lit `allure-action`.
+
+Le second point envisagé un temps pendant cette révision — appeler `allure-action` directement
+dans `workflow-e2e-main.yml` en s'appuyant sur le fait qu'un `workflow_call` s'exécute dans le
+contexte de l'appelant — a été **abandonné au profit de l'existant** : le dépôt frère
+`ami-notifications-api` a déjà, en dehors de ce dépôt, un job `e2e-report` (dans
+`workflow-e2e-webapp-shared.yml`) qui télécharge l'artefact `allure_report` exposé en output par
+`workflow-e2e-main.yml` et appelle lui-même `allure-action`, avec son propre bloc
+`permissions: pull-requests: write / checks: write`. C'est précisément cet appel, déjà écrit,
+que le § Problème ci-dessus décrivait comme nommé « non fonctionnel dès le premier run réel » —
+la seule pièce manquante était le format de rapport, pas la plomberie cross-dépôt. La migration
+Allure 3 suffit donc à le débloquer, sans toucher aux permissions de `workflow-e2e-main.yml`
+(`contents: read` + `actions: read` seulement) ni introduire de second point de commentaire.
+`.github/workflows-samples/notification-api.pull-request.yml` a été remis en cohérence avec ce
+partage des responsabilités (lancement + exposition d'artefact ici, téléchargement + commentaire
+côté appelant).
+
+Conséquences sur les arbitrages précédents :
+- Les secrets `ALLURE_APP_ID` / `ALLURE_APP_PRIVATE_KEY` ne sont **plus requis** — le prérequis
+  correspondant est retiré.
+- L'historique passe du dossier `allure-report/history/` restauré/écrit par `allure generate` à un
+  unique fichier `.allure/history.jsonl` (Allure 3, lu et ré-écrit en place), toujours publié comme
+  artifact séparé (`allure-history-<slug>`, 90 j) pour les mêmes raisons de taille et de continuité
+  entre pushes d'une même PR.
+- `executor.json` reste utilisé tel quel — toujours lu par Allure 3 malgré le changement de format
+  de rapport.
+- Catégories (`categories.json`) et variables d'environnement (`environment.properties`) migrent
+  vers `categories.rules` / `environments` / `variables` dans `allurerc.mjs` — ces fichiers n'ont
+  plus d'équivalent en Allure 3.
+- `allure-cleanup.yml` est promu de `workflows-samples/` vers `workflows/` (workflow actif), sans
+  changement de logique — les noms d'artifacts ciblés restent identiques.
+
+Non vérifié faute de run GitHub réel au moment de cette révision : le rendu effectif du
+commentaire de PR par `allure-action@v0` (action en tag `v0`, surface d'API non stabilisée) et la
+lecture du dossier `allure-results` généré par `@wdio/allure-reporter` (Allure 2) par le plugin
+`awesome` d'Allure 3 — la documentation qualifie d'« expérimental » le support du *style* Allure 2
+(plugins `classic`/`allure2`), pas la lecture des résultats bruts, mais seul un run réel confirme
+que rien n'est perdu dans la conversion.
 
 ## Notes
 
