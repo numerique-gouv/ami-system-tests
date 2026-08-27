@@ -21,7 +21,9 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
   }
 
   before(async () => {
+    await AllureReporter.addEpic('Profil usager')
     await AllureReporter.addFeature('Profil usager')
+    await AllureReporter.addStory('Modification des données de profil (Mon profil)')
     await AllureReporter.addSeverity('normal')
 
     if (!await HomePage.isHomeReachable(1000)) {

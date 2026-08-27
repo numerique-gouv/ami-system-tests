@@ -15,8 +15,11 @@ import {getUser} from '../../helpers/test-users'
 describe('Authentification', () => {
   before(async function () {
     this.timeout(180000)
+    await AllureReporter.addEpic('Authentification')
     await AllureReporter.addFeature('Authentification')
+    await AllureReporter.addStory('Connexion via FranceConnect')
     await AllureReporter.addSeverity('critical')
+    await AllureReporter.addTag('franceconnect')
   })
   
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
