@@ -272,6 +272,140 @@ lecture du dossier `allure-results` généré par `@wdio/allure-reporter` (Allur
 (plugins `classic`/`allure2`), pas la lecture des résultats bruts, mais seul un run réel confirme
 que rien n'est perdu dans la conversion.
 
+## Révision — 2026-08-27 : découplage E2E / gate Scalingo par `on: status`
+
+### Problème observé
+
+L'architecture décrite plus haut (§ Décision, workflows d'entrée `ami-notifications-api` avec un
+job `e2e` chaîné en `needs: ci`) crée un deadlock, constaté en usage réel :
+
+Scalingo attend que **tous les checks GitHub du commit** soient au vert avant de déployer
+(auto-deploy branche + review app), documenté côté Scalingo comme « waits for the GitHub Actions
+to succeed before proceeding with the automatic deployment » (analyse via l'API GitHub **Checks**,
+cf. [New: GitHub Actions compatibility](https://scalingo.com/blog/new-github-actions-compatibility)).
+Or le job `e2e` de `workflow-e2e-webapp-{pr,merge,tag}.yml` crée son check-run **dès l'ouverture de
+la PR/le push**, avant même d'exécuter quoi que ce soit — et ce check reste `in_progress` tant que
+`wait-for-scalingo-status` (§ Décision précédente) attend que Scalingo poste `deploy/sclng: <app>`
+en `success`. Scalingo attend donc un check qui attend lui-même Scalingo : cercle qui ne se
+dénoue que par le mauvais bout, l'ancien `exit 0` au timeout de `wait-for-scalingo-status` (30 s
+par défaut) laissant les tests s'exécuter **contre l'ancien déploiement**, y réussir, et Scalingo
+ne déployer la nouvelle version qu'après coup.
+
+### Décision : sortir l'e2e du workflow que Scalingo observe, router après coup vers le bon cas
+
+Le job e2e ne doit pas exister sur le commit tant que Scalingo n'a pas décidé de déployer. Il est
+donc déplacé dans un workflow séparé, `ami-notifications-api/.github/workflows/e2e-after-deploy.yml`,
+déclenché par **`on: status`** — l'événement GitHub qui réagit à *tout* changement de commit status
+(API **Status**, distincte de l'API **Checks** que produisent les jobs Actions ; cf.
+[Events that trigger workflows](https://docs.github.com/actions/using-workflows/events-that-trigger-workflows)
+et [About status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks)
+pour la distinction).
+
+Son job `guard` (1) vérifie que le dernier status `deploy/sclng` du SHA (s'il en existe un) est
+`success` — règle volontairement tolérante : l'absence totale de status `deploy/sclng` sur ce SHA
+ne bloque pas (cas où Scalingo n'est pas concerné par ce commit) ; (2) résout ensuite lequel des
+trois cas s'applique — PR ouverte dont ce SHA est le head (`pr`), PR dont ce SHA est le
+`merge_commit_sha` (`merge`), ou tag `*.*.*` pointant sur ce SHA (`tag`) — via `gh api
+commits/{sha}/pulls` et `gh api tags`, la même logique de résolution que l'ancien `ci-push.yml`
+(§ ci-dessous). Trois jobs conditionnels (`call-pr`/`call-merge`/`call-tag`) délèguent alors au
+workflow réutilisable correspondant, désormais des **cibles `workflow_call` pures**
+(`workflow-e2e-webapp-{pr,merge,tag}.yml`, plus aucun déclencheur `pull_request`/`push` direct) :
+chacune porte sa propre config e2e (`run_webapp: CI` pour pr, `short` pour merge/tag,
+`run_old_device: false` pour tag) et appelle `workflow-e2e-webapp-shared.yml` avec
+`wait_for_scalingo_step: false` — la preuve du déploiement a déjà été vérifiée par `guard`.
+
+Contraintes vérifiées sur `on: status` avant adoption :
+- il ne se déclenche que si le fichier de workflow existe **sur la branche par défaut** du dépôt ;
+- `GITHUB_SHA`/`GITHUB_REF` y valent alors le HEAD de la branche par défaut, **pas** le commit
+  concerné par le status — tout doit passer explicitement par `github.event.sha`, jamais `github.sha`.
+- pas de risque de bouclage : les check-runs que produit le job e2e lui-même (API Checks) ne
+  redéclenchent pas `on: status` (API Status) ; et les événements créés avec le `GITHUB_TOKEN` par
+  défaut ne créent de toute façon pas de nouveau run.
+
+Vérifié empiriquement avant migration de `workflow-e2e-webapp-tag.yml` (le risque étant qu'un tag
+non auto-déployé par Scalingo ne poste jamais de `deploy/sclng`, donc ne déclenche jamais l'e2e) :
+`gh api repos/numerique-gouv/ami-notifications-api/commits/<sha-du-dernier-tag>/status` renvoie
+bien `deploy/sclng: ami-back-prod` — la migration s'applique donc aux trois déclencheurs (pr,
+merge, tag), pas seulement pr/merge.
+
+### Retour à un `Tests` (ex-`pytest.yml`) auto-déclenché, indépendant de l'e2e
+
+Le job `e2e` retiré des workflows d'entrée aurait pu laisser `ci-required.yml` (les 3 jobs requis)
+en `workflow_call` pur, encore appelé explicitement par `-pr`/`-merge`/`-tag.yml` sur leur
+déclencheur direct comme avant cette révision — mais ces trois fichiers n'ont plus aucune raison de
+se déclencher directement sur `pull_request`/`push` une fois l'e2e sortie : leur seul rôle restant
+est d'être invoqués en `workflow_call` par `e2e-after-deploy.yml`. Il faut donc que les jobs requis
+retrouvent un déclencheur autonome.
+
+`ci-required.yml` est l'exact renommage (commit `f49fb834`, « trigger a push run ») de l'ancien
+`pytest.yml` (`name: Tests`, `on: [push]`), dont le seul changement de fond était `on: [push]` →
+`on: workflow_call` (et un id de job `mobile-app-tests` → `mobile-app`, cosmétique). Cette révision
+**annule ce changement de déclencheur** : `pytest.yml` est restauré à l'identique de son dernier
+contenu avant renommage (commit `216dbd11`), avec son propre `on: [push]`. `ci-required.yml` et
+`ci-push.yml` (le filet de sécurité qui compensait l'absence de déclencheur direct sur
+`ci-required.yml`, désormais inutile) sont supprimés.
+
+`on: [push]` sans filtre couvre nativement, sans code de résolution supplémentaire : un push direct
+sur une branche, un push sur une branche de PR (`pull_request: synchronize` ne supprime pas
+l'événement `push` sous-jacent), le commit de merge d'une PR (GitHub pousse ce commit sur la
+branche cible), et la pose d'un tag. `pytest.yml` est donc à nouveau le seul et unique point
+d'entrée des jobs requis — ce que Scalingo surveille avant de déployer —, complètement découplé de
+`e2e-after-deploy.yml` et des trois `workflow-e2e-webapp-*.yml`, qui ne gèrent plus que l'e2e.
+
+### `wait-for-scalingo-status` : timeout par défaut corrigé
+
+L'action `.github/actions/wait-for-scalingo-status/action.yml` faisait `exit 0` (succès) au
+timeout — c'est précisément ce qui permettait aux tests de partir contre l'ancien déploiement dans
+le scénario ci-dessus, en silence. Corrigé en `exit 1` (un timeout est un échec, pas un feu vert),
+et le timeout par défaut relevé de `30` à `900` secondes (30 s n'a jamais représenté un temps de
+déploiement Scalingo réaliste). Cette action reste utilisée sur le seul chemin restant sans
+événement `status` disponible : `workflow-e2e-webapp-manual.yml` (`workflow_dispatch`).
+
+### `allure-framework/allure-action@v0` conservée, contexte `pull_request` fabriqué pour son step
+
+Le job `e2e-report` de `workflow-e2e-webapp-shared.yml`, désormais déclenché depuis
+`e2e-after-deploy.yml` sur un événement `status` (jamais `pull_request`), ne fournit plus
+nativement le contexte qu'attend `allure-action`. Lecture du source
+(`allure-framework/allure-action`, `src/index.ts`) : l'action calcule
+`isPullRequest = eventName === "pull_request" && Boolean(payload.pull_request)` et retourne sans
+rien poster si `!isPullRequest` — indépendant du format de rapport Allure 2/3 (ce n'est donc pas un
+problème réglé par la migration Allure 3 du § précédent). `eventName`/`payload`/`sha` viennent de
+`@actions/github` (`packages/github/src/context.ts`), dont le constructeur relit
+`process.env.GITHUB_EVENT_NAME`/`GITHUB_EVENT_PATH`/`GITHUB_SHA` **à chaque instanciation**, sans
+cache process-wide.
+
+Plutôt que d'abandonner `allure-action`, un step préalable fabrique un événement `pull_request`
+minimal (`{"pull_request": {"number": <pr_number>, "head": {"sha": <source_sha>}}}`, les deux
+connus via les `inputs` du job) écrit dans `RUNNER_TEMP`, et le step `allure-action` surcharge
+`GITHUB_EVENT_NAME`/`GITHUB_EVENT_PATH` via un `env:` **scopé à ce seul step** — sans effet sur les
+autres steps du job ni sur le contexte réel du run. `headSha = pullRequest?.head.sha ?? sha` retombe
+alors sur le SHA fabriqué (correct : sur `on: status`, le `github.sha` ambiant vaudrait le HEAD de
+la branche par défaut, pas le commit réellement déployé) et `issue_number = pullRequest.number`
+cible la bonne PR. Le job garde donc `checks: write` (utilisé par `octokit.rest.checks.create`
+côté allure-action) en plus de `pull-requests: write`.
+
+### Correction connexe : input cassé sur le déclenchement manuel
+
+`workflow-e2e-webapp-manual.yml` déclarait un input `wait_for_scalingo_step` mais transmettait
+`skip_scalingo_step: ${{ inputs.skip_scalingo_step }}` à `workflow-e2e-webapp-shared.yml` — les
+deux noms étaient faux (ni l'input déclaré ni celui attendu par `shared.yml` ne s'appellent
+`skip_scalingo_step`), ce qui cassait silencieusement ce chemin (l'input `wait_for_scalingo_step`
+de `shared.yml` retombait sur son défaut `true` au lieu de la valeur choisie). Corrigé en
+`wait_for_scalingo_step: ${{ inputs.wait_for_scalingo_step }}`, cohérent avec le nom déclaré.
+
+### Statut
+
+Accepté. Non vérifié faute de run GitHub réel au moment de cette révision :
+- le comportement observé de Scalingo une fois le check e2e créé *après* le `success` (pas de
+  re-déclenchement ni de nouvelle attente sur un déploiement déjà effectué — déduit du principe
+  documenté, pas garanti par écrit par Scalingo) ;
+- le rendu effectif du commentaire `allure-action` avec l'événement `pull_request` fabriqué (le
+  mécanisme de surcharge d'env par step est standard, mais dépend du comportement non documenté par
+  contrat de `@actions/github`, qui pourrait changer) ;
+- la résolution du cas `tag` par `guard` (`gh api repos/.../tags`, sans garantie de pagination
+  suffisante si le dépôt a un grand nombre de tags — `--paginate` est censé couvrir ce cas mais n'a
+  pas été exercé sur un vrai run).
+
 ## Notes
 
 - Le remote GitHub du dépôt est `numerique-gouv/ami-system-tests` (le nom du dépôt local,
