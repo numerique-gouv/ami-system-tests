@@ -13,6 +13,7 @@ dist/
 logs/
 allure-results/
 allure-report/
+.allure/
 *.log
 apps/
 .playwright-mcp/
