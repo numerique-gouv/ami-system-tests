@@ -3,6 +3,7 @@ on:
   workflow_call:
     inputs:
       ref_name:
+        description: "nom de la branche sur laquelle la CI doit travailler"
         type: string
         default: staging
       run_webapp:
