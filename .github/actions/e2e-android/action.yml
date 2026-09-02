@@ -41,7 +41,24 @@ runs:
     - uses: android-actions/setup-android@v4
       with:
         packages: "platform-tools cmdline-tools;latest"
-
+    
+    - name: debug AVD devices
+      shell: bash
+      run: |
+        echo "ANDROID_HOME=$ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+        echo "--- cmdline-tools installés ---"
+        find "$ANDROID_SDK_ROOT/cmdline-tools" -maxdepth 1 -mindepth 1 -type d | while read -r dir; do
+          echo "$dir -> $(grep '^Pkg.Revision' "$dir/source.properties" 2>/dev/null || echo 'source.properties introuvable')"
+        done
+        echo "--- binaire sdkmanager résolu via PATH ---"
+        which sdkmanager
+        readlink -f "$(which sdkmanager)"
+        echo "--- binaire avdmanager résolu via PATH ---"
+        which avdmanager
+        readlink -f "$(which avdmanager)"
+        echo "--- devices connus de ce avdmanager (filtré pixel) ---"
+        avdmanager list device | grep -i pixel
     # KVM requis par reactivecircus/android-emulator-runner sur runner Linux (accélération
     # matérielle) — les runners GitHub-hosted x86_64 l'exposent mais il faut ouvrir les
     # permissions du device node. https://github.com/ReactiveCircus/android-emulator-runner
