@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@testing-library/webdriverio": "^3.2.1",
-    "allure": "^3.0.0",
+    "allure": "^3.16.0",
     "@types/node": "^26.1.2",
     "@typescript-eslint/eslint-plugin": "^8.66.0",
     "@typescript-eslint/parser": "^8.66.0",
