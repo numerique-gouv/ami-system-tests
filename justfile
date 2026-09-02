@@ -383,13 +383,34 @@ inspect:
     npx ts-node --project tsconfig.json src/scripts/inspect-webview.ts "$PLATFORM"
     kill $APPIUM_PID 2>/dev/null || true
 
-# Générer et ouvrir le rapport Allure du dernier run
-open-report:
-    npm run report
+# Générer et ouvrir le rapport Allure du dernier run.
+# Si `folder` est un fichier, il doit s'agir d'une archive .zip (ex. artifact CI téléchargé
+# dans temp/) : elle est décompressée dans un sous-dossier dédié avant l'ouverture du rapport.
+# Usage : just open-report                                    → allure-report/
+#         just open-report temp/allure-report-pr1275-run6.zip → décompresse puis ouvre
+open-report folder="allure-report":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET="{{ folder }}"
+    if [ -f "$TARGET" ]; then
+        case "$TARGET" in
+            *.zip) ;;
+            *)
+                echo "❌ Fichier non supporté (attendu : une archive .zip) : $TARGET" >&2
+                exit 1
+                ;;
+        esac
+        DEST="$(dirname "$TARGET")/$(basename "$TARGET" .zip)"
+        echo "📦 Décompression de $TARGET dans ${DEST}."
+        mkdir -p "$DEST"
+        unzip -q "$TARGET" -d "$DEST"
+        TARGET="$DEST"
+    fi
+    npm run open-report "$TARGET"
 
 # Générer le rapport Allure sans l'ouvrir (CI — `allure open` bloquerait en démarrant un serveur)
-generate-report:
-    npm run generate-report
+report:
+    npm run report
 
 # Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).

@@ -15,8 +15,8 @@
     "appium:install": "npx appium driver install uiautomator2 && npx appium driver install xcuitest",
     "appium:update": "npx appium driver update uiautomator2 && npx appium driver update xcuitest",
     "appium:start": "npx appium --port 4723 --log-level info",
-    "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report",
-    "generate-report": "rm -rf allure-report && allure generate allure-results"
+    "open-report": "allure open",
+    "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report"
   },
   "devDependencies": {
     "@testing-library/webdriverio": "^3.2.1",
