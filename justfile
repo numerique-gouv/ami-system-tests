@@ -409,8 +409,12 @@ open-report folder="allure-report":
     npm run open-report "$TARGET"
 
 # Générer le rapport Allure sans l'ouvrir (CI — `allure open` bloquerait en démarrant un serveur)
-report:
-    npm run report
+generate-report:
+    rm -rf allure-report && npx allure generate allure-results --clean
+
+# Générer puis ouvrir le rapport Allure du dernier run (usage local uniquement).
+report: generate-report
+    npm run open-report
 
 # Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
@@ -418,25 +422,6 @@ report:
 #         just push-notification avec_nom_dusage "Mon titre personnalisé"
 push-notification login title="": _require-dotenv
     npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
-
-# ─── Documentation ──────────────────────────────────────────────────────────
-
-# Installer les dépendances du site de documentation
-setup-docs:
-    npm ci --prefix site
-
-# Servir le site en local (pathPrefix = /, liens absolus)
-serve-docs: setup-docs
-    npm run start --prefix site
-
-# Builder le site avec le pathPrefix de production
-build-docs: setup-docs
-    ELEVENTY_PATH_PREFIX=/ami-system-tests/ npm run build --prefix site
-
-# Mettre à jour le template eleventy-dsfr depuis l'upstream
-update-docs:
-    git fetch docs-upstream
-    git subtree pull --prefix=site docs-upstream main --squash
 
 # ─── Présentation ───────────────────────────────────────────────────────────
 
