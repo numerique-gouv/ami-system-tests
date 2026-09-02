@@ -31,10 +31,6 @@ on:
         description: "ref (branche/tag/sha) d'ami-system-tests à checkout — doit correspondre au ref utilisé dans le uses: qui pointe vers ce workflow"
         type: string
         required: true
-      wait_for_scalingo_step:
-        description: "scalingo redeploys when pushing code, so we can skip on manual trigger"
-        type: boolean
-        default: true
     outputs:
       allure_report:
         description: "nom de l'artefact allure-results publié par le job e2e, à télécharger par le workflow appelant"
@@ -77,21 +73,17 @@ jobs:
           repository: numerique-gouv/ami-system-tests
           ref: ${{ inputs.checkout_ref }}
           path: ami-system-tests
+
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: ami-system-tests/package-lock.json
+
       - working-directory: ami-system-tests
         run: npm ci
+
       - uses: extractions/setup-just@v4
-      - if: ${{ (inputs.run_webapp != '' || inputs.run_android != '') && inputs.source_repo == 'numerique-gouv/ami-notifications-api' && inputs.wait_for_scalingo_step == true}}
-        uses: ./ami-system-tests/.github/actions/wait-for-scalingo-status
-        with:
-          source_repo: ${{ inputs.source_repo }}
-          source_sha: ${{ inputs.source_sha }}
-          pr_number: ${{ inputs.pr_number }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - if: ${{ inputs.run_webapp != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-webapp
