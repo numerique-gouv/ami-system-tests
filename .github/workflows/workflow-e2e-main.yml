@@ -108,6 +108,7 @@ jobs:
         uses: ./ami-system-tests/.github/actions/e2e-android
         with:
           suite: ${{ inputs.run_android }}
+          run_old_device: ${{ inputs.run_old_device }}
 
       - if: ${{ inputs.run_ios != '' }}
         name: download iOS allure results
