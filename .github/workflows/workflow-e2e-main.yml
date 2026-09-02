@@ -2,10 +2,6 @@ name: workflow-e2e-main.yml
 on:
   workflow_call:
     inputs:
-      ref_name:
-        description: "nom de la branche sur laquelle la CI doit travailler"
-        type: string
-        default: staging
       run_webapp:
         description: "nom de la suite webapp à lancer (test-suites.ts, ex: short, CI, all) — vide = ne pas lancer"
         type: string
@@ -44,13 +40,7 @@ on:
         description: "nom de l'artefact allure-results publié par le job e2e, à télécharger par le workflow appelant"
         value: ${{ jobs.e2e.outputs.allure_report }}
 
-permissions:
-  contents: read
-  # actions:read pour interroger/télécharger les artifacts d'historique (propres à ce repo).
-  actions: read
-
-# Un groupe par PR (source_repo + pr_number, pas ref_name — un nom de branche peut se répéter
-# entre dépôts frères ou être renommé en cours de PR) : sérialise les runs d'une même PR, la
+# Un groupe par PR (source_repo + pr_number : sérialise les runs d'une même PR, la
 # restauration/publication de l'historique Allure étant un cycle lecture-modification-écriture
 # non concurrent-safe. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
 concurrency:
@@ -64,7 +54,6 @@ jobs:
     if: ${{ inputs.run_ios != '' }}
     uses: ./.github/workflows/workflow-e2e-ios.yml
     with:
-      ref_name: ${{ inputs.ref_name }}
       checkout_ref: ${{ inputs.checkout_ref }}
       suite: ${{ inputs.run_ios }}
     secrets: inherit
@@ -75,7 +64,6 @@ jobs:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
     runs-on: ubuntu-latest
-    environment: ${{ inputs.ref_name }}
     env:
       AMI_ENV: ${{ inputs.pr_number != 0 && inputs.pr_number || 'staging' }}
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
