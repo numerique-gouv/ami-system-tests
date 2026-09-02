@@ -68,10 +68,24 @@ jobs:
     outputs:
       allure_report: ${{ steps.publish-allure.outputs.allure_report }}
     steps:
-      - uses: actions/checkout@v7
+      # checkout_ref porte le nom de branche de source_repo (ex. notifications-api),
+      # On tente d'abord la ref demandée ; si elle n'existe pas, actions/checkout 
+      # échoue et le step suivant (déclenché par outcome == 'failure') retombe sur main.
+      - name: checkout ami-system-tests (ref demandée)
+        id: checkout-ref
+        continue-on-error: true
+        uses: actions/checkout@v7
         with:
           repository: numerique-gouv/ami-system-tests
           ref: ${{ inputs.checkout_ref }}
+          path: ami-system-tests
+
+      - name: checkout ami-system-tests (fallback main)
+        if: steps.checkout-ref.outcome == 'failure'
+        uses: actions/checkout@v7
+        with:
+          repository: numerique-gouv/ami-system-tests
+          ref: main
           path: ami-system-tests
 
       - uses: actions/setup-node@v7
@@ -107,13 +121,6 @@ jobs:
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
           echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
-      # Allure 3 : l'historique est un unique fichier JSONL, mis à jour en place par
-      # `allure generate` (lu ET ré-écrit, cf. allurerc.mjs historyPath) — plus le dossier
-      # allure-report/history/ d'Allure 2. Sans lui, les compteurs new/flaky/retry et les
-      # tendances restent à zéro. Absent au premier run d'une PR : ne fait pas échouer le job.
-      # continue-on-error : un aléa transitoire de l'API GitHub (5xx, rate-limit) ne doit pas
-      # faire échouer tout le run e2e pour un historique de tendances — dégradé mais fonctionnel
-      # (found reste vide, donc absent du if du step suivant, comme un vrai premier run).
       - name: chercher l'historique Allure de la PR
         id: history
         continue-on-error: true
