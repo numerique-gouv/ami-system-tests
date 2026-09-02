@@ -2,10 +2,6 @@ name: workflow-e2e-ios.yml
 on:
   workflow_call:
     inputs:
-      ref_name:
-        description: "nom de la branche sur laquelle la CI doit travailler"
-        type: string
-        default: staging
       checkout_ref:
         description: "ref (branche/tag/sha) d'ami-system-tests à checkout"
         type: string
