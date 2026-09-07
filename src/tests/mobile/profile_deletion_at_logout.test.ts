@@ -1,10 +1,7 @@
 import AllureReporter from '@wdio/allure-reporter'
-import logger from '@wdio/logger'
 import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
-import { authenticate } from '@pages/authenticate.process'
-
-const log = logger('test')
+import { getAppToStartingState } from '@pages/authenticate.process'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
@@ -31,9 +28,7 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     await AllureReporter.addSeverity('critical')
     await AllureReporter.addTag('franceconnect')
 
-    if (!await HomePage.isHomeReachable(1000)) {
-      await authenticate()
-    } else log.info("You are home, and already authenticated")
+    await getAppToStartingState()
 
     await AllureReporter.addStep('Naviguer vers Mon profil')
     await ProfilePage.navigate()
@@ -92,8 +87,8 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
 
   it('se reconnecte avec le même compte', async () => {
     await AllureReporter.addStep('Lancer le flow FranceConnect')
-    await authenticate()
-    
+    await getAppToStartingState({grantConsent:false})
+
     await AllureReporter.addStep('Naviguer vers Mon profil')
     await ProfilePage.navigate()
   })

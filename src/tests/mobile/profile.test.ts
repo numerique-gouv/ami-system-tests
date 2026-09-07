@@ -1,7 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
-import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
-import { authenticate } from '@pages/authenticate.process'
+import { getAppToStartingState } from '@pages/authenticate.process'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le hook after() restaure les valeurs d'origine après chaque passage.
@@ -26,9 +25,7 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     await AllureReporter.addStory('Modification des données de profil (Mon profil)')
     await AllureReporter.addSeverity('normal')
 
-    if (!await HomePage.isHomeReachable(1000)) {
-      await authenticate()
-    }
+    await getAppToStartingState()
 
     await AllureReporter.addStep('Naviguer vers Mon profil depuis le menu avatar')
     await ProfilePage.navigate()

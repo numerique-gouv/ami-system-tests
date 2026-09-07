@@ -1,9 +1,8 @@
 import AllureReporter from '@wdio/allure-reporter'
-import HomePage from '../../pages/home.page'
 import NotificationsInboxPage from '../../pages/notifications.page'
 import { publishNotification } from '../../helpers/notifications-api'
 import { getUser } from '../../helpers/test-users'
-import { authenticate } from '../../pages/authenticate.process'
+import { getAppToStartingState } from '../../pages/authenticate.process'
 
 describe('Notifications', () => {
   const user = getUser('avec_nom_dusage')
@@ -15,9 +14,7 @@ describe('Notifications', () => {
     await AllureReporter.addStory("Réception d'une notification dans l'inbox in-app")
     await AllureReporter.addSeverity('critical')
     await AllureReporter.addTag('api-notifications')
-    if (!await HomePage.isHomeReachable(1000)) {
-      await authenticate()
-    }
+    await getAppToStartingState()
   })
 
   /**

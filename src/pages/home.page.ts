@@ -60,7 +60,7 @@ class HomePage {
      * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
      *
      * Retourne un booléen réel (jamais de throw) — les appelants qui veulent un échec dur
-     * (ex. goToHomeFromAnywhere, authenticate()) le font explicitement sur le retour `false`.
+     * (ex. goToHomeFromAnywhere, getAppToStartingState()) le font explicitement sur le retour `false`.
      */
     async isHomeVisible(timeout = 30000): Promise<boolean> {
         // La page d'accueil est une webview'
