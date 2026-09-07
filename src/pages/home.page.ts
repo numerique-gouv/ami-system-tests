@@ -81,23 +81,30 @@ class HomePage {
             if (await this.probeWelcomeText(5000)) return true
         }
 
-        return true;
+        // Ni onboarding ni menu "Plus" : la route seule ne suffit pas à confirmer la home
+        // authentifiée (la page "not connected" — écran de login FranceConnect — partage la
+        // même route). Seule la salutation "Bonjour" distingue les deux.
+        return await this.probeWelcomeText(timeout)
     }
 
     /**
-     * Sonde dédiée : le hash courant correspond-il à la route home (`''` ou `'#/'`) ?
-     * Attend une courte fenêtre (au lieu d'une lecture instantanée) : juste après un retour
-     * de redirection OIDC en webapp, le routeur SPA peut ne pas avoir encore réécrit le hash.
+     * Sonde dédiée : sommes-nous sur la route home de la SPA AMI (`pathname === '/'`, hash
+     * `''` ou `'#/'`) ? Le pathname exclut les domaines externes (FranceConnect) qui peuvent
+     * transitoirement avoir un hash vide eux aussi. Attend une courte fenêtre (au lieu d'une
+     * lecture instantanée) : juste après un retour de redirection OIDC, le routeur SPA peut ne
+     * pas avoir encore réécrit le hash.
      */
     private async isOnHomeRoute(): Promise<boolean> {
         try {
             return await platform().inWebContext(async () => {
                 await browser.waitUntil(
-                    () => driver.execute(() => location.hash === '' || location.hash === '#/') as Promise<boolean>,
+                    () => driver.execute(() =>
+                        location.pathname === '/' && (location.hash === '' || location.hash === '#/')
+                    ) as Promise<boolean>,
                     {
                         timeout: 3000,
                         interval: 300,
-                        timeoutMsg: 'isOnHomeRoute: hash de route home absent'
+                        timeoutMsg: 'isOnHomeRoute: route home absente'
                     }
                 )
                 return true
@@ -140,7 +147,7 @@ class HomePage {
     async ouvreSuivi(): Promise<void> {
         await platform().inWebContext(async () => {
             await this.closeOpenNavPlusMenu()
-            let suivi = await tl().findByRole('button', {name: /Suivi/})
+            let suivi = await tl().findByRole('button', {name: /Suivi/}, {timeout: 10000})
             await suivi.click()
         })
     }
