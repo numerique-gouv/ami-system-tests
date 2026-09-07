@@ -4,7 +4,7 @@ import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
-import {authenticate} from '../../pages/authenticate.process'
+import {getAppToStartingState} from '../../pages/authenticate.process'
 
 /**
  * Cycle de vie d'une démarche partenaire dans l'app AMI.
@@ -46,9 +46,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         urlV1 = domainUrl+`/demarches/${itemId}/v1`
         urlV2 = domainUrl+`/demarches/${itemId}/v2`
 
-        if (!await HomePage.isHomeReachable(1000)) {
-            await authenticate()
-        }
+        await getAppToStartingState()
     })
 
     it("crée une démarche visible dans le suivi (statut new)", async () => {
