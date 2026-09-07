@@ -35,6 +35,7 @@ export function getEnvironmentPickerLocators(): EnvironmentPickerLocators {
   }
   return {
     ...androidEnvironmentPickerLocators,
-    environmentPicker: `android=new UiSelector().textContains("${env}")`,
+    // (ex. "staging" vs tile "Staging").
+    environmentPicker: `android=new UiSelector().textMatches("(?i).*${env}.*")`,
   }
 }
