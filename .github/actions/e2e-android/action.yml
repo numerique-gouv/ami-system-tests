@@ -91,6 +91,7 @@ runs:
         profile: pixel_2
         avd-name: pixel_2_api28
         disable-animations: true
+        working-directory: ami-system-tests
         script: just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
       env:
         ANDROID_DEVICE_NAME: pixel_2_api28
@@ -105,6 +106,7 @@ runs:
         profile: pixel_8
         avd-name: pixel_8_api36
         disable-animations: true
+        working-directory: ami-system-tests
         script: just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
       env:
         ANDROID_DEVICE_NAME: pixel_8_api36
