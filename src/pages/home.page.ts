@@ -86,11 +86,25 @@ class HomePage {
 
     /**
      * Sonde dédiée : le hash courant correspond-il à la route home (`''` ou `'#/'`) ?
+     * Attend une courte fenêtre (au lieu d'une lecture instantanée) : juste après un retour
+     * de redirection OIDC en webapp, le routeur SPA peut ne pas avoir encore réécrit le hash.
      */
     private async isOnHomeRoute(): Promise<boolean> {
-        return await platform().inWebContext(() =>
-            driver.execute(() => location.pathname === '/' || location.pathname === '/#/') as Promise<boolean>
-        ).catch(() => false)
+        try {
+            return await platform().inWebContext(async () => {
+                await browser.waitUntil(
+                    () => driver.execute(() => location.hash === '' || location.hash === '#/') as Promise<boolean>,
+                    {
+                        timeout: 3000,
+                        interval: 300,
+                        timeoutMsg: 'isOnHomeRoute: hash de route home absent'
+                    }
+                )
+                return true
+            })
+        } catch {
+            return false
+        }
     }
 
     /**
