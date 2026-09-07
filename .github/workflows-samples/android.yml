@@ -100,7 +100,7 @@ jobs:
       # accélération et n'atteint jamais adb — la step boucle jusqu'au timeout de 10 min pour rien.
       - name: Tests E2E — Pixel 6 (API 31)
         if: ${{ inputs.run_old_device && !env.ACT }}
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 31
           target: google_apis
@@ -114,7 +114,7 @@ jobs:
 
       - name: Tests E2E — Pixel 8 (API 35)
         if: ${{ !inputs.run_old_device && !env.ACT }}
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
           target: google_apis

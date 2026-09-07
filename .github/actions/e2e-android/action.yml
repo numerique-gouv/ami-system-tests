@@ -32,16 +32,28 @@ runs:
     # legacy `tools` dépend d'`emulator`, indisponible pour linux-aarch64, ce qui fait échouer
     # sdkmanager avec exit code 1. `adb` (seul besoin ici, via `just start-android`) vient de
     # `platform-tools`. Source : https://github.com/android-actions/setup-android/issues/283
-    #
-    # `cmdline-tools;latest` est ajouté pour rafraîchir la liste de device profiles
-    # utilisée par `avdmanager` (via reactivecircus/android-emulator-runner) — le
-    # cmdline-tools préinstallé sur le runner GitHub-hosted ne connaît pas encore le
-    # profil "pixel_8", ce qui fait échouer la création de l'AVD API 36 avec
-    # "Error: No device found matching --device pixel_8".
     - uses: android-actions/setup-android@v4
       with:
-        packages: "platform-tools cmdline-tools;latest"
-    
+        packages: "platform-tools"
+
+    # reactivecircus/android-emulator-runner (step "Tests E2E" plus bas) exécute
+    # `avdmanager create avd --device pixel_8`. Il ne réinstalle son propre cmdline-tools que si
+    # $ANDROID_HOME/cmdline-tools n'existe pas du tout — or setup-android (step ci-dessus) a
+    # déjà créé ce dossier parent (avec son propre cmdline-tools récent dans un sous-dossier
+    # versionné, ex. cmdline-tools/20.0). android-emulator-runner saute donc sa réinstallation
+    # et pointe en dur son PATH vers cmdline-tools/latest, qui est ici l'ancien cmdline-tools
+    # préinstallé sur l'image GitHub-hosted (trop vieux pour connaître le profil "pixel_8" —
+    # "Error: No device found matching --device pixel_8").
+    # sdkmanager --install cmdline-tools;latest ne corrige pas ça : il refuse d'écraser en place
+    # un paquet d'une autre révision et installe à côté (cmdline-tools/latest-2), sans jamais
+    # toucher à `latest`.
+    # Fix : supprimer ce `cmdline-tools/latest` obsolète. La résolution du PATH par
+    # android-emulator-runner retombe alors sur le cmdline-tools installé par setup-android
+    # (déjà sur le PATH, sans avoir à connaître son numéro de version).
+    - name: Supprimer le cmdline-tools/latest obsolète préinstallé sur le runner
+      shell: bash
+      run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+
     - name: debug AVD devices
       shell: bash
       run: |
@@ -71,7 +83,7 @@ runs:
 
     - name: Tests E2E — appareil ancien (API 28, minSdk)
       if: ${{ inputs.run_old_device == 'true' }}
-      uses: reactivecircus/android-emulator-runner@v2
+      uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 28
         target: google_apis
@@ -85,7 +97,7 @@ runs:
 
     - name: Tests E2E — appareil récent (API 36, targetSdk)
       if: ${{ inputs.run_old_device != 'true' }}
-      uses: reactivecircus/android-emulator-runner@v2
+      uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 36
         target: google_apis
