@@ -410,7 +410,7 @@ open-report folder="allure-report":
 
 # Générer le rapport Allure sans l'ouvrir (CI — `allure open` bloquerait en démarrant un serveur)
 generate-report:
-    rm -rf allure-report && npx allure generate allure-results --clean
+    rm -rf allure-report && npx allure generate allure-results
 
 # Générer puis ouvrir le rapport Allure du dernier run (usage local uniquement).
 report: generate-report
