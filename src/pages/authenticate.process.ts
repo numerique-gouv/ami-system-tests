@@ -55,7 +55,10 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
         return 'credentials'
       return null
     }) as Promise<FcScreen | null>
-  ).catch(() => null)
+  ).catch((err: unknown) => {
+    log.debug('authenticate: probeFranceConnectWebScreen a échoué', err)
+    return null
+  })
 }
 
 // trouve l'écran courant en commençant par les natifs.
@@ -80,6 +83,12 @@ async function runSequenceFrom(startScreen: FcScreen, user: TestUser): Promise<v
   }
 }
 
+// Au-delà de ce nombre d'essais, aucune progression n'est possible : la séquence ne comporte
+// que FC_SCREEN_SEQUENCE.length écrans distincts, +1 pour absorber un échec ponctuel
+// (ex. re-détection après un clic qui n'a pas encore pris effet). Boucler davantage ne fait
+// qu'attendre le TIMEOUT pour rien — on préfère échouer vite avec un message clair.
+const MAX_ATTEMPTS = FC_SCREEN_SEQUENCE.length + 1
+
 /**
  * Authentifie l'utilisateur de test, quel que soit l'écran de départ. Détecte l'écran une fois
  * puis marche la séquence connue jusqu'à la home ; ne redétecte (nouvelle tentative) qu'en cas
@@ -89,11 +98,13 @@ export async function authenticate(): Promise<void> {
   const user = getUser('avec_nom_dusage')
   const deadline = Date.now() + AUTHENTICATE_TIMEOUT_MS
   let lastScreen :FcScreen|null = null
+  let attempts = 0
 
-  while (Date.now() < deadline) {
+  while (Date.now() < deadline && attempts < MAX_ATTEMPTS) {
+    attempts++
     const screen = await detectCurrentScreen()
     if (screen === null) {
-      log.warn(`authenticate: écran non reconnu (dernier connu : ${lastScreen}), tentative de retour vers Home au cas où nous serions déjà connectés`)
+      log.warn(`authenticate: écran non reconnu (dernier connu : ${lastScreen}), tentative de retour vers Home au cas où nous serions déjà connectés (essai ${attempts}/${MAX_ATTEMPTS})`)
       // best-effort : un échec ici est revu par une nouvelle détection au tour suivant.
       await HomePage.goToHomeFromAnywhere(5000).catch(() => {})
       continue
@@ -103,10 +114,10 @@ export async function authenticate(): Promise<void> {
       await runSequenceFrom(screen, user)
       return
     } catch (err) {
-      log.warn(`authenticate: échec depuis l'écran "${screen}", nouvelle tentative`, err)
+      log.warn(`authenticate: échec depuis l'écran "${screen}", nouvelle tentative (essai ${attempts}/${MAX_ATTEMPTS})`, err)
     }
   }
   throw new AssertionError({
-    message: `authenticate: la page d'accueil n'est pas visible après ${AUTHENTICATE_TIMEOUT_MS}ms (dernier écran détecté : ${lastScreen})`
+    message: `authenticate: la page d'accueil n'est pas visible après ${attempts} essai(s) (max ${MAX_ATTEMPTS}, ${Date.now() < deadline ? 'limite d\'essais atteinte' : `TIMEOUT ${AUTHENTICATE_TIMEOUT_MS}ms`}, dernier écran détecté : ${lastScreen})`
   })
 }
