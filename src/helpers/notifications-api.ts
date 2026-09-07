@@ -38,11 +38,54 @@ interface PublishOptions {
     eventDate?: string
     validUntil?: string
     tryPush?: boolean
+    checkConsent?: boolean
 }
 
 const PUBLISH_MAX_RETRIES = 5
 const PUBLISH_RETRY_DELAY_MS = 10000
 const STAGING_BASE_URL = 'https://ami-back-staging.osc-fr1.scalingo.io'
+
+function authHeaders(): {Authorization: string} {
+    const partnerId = requireEnv('NOTIF_PARTNER_ID')
+    const secret = requireEnv('NOTIF_PARTNER_SECRET')
+    const credentials = Buffer.from(`${partnerId}:${secret}`).toString('base64')
+    return {Authorization: `Basic ${credentials}`}
+}
+
+/**
+ * Vérifie le consentement de l'usager auprès d'AMI (GET /api/v1/consent/{fc_hash}).
+ * Retourne true si AMI a connaissance d'un consentement actif, false si 404 (absent ou retiré).
+ */
+export async function checkConsent(recipientFcHash: string): Promise<boolean> {
+    const apiUrl = resolveApiUrl()
+    const response = await fetch(`${apiUrl}/api/v1/consent/${recipientFcHash}`, {
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+    })
+    if (response.status === 404) return false
+    if (!response.ok) {
+        const text = await response.text().catch(() => '(corps illisible)')
+        throw new AssertionError({message: `GET /api/v1/consent/${recipientFcHash} → HTTP ${response.status}: ${text}`})
+    }
+    return true
+}
+
+/**
+ * Communique le consentement (don ou retrait) de l'usager pour le partenaire authentifié
+ * (POST /api/v1/consent/{fc_hash}). Appelé une première fois lors de l'authentification
+ * dans les scénarios de test — voir authenticate.process.ts.
+ */
+export async function grantConsent(recipientFcHash: string, granted = true): Promise<void> {
+    const apiUrl = resolveApiUrl()
+    const response = await fetch(`${apiUrl}/api/v1/consent/${recipientFcHash}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+        body: JSON.stringify({consent: granted}),
+    })
+    if (!response.ok) {
+        const text = await response.text().catch(() => '(corps illisible)')
+        throw new AssertionError({message: `POST /api/v1/consent/${recipientFcHash} → HTTP ${response.status}: ${text}`})
+    }
+}
 
 /**
  * Publie une notification via l'API partenaire AMI.
@@ -54,15 +97,21 @@ export async function publishNotification({
                                               privateBody, icon, contentLink,
                                               itemType, itemId, itemParentPartnerId, itemParentType, itemParentId, itemStatusLabel, itemGenericStatus, itemCanal,
                                               itemMilestoneStartDate, itemMilestoneEndDate, eventDate, validUntil,
-                                              tryPush,
+                                              tryPush, checkConsent: shouldCheckConsent = true,
                                           }: PublishOptions): Promise<void> {
     const apiUrl = resolveApiUrl()
-    const partnerId = requireEnv('NOTIF_PARTNER_ID')
-    const secret = requireEnv('NOTIF_PARTNER_SECRET')
 
-    log.info(`publishNotification → hôte: ${apiUrl}  partner: ${partnerId}  fc_hash: ${recipientFcHash}`)
+    log.info(`publishNotification → hôte: ${apiUrl}  fc_hash: ${recipientFcHash}`)
 
-    const credentials = Buffer.from(`${partnerId}:${secret}`).toString('base64')
+    // L'API d'évènement refuse (HTTP 404) tout appel non précédé d'une vérification de consentement.
+    if (shouldCheckConsent) {
+        const hasConsent = await checkConsent(recipientFcHash)
+        if (!hasConsent) {
+            const message = `publishNotification → pas de consentement AMI pour fc_hash: ${recipientFcHash}, arrêt sans appeler PUT /api/v2/event`
+            log.warn(message)
+            throw new AssertionError({message})
+        }
+    }
 
     const payload = {
         recipient_fc_hash: recipientFcHash,
@@ -92,8 +141,8 @@ export async function publishNotification({
         const response = await fetch(`${apiUrl}/api/v2/event`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Basic ${credentials}`,
                 'Content-Type': 'application/json',
+                ...authHeaders(),
             },
             body: JSON.stringify(payload),
         })
