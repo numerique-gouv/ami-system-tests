@@ -34,8 +34,8 @@ class NotificationsInboxPage {
      */
     async openFromHome(): Promise<void> {
         await platform().inWebContext(async () => {
-            // getByRole('link') cible l'<a href="/#/notifications"> par son rôle ARIA et son
-            // nom accessible — plus robuste que le sélecteur CSS structurel '#notification-icon a'.
+            // getByRole('button') cible la cloche par son rôle ARIA et son nom accessible —
+            // plus robuste que le sélecteur CSS structurel '#notification-icon button'.
             const bell = await tl().getByRole('button', {name: /notifications/i})
             await bell.waitForDisplayed({timeout: 15000})
             await bell.click()
@@ -44,48 +44,35 @@ class NotificationsInboxPage {
     /**
      * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
      *
-     * Stratégie : backoff exponentiel, un inWebContext minimal par tentative.
-     * 
-     * Pour tester qu'une démarche arrive dans la page d'Accueil (une seule, la plus récente affichée, il faut faire un test sans concurrent.
-     * Ou si on teste iOS et Android en parallèle, on a intérêt a utiliser 2 comptes utilisateurs différents. 
+     * La page `/#/notifications` de la SPA ouvre son propre WebSocket
+     * (`notificationEventsSocket` dans `src/routes/notifications/+page.svelte` côté
+     * `ami-notifications-api/public/mobile-app`) dont le handler `onmessage` refait
+     * `retrieveNotifications()` et réassigne la liste réactive Svelte — la liste se met donc
+     * à jour EN PLACE sans reload ni navigation, tant que la page reste montée. Un
+     * `window.location.reload()` ici serait contre-productif : il fermerait ce WebSocket et
+     * forcerait une reconnexion, ralentissant l'arrivée qu'on cherche justement à observer
+     * (vérifié en direct le 2026-09-08 : le mécanisme reload+poll précédent datait d'une
+     * période où la livraison WebSocket n'était pas fiable ; ce n'est plus le cas).
+     *
+     * Un seul `inWebContext`, un seul `waitUntil` qui relit le DOM en direct — pas de
+     * `browser.pause` d'attente entre tentatives, pas de reload.
      */
-    async assertNotificationReceived(title: string): Promise<boolean> {
-        const backoffMs = [0, 500, 1000, 2000, 4000, 8000]
-        let elapsed = 0
-        for (const delay of backoffMs) {
-            await browser.pause(delay) // hors inWebContext : WebView libre de recevoir la WebSocket
-            elapsed += delay
-            let found = false;
-//            if (driver.isIOS) {
-                // la WKWebView a peut-être un UIRefreshControl qui bloque le refresh avec swipe down (pullToRefresh)
-                await platform().inWebContext(async () => {
-                    await driver.execute(() => window.location.reload())
-                    // Après un reload, les appels pour vérifier que la page est chargée peuvent s'appliquer sur la page en train de disparaitre.
-                    // On contourne ce problème en cherchant le nouvel élément que l'on poll.
-                    // l'autre option serait de tester que la date de la page a changé (driver.execute(() => performance.timeOrigin) as unknown as Promise<number>)
-                    found = await browser.waitUntil(
-                        async () => driver.execute(
-                            (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
-                                .some(el => el.children.length === 0 && el.textContent?.trim() === text),
-                            title
-                        ) as unknown as boolean,
-                        {timeout: 1000, interval: 100}
-                    ).catch(() => false)
-                })
-            // if (isAndroid) {
-            //     await pullToRefresh()
-            //     found = await platform().inWebContext(() =>
-            //         tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
-            //     )
-            // }
+    async assertNotificationReceived(title: string, timeoutMs = 25000): Promise<boolean> {
+        return platform().inWebContext(async () => {
+            const found = await browser.waitUntil(
+                async () => driver.execute(
+                    (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
+                        .some(el => el.children.length === 0 && el.textContent?.trim() === text),
+                    title
+                ) as unknown as boolean,
+                {timeout: timeoutMs, interval: 300, timeoutMsg: `Notification not received:${title}.`}
+            ).catch(() => false)
             if (found) {
-                log.log(`[notifications] reçue (≤ ${elapsed} ms)`)
+                log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
                 return found
-            } else {
-                log.log(`[notifications] toujours pas reçue  (≤ ${elapsed} ms)`)
             }
-        }
-        throw new AssertionError({ message:`Notification not received:${title}.`})
+            throw new AssertionError({ message: `Notification not received:${title}.` })
+        })
     }
 
     /**
