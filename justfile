@@ -14,8 +14,9 @@ ios_project     := "../ami-app-ios"
 app_id          := "fr.gouv.ami.staging"
 
 android_apk := android_project / "app/build/outputs/apk/staging/debug/app-staging-debug.apk"
-# Le projet iOS construit dans son propre dossier build/.
-ios_derived := ios_project / "build"
+# Le projet iOS construit avec -derivedDataPath ../build depuis ami-app-ios/, donc à côté
+# de ami-app-ios/ (sibling sous ami/), pas dans ami-app-ios/build/.
+ios_derived := "../build"
 ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI-Production.app"
 
 android_avd := "Pixel_modern"
