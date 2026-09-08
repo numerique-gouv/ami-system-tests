@@ -242,6 +242,7 @@ breakpoint sur l'onglet testé — la commande WebDriver en cours bloque jusqu'a
 
 - [les démarches de DN](https://docs.numerique.gouv.fr/docs/1ce135fb-6fb3-4ff5-a53e-27f3670dbd8e/)
 - [Les recettes](https://docs.numerique.gouv.fr/docs/26b382cc-68fd-4a80-be43-dd3eb4bd102c/)
+- [Reconstruction du modèle applicatif](docs/process/reconstruction-modele-applicatif.md) — process pour remettre à jour le modèle des écrans (webapp + natif Android/iOS) après une évolution des apps
 
 ### Scénarios restant à faire
 
