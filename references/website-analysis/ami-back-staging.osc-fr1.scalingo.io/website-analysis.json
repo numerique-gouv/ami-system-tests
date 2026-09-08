@@ -1,0 +1,101 @@
+{
+  "updatedAt": "2026-09-08",
+  "target": "ami-back-staging.osc-fr1.scalingo.io",
+  "evidence": [
+    "live-exploration-chrome",
+    "live-exploration-appium-android-2026-09-08",
+    "live-exploration-appium-ios-2026-09-08",
+    "code:../ami-notifications-api/public/mobile-app",
+    "code:../ami-app-android",
+    "code:../ami-app-ios",
+    "code:src/pages/*.page.ts",
+    "code:src/tests/mobile/*.test.ts"
+  ],
+  "nativeScreens": {
+    "android": {
+      "evidence": "live",
+      "verifiedAt": "2026-09-08",
+      "method": "script WDIO/Appium temporaire jetable (supprimé après usage)",
+      "screens": [
+        { "name": "Choix de la review", "file": "dev/home/ReviewAppsScreen.kt", "note": "liste peuplée depuis les PR GitHub ami-notifications-api" },
+        { "name": "Connexion FranceConnect", "file": "home/FranceConnexionScreen.kt", "note": "écran natif plein écran" },
+        { "name": "Activez les notifications", "file": "settings/OnboardingNotificationScreen.kt", "note": "écran natif plein écran" }
+      ],
+      "notCovered": ["networkManager/WifiErrorScreen.kt (nécessite coupure réseau émulateur)", "FCM push réel"]
+    },
+    "ios": {
+      "evidence": "live",
+      "verifiedAt": "2026-09-08",
+      "method": "script WDIO/Appium temporaire jetable (supprimé après usage), simulateur iPhone 17 Pro",
+      "screens": [
+        { "name": "Choix de la review", "file": "targets/staging/.../ReviewAppView.swift", "note": "natif SwiftUI, contenu identique à Android" },
+        { "name": "Connexion FranceConnect (\"Me connecter à AMI\")", "note": "rendu WebView SPA, pas natif — fcButtonIsNative=false confirmé ; wrappé dans une barre native minimale \"◀ AMI\"" },
+        { "name": "Activez les notifications", "file": "Presentation/Onboarding/OnboardingView.swift", "note": "sheet modale SwiftUI (bouton Fermer), contrairement à l'écran plein Android" }
+      ],
+      "anomalyObserved": "sheet d'onboarding encore visible après le 2e tapFranceConnect() au lieu de la home — lien avec le bug OIDC (confirmé par ailleurs dans docs/adr/2026-06-04-Outils-tests-E2E.md) non établi, possible artefact du script d'exploration",
+      "notCovered": ["Presentation/Settings/SettingsView.swift", "Presentation/Partner/PartnerView.swift", "Services/NotificationManager/* (APNs)", "écran natif d'erreur réseau iOS (non identifié dans le code lu)"]
+    }
+  },
+  "sections": [
+    { "id": "accueil", "route": "/", "sourceFile": "src/routes/+page.svelte", "evidence": "live+code" },
+    { "id": "agenda", "route": "/#/agenda", "sourceFile": "unknown", "evidence": "live" },
+    { "id": "services", "route": "/#/services", "sourceFile": "src/routes/services/**", "evidence": "live+code" },
+    { "id": "suivi", "route": "/#/followup", "sourceFile": "src/routes/followup/**", "evidence": "live+code" },
+    { "id": "plus", "route": null, "note": "modale, pas une route URL", "evidence": "live" },
+    { "id": "notifications", "route": "/#/notifications", "sourceFile": "src/routes/notifications/+page.svelte", "evidence": "live+code" },
+    { "id": "profil", "route": "/#/profile", "sourceFile": "src/routes/profile/+page.svelte", "evidence": "live+code" },
+    { "id": "preferences", "route": "/#/preferences", "sourceFile": "src/routes/preferences/+page.svelte", "evidence": "live+code" },
+    { "id": "authentification", "route": "/#/login", "sourceFile": "src/routes/login*/+page.svelte", "evidence": "code-only (non observé en live ce run)" }
+  ],
+  "sequences": [
+    { "section": "accueil", "items": ["salutation+date", "cloche notifications", "aperçu Mon agenda", "aperçu Mes démarches"], "evidence": "live" },
+    { "section": "services", "items": ["onglet Trouver de l'aide", "onglet Démarches et outils"], "evidence": "live" },
+    { "section": "suivi", "items": ["liste Mes démarches", "détail démarche /#/followup/item/{partner_id}/{item_type}/{item_external_id}"], "evidence": "live" },
+    { "section": "profil", "items": ["bloc Mon identité", "bloc Contact", "bloc Mon adresse"], "evidence": "live" },
+    { "section": "preferences", "items": ["Suivi des démarches (/#/preferences/consents)", "Notifications", "Zones scolaires"], "evidence": "live (sous-écrans non tous ouverts)" },
+    { "section": "authentification", "items": ["environment-picker (mobile natif)", "login FranceConnect", "eIDAS", "mire FCP-LOW", "onboarding notifications", "confirmation FranceConnect", "accueil"], "evidence": "code+logs de test uniquement" }
+  ],
+  "components": [
+    { "name": "Barre de navigation basse", "location": "global", "purpose": "navigation principale", "states": ["actif", "inactif"], "dependencies": [] },
+    { "name": "Carte Mes démarches (liste)", "location": "suivi", "purpose": "résumé d'une démarche", "states": ["TERMINÉ (observé)", "Brouillon/En cours (code seulement)"], "dependencies": ["API partenaire publishNotification"] },
+    { "name": "Timeline de démarche", "location": "suivi.detail", "purpose": "historique des mises à jour", "states": ["liste chronologique"], "dependencies": ["API partenaire"] },
+    { "name": "Liste inbox notifications", "location": "notifications", "purpose": "notifications in-app", "states": ["lu", "non lu"], "dependencies": ["API notifications"] },
+    { "name": "Toggle consentement partenaire", "location": "preferences.consents", "purpose": "activer/désactiver le suivi par partenaire", "states": ["ON", "OFF (tous OFF observés)"], "dependencies": ["API consentement (relation non confirmée avec checkConsent/grantConsent)"] },
+    { "name": "Formulaire modification profil", "location": "profil", "purpose": "édition identité/email/adresse", "states": ["non ouvert en live"], "dependencies": ["FranceConnect", "CAF"] },
+    { "name": "Menu Plus", "location": "global", "purpose": "accès profil/préférences/contact/déconnexion", "states": ["ouvert", "fermé"], "dependencies": [] }
+  ],
+  "functionalities": [
+    { "name": "Authentification FranceConnect", "importance": "high" },
+    { "name": "Suivi des démarches (new/wip/closed)", "importance": "high" },
+    { "name": "Notifications in-app", "importance": "high" },
+    { "name": "Profil usager", "importance": "medium" },
+    { "name": "Services (annuaire, démarches partenaires)", "importance": "medium" },
+    { "name": "Agenda", "importance": "low" },
+    { "name": "Préférences (zones scolaires, notifications)", "importance": "unknown" }
+  ],
+  "importance": [
+    { "functionality": "Authentification FranceConnect", "level": "high", "reason": "point d'entrée obligatoire, marqué critical dans les tests" },
+    { "functionality": "Suivi des démarches", "level": "high", "reason": "coeur métier, testé end-to-end via API réelle" },
+    { "functionality": "Notifications in-app", "level": "high", "reason": "canal d'information principal" },
+    { "functionality": "Profil usager", "level": "medium", "reason": "usuel mais non transactionnel, zone instable actuellement" },
+    { "functionality": "Services", "level": "medium", "reason": "navigation/orientation sans logique métier propre testée" },
+    { "functionality": "Agenda", "level": "low", "reason": "contenu informatif statique" },
+    { "functionality": "Préférences", "level": "unknown", "reason": "non exploré en détail, non couvert par la suite de tests actuelle" }
+  ],
+  "diff": [],
+  "unknowns": [
+    "Contenu de src/lib/ami-navigation.ts (AMIGoto)",
+    "Routes /agenda, /checklist, /step, /step-form, /procedure-17cyber, /welcome/zones non détaillées",
+    "Relation entre consentement API (checkConsent/grantConsent) et toggles UI Préférences > Suivi des démarches",
+    "Distinction exacte entre page SPA /technical-error /network-error et écran natif Android WifiErrorScreen.kt (non déclenché en live)",
+    "Détail des formulaires /edit-address /edit-email /edit-preferred-username",
+    "Destination du bouton Gérer dans l'inbox notifications",
+    "Écran vide vs rempli du bloc Mon agenda sur la home (vide en Android natif, rempli en webapp) — cause non déterminée",
+    "Sheet onboarding iOS encore visible après le 2e tapFranceConnect() — lien avec le bug OIDC non confirmé",
+    "Presentation/Settings/SettingsView.swift, Presentation/Partner/PartnerView.swift, Services/NotificationManager/* iOS non atteints en live",
+    "Écran natif d'erreur réseau iOS non identifié dans le code lu"
+  ],
+  "resolvedNotes": [
+    "Bug de concurrence iOS (réaffichage écran FranceConnect) : clarifié par l'utilisateur comme implémenté dans le flow OIDC FranceConnect par une équipe tierce, hors périmètre du code AMI — ne pas chercher à le localiser dans ami-app-ios."
+  ]
+}
