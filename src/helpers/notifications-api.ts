@@ -43,6 +43,9 @@ interface PublishOptions {
 
 const PUBLISH_MAX_RETRIES = 5
 const PUBLISH_RETRY_DELAY_MS = 10000
+// Sans timeout, un fetch() sur une connexion coupée reste pendu jusqu'au timeout Mocha du
+// hook/test appelant (120-180s) au lieu d'échouer vite avec un message clair.
+const REQUEST_TIMEOUT_MS = 15000
 const STAGING_BASE_URL = 'https://ami-back-staging.osc-fr1.scalingo.io'
 
 function authHeaders(): {Authorization: string} {
@@ -58,9 +61,15 @@ function authHeaders(): {Authorization: string} {
  */
 export async function checkConsent(recipientFcHash: string): Promise<boolean> {
     const apiUrl = resolveApiUrl()
-    const response = await fetch(`${apiUrl}/api/v1/consent/${recipientFcHash}`, {
-        headers: {'Content-Type': 'application/json', ...authHeaders()},
-    })
+    let response: Response
+    try {
+        response = await fetch(`${apiUrl}/api/v1/consent/${recipientFcHash}`, {
+            headers: {'Content-Type': 'application/json', ...authHeaders()},
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+    } catch (err) {
+        throw new AssertionError({message: `GET /api/v1/consent/${recipientFcHash} → pas de réponse sous ${REQUEST_TIMEOUT_MS}ms (${(err as Error).message})`})
+    }
     if (response.status === 404) return false
     if (!response.ok) {
         const text = await response.text().catch(() => '(corps illisible)')
@@ -76,11 +85,17 @@ export async function checkConsent(recipientFcHash: string): Promise<boolean> {
  */
 export async function grantConsent(recipientFcHash: string, granted = true): Promise<void> {
     const apiUrl = resolveApiUrl()
-    const response = await fetch(`${apiUrl}/api/v1/consent/${recipientFcHash}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', ...authHeaders()},
-        body: JSON.stringify({consent: granted}),
-    })
+    let response: Response
+    try {
+        response = await fetch(`${apiUrl}/api/v1/consent/${recipientFcHash}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', ...authHeaders()},
+            body: JSON.stringify({consent: granted}),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+    } catch (err) {
+        throw new AssertionError({message: `POST /api/v1/consent/${recipientFcHash} → pas de réponse sous ${REQUEST_TIMEOUT_MS}ms (${(err as Error).message})`})
+    }
     if (!response.ok) {
         const text = await response.text().catch(() => '(corps illisible)')
         throw new AssertionError({message: `POST /api/v1/consent/${recipientFcHash} → HTTP ${response.status}: ${text}`})
@@ -138,14 +153,26 @@ export async function publishNotification({
 
     let lastError: Error | undefined
     for (let attempt = 1; attempt <= PUBLISH_MAX_RETRIES; attempt++) {
-        const response = await fetch(`${apiUrl}/api/v2/event`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                ...authHeaders(),
-            },
-            body: JSON.stringify(payload),
-        })
+        let response: Response
+        try {
+            response = await fetch(`${apiUrl}/api/v2/event`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders(),
+                },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+            })
+        } catch (err) {
+            // Pas de réponse sous REQUEST_TIMEOUT_MS (coupure réseau, cold-start Scalingo) :
+            // même traitement qu'un 5xx transitoire, on retente après le délai habituel.
+            lastError = new AssertionError({ message: `PUT /api/v2/event → pas de réponse sous ${REQUEST_TIMEOUT_MS}ms (${(err as Error).message})` })
+            if (attempt < PUBLISH_MAX_RETRIES) {
+                await new Promise(r => setTimeout(r, PUBLISH_RETRY_DELAY_MS))
+            }
+            continue
+        }
 
         if (response.ok || response.status === 201) return
 
