@@ -7,6 +7,11 @@ import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
 
+// Signature d'une page d'erreur technique du fournisseur d'identité de démonstration FCP-LOW
+// (ex. "code : Y000000"), distincte des écrans normaux du flow (login/eIDAS/credentials) —
+// observée en pratique quand le sandbox externe est en maintenance ou instable.
+const FC_ERROR_CODE_PATTERN = /code\s*:\s*(\S+)/i
+
 class FranceConnectMirePage {
     /**
      * Sonde dédiée natif — bare (pas de inWebContext, il n'y en a pas besoin côté natif) :
@@ -117,6 +122,16 @@ class FranceConnectMirePage {
                     browser.getUrl(),
                 ]).catch(() => ['?', '?'])
                 log.warn(`Pas de bouton FranceConnect affiché (title="${title}", url="${url}") — session FC déjà ouverte ?`)
+                const bodyText = await driver.execute(() => document.body.innerText).catch(() => '') as string
+                const errorCode = bodyText.match(FC_ERROR_CODE_PATTERN)?.[1]
+                if (errorCode) {
+                    // Panne/instabilité du sandbox externe FCP-LOW, pas un cas applicatif toléré
+                    // (cf. isOkToFail ci-dessous) : fait toujours échouer le test, avec le code
+                    // renvoyé par le fournisseur pour faciliter le signalement à l'équipe FC.
+                    throw new AssertionError({
+                        message: `Le fournisseur d'identité de démonstration FranceConnect renvoie une page d'erreur (code: ${errorCode}, url="${url}")`
+                    })
+                }
                 const message = "bouton de connexion avec FranceConnect introuvable"
                 if (isOkToFail) {
                     // when this message stops appearing with iOS,
