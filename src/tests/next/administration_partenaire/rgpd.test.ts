@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 1.5 du backlog `docs/parcours_partenaires.md`.
- *
  * Rôle requis : `Administrateur·ice`.
  * Suppression des données d'un usager dans le cadre des demandes RGPD,
  * vérification de la disparition côté Usager 360 / statistiques et de la trace d'action.

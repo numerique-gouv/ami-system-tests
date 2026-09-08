@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 2.1 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie l'affichage des contenus et catalogues partenaires (Service Public, DN)
  * récupérés après FranceConnexion, ainsi que la personnalisation via API Particulier.
  * Driver : Appium mobile, contexte mixte natif + WebView (cf. CONTRIBUTING.md §4 WebView et contextes).

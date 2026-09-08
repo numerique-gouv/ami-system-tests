@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 1.2 du backlog `docs/parcours_partenaires.md`.
- *
  * Rôle requis : `Administrateur·ice`.
  * Vérifie l'attribution / modification / retrait des rôles et la traçabilité associée
  * (cf. DAT 5.1 — « Gestion des droits et traçabilité »).

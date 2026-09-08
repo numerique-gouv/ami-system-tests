@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 1.3 du backlog `docs/parcours_partenaires.md`.
- *
  * Rôle requis : `Notification`.
  * Envoi d'une notification individuelle depuis l'Espace Partenaire et vérification
  * côté app AMI. Test hybride : driver web pour l'envoi, driver mobile pour la réception.

@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 1.1 du backlog `docs/parcours_partenaires.md`.
- *
  * Cible : l'Espace Partenaire, une webapp Django (cf. DAT 3.2).
  * Ces tests s'exécutent sur un navigateur web, pas en Appium mobile —
  * la stratégie d'orchestration (capability `browserName` vs profil dédié)

@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 2.5 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie le retour d'information de fin de démarche vers AMI :
  * postMessage entre frontaux (état actuel), signature du message (cible),
  * mise à jour du suivi, abandon, et rejet d'un message non conforme.

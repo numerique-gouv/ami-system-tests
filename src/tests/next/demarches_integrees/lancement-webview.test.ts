@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 2.2 du backlog `docs/parcours_partenaires.md`.
- *
  * Cinématique de lancement d'une démarche partenaire depuis l'app AMI :
  * reconnexion silencieuse via AMI-FI, ouverture en webview intégrée (URL whitelistée)
  * ou redirection vers le navigateur externe (URL non whitelistée).

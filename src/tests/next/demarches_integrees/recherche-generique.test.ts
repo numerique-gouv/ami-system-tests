@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 2.6 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie les flux sortants légers vers un tiers pour la recherche de démarche
  * générique (par ex. critère de localité). Données potentiellement à caractère personnel :
  * vérifier la minimisation (cf. DAT 3.5).

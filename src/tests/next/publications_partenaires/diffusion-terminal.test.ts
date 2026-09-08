@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 3.2 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie la diffusion d'une notification reçue par AMI vers le terminal usager :
  * push natif via Firebase Cloud Messaging si terminal enrôlé + permission OS,
  * fallback dans l'inbox in-app, et réception temps réel via websocket app ouverte.
