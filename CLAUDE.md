@@ -28,9 +28,14 @@ just open-report                                    # générer et ouvrir le rap
 
 | Type | Emplacement | Usage |
 |------|-------------|-------|
-| **Skills** (capacités Claude exécutables) | `.agents/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
+| **Skills** (capacités Claude exécutables) | `.claude/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
 | **Règles générales** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | POM, sélection des éléments, WebView, assertions, isolation, retry, Allure, débogage. Lire avant d'écrire du code. |
 | **Cas particuliers** | commentaires dans le fichier de code concerné | non documentés dans un fichier séparé. |
+
+La plupart des skills sous `.claude/skills/` viennent du pack tiers `klamping/webdriverio-skills`,
+réinstallé par `just setup-claude` (`npx skills add klamping/webdriverio-skills`) — une édition
+in-place d'un de ces `SKILL.md` est **écrasée au prochain `just setup-claude`**. Le skill
+`reconstructing-app-model` est propre à ce projet (pas issu du pack) et doit être préservé.
 
 Le raisonnement détaillé (tableaux page × action) derrière la règle de sélection résumée dans
 CONTRIBUTING.md §2 est archivé dans l'ADR

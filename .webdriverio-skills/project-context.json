@@ -1,0 +1,79 @@
+{
+  "updatedAt": "2026-09-08",
+  "websiteModel": {
+    "target": "ami-back-staging.osc-fr1.scalingo.io",
+    "path": "references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.json",
+    "mirror": ".webdriverio-skills/website-analysis.json",
+    "builtBy": "analyze-website",
+    "builtAt": "2026-09-08",
+    "staleIf": "structure du site (routes/sections) modifiée depuis cette date"
+  },
+  "wdioConfigs": [
+    { "file": "wdio.base.conf.ts", "role": "config partagée", "waitforTimeout": 15000, "connectionRetryTimeout": 120000, "connectionRetryCount": 3, "mochaOptsTimeout": 120000, "mochaOptsTimeoutDebug": "24h si WDIO_DEBUG=1", "specFileRetries": 0 },
+    { "file": "wdio.android.conf.ts", "role": "capabilities Android", "appiumPort": 4723 },
+    { "file": "wdio.ios.conf.ts", "role": "capabilities iOS", "appiumPort": 4724 },
+    { "file": "wdio.webapp.conf.ts", "role": "capabilities Chrome", "baseUrlSource": "resolveEnvironment() via AMI_ENV", "appiumService": false }
+  ],
+  "reporters": [
+    { "name": "spec" },
+    { "name": "allure", "outputDir": "allure-results", "addConsoleLogs": true, "note": "outputDir jamais nettoyé automatiquement avant un run, partagé entre android/ios/webapp" }
+  ],
+  "services": [
+    { "name": "appium-service", "usedBy": ["android", "ios"], "notUsedBy": ["webapp"] }
+  ],
+  "linting": {
+    "config": "eslint.config.js",
+    "base": "@typescript-eslint/recommended",
+    "rules": {
+      "no-unused-vars": "error (argsIgnorePattern ^_)",
+      "explicit-function-return-type": "warn",
+      "no-floating-promises": "error",
+      "no-console": "warn"
+    }
+  },
+  "testScripts": {
+    "test:android": "wdio run wdio.android.conf.ts",
+    "test:ios": "wdio run wdio.ios.conf.ts",
+    "test:webapp": "wdio run wdio.webapp.conf.ts",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report",
+    "note": "usage prescrit via justfile (just test-android/test-ios/test-webapp/test-webci/check-code/open-report), pas npm direct"
+  },
+  "testSuites": {
+    "source": "test-suites.ts",
+    "envVar": "WDIO_SUITE",
+    "named": {
+      "all": "authentication.test.ts + tous les tests mobile, session partagée",
+      "short": "authentication.test.ts seul",
+      "CI": "authentication + notifications + demarches + profile",
+      "auth": "authentication.test.ts en session séparée",
+      "api": "notifications + demarches"
+    }
+  },
+  "customCommands": [
+    { "name": "tl()", "file": "src/helpers/webview.ts", "purpose": "Testing Library sur WebView" },
+    { "name": "retourJusquATexteVisible()", "file": "src/helpers/webview.ts", "purpose": "navigation retour répétée jusqu'à sentinel, timeout local 10s indépendant du réseau" },
+    { "name": "getAppToStartingState()", "file": "src/pages/authenticate.process.ts", "purpose": "amène l'app à l'état connecté via FranceConnect, retry borné par écran" },
+    { "name": "traced()", "file": "src/helpers/traced.ts", "purpose": "wrap les singletons Page Object pour tracing" }
+  ],
+  "apiInterfaces": [
+    { "name": "checkConsent", "file": "src/helpers/notifications-api.ts", "endpoint": "GET /api/v1/consent/{fc_hash}", "timeoutMs": 15000 },
+    { "name": "grantConsent", "file": "src/helpers/notifications-api.ts", "endpoint": "POST /api/v1/consent/{fc_hash}", "timeoutMs": 15000 },
+    { "name": "publishNotification", "file": "src/helpers/notifications-api.ts", "endpoint": "PUT /api/v2/event", "timeoutMs": 15000, "retries": 5, "retryDelayMs": 10000, "note": "timeout ajouté 2026-09-08 après investigation flakiness coupure réseau" }
+  ],
+  "envVars": [
+    "AMI_ENV", "ANDROID_DEVICE_NAME", "ANDROID_HOME", "ANDROID_SDK_ROOT",
+    "IOS_DEVICE_NAME", "RUN_OLD_DEVICE", "WDIO_DEBUG", "WEBAPP_HEADLESS",
+    "WEB_APP_ACCESS_KEYS", "NOTIF_PARTNER_ID", "NOTIF_PARTNER_SECRET"
+  ],
+  "servers": [
+    { "name": "staging", "url": "https://ami-back-staging.osc-fr1.scalingo.io", "default": true, "servesWebappAndApi": true },
+    { "name": "review-app", "urlPattern": "https://ami-back-staging-pr{N}.osc-fr1.scalingo.io", "selector": "AMI_ENV contient un nombre" }
+  ],
+  "notes": [
+    "allure-results/ et .wdio-logs/*.log ne sont jamais nettoyés automatiquement avant un run — accumulation cross-run et cross-plateforme, voir health-recommendations.md",
+    "Ne jamais lire .env.local ni afficher ses valeurs, y compris via un outil",
+    "Le modèle du site (websiteModel ci-dessus) doit être lu par les skills de planification/investigation avant toute nouvelle exploration du site"
+  ]
+}
