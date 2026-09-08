@@ -1,4 +1,4 @@
-import type { Locator } from './onboarding.locators'
+import type { Locator } from '../onboarding.locators'
 
 /**
  * Sélecteurs de l'écran de sélection d'environnement (review-picker staging).

@@ -1,4 +1,4 @@
-import type { Locator } from './onboarding.locators'
+import type { Locator } from '../onboarding.locators'
 
 /**
  * Sélecteurs de l'écran "mire" AMI — le bouton "S'identifier avec FranceConnect".
