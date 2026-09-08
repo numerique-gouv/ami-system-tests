@@ -1,4 +1,4 @@
-import type { Locator } from './onboarding.locators'
+import type { Locator } from './types'
 
 /**
  * L'app AMI est 100% Svelte SPA rendue dans un android.webkit.WebView / WKWebView.

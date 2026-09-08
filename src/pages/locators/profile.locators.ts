@@ -1,4 +1,4 @@
-import type { Locator } from './onboarding.locators'
+import type { Locator } from './types'
 
 /**
  * Sélecteurs WebView de la page "Mon profil" (SPA Svelte, route /#/profile).
