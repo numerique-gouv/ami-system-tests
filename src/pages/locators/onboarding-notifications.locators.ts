@@ -1,4 +1,4 @@
-import type { Locator } from './onboarding.locators'
+import type { Locator } from './types'
 
 /**
  * Localisateurs de l'écran d'onboarding notifications (post-login).
