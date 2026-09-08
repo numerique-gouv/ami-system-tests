@@ -28,7 +28,7 @@ class FranceConnectCredentialsPage {
         return await platform().inWebContext(() => this.isCredentialsPageTextVisibleBare()).catch(() => false)
     }
 
-    async fillCredentials(user: TestUser) {
+    async fillCredentials(user: TestUser): Promise<void> {
         await platform().inWebContext(async () => {
             try {
                 // synchrone, survit à une navigation en cours (cf. commentaire selectEidasFaible

@@ -12,7 +12,7 @@ import { platform } from '../platform'
  *     await bell.click()
  *   })
  */
-export function tl() {
+export function tl(): ReturnType<typeof setupBrowser> {
   // Cast nécessaire : @testing-library/webdriverio@3 cible WDIO v7/v8 —
   // les types ChainablePromiseElement ont divergé en v9 sans impact à l'exécution.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
