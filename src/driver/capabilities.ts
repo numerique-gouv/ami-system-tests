@@ -6,9 +6,11 @@ const ANDROID_APP_PATH = path.resolve(
   '../../../ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk'
 )
 
+// Le projet iOS construit avec -derivedDataPath ../build depuis ami-app-ios/, donc à côté
+// de ami-app-ios/ (sibling sous ami/), pas dans ami-app-ios/build/.
 const IOS_APP_PATH = path.resolve(
   __dirname,
-  '../../../ami-app-ios/build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
+  '../../../build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
 )
 
 // ─── Android ────────────────────────────────────────────────────────────────
