@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 2.4 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie les modalités de préremplissage d'une démarche partenaire :
  * JWT signé par AMI + chiffré avec la clé publique partenaire (cible),
  * ou URL HTTPS simplifiée (type DN).

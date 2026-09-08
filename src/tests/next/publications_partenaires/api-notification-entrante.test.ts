@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 3.1 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie l'API de demande de notification exposée par AMI API aux partenaires :
  * authentification HTTP Basic Auth, validation du Numéro d'identification,
  * codes de retour et règles de filtrage (cf. DAT 3.5).

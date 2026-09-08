@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 3.3 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie l'alimentation de l'historique des événements de l'usager par les
  * notifications partenaires, l'ordonnancement de plusieurs notifications sur
  * une même démarche, et la suppression RGPD côté Espace Partenaire.

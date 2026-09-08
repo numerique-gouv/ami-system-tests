@@ -1,8 +1,6 @@
 import AllureReporter from '@wdio/allure-reporter'
 
 /**
- * Section 2.3 du backlog `docs/parcours_partenaires.md`.
- *
  * Vérifie le comportement côté partenaire selon qu'il implémente ou non
  * la FranceConnexion directe (idp_hint=AMI-FI + prompt=login), et le cas
  * d'une session FranceConnect expirée malgré la reconnexion silencieuse.
