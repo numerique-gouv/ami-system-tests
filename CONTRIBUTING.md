@@ -2,6 +2,13 @@
 
 Ce document rassemble les **règles générales** à suivre pour écrire ou modifier un test. Pour installer, lancer les tests ou déboguer, voir le [README](README.md). Les cas particuliers (un seul écran, une seule méthode concernée) ne sont **pas** ici : ils sont documentés en commentaire directement dans le fichier de code concerné.
 
+Avant d'appliquer ces règles, prendre en compte les skills WDIO du projet (`.claude/skills/`, voir
+[CLAUDE.md](CLAUDE.md#skills-vs-règles-du-projet)) et leur contexte mis en cache dans
+`.webdriverio-skills/` : ce cache peut contenir des conventions ou un état du modèle applicatif
+déjà établis. S'il diverge de l'état réel observé d'une des apps (webapp, Android ou iOS), cette
+désynchronisation constatée est en elle-même un critère pour relancer `reconstructing-app-model`
+sur cette app, indépendamment d'un échec de test.
+
 ## Sommaire
 
 1. [Page Objects — architecture 3 niveaux](#1-page-objects--architecture-3-niveaux)
