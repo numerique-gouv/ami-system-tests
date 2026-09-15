@@ -43,6 +43,9 @@ export default defineConfig({
   // des messages d'erreur réellement levés dans src/helpers/ (pas de vocabulaire inventé) :
   // src/helpers/access-code.ts, src/helpers/notifications-api.ts, et des timeouts
   // WebdriverIO/Appium génériques (waitForDisplayed/waitUntil, contexte WebView perdu).
+  // france-connect-erreur-fournisseur et notification-websocket-non-recue ajoutées le
+  // 2026-09-15 suite à une campagne d'analyse d'instabilité (skill analyzing-test-flakiness) :
+  // src/pages/franceconnect/franceconnect-mire.page.ts et src/pages/notifications.page.ts.
   categories: {
     rules: [
       {
@@ -66,6 +69,22 @@ export default defineConfig({
         name: 'Contexte WebView/Appium perdu ou session fermée',
         matchers: {
           message: /no such context|session is either terminated|invalid session id/,
+        },
+        groupBy: ['environment'],
+      },
+      {
+        id: 'france-connect-erreur-fournisseur',
+        name: "Erreur technique du fournisseur d'identité FranceConnect (FCP-LOW)",
+        matchers: {
+          message: /Le fournisseur d'identité de démonstration FranceConnect renvoie une page d'erreur \(code: Y.*?, id: .*?, url=".*?"\)/,
+        },
+        groupBy: ['environment'],
+      },
+      {
+        id: 'notification-websocket-non-recue',
+        name: 'Notification WebSocket non reçue (Android)',
+        matchers: {
+          message: /Notification not received:AMI\-vanilla\-.*?\./,
         },
         groupBy: ['environment'],
       },

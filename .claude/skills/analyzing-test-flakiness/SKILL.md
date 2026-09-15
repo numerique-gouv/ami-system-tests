@@ -135,6 +135,11 @@ approves an `allurerc.mjs` rule addition at the checkpoint above.
   derived from one campaign's vocabulary, not a validated rule.
 - Re-running a full campaign when `flaky-runs/` from an earlier session is still relevant — the
   script can be re-invoked on existing archives at no cost.
+- Re-invoking `analyze_flakiness.py` (e.g. after adding an `allurerc.mjs` rule, to confirm a
+  cluster now classifies correctly) without realizing it **overwrites `SYNTHESIS.md` entirely** —
+  step 4/5's hand-consolidated root-cause diagnostics and any user correction to an agent's
+  hypothesis are not preserved across a re-run. Re-append them after re-invoking, don't just trust
+  the regenerated file to still contain step 5's work.
 - Writing a dynamic string (a normalized signature, a raw error message, a test key) into
   `SYNTHESIS.md` prose without passing it through `md_safe()` first. Signatures contain literal
   `<S>`/`<N>`/`<D>`/`<HASH>`/`<UUID>`/`<TS>`/`<HTML>` placeholders by construction, and raw
