@@ -72,6 +72,14 @@ class ProfilePage {
     async getAddressBolds(): Promise<string[]> {
         const loc = getProfileLocators()
         return await platform().inWebContext(async () => {
+            // Sentinelle : la section adresse se peuple de façon asynchrone après l'arrivée sur la
+            // page (résolution de l'adresse), plus lentement que les sections identité/email — sans
+            // attente, $$() capture régulièrement la section encore vide (0 <b>), cf. CONTRIBUTING.md §4.
+            await browser.waitUntil(
+                async () => await $$(`${loc.addressSection} b`).length > 0,
+                {timeout: 5000, interval: 200, timeoutMsg: 'Section "Mon adresse" jamais peuplée (aucune balise <b>)'}
+            )
+
             const texts: string[] = []
             for await (const b of $$(`${loc.addressSection} b`)) {
                 const text = (await b.getText()).trim()
