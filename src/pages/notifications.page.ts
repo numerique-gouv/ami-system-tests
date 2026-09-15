@@ -65,13 +65,39 @@ class NotificationsInboxPage {
                         .some(el => el.children.length === 0 && el.textContent?.trim() === text),
                     title
                 ) as unknown as boolean,
-                {timeout: timeoutMs, interval: 300, timeoutMsg: `Notification not received:${title}.`}
+                {timeout: timeoutMs, interval: 2000, timeoutMsg: `Notification not received:${title}.`}
             ).catch(() => false)
             if (found) {
                 log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
                 return found
             }
-            throw new AssertionError({ message: `Notification not received:${title}.` })
+
+            // Contournement iOS uniquement (cf. docs/process/2026-09-08-notifications-websocket-android-ios.md) :
+            // WKWebView peut laisser le WebSocket "zombie" (pas d'event close/error après un retour
+            // d'arrière-plan), donc `found` peut être faux même si la notification existe déjà côté
+            // serveur — un reload contourne le socket mort en forçant un fetch frais. À retirer une
+            // fois le heartbeat proposé dans ce document implémenté côté SPA. Sur Android, la liste se
+            // met déjà à jour en place via le WebSocket (vérifié le 2026-09-08) : un reload n'y
+            // apporterait qu'un délai supplémentaire, donc on échoue directement.
+            if (!driver.isIOS) {
+                throw new AssertionError({ message: `Notification not received:${title}.` })
+            }
+
+            await driver.execute(() => window.location.reload())
+            await browser.waitUntil(
+                () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
+                {timeout: 8000, interval: 200}
+            ).catch(() => {})
+            const foundAfterReload = await driver.execute(
+                (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
+                    .some(el => el.children.length === 0 && el.textContent?.trim() === text),
+                title
+            ) as unknown as boolean
+            if (foundAfterReload) {
+                log.log(`[notifications] reçue après reload (iOS, socket zombie contourné, ≤ ${timeoutMs}ms)`)
+                return true
+            }
+            throw new AssertionError({ message: `Notification not received:${title}. (iOS, même après reload)` })
         })
     }
 
