@@ -21,7 +21,7 @@ describe('Authentification', () => {
     await AllureReporter.addSeverity('critical')
     await AllureReporter.addTag('franceconnect')
   })
-  
+
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
     const user = getUser('avec_nom_dusage')
 
@@ -38,8 +38,7 @@ describe('Authentification', () => {
     await FranceConnectMirePage.tapFranceConnect(true )
 
     await AllureReporter.addStep('4. Vérifier l\'arrivée sur la page d\'accueil')
-    const homeReady = await HomePage.isHomeVisible(30000)
-    expect(homeReady).toBe(true)
+    await HomePage.assertHomeVisible(30000)
   })
 
 })

@@ -82,9 +82,7 @@ async function runSequenceFrom(startScreen: FcScreen, user: TestUser): Promise<v
     for (const [, run] of FC_SCREEN_SEQUENCE.slice(startIndex)) {
         await run(user)
     }
-    if (!await HomePage.isHomeVisible(FINAL_HOME_TIMEOUT_MS)) {
-        throw new AssertionError({message: 'authenticate: home non atteinte après la séquence'})
-    }
+    await HomePage.assertHomeVisible(FINAL_HOME_TIMEOUT_MS)
 }
 
 // Au-delà de ce nombre d'essais, aucune progression n'est possible : la séquence ne comporte
