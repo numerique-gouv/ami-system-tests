@@ -8,9 +8,23 @@ import {AssertionError} from "node:assert";
 const log = logger('page-object')
 
 // Signature d'une page d'erreur technique du fournisseur d'identité de démonstration FCP-LOW
-// (ex. "code : Y000000"), distincte des écrans normaux du flow (login/eIDAS/credentials) —
-// observée en pratique quand le sandbox externe est en maintenance ou instable.
+// (ex. "code : Y000000", "id: 887ae5c4-…"), distincte des écrans normaux du flow
+// (login/eIDAS/credentials) — observée en pratique quand le sandbox externe est en
+// maintenance ou instable.
 const FC_ERROR_CODE_PATTERN = /code\s*:\s*(\S+)/i
+const FC_ERROR_ID_PATTERN = /id\s*:\s*(\S+)/i
+
+/**
+ * Erreur fournisseur FCP-LOW (page technique hors contrôle de l'app AMI) : distincte des
+ * échecs applicatifs pour permettre à l'appelant (tapFranceConnect) de faire un retour natif
+ * avant de remonter l'échec — les boucles de retry de authenticate.process.ts reprennent
+ * ensuite la séquence depuis l'écran 'login'.
+ */
+class FranceConnectProviderError extends Error {
+    constructor(readonly code: string, readonly providerId: string | undefined, url: string) {
+        super(`Le fournisseur d'identité de démonstration FranceConnect renvoie une page d'erreur (code: ${code}, id: ${providerId ?? '?'}, url="${url}")`)
+    }
+}
 
 class FranceConnectMirePage {
     /**
@@ -125,12 +139,13 @@ class FranceConnectMirePage {
                 const bodyText = await driver.execute(() => document.body.innerText).catch(() => '') as string
                 const errorCode = bodyText.match(FC_ERROR_CODE_PATTERN)?.[1]
                 if (errorCode) {
+                    const providerId = bodyText.match(FC_ERROR_ID_PATTERN)?.[1]
                     // Panne/instabilité du sandbox externe FCP-LOW, pas un cas applicatif toléré
-                    // (cf. isOkToFail ci-dessous) : fait toujours échouer le test, avec le code
-                    // renvoyé par le fournisseur pour faciliter le signalement à l'équipe FC.
-                    throw new AssertionError({
-                        message: `Le fournisseur d'identité de démonstration FranceConnect renvoie une page d'erreur (code: ${errorCode}, url="${url}")`
-                    })
+                    // (cf. isOkToFail ci-dessous). Remonte une erreur typée plutôt qu'un throw
+                    // direct : l'appelant (hors inWebContext, donc de retour en NATIVE_APP) doit
+                    // encore faire un retour natif avant que l'échec ne remonte à
+                    // authenticate.process.ts pour reprise de la séquence.
+                    throw new FranceConnectProviderError(errorCode, providerId, url)
                 }
                 const message = "bouton de connexion avec FranceConnect introuvable"
                 if (isOkToFail) {
@@ -141,6 +156,20 @@ class FranceConnectMirePage {
                     throw new AssertionError({message})
                 }
             }
+        }).catch(async (err: unknown) => {
+            if (!(err instanceof FranceConnectProviderError)) throw err
+            // Log explicite (code + id) pour faciliter le signalement à l'équipe FranceConnect,
+            // indépendamment du message d'échec de test.
+            log.error(`FranceConnect FCP-LOW : page d'erreur fournisseur détectée (code=${err.code}, id=${err.providerId ?? '?'})`)
+            // inWebContext() a déjà restauré le contexte NATIVE_APP dans son `finally` : le back()
+            // agit ici sur le bouton/geste natif (pas l'historique de la WebView), pour quitter
+            // le navigateur intégré et revenir à l'écran AMI précédent.
+            await driver.back().catch((backErr: unknown) =>
+                log.warn('tapFranceConnect: driver.back() après erreur FCP-LOW a échoué', backErr))
+            // Erreur "normale" (non permanente) pour authenticate.process.ts : son while() attrape
+            // ce throw et relance runSequenceFrom() depuis l'écran détecté, cf. commentaire de
+            // getAppToStartingState().
+            throw new AssertionError({message: err.message})
         })
     }
 }
