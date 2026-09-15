@@ -124,9 +124,18 @@ check-deps:
     npx npm-check-updates
 
 # Mettre à jour package.json vers les dernières versions puis réinstaller
+# généralement, le cocktail de mise à jour crée une jeu de version incompatibles entree elles
+# ce script est souvent a terminer manuellement
+# npm doit être configuré avec cooldown de 14 jours
+# cat $HOME/.npmrc
+# min-release-age=14
+# appium ne connait pas ce concept et on peut les mettre à jours en annulant le cooldown configuré:
+# npm_config_min_release_age=0 npm run appium:update
 upgrade:
     npx npm-check-updates --upgrade
     @just setup
+    @echo "📥 Mise à jour des drivers Appium (uiautomator2 + xcuitest)…"
+    npm run appium:update || true
 
 # ─── Build ──────────────────────────────────────────────────────────────────
 
