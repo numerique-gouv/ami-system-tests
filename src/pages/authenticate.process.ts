@@ -2,6 +2,7 @@ import EnvironmentPickerPage from './franceconnect/environment-picker.page'
 import FranceConnectMirePage from './franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from './franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect/franceconnect-credentials.page'
+import PasskeyRegistrationPromptPage from './passkey-registration-prompt.page'
 import HomePage from './home.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/test-users'
@@ -29,7 +30,10 @@ const FC_SCREEN_SEQUENCE: Array<[FcScreen, (user: TestUser) => Promise<void>]> =
         await FranceConnectEidasPage.selectEidasFaible()
     }],
     ['credentials', (user): Promise<void> => FranceConnectCredentialsPage.fillCredentials(user)],
+    // Proposition de création de clé d'accès (passkey), conditionnée par un feature flag
+    // applicatif — no-op silencieux si absente (cf. PasskeyRegistrationPromptPage.dismiss()).
     ['home', async (): Promise<void> => {
+        await PasskeyRegistrationPromptPage.dismiss()
     }],
 ]
 
