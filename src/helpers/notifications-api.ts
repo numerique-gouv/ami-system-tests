@@ -208,6 +208,25 @@ function resolveApiUrl(): string {
     return _backendUrl
 }
 
+/**
+ * Nom d'application Scalingo dérivé de l'URL backend courante.
+ */
+function scalingoAppName(): string {
+    const match = /^https:\/\/([a-z0-9-]+)\.osc-fr1\.scalingo\.io/.exec(_backendUrl)
+    return match ? match[1] : _backendUrl
+}
+
+/**
+ * Message d'aide au diagnostic pour un échec de PROPAGATION (notification/démarche publiée avec
+ * succès — pas de 5xx, déjà couvert par publishNotification — mais jamais visible côté app dans le
+ * budget de polling du test). Aucune corrélation automatique possible depuis ce dépôt : on oriente
+ * vers les logs serveur pour distinguer latence normale, erreur de traitement asynchrone, etc.
+ */
+export function scalingoLogsHint(sinceMs: number): string {
+    const windowS = Math.round((Date.now() - sinceMs) / 1000)
+    return `Vérifier les logs Scalingo (app "${scalingoAppName()}", fenêtre ≈${windowS}s) pour le traitement côté serveur.`
+}
+
 function requireEnv(name: string): string {
     const val = process.env[name]
     if (!val) {

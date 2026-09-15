@@ -5,6 +5,7 @@ import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import HomePage from './home.page'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
+import {scalingoLogsHint} from '@helpers/notifications-api'
 
 const log = logger('page-object')
 
@@ -23,6 +24,7 @@ class SuiviDemarchesPage {
      * une correspondance exacte par texte visible convient, pas besoin de sous-chaîne manuelle.
      */
     async waitForDemarche(title: string): Promise<void> {
+        const startedAt = Date.now()
         const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
         let elapsed = 0
         for (const delay of backoffMs) {
@@ -62,7 +64,7 @@ class SuiviDemarchesPage {
             }
             log.log(`[suivi] démarche "${title}" toujours pas visible (≤ ${elapsed}ms)`)
         }
-        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms` })
+        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms. ${scalingoLogsHint(startedAt)}` })
     }
 
   /**
@@ -84,6 +86,7 @@ class SuiviDemarchesPage {
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
     const loc = getSuiviDemarchesLocators()
+    const startedAt = Date.now()
     await platform().inWebContext(async () => {
       let failReason: 'card-not-found' | 'status-not-found' = 'card-not-found'
       let lastStatus: string | null = null
@@ -110,7 +113,7 @@ class SuiviDemarchesPage {
         )
       } catch {
         if (failReason === 'card-not-found')
-          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms` })
+          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)}` })
         throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus})` })
       }
     })
