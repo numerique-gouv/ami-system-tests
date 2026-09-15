@@ -59,64 +59,38 @@ class HomePage {
      * affichés ensemble sur tous les écrans, donc ne discriminent pas Home à eux seuls.
      * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
      *
-     * Retourne un booléen réel (jamais de throw) — les appelants qui veulent un échec dur
-     * (ex. goToHomeFromAnywhere, getAppToStartingState()) le font explicitement sur le retour `false`.
+     * Échec dur (throw) plutôt que booléen : centralise le diagnostic (describeCurrentPage())
+     * pour ses 3 appelants (goToHomeFromAnywhere, authenticate.process.ts, authentication.test.ts)
+     * au lieu de le dupliquer à chaque site d'appel.
      */
-    async isHomeVisible(timeout = 30000): Promise<boolean> {
+    async assertHomeVisible(timeout = 30000): Promise<void> {
         // La page d'accueil est une webview'
-        if (!await platform().isWebContextAvailable()) return false
+        if (await platform().isWebContextAvailable()) {
+            // L'écran d'onboarding peut apparaitre, et doit être refusé (ca évite les pop-in native de notification qui pourraient intercépter les clicks).
+            if (await OnboardingNotificationsPage.isOnboardingVisible()) {
+                await OnboardingNotificationsPage.dismiss()
+                if (await this.probeWelcomeText(5000)) return
+            }
 
-        // est-ce que l'on est sur l'url de la page d'accueil ?
-        if (!await this.isOnHomeRoute()) return false
+            // Le menu plus reste parfois ouvert même après un reconnexion, au cas où, on le referme
+            if (await this.isMenuPlusVisible()) {
+                await platform().inWebContext(() => this.closeOpenNavPlusMenu())
+                if (await this.probeWelcomeText(5000)) return
+            }
 
-        // L'écran d'onboarding peut apparaitre, et doit être refusé (ca évite les pop-in native de notification qui pourraient intercépter les clicks).
-        if (await OnboardingNotificationsPage.isOnboardingVisible()) {
-            await OnboardingNotificationsPage.dismiss()
-            if (await this.probeWelcomeText(5000)) return true
+            // Ni onboarding ni menu "Plus" : la route seule ne suffit pas à confirmer la home
+            // authentifiée (la page "not connected" — écran de login FranceConnect — partage la
+            // même route). Seule la salutation "Bonjour" distingue les deux.
+            if (await this.probeWelcomeText(timeout)) return
         }
 
-        // Le menu plus reste parfois ouvert même après un reconnexion, au cas où, on le referme
-        if (await this.isMenuPlusVisible()) {
-            await platform().inWebContext(() => this.closeOpenNavPlusMenu())
-            if (await this.probeWelcomeText(5000)) return true
-        }
-
-        // Ni onboarding ni menu "Plus" : la route seule ne suffit pas à confirmer la home
-        // authentifiée (la page "not connected" — écran de login FranceConnect — partage la
-        // même route). Seule la salutation "Bonjour" distingue les deux.
-        return await this.probeWelcomeText(timeout)
-    }
-
-    /**
-     * Sonde dédiée : sommes-nous sur la route home de la SPA AMI (`pathname === '/'`, hash
-     * `''` ou `'#/'`) ? Le pathname exclut les domaines externes (FranceConnect) qui peuvent
-     * transitoirement avoir un hash vide eux aussi. Attend une courte fenêtre (au lieu d'une
-     * lecture instantanée) : juste après un retour de redirection OIDC, le routeur SPA peut ne
-     * pas avoir encore réécrit le hash.
-     */
-    private async isOnHomeRoute(): Promise<boolean> {
-        try {
-            return await platform().inWebContext(async () => {
-                await browser.waitUntil(
-                    () => driver.execute(() =>
-                        location.pathname === '/' && (location.hash === '' || location.hash === '#/')
-                    ) as Promise<boolean>,
-                    {
-                        timeout: 3000,
-                        interval: 300,
-                        timeoutMsg: 'isOnHomeRoute: route home absente'
-                    }
-                )
-                return true
-            })
-        } catch {
-            return false
-        }
+        const where = await describeCurrentPage()
+        throw new AssertionError({message: `assertHomeVisible: Home non atteinte (${where})`})
     }
 
     /**
      * Sonde le texte de salutation, sans cascade de récupération — extrait de l'ancien corps
-     * de isHomeVisible(), réutilisé à la fois comme premier essai et comme re-vérification
+     * de assertHomeVisible(), réutilisé à la fois comme premier essai et comme re-vérification
      * après chaque étape de la cascade.
      */
     private async probeWelcomeText(timeout: number): Promise<boolean> {
@@ -153,7 +127,7 @@ class HomePage {
     }
 
     /**
-     * Sonde dédiée, réutilisée par isHomeVisible() (détection d'écran) pour décider si
+     * Sonde dédiée, réutilisée par assertHomeVisible() (détection d'écran) pour décider si
      * closeOpenNavPlusMenu() a réellement quelque chose à fermer. Même sélecteur que
      * closeOpenNavPlusMenu(), sans le clic.
      */
@@ -173,7 +147,7 @@ class HomePage {
      * l'écran, interceptant le clic sur "Suivi" ("element click intercepted"). Non reproduit sur
      * WebView Android/iOS — cause probable côté app non élucidée, contournement test uniquement.
      *
-     * Public : réutilisée par isHomeVisible() (le menu "Plus" est aussi le menu profil/avatar,
+     * Public : réutilisée par assertHomeVisible() (le menu "Plus" est aussi le menu profil/avatar,
      * cf. profile.locators.ts `toggleMenuButton`) en plus de ouvreSuivi(). Reste context-agnostic
      * (à appeler depuis un inWebContext déjà ouvert) — pas de wait, idempotente.
      */
@@ -213,13 +187,9 @@ class HomePage {
             }
         })
         // Comme on part de n'importe où, on ne peut pas détécter qu'on a quitté la page précédente.
-        // donc on attend l'arrivée sur la page cible. isHomeVisible() ne throw plus (retourne un
-        // booléen réel, cf. son commentaire) — c'est ici, à l'appelant qui veut un échec dur, de
-        // lever l'erreur.
-        if (!await this.isHomeVisible(timeout)) {
-            const where = await describeCurrentPage()
-            throw new AssertionError({message: `goToHomeFromAnywhere: Home non atteinte après navigation (${where})`})
-        }
+        // donc on attend l'arrivée sur la page cible — assertHomeVisible() lève elle-même
+        // l'erreur (avec describeCurrentPage()) en cas d'échec.
+        await this.assertHomeVisible(timeout)
     }
 
     /**

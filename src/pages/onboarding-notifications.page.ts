@@ -27,7 +27,7 @@ class OnboardingNotificationsPage {
      * isDisplayed=false pendant l'animation d'entrée de la sheet.
      */
     /**
-     * Sonde dédiée, réutilisée par HomePage.isHomeVisible() (détection d'écran) et par
+     * Sonde dédiée, réutilisée par HomePage.assertHomeVisible() (détection d'écran) et par
      * dismiss() elle-même (même sentinelle, un seul appel).
      */
     async isOnboardingVisible(timeout = 5000): Promise<boolean> {
