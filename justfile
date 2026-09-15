@@ -206,7 +206,7 @@ start-ios:
         until xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; do sleep 1; done
         echo "✅ Simulateur prêt."
     fi
-    open -a Simulator
+    open -a Simulator 2>/dev/null || echo "⚠️  App graphique Simulator.app introuvable (installation Xcode incomplète) — simulateur utilisable en headless via simctl, tests non bloqués."
 
 # Arrêter le simulateur iOS (tous les simulateurs démarrés)
 stop-ios:
