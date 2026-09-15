@@ -45,9 +45,6 @@ setup:
     npm run appium:install || true
     @echo "✅ Setup terminé. Lance 'just test-android' ou 'just test-ios'."
 
-setup-claude:
-    npx skills add klamping/webdriverio-skills
-
 # Repartir d'un node_modules propre, strictement conforme au lockfile
 clean-install:
     @echo "🧹 Suppression de node_modules…"
