@@ -48,10 +48,13 @@ class SuiviDemarchesPage {
                 continue
             }
 
-            const found = await platform().inWebContext(
-                () => driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
+            const found = await platform().inWebContext(async () => {
+                // Le reload qui précède peut laisser un arbre d'accessibilité WKWebView périmé sur
+                // iOS (cf. refreshAxTree()) — no-op sur Android.
+                await platform().refreshAxTree()
+                return driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
                 //tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
-            )
+            })
 
             if (found) {
                 log.log(`[suivi] démarche "${title}" visible (≤ ${elapsed}ms)`)
@@ -123,6 +126,9 @@ class SuiviDemarchesPage {
    */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
     await platform().inWebContext(async () => {
+      // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
+      // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
+      await platform().refreshAxTree()
       // tl() par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
       // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
       try {

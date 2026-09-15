@@ -28,6 +28,9 @@ class FranceConnectEidasPage {
 
     async selectEidasFaible(): Promise<void> {
         await platform().inWebContext(async () => {
+            // Écran atteint juste après le redirect OIDC login → eIDAS — no-op sur Android,
+            // cf. commentaire de refreshAxTree() dans appium.adapter.ts.
+            await platform().refreshAxTree()
             const tileTimeoutMs = 10000
             await browser.waitUntil(
                 () => this.isEidasTileVisibleBare(),
