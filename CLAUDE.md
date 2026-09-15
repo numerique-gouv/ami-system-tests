@@ -37,6 +37,19 @@ réinstallé par `just setup-claude` (`npx skills add klamping/webdriverio-skill
 in-place d'un de ces `SKILL.md` est **écrasée au prochain `just setup-claude`**. Le skill
 `reconstructing-app-model` est propre à ce projet (pas issu du pack) et doit être préservé.
 
+Dès que la webapp, l'app Android ou l'app iOS a changé, mettre à jour les tests en repartant du
+skill **`reconstructing-app-model`** plutôt qu'en éditant les Page Objects/locators à la main :
+c'est lui qui re-dérive le modèle applicatif à partir de preuves live, audite les guidelines du
+projet par rapport à ce modèle, enrichit Page Objects/locators, et propose des scaffolds pour les
+écarts de couverture nouvellement identifiés (il délègue l'exploration webapp à `analyze-website`,
+la capture des écrans natifs restant à sa charge propre). Ne pas re-implémenter ce cycle
+manuellement — c'est déjà le rôle de ce skill aujourd'hui.
+
+Un constat de désynchronisation entre le modèle applicatif en cache (`.webdriverio-skills/` ou le
+modèle reconstruit) et l'état réel observé d'une des apps (webapp, Android ou iOS) est en soi un
+critère déclencheur pour relancer `reconstructing-app-model` sur cette app, même en l'absence
+d'échec de test constaté.
+
 Le raisonnement détaillé (tableaux page × action) derrière la règle de sélection résumée dans
 CONTRIBUTING.md §2 est archivé dans l'ADR
 `docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`.

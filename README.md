@@ -146,6 +146,15 @@ Le raisonnement détaillé (tableaux page × action) derrière la règle de sél
 CONTRIBUTING.md §2 est archivé dans l'ADR
 [`docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`](docs/adr/2026-07-09-Strategie-de-selection-des-elements.md).
 
+Avant d'écrire ou de modifier un test, prendre aussi en compte les skills WDIO sous
+`.claude/skills/` (voir [CLAUDE.md](CLAUDE.md#skills-vs-règles-du-projet)) et leur contexte projet
+mis en cache dans `.webdriverio-skills/` (conventions, environnement) : ce cache évite de
+redécouvrir à chaque session des éléments déjà établis, mais peut devenir obsolète. Un constat de
+désynchronisation entre ce cache (ou le modèle applicatif reconstruit) et l'état réel observé
+d'une des apps (webapp, Android ou iOS) est en soi un critère pour le rafraîchir — via
+`managing-project-customizations` pour le contexte projet, ou `reconstructing-app-model` pour le
+modèle applicatif — indépendamment d'un échec de test constaté.
+
 ### Workflow de débogage : observer avant d'écrire
 
 Les apps hybrides ont deux arbres d'éléments distincts (natif XCUITest/UIAutomator2 et DOM web) :
