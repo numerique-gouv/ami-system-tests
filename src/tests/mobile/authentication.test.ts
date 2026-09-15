@@ -3,6 +3,7 @@ import EnvironmentPickerPage from '../../pages/franceconnect/environment-picker.
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
+import PasskeyRegistrationPromptPage from '../../pages/passkey-registration-prompt.page'
 import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/test-users'
@@ -21,7 +22,7 @@ describe('Authentification', () => {
     await AllureReporter.addSeverity('critical')
     await AllureReporter.addTag('franceconnect')
   })
-
+  
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
     const user = getUser('avec_nom_dusage')
 
@@ -33,7 +34,8 @@ describe('Authentification', () => {
     await FranceConnectEidasPage.selectEidasFaible()
     await FranceConnectCredentialsPage.fillCredentials(user)
 
-    await AllureReporter.addStep('3. Passer l\'onboarding des notifications')
+    await AllureReporter.addStep('3. Passer la proposition de clé d\'accès puis l\'onboarding des notifications')
+    await PasskeyRegistrationPromptPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
     await FranceConnectMirePage.tapFranceConnect(true )
 

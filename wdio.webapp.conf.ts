@@ -35,8 +35,16 @@ export const config: Options.Testrunner = {
     {
       browserName: 'chrome',
       webSocketUrl: true,
-      'goog:chromeOptions': { 
+      'goog:chromeOptions': {
         args: headless ? ['--headless=new'] : [],
+        // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
+        // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
+        // addVirtualAuthenticator() dans before() ci-dessous pour celle-ci), gardé par
+        // prudence pour ne pas masquer les éléments de l'app sous cette bulle.
+        prefs: {
+          credentials_enable_service: false,
+          'profile.password_manager_enabled': false,
+        },
         // detach:true — le process Chrome ne dépend plus du cycle de vie de la session
         // Chromedriver : il survit à la fin de session normale ET à une interruption
         // (Ctrl+C saute tous les hooks JS, y compris after() ci-dessous). Seulement en
@@ -62,6 +70,19 @@ export const config: Options.Testrunner = {
     // de le dupliquer ou de le remplacer — la navigation initiale + capture du handle sont
     // spécifiques à la webapp (pas de notion d'onglet côté Appium/mobile), donc gérées ici.
     registerReplHelpers()
+    // Authenticator virtuel WebDriver (spec WebAuthn niveau 2) : sans lui, tout appel
+    // navigator.credentials.create()/.get() — qu'il vienne d'un clic explicite sur "Ajouter
+    // une clé d'accès" ou d'une offre automatique de Chrome après une connexion par mot de
+    // passe (observé en pratique juste après FranceConnectCredentialsPage.fillCredentials())
+    // — délègue à l'authenticateur de la plateforme et ouvre une boîte de dialogue système
+    // (macOS Trousseau/Touch ID) hors DOM : aucune commande WebDriver ne peut plus l'atteindre
+    // ni la fermer, la session entière reste figée jusqu'au timeout Mocha. L'enregistrer route
+    // ces appels vers l'authenticateur virtuel (isUserConsenting: approuve sans prompt).
+    await browser.addVirtualAuthenticator(
+      'ctap2', 'internal',
+      /* hasResidentKey */ true, /* hasUserVerification */ true,
+      /* isUserConsenting */ true, /* isUserVerified */ true
+    )
     // Aligne la fenêtre réelle sur le viewport émulé (cf. deviceMetrics ci-dessus) — sans ça,
     // la fenêtre headless par défaut est trop petite et les actions WebDriver (scrollIntoView,
     // click…) échouent en "move target out of bounds" dès qu'un élément sort de cette zone.
