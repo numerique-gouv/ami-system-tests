@@ -367,9 +367,9 @@ class Rule:
     statuses: Optional[set[str]]
 
 
-EXPECTED_USABLE_RULES = 4
+EXPECTED_USABLE_RULES = 6
 
-# Copie littérale de allurerc.mjs:46-81 (règles avec matcher `message`) — repli si le parsing
+# Copie littérale de allurerc.mjs:46-... (règles avec matcher `message`) — repli si le parsing
 # textuel du fichier échoue ou trouve un nombre de règles inattendu. GARDER SYNCHRONISÉ avec
 # allurerc.mjs ; un désaccord entre les deux est signalé (jamais silencieux, cf. parse_allurerc).
 FALLBACK_RULES: list[Rule] = [
@@ -379,6 +379,12 @@ FALLBACK_RULES: list[Rule] = [
          re.compile(r"PUT /api/v2/event"), None),
     Rule("contexte-webview-perdu", "Contexte WebView/Appium perdu ou session fermée",
          re.compile(r"no such context|session is either terminated|invalid session id"), None),
+    Rule("france-connect-erreur-fournisseur",
+         "Erreur technique du fournisseur d'identité FranceConnect (FCP-LOW)",
+         re.compile(r"Le fournisseur d'identité de démonstration FranceConnect renvoie une page "
+                    r"d'erreur \(code: Y.*?, id: .*?, url=\".*?\"\)"), None),
+    Rule("notification-websocket-non-recue", "Notification WebSocket non reçue (Android)",
+         re.compile(r"Notification not received:AMI\-vanilla\-.*?\."), None),
     Rule("timeout-attente-element", "Timeout d'attente d'un élément (waitForDisplayed / waitUntil)",
          re.compile(r"waitForDisplayed|waitUntil|still not displayed|element.*not found", re.IGNORECASE),
          {"broken", "failed"}),
@@ -416,7 +422,10 @@ def parse_allurerc(path: Path) -> tuple[list[Rule], list[str], Literal["parsed",
         seg_end = id_matches[idx + 1].start() if idx + 1 < len(id_matches) else len(block)
         seg = block[idm.start(): seg_end]
         rid = idm.group(1)
-        name_m = re.search(r"name:\s*[\"'](.+?)[\"']", seg)
+        # Deux alternatives dédiées (double puis simple guillemets), pas une classe [\"'] partagée
+        # pour ouvrir/fermer : un `name` à guillemets doubles contenant une apostrophe (ex. "...
+        # fournisseur d'identité...") se refermerait sinon prématurément sur cette apostrophe.
+        name_m = re.search(r'name:\s*"([^"]*)"', seg) or re.search(r"name:\s*'([^']*)'", seg)
         msg_m = re.search(r"message:\s*/((?:[^/\\]|\\.)*)/([a-z]*)", seg)
         if not msg_m:
             continue  # règle sans matcher `message` (ex. flaky-ou-regresse) — hors périmètre
