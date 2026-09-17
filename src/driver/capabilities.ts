@@ -48,8 +48,12 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
   // Doit correspondre au simulateur booté par ios-start / ios_simulator dans le justfile racine.
-  // platformVersion absent : Appium détecte la version depuis le simulateur connecté.
   'appium:deviceName': process.env.IOS_DEVICE_NAME ?? 'iPhone 17 Pro',
+  // Obligatoire dès que plusieurs runtimes iOS sont installés (ex. après une mise à jour Xcode
+  // qui ajoute un nouveau runtime sans retirer l'ancien) : sans cette capability, XCUITest prend
+  // par défaut le runtime le plus récent supporté par Xcode et, s'il ne correspond pas à celui du
+  // simulateur existant, crée un simulateur temporaire jetable au lieu de réutiliser celui-ci.
+  'appium:platformVersion': process.env.IOS_PLATFORM_VERSION ?? '27.0',
   'appium:app': IOS_APP_PATH,
   'appium:bundleId': 'fr.gouv.ami.staging',
   'appium:noReset': false,

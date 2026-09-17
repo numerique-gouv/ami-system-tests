@@ -12,7 +12,7 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "appium:install": "npx appium driver install uiautomator2 && npx appium driver install xcuitest",
+    "appium:install": "npx appium driver install uiautomator2@8.7.0 && npx appium driver install xcuitest@12.12.4",
     "appium:update": "npx appium driver update uiautomator2 && npx appium driver update xcuitest",
     "appium:start": "npx appium --port 4723 --log-level info",
     "open-report": "allure open",
@@ -32,8 +32,6 @@
     "@wdio/types": "^9.31.2",
     "allure": "^3.16.0",
     "appium": "^3.7.0",
-    "appium-uiautomator2-driver": "^8.7.0",
-    "appium-xcuitest-driver": "^12.12.4",
     "eslint": "^10.9.1",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
@@ -48,7 +46,6 @@
     "esbuild@0.28.0": true,
     "fsevents@2.3.3": true,
     "appium@3.6.0": true,
-    "geckodriver@6.1.1": true,
-    "appium-ios-tuntap@1.2.2": true
+    "geckodriver@6.1.1": true
   }
 }
