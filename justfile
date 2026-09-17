@@ -42,12 +42,18 @@ check:
     @(command -v appium > /dev/null || [ -f node_modules/.bin/appium ]) && echo "✅ appium" || echo "❌ appium manquant (npm install)"
     @command -v just      > /dev/null && echo "✅ just"      || echo "❌ just manquant"
 
+# Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus) — passer
+# par cette recette (plutôt que `npm run appium:install` en direct) garantit que l'install et le
+# `just test-android`/`test-ios` qui suivra utilisent le même APPIUM_HOME.
+install-appium-drivers:
+    @echo "📥 Installation des drivers Appium…"
+    npm run appium:install || true
+
 # Installer les dépendances Node et les drivers Appium
 setup:
     @echo "📥 Installation des dépendances…"
     npm install
-    @echo "📥 Installation des drivers Appium…"
-    npm run appium:install || true
+    just install-appium-drivers
     @echo "✅ Setup terminé. Lance 'just test-android' ou 'just test-ios'."
 
 # Repartir d'un node_modules propre, strictement conforme au lockfile
@@ -56,8 +62,7 @@ clean-install:
     rm -rf node_modules
     @echo "📥 Réinstallation stricte depuis package-lock.json…"
     npm ci
-    @echo "📥 Installation des drivers Appium…"
-    npm run appium:install || true
+    just install-appium-drivers
     @echo "✅ node_modules reconstruit."
 
 # Télécharger et installer manuellement chromedriver dans le cache WDIO.
