@@ -51,9 +51,9 @@ does not overwrite it.
    emulator + iOS simulator busy the whole time). Then run, for `i` in `1..N` and each platform:
    ```bash
    set -o pipefail
-   just test-<platform>-suite <suite> 2>&1 | tee flaky-test-<platform>-run-<i>.log
-   echo "exit=${PIPESTATUS[0]}" >> flaky-test-<platform>-run-<i>.log
    mkdir -p flaky-runs/<platform>-run-<i>
+   just test-<platform>-suite <suite> 2>&1 | tee flaky-runs/<platform>-run-<i>/flaky-test-<platform>-run-<i>.log
+   echo "exit=${PIPESTATUS[0]}" >> flaky-runs/<platform>-run-<i>/flaky-test-<platform>-run-<i>.log
    mv allure-results flaky-runs/<platform>-run-<i>/ 2>/dev/null || true
    mv .wdio-logs flaky-runs/<platform>-run-<i>/ 2>/dev/null || true
    ```
