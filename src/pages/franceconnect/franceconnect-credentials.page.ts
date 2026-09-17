@@ -53,7 +53,6 @@ class FranceConnectCredentialsPage {
                 const submitBtn = await tl().getByRole('button', {name: /valider/i})
                 await submitBtn.click()
                 //await submitBtn.waitForDisplayed({timeout: 15000, reverse: true})
-                await submitBtn.click()
             } catch {
                 // Best-effort : la session FC peut déjà être ouverte (cf. franceconnect-eidas.page.ts
                 // selectEidasFaible). Loggé quand même — une vraie erreur d'interaction (champ/bouton
