@@ -33,11 +33,23 @@ runs:
         distribution: temurin
         java-version: "17"
 
+    # `platform-tools` n'est pas versionné dans ce repo (toujours "latest" côté sdkmanager) —
+    # la clé de cache n'est donc pas invalidée automatiquement à une nouvelle version amont.
+    # Cache volontairement "sticky" (gain : évite un aller-retour réseau à chaque run) ; si une
+    # mise à jour de platform-tools est nécessaire, changer manuellement le suffixe de clé (v1 → v2).
+    - name: cache Android platform-tools
+      id: cache-platform-tools
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.ANDROID_SDK_ROOT }}/platform-tools
+        key: ${{ runner.os }}-android-platform-tools-v1
+
     # packages: 'platform-tools' (au lieu du défaut 'tools platform-tools') — le paquet
     # legacy `tools` dépend d'`emulator`, indisponible pour linux-aarch64, ce qui fait échouer
     # sdkmanager avec exit code 1. `adb` (seul besoin ici, via `just start-android`) vient de
     # `platform-tools`. Source : https://github.com/android-actions/setup-android/issues/283
-    - uses: android-actions/setup-android@v4
+    - if: steps.cache-platform-tools.outputs.cache-hit != 'true'
+      uses: android-actions/setup-android@v4
       with:
         packages: "platform-tools"
 
@@ -59,12 +71,25 @@ runs:
       shell: bash
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
+    # `~/.appium` (APPIUM_HOME par défaut, cf. justfile) contient les binaires des drivers
+    # (uiautomator2, xcuitest) téléchargés par `appium driver install` — pas couvert par le
+    # cache npm de setup-node (répertoire distinct de ~/.npm). Clé sur package.json : les
+    # versions de drivers sont figées dans les scripts `appium:install`/`appium:update`, donc
+    # tout changement de version y invalide bien le cache.
+    - name: cache Appium drivers
+      id: cache-appium-drivers
+      uses: actions/cache@v4
+      with:
+        path: ~/.appium
+        key: ${{ runner.os }}-appium-drivers-${{ hashFiles('ami-system-tests/package.json') }}
+
     # `just` (pas `npm run appium:install` en direct) pour que cette installation utilise le
     # même APPIUM_HOME que `just test-android-suite` plus bas — sinon Appium (devDependency
     # locale) bascule en mode "APPIUM_HOME projet" (node_modules/.cache/appium) à l'install,
     # et les tests cherchent les drivers dans ~/.appium : "Could not find a driver for
     # automationName 'UiAutomator2'" alors que le driver est bien installé, juste ailleurs.
     - name: Installer les drivers Appium
+      if: steps.cache-appium-drivers.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ami-system-tests
       run: just install-appium-drivers
@@ -99,6 +124,38 @@ runs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
+    # Cache de l'AVD (image système + données de création) — sans lui, chaque run retélécharge
+    # l'image système complète et recrée l'AVD depuis zéro avant même de démarrer les tests
+    # (poste le plus coûteux en temps de ce job). Clé incluant tous les paramètres qui
+    # déterminent le contenu de l'AVD : un changement d'API level/target/arch/profile régénère
+    # naturellement un cache neuf.
+    - name: cache AVD (appareil ancien, API 28)
+      if: ${{ inputs.run_old_device == 'true' }}
+      id: avd-cache-old
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android/avd/*
+          ~/.android/adb*
+        key: avd-28-google_apis_playstore-x86_64-pixel_2
+
+    # Ne s'exécute qu'au premier run (cache miss) : crée l'AVD et génère un snapshot de boot,
+    # capturés ensuite par le step actions/cache ci-dessus (post-job). Les runs suivants
+    # démarrent directement depuis ce snapshot au lieu de rebooter à froid.
+    - name: créer l'AVD et générer le snapshot (appareil ancien, API 28)
+      if: ${{ inputs.run_old_device == 'true' && steps.avd-cache-old.outputs.cache-hit != 'true' }}
+      uses: reactivecircus/android-emulator-runner@v2.38.0
+      with:
+        api-level: 28
+        target: google_apis_playstore
+        arch: x86_64
+        profile: pixel_2
+        avd-name: pixel_2_api28
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: false
+        script: echo "Snapshot AVD généré pour mise en cache."
+
     # target: google_apis_playstore (et non google_apis) — requis pour les notifications système
     # testées par cette suite (google_apis seul n'a pas les services Play nécessaires).
     # La bascule google_apis -> google_apis_playstore a corrigé la boucle infinie
@@ -122,6 +179,7 @@ runs:
         arch: x86_64
         profile: pixel_2
         avd-name: pixel_2_api28
+        force-avd-creation: false
         disable-animations: true
         working-directory: ami-system-tests
         script: |
@@ -138,6 +196,30 @@ runs:
       env:
         ANDROID_DEVICE_NAME: pixel_2_api28
 
+    - name: cache AVD (appareil récent, API 36)
+      if: ${{ inputs.run_old_device != 'true' }}
+      id: avd-cache-new
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android/avd/*
+          ~/.android/adb*
+        key: avd-36-google_apis-x86_64-pixel_8
+
+    - name: créer l'AVD et générer le snapshot (appareil récent, API 36)
+      if: ${{ inputs.run_old_device != 'true' && steps.avd-cache-new.outputs.cache-hit != 'true' }}
+      uses: reactivecircus/android-emulator-runner@v2.38.0
+      with:
+        api-level: 36
+        target: google_apis
+        arch: x86_64
+        profile: pixel_8
+        avd-name: pixel_8_api36
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: false
+        script: echo "Snapshot AVD généré pour mise en cache."
+
     - name: Tests E2E — appareil récent (API 36, targetSdk)
       if: ${{ inputs.run_old_device != 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
@@ -147,6 +229,7 @@ runs:
         arch: x86_64
         profile: pixel_8
         avd-name: pixel_8_api36
+        force-avd-creation: false
         disable-animations: true
         working-directory: ami-system-tests
         script: just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
