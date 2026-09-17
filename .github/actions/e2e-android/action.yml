@@ -99,12 +99,20 @@ runs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
+    # target: google_apis_playstore (et non google_apis) — la WebView système d'une image
+    # google_apis reste figée à ce qui était packagé avec l'image (Chrome ~65-70 pour l'API 28,
+    # 2018), faute de Play Store pour la mettre à jour. Chromedriver Autodownload récupère alors
+    # un binaire assorti à cette très vieille version, mais son handshake CDP échoue
+    # systématiquement contre cette WebView, provoquant une boucle infinie
+    # "Chromedriver exited unexpectedly ... signal SIGTERM" dès le premier inWebContext()
+    # (observé sur le run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673).
+    # L'image Play Store se met à jour au boot et embarque une WebView bien plus récente.
     - name: Tests E2E — appareil ancien (API 28, minSdk)
       if: ${{ inputs.run_old_device == 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 28
-        target: google_apis
+        target: google_apis_playstore
         arch: x86_64
         profile: pixel_2
         avd-name: pixel_2_api28
