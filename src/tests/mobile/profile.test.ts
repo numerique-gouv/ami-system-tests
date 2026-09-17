@@ -51,7 +51,11 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     try { await ProfilePage.navigateToProfileDirect() } catch { /* silencieux */ }
     try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch { /* silencieux */ }
     try { await ProfilePage.editEmail(original.email) } catch { /* silencieux */ }
-    try { await ProfilePage.editAddress(restoreAddressQuery) } catch { /* silencieux */ }
+    // Adresse originale vide (compte sans adresse Caf) : rien à restaurer — appeler editAddress('')
+    // échouerait dans l'autocomplétion BAN (aucun résultat pour une saisie vide).
+    if (restoreAddressQuery) {
+      try { await ProfilePage.editAddress(restoreAddressQuery) } catch { /* silencieux */ }
+    }
   })
 
   it('permet de modifier le nom d\'usage dans le bloc "Mon identité"', async () => {
