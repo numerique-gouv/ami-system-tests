@@ -7,6 +7,8 @@
 # brouillons de docs
 docs/articles
 
+# brouillons
+docs/articles/
 
 # dépendances, fichiers dérivés (compilés, logs, ...)
 node_modules/
