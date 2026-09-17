@@ -53,7 +53,11 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     try { await ProfilePage.navigateToProfileDirect() } catch { /* silencieux */ }
     try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch { /* silencieux */ }
     try { await ProfilePage.editEmail(original.email) } catch { /* silencieux */ }
-    try { await ProfilePage.editAddress(restoreAddressQuery) } catch { /* silencieux */ }
+    // Adresse originale vide (compte sans adresse Caf) : rien à restaurer, la reconnexion FranceConnect
+    // a déjà ramené l'adresse à cet état vide — appeler editAddress('') échouerait dans l'autocomplétion BAN.
+    if (restoreAddressQuery) {
+      try { await ProfilePage.editAddress(restoreAddressQuery) } catch { /* silencieux */ }
+    }
   })
 
   it('modifie le nom d\'usage', async () => {
@@ -112,9 +116,17 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
   it('affiche l\'adresse originale (pas la valeur modifiée)', async () => {
     await AllureReporter.addStep('Vérifier que l\'adresse est restaurée')
     const bolds = await ProfilePage.getAddressBolds()
-    for (const expected of original.addressBolds) {
-      expect(bolds).toContain(expected)
+    if (original.addressBolds.length === 0) {
+      // Compte sans adresse Caf (donnée tierce vide par conception) : l'état original est
+      // l'absence d'adresse — vérifier ce fait explicitement, pas seulement l'absence de "Ségur"
+      // (une assertion sur "Ségur" seul passerait aussi si une autre adresse non vide s'affichait
+      // par erreur).
+      expect(bolds).toEqual([])
+    } else {
+      for (const expected of original.addressBolds) {
+        expect(bolds).toContain(expected)
+      }
+      expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(false)
     }
-    expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(false)
   })
 })

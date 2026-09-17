@@ -67,17 +67,27 @@ class ProfilePage {
 
     /**
      * Retourne les textes des balises <b> de la section "Mon adresse".
-     * Ordre attendu : [rue, code postal + ville].
+     * Ordre attendu : [rue, code postal + ville] — ou tableau vide si l'usager n'a pas d'adresse
+     * connue (donnée Caf vide, cf. +page.svelte `{#if address}` : la carte s'affiche toujours,
+     * son contenu <b> est conditionnel, 0 <b> est un état légitime et non une erreur de chargement).
      */
     async getAddressBolds(): Promise<string[]> {
         const loc = getProfileLocators()
         return await platform().inWebContext(async () => {
-            // Sentinelle : la section adresse se peuple de façon asynchrone après l'arrivée sur la
-            // page (résolution de l'adresse), plus lentement que les sections identité/email — sans
-            // attente, $$() capture régulièrement la section encore vide (0 <b>), cf. CONTRIBUTING.md §4.
+            // Sentinelle : `identity`/`address` sont posés dans le même onMount synchrone
+            // (+page.svelte) mais le rendu de la carte peut encore être en cours juste après
+            // l'arrivée sur la page — on attend que le HTML de la section soit identique sur deux
+            // lectures rapprochées avant de lire les <b>, plutôt que d'exiger `>0` balise (qui
+            // traiterait une adresse légitimement vide comme un échec, cf. CONTRIBUTING.md §4).
+            let previousHtml: string | null = null
             await browser.waitUntil(
-                async () => await $$(`${loc.addressSection} b`).length > 0,
-                {timeout: 5000, interval: 200, timeoutMsg: 'Section "Mon adresse" jamais peuplée (aucune balise <b>)'}
+                async () => {
+                    const html = await $(loc.addressSection).getHTML({includeSelectorTag: false}).catch(() => null)
+                    const stable = html !== null && html === previousHtml
+                    previousHtml = html
+                    return stable
+                },
+                {timeout: 5000, interval: 300, timeoutMsg: 'Section "Mon adresse" jamais stabilisée'}
             )
 
             const texts: string[] = []
