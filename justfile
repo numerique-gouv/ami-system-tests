@@ -48,6 +48,7 @@ check:
 install-appium-drivers:
     @echo "📥 Installation des drivers Appium…"
     npm run appium:install || true
+    npx appium driver list --installed || true
 
 # Installer les dépendances Node et les drivers Appium
 setup:
