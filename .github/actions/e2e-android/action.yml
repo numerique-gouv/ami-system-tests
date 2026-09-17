@@ -204,14 +204,14 @@ runs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-36-google_apis-x86_64-pixel_8
+        key: avd-36-google_apis_playstore-x86_64-pixel_8
 
     - name: créer l'AVD et générer le snapshot (appareil récent, API 36)
       if: ${{ inputs.run_old_device != 'true' && steps.avd-cache-new.outputs.cache-hit != 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 36
-        target: google_apis
+        target: google_apis_playstore
         arch: x86_64
         profile: pixel_8
         avd-name: pixel_8_api36
@@ -225,7 +225,7 @@ runs:
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 36
-        target: google_apis
+        target: google_apis_playstore
         arch: x86_64
         profile: pixel_8
         avd-name: pixel_8_api36
