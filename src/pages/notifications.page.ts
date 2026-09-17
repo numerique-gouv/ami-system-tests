@@ -28,8 +28,13 @@ class NotificationsInboxPage {
     }
 
     /**
-     * Ouvre l'inbox en tapant l'icône cloche dans la WebView SPA,
-     * puis attend que le hash d'URL /#/notifications soit atteint.
+     * Ouvre l'inbox en tapant l'icône cloche dans la WebView SPA, puis attend que la page
+     * /#/notifications soit réellement montée (heading "Notifications" visible) avant de rendre
+     * la main. Nécessaire pour éviter une course avec publishNotification() côté appelant : la
+     * page /#/notifications ouvre son propre WebSocket au montage (cf. docstring de
+     * assertNotificationReceived) — publier une notification avant que cet abonnement soit
+     * établi la fait perdre définitivement sur Android (pas de rattrapage par reload, cf.
+     * assertNotificationReceived ci-dessous).
      * Pré-condition : l'onboarding notifications a déjà été refusé.
      */
     async openFromHome(): Promise<void> {
@@ -39,6 +44,7 @@ class NotificationsInboxPage {
             const bell = await tl().getByRole('button', {name: /notifications/i})
             await bell.waitForDisplayed({timeout: 15000})
             await bell.click()
+            await this.waitForNotificationsHeading()
         })
     }
     /**
