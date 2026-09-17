@@ -59,6 +59,11 @@ runs:
       shell: bash
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
+    - name: Installer les drivers Appium
+      shell: bash
+      working-directory: ami-system-tests
+      run: npm run appium:install
+
     - name: debug AVD devices
       shell: bash
       run: |
