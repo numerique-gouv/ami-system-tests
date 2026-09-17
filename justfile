@@ -9,6 +9,11 @@ set dotenv-required := false
 
 # ─── Variables ──────────────────────────────────────────────────────────────
 
+# Fixe APPIUM_HOME hors du projet : sans ça, Appium (devDependency locale) bascule en mode
+# "APPIUM_HOME projet" (node_modules/.cache/appium) et fige des chemins absolus qui deviennent
+# invalides au moindre déplacement/reclonage du repo.
+export APPIUM_HOME := env_var_or_default("APPIUM_HOME", env_var("HOME") / ".appium")
+
 android_project := "../ami-app-android"
 ios_project     := "../ami-app-ios"
 app_id          := "fr.gouv.ami.staging"
@@ -206,7 +211,7 @@ start-ios:
         until xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; do sleep 1; done
         echo "✅ Simulateur prêt."
     fi
-    open -a Simulator 2>/dev/null || echo "⚠️  App graphique Simulator.app introuvable (installation Xcode incomplète) — simulateur utilisable en headless via simctl, tests non bloqués."
+    open -b com.apple.dt.Devices 2>/dev/null || open -a Simulator 2>/dev/null || echo "⚠️  App graphique Simulator.app/DeviceHub.app introuvable — simulateur utilisable en headless via simctl, tests non bloqués."
 
 # Arrêter le simulateur iOS (tous les simulateurs démarrés)
 stop-ios:
