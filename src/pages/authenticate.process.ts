@@ -1,5 +1,5 @@
 import EnvironmentPickerPage from './franceconnect/environment-picker.page'
-import FranceConnectMirePage from './franceconnect/franceconnect-mire.page'
+import FranceConnectMirePage, {FranceConnectProviderError} from './franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from './franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect/franceconnect-credentials.page'
 import PasskeyRegistrationPromptPage from './passkey-registration-prompt.page'
@@ -43,8 +43,14 @@ const FC_SCREEN_SEQUENCE: Array<[FcScreen, (user: TestUser) => Promise<void>]> =
  */
 async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
     if (!await platform().isWebContextAvailable()) return null
-    return await platform().inWebContext(() =>
-        driver.execute(() => {
+    return await platform().inWebContext(async () => {
+        // Vérifié avant le bandeau générique "credentials" ci-dessous : la page d'erreur
+        // technique FCP-LOW partage le même bandeau que le vrai formulaire de login. Sans cette
+        // distinction, la boucle de getAppToStartingState() reboucle sur "credentials" jusqu'au
+        // TIMEOUT au lieu d'échouer net (cf. FranceConnectMirePage.detectProviderErrorBare()).
+        const providerError = await FranceConnectMirePage.detectProviderErrorBare()
+        if (providerError) throw providerError
+        return driver.execute(() => {
             // Restreint à <button> : la mire eIDAS de FranceConnect (hors contrôle de l'app AMI)
             // contient elle-même le mot "FranceConnect" dans un lien de pied de page — un simple
             // innerText.includes() sur tout le body matcherait donc aussi cet écran suivant.
@@ -63,7 +69,8 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
                 return 'credentials'
             return null
         }) as Promise<FcScreen | null>
-    ).catch((err: unknown) => {
+    }).catch((err: unknown) => {
+        if (err instanceof FranceConnectProviderError) throw err
         log.debug('authenticate: probeFranceConnectWebScreen a échoué', err)
         return null
     })

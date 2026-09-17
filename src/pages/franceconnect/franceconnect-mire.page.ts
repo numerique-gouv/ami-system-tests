@@ -20,7 +20,7 @@ const FC_ERROR_ID_PATTERN = /id\s*:\s*(\S+)/i
  * avant de remonter l'échec — les boucles de retry de authenticate.process.ts reprennent
  * ensuite la séquence depuis l'écran 'login'.
  */
-class FranceConnectProviderError extends Error {
+export class FranceConnectProviderError extends Error {
     constructor(readonly code: string, readonly providerId: string | undefined, url: string) {
         super(`Le fournisseur d'identité de démonstration FranceConnect renvoie une page d'erreur (code: ${code}, id: ${providerId ?? '?'}, url="${url}")`)
     }
@@ -67,6 +67,22 @@ class FranceConnectMirePage {
         if (!await platform().isWebContextAvailable()) return false
         return await platform().inWebContext(() => this.isFranceConnectTextVisible()).catch(() => false)
     }
+
+    /**
+     * Détecte la page d'erreur technique FCP-LOW — bare (à appeler depuis un inWebContext déjà
+     * ouvert, même contrainte que isFranceConnectTextVisible() ci-dessus). Réutilisée par
+     * probeFranceConnectWebScreen() (authenticate.process.ts) pour distinguer cette page
+     * technique du vrai formulaire credentials, qui partage le même bandeau générique
+     * "Fournisseur d'identité de démonstration - FCP-LOW".
+     */
+    async detectProviderErrorBare(): Promise<FranceConnectProviderError | null> {
+        const bodyText = await driver.execute(() => document.body.innerText).catch(() => '') as string
+        const errorCode = bodyText.match(FC_ERROR_CODE_PATTERN)?.[1]
+        if (!errorCode) return null
+        const providerId = bodyText.match(FC_ERROR_ID_PATTERN)?.[1]
+        const url = await browser.getUrl().catch(() => '?')
+        return new FranceConnectProviderError(errorCode, providerId, url)
+    }
     /**
      * Tape le bouton "S'identifier avec FranceConnect".
      * Sur iOS et en webapp, le bouton est toujours dans le DOM de la SPA. Sur Android, il est
@@ -112,23 +128,8 @@ class FranceConnectMirePage {
                     () => this.isFranceConnectTextVisible(),
                     {timeout, interval: 300}
                 )
-                // Reclique tant que le bouton n'a pas été trouvé, plutôt qu'un clic unique après
-                // un seul findByRole — un clic isolé peut être avalé par une transition en cours
-                // (concurrence OIDC, cf. commentaire de la méthode). queryByRole (non bloquant,
-                // cf. webview.ts) est l'équivalent WebView de isDisplayed() côté natif.
-                await browser.waitUntil(
-                    async () => {
-                        const fcButtonDisplayed = await this.isFranceConnectTextVisible().catch(() => false)
-                        if (fcButtonDisplayed) {
-                            const fcButton = await tl().queryByRole('button', {name: /^S.identifier avec FranceConnect$/i})
-                            if (fcButton)
-                               await fcButton.click()
-                            else return false
-                        }
-                        return fcButtonDisplayed
-                    },
-                    {timeout, interval: 500, timeoutMsg: "bouton de connexion avec FranceConnect introuvable, ou tap sans effet"}
-                )
+                const fcButton = await tl().getByRole('button', {name: /^S.identifier avec FranceConnect$/i})
+                await fcButton.click()
                 log.info('btn web FC trouvé et tap effectif !!!')
             } catch {
                 const [title, url] = await Promise.all([
