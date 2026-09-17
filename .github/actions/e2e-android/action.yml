@@ -59,10 +59,15 @@ runs:
       shell: bash
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
+    # `just` (pas `npm run appium:install` en direct) pour que cette installation utilise le
+    # même APPIUM_HOME que `just test-android-suite` plus bas — sinon Appium (devDependency
+    # locale) bascule en mode "APPIUM_HOME projet" (node_modules/.cache/appium) à l'install,
+    # et les tests cherchent les drivers dans ~/.appium : "Could not find a driver for
+    # automationName 'UiAutomator2'" alors que le driver est bien installé, juste ailleurs.
     - name: Installer les drivers Appium
       shell: bash
       working-directory: ami-system-tests
-      run: npm run appium:install
+      run: just install-appium-drivers
 
     - name: debug AVD devices
       shell: bash
