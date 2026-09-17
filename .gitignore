@@ -4,6 +4,8 @@
 
 # ide
 .idea/
+# brouillons de docs
+docs/articles
 
 
 # dépendances, fichiers dérivés (compilés, logs, ...)
