@@ -162,14 +162,15 @@ runs:
     # "Chromedriver exited unexpectedly ... signal SIGTERM" observée avec google_apis
     # (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673)
     # mais a fait apparaître un nouveau symptôme : aucun contexte WEBVIEW_* n'est détecté du
-    # tout par Appium (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35243397138/job/105278651817),
-    # alors que l'app utilise bien une WebView Android embarquée (pas de Chrome Custom
-    # Tabs/AppAuth — vérifié côté ami-app-android). Hypothèse non tranchée : le WebView
-    # system package est peut-être encore en cours de mise à jour par le Play Store au moment
-    # du test (quelques secondes après le boot). Le dump ci-dessous (dumpsys webviewupdate +
-    # logcat webview/chromium) sert à confirmer/infirmer cette hypothèse avant de choisir un
-    # correctif définitif (ex: attendre que le WebView update service soit "up to date" avant
-    # de lancer les tests).
+    # tout par Appium (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35243397138/job/105278651817).
+    # dumpsys webviewupdate montre com.android.chrome (69.0.3497.100) comme provider actif et
+    # valide — le WebView Update Service ne signale donc aucune anomalie côté provider. En local
+    # (device où le contexte WEBVIEW_* est bien détecté), le provider est com.google.android.webview
+    # (66.0.3359.158), pas Chrome. Ce paquet est présent sur l'image google_apis_playstore
+    # (listé "Valid package" par dumpsys) mais pas actif : on le force explicitement en provider
+    # avant de lancer les tests, plutôt que de continuer sur Chrome comme provider WebView.
+    # La bascule doit se faire dans ce même step (script `reactivecircus/android-emulator-runner`) :
+    # l'émulateur ne vit que le temps du step, un step séparé n'aurait pas de device `adb`.
     - name: Tests E2E — appareil ancien (API 28, minSdk)
       if: ${{ inputs.run_old_device == 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
@@ -183,6 +184,12 @@ runs:
         disable-animations: true
         working-directory: ami-system-tests
         script: |
+          echo "::group::Bascule provider WebView -> com.google.android.webview"
+          adb shell pm enable com.google.android.webview || true
+          adb shell pm install-existing --user 0 com.google.android.webview || true
+          adb shell cmd webviewupdate set-webview-implementation com.google.android.webview
+          adb shell dumpsys webviewupdate || true
+          echo "::endgroup::"
           just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
           echo "::group::Diagnostic WebView (dumpsys webviewupdate)"
           adb shell dumpsys webviewupdate || true
