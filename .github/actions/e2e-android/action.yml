@@ -14,6 +14,50 @@ inputs:
 runs:
   using: composite
   steps:
+    # Résout une seule fois les paramètres de l'appareil (ancien vs récent), réutilisés par les
+    # 3 steps plus bas (cache AVD, création AVD + snapshot, Tests E2E) — sans ce step, ces 5
+    # valeurs (api-level/target/arch/profile/avd-name) étaient dupliquées dans 6 steps distincts
+    # (3 par branche ancien/récent), avec le risque de les faire diverger entre cache et
+    # exécution réelle. `$GITHUB_ENV` (pas `$GITHUB_OUTPUT`) : disponible via `${{ env.X }}`
+    # dans les `with:` des steps `uses:` suivants, contrairement aux outputs d'un step qui
+    # demanderaient de préfixer chaque référence par `steps.<id>.outputs.`.
+    #
+    # API 29 (Android 10), pas 28 (Android 9) pour l'appareil ancien — cf.
+    # docs/adr/2026-09-22-Chromedriver-legacy-webview-android-ancien.md. L'API 28 embarquait un
+    # WebView Chrome 66-69 (2018), antérieur de ~2 ans à ES2020 (optional chaining/nullish
+    # coalescing, apparus avec Chrome 80/V8 8.0, fév. 2020) et pile dans la plage des binaires
+    # Chromedriver 2.39-2.44 cassés (bug "alpha"/`ready` manquant côté Google, jamais corrigé
+    # pour ces versions précises) — combinaison qui rendait tout pilotage Appium de cette WebView
+    # impossible sans hack (transpilation de dépendances tierces, jugée trop coûteuse à
+    # maintenir).
+    # Le tag AOSP initial `android-10.0.0_r1` (dépôt external/chromium-webview, commits
+    # "WebView AOSP Integration Request") montrait encore un WebView 74 (< 80) pour l'API 29,
+    # contre 83 pour `android-11.0.0_r1` (API 30) — d'où un premier choix sur l'API 30. Mais
+    # l'image système réellement distribuée par sdkmanager ne correspond pas au tag `_r1` de
+    # sortie initiale : vérifié empiriquement (AVD réel, arm64), API 29 et API 30 embarquent
+    # toutes deux la même révision de maintenance, WebView 91.0.4472.114 — largement au-delà du
+    # seuil ES2020. API 29 est donc tout aussi viable qu'API 30 côté WebView, et plus proche du
+    # minSdk réel de l'app (28) : c'est elle qui est retenue.
+    - name: Résoudre les paramètres de l'appareil Android (ancien vs récent)
+      shell: bash
+      run: |
+        # ANDROID_DEVICE_NAME sert à la fois de nom d'AVD (`with: avd-name:` des steps suivants)
+        # et de valeur lue par `just`/`capabilities.ts` (appium:deviceName) — un seul nom pour
+        # les deux usages, pas de variable dupliquée sous un 2e nom.
+        if [ "${{ inputs.run_old_device }}" = "true" ]; then
+          echo "ANDROID_DEVICE_NAME=pixel_2_api29" >> "$GITHUB_ENV"
+          echo "ANDROID_API_LEVEL=29"       >> "$GITHUB_ENV"
+          echo "ANDROID_TARGET=google_apis" >> "$GITHUB_ENV"
+          echo "ANDROID_ARCH=x86_64"        >> "$GITHUB_ENV"
+          echo "ANDROID_PROFILE=pixel_2"    >> "$GITHUB_ENV"
+        else
+          echo "ANDROID_DEVICE_NAME=pixel_8_api36" >> "$GITHUB_ENV"
+          echo "ANDROID_API_LEVEL=36"       >> "$GITHUB_ENV"
+          echo "ANDROID_TARGET=google_apis" >> "$GITHUB_ENV"
+          echo "ANDROID_ARCH=x86_64"        >> "$GITHUB_ENV"
+          echo "ANDROID_PROFILE=pixel_8"    >> "$GITHUB_ENV"
+        fi
+
     # nom produit par Gradle (basename de l'APK stagingDebug). `path` est résolu par
     # actions/download-artifact relatif à $GITHUB_WORKSPACE (racine du checkout du repo
     # appelant, ex. ami-app-android) et non à `ami-system-tests/` — `working-directory` n'a
@@ -128,59 +172,41 @@ runs:
     # l'image système complète et recrée l'AVD depuis zéro avant même de démarrer les tests
     # (poste le plus coûteux en temps de ce job). Clé incluant tous les paramètres qui
     # déterminent le contenu de l'AVD : un changement d'API level/target/arch/profile régénère
-    # naturellement un cache neuf.
-    - name: cache AVD (appareil ancien, API 28)
-      if: ${{ inputs.run_old_device == 'true' }}
-      id: avd-cache-old
+    # naturellement un cache neuf (ils viennent tous du step de résolution ci-dessus).
+    - name: cache AVD
+      id: avd-cache
       uses: actions/cache@v4
       with:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-28-google_apis-x86_64-pixel_2
+        key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}-${{ env.ANDROID_PROFILE }}
 
     # Ne s'exécute qu'au premier run (cache miss) : crée l'AVD et génère un snapshot de boot,
     # capturés ensuite par le step actions/cache ci-dessus (post-job). Les runs suivants
     # démarrent directement depuis ce snapshot au lieu de rebooter à froid.
-    - name: créer l'AVD et générer le snapshot (appareil ancien, API 28)
-      if: ${{ inputs.run_old_device == 'true' && steps.avd-cache-old.outputs.cache-hit != 'true' }}
+    - name: créer l'AVD et générer le snapshot
+      if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
-        api-level: 28
-        target: google_apis
-        arch: x86_64
-        profile: pixel_2
-        avd-name: pixel_2_api28
+        api-level: ${{ env.ANDROID_API_LEVEL }}
+        target: ${{ env.ANDROID_TARGET }}
+        arch: ${{ env.ANDROID_ARCH }}
+        profile: ${{ env.ANDROID_PROFILE }}
+        avd-name: ${{ env.ANDROID_DEVICE_NAME }}
         force-avd-creation: false
         emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
         disable-animations: false
         script: echo "Snapshot AVD généré pour mise en cache."
 
-    # target: google_apis (pas playstore — piste playstore abandonnée, cf. historique git de ce
-    # fichier pour le détail des tentatives infructueuses menées dessus : forcer
-    # com.google.android.webview comme provider via `cmd webviewupdate set-webview-implementation`
-    # rejeté par le système, absence totale de contexte WEBVIEW_* détecté par Appium avec Chrome
-    # comme provider).
-    #
-    # Sur google_apis (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35708560883/job/106684569047),
-    # dumpsys webviewupdate montre le même Chrome 69.0.3497.100 comme provider que sous
-    # google_apis_playstore — sur l'image x86_64 des runners GitHub-hosted, Chrome est déjà le
-    # provider WebView même sans le tag "playstore". Ce run a aussi vu réapparaître la boucle
-    # "Chromedriver exited unexpectedly ... signal SIGTERM" (68 occurrences en ~5 min, 4/4
-    # suites en échec sur getAppToStartingState) — à date pas confirmé si c'est spécifiquement
-    # lié aux notifications (hypothèse d'origine, cf. run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673)
-    # ou à autre chose : cette fois la boucle est apparue dès le test d'authentification, avant
-    # tout test de notification. À investiguer en direct sur google_apis plutôt qu'en
-    # réintroduisant Chrome via playstore.
-    - name: Tests E2E — appareil ancien (API 28, minSdk)
-      if: ${{ inputs.run_old_device == 'true' }}
+    - name: Tests E2E
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
-        api-level: 28
-        target: google_apis
-        arch: x86_64
-        profile: pixel_2
-        avd-name: pixel_2_api28
+        api-level: ${{ env.ANDROID_API_LEVEL }}
+        target: ${{ env.ANDROID_TARGET }}
+        arch: ${{ env.ANDROID_ARCH }}
+        profile: ${{ env.ANDROID_PROFILE }}
+        avd-name: ${{ env.ANDROID_DEVICE_NAME }}
         force-avd-creation: false
         disable-animations: true
         working-directory: ami-system-tests
@@ -201,45 +227,3 @@ runs:
           # moment du crash — ce fichier n'apparaît pas dans stdout, il faut le cat explicitement.
           cat .wdio-logs/appium-android.log || true
           echo "::endgroup::"
-      env:
-        ANDROID_DEVICE_NAME: pixel_2_api28
-
-    - name: cache AVD (appareil récent, API 36)
-      if: ${{ inputs.run_old_device != 'true' }}
-      id: avd-cache-new
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.android/avd/*
-          ~/.android/adb*
-        key: avd-36-google_apis-x86_64-pixel_8
-
-    - name: créer l'AVD et générer le snapshot (appareil récent, API 36)
-      if: ${{ inputs.run_old_device != 'true' && steps.avd-cache-new.outputs.cache-hit != 'true' }}
-      uses: reactivecircus/android-emulator-runner@v2.38.0
-      with:
-        api-level: 36
-        target: google_apis
-        arch: x86_64
-        profile: pixel_8
-        avd-name: pixel_8_api36
-        force-avd-creation: false
-        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-        disable-animations: false
-        script: echo "Snapshot AVD généré pour mise en cache."
-
-    - name: Tests E2E — appareil récent (API 36, targetSdk)
-      if: ${{ inputs.run_old_device != 'true' }}
-      uses: reactivecircus/android-emulator-runner@v2.38.0
-      with:
-        api-level: 36
-        target: google_apis
-        arch: x86_64
-        profile: pixel_8
-        avd-name: pixel_8_api36
-        force-avd-creation: false
-        disable-animations: true
-        working-directory: ami-system-tests
-        script: just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
-      env:
-        ANDROID_DEVICE_NAME: pixel_8_api36
