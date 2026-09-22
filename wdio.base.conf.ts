@@ -96,8 +96,9 @@ export const baseConfig: Partial<Options.Testrunner> = {
     const platformKind = platform().kind
     AllureReporter.addLabel('platform', platformKind)
     await AllureReporter.addArgument('platform', platformKind)
-    // run_old_device : uniquement pertinent pour Android (Pixel 6 API 31 vs Pixel 8 API 35),
-    // et seulement en CI où RUN_OLD_DEVICE est exporté par notification-api.android.yml.
+    // run_old_device : uniquement pertinent pour Android (pixel_2 API 29 vs pixel_8 API 36,
+    // cf. .github/actions/e2e-android/action.yml), et seulement en CI où RUN_OLD_DEVICE est
+    // exporté par le workflow appelant.
     if (process.env.RUN_OLD_DEVICE !== undefined) {
       AllureReporter.addLabel('run_old_device', String(process.env.RUN_OLD_DEVICE === 'true'))
     }
