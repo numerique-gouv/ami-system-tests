@@ -36,6 +36,11 @@ export const androidCapabilities = {
   // Requis pour switchContext('WEBVIEW_*') — télécharge automatiquement le Chromedriver
   // correspondant à la version du WebView Android embarqué dans l'app.
   'appium:chromedriverAutodownload': true,
+  // Diagnostic de la boucle "Chromedriver exited unexpectedly ... signal SIGTERM" observée en
+  // CI (cf. commentaires action.yml côté ami-system-tests) : fait remonter la sortie du process
+  // chromedriver dans le log Appium (voir `logLevel: 'debug'` dans wdio.android.conf.ts) pour
+  // voir la commande/version réellement lancée et la raison du crash.
+  'appium:showChromedriverLog': true,
   // Délais étendus pour les émulateurs qui chargent depuis un snapshot —
   // UiAutomation peut mettre plus de 5 s à se connecter après le boot.
   'appium:uiautomator2ServerLaunchTimeout': 60000,
