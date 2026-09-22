@@ -186,20 +186,14 @@ runs:
         working-directory: ami-system-tests
         script: |
           just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
+          echo "::group::Diagnostic logcat (buffer complet, non filtré)"
+          adb logcat -d || true
+          echo "::endgroup::"
           echo "::group::Diagnostic WebView (dumpsys webviewupdate)"
           adb shell dumpsys webviewupdate || true
           echo "::endgroup::"
           echo "::group::Diagnostic WebView (paquets installés)"
           adb shell pm list packages | grep -i webview || true
-          echo "::endgroup::"
-          echo "::group::Diagnostic logcat (buffer complet, non filtré)"
-          # Pas de grep ici : un filtre webview/chromium/cronet ne remontait rien d'utile (run
-          # https://github.com/numerique-gouv/ami-app-android/actions/runs/35708560883/job/106684569047)
-          # — sans doute parce que -t 2000 ne gardait que la toute fin du buffer, alors que la
-          # boucle SIGTERM survenait plusieurs minutes avant la fin de la suite. On dump tout le
-          # buffer disponible (pas de limite -t) pour pouvoir filtrer/grep a posteriori sur les
-          # logs complets plutôt que deviner un filtre a priori.
-          adb logcat -d || true
           echo "::endgroup::"
       env:
         ANDROID_DEVICE_NAME: pixel_2_api28
