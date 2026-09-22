@@ -22,7 +22,7 @@ runs:
     # dans les `with:` des steps `uses:` suivants, contrairement aux outputs d'un step qui
     # demanderaient de préfixer chaque référence par `steps.<id>.outputs.`.
     #
-    # API 29 (Android 10), pas 28 (Android 9) pour l'appareil ancien — cf.
+    # API 30 (Android 11), pas 28 (Android 9) pour l'appareil ancien — cf.
     # docs/adr/2026-09-22-Chromedriver-legacy-webview-android-ancien.md. L'API 28 embarquait un
     # WebView Chrome 66-69 (2018), antérieur de ~2 ans à ES2020 (optional chaining/nullish
     # coalescing, apparus avec Chrome 80/V8 8.0, fév. 2020) et pile dans la plage des binaires
@@ -30,14 +30,17 @@ runs:
     # pour ces versions précises) — combinaison qui rendait tout pilotage Appium de cette WebView
     # impossible sans hack (transpilation de dépendances tierces, jugée trop coûteuse à
     # maintenir).
-    # Le tag AOSP initial `android-10.0.0_r1` (dépôt external/chromium-webview, commits
-    # "WebView AOSP Integration Request") montrait encore un WebView 74 (< 80) pour l'API 29,
-    # contre 83 pour `android-11.0.0_r1` (API 30) — d'où un premier choix sur l'API 30. Mais
-    # l'image système réellement distribuée par sdkmanager ne correspond pas au tag `_r1` de
-    # sortie initiale : vérifié empiriquement (AVD réel, arm64), API 29 et API 30 embarquent
-    # toutes deux la même révision de maintenance, WebView 91.0.4472.114 — largement au-delà du
-    # seuil ES2020. API 29 est donc tout aussi viable qu'API 30 côté WebView, et plus proche du
-    # minSdk réel de l'app (28) : c'est elle qui est retenue.
+    # API 29 initialement retenue (WebView 91.0.4472.114 vérifié empiriquement sur AVD arm64
+    # local — même valeur qu'API 30) puis abandonnée : un run CI réel (x86_64, l'architecture
+    # des runners GitHub-hosted) a montré `chrome=74.0.3729.185` sur cette même API 29, très en
+    # dessous du seuil ES2020 — le SyntaxError `?.` est réapparu. Les images x86_64 restent
+    # apparemment figées près de leur version de sortie AOSP initiale (74 pour l'API 29,
+    # confirmé par le dépôt `external/chromium-webview`, tag `android-10.0.0_r1`) alors que les
+    # images arm64 reçoivent des révisions de maintenance plus fréquentes — un écart
+    # d'architecture qui n'existait pas à ce point sur l'API 28 (66 arm64 vs 69 x86_64,
+    # écart mineur). API 30 est donc retenue : sa sortie AOSP initiale (`android-11.0.0_r1`)
+    # est déjà à 83 (> 80), donc viable même si l'image x86_64 CI reste figée sur ce build
+    # initial comme observé pour l'API 29.
     - name: Résoudre les paramètres de l'appareil Android (ancien vs récent)
       shell: bash
       run: |
@@ -45,8 +48,8 @@ runs:
         # et de valeur lue par `just`/`capabilities.ts` (appium:deviceName) — un seul nom pour
         # les deux usages, pas de variable dupliquée sous un 2e nom.
         if [ "${{ inputs.run_old_device }}" = "true" ]; then
-          echo "ANDROID_DEVICE_NAME=pixel_2_api29" >> "$GITHUB_ENV"
-          echo "ANDROID_API_LEVEL=29"       >> "$GITHUB_ENV"
+          echo "ANDROID_DEVICE_NAME=pixel_2_api30" >> "$GITHUB_ENV"
+          echo "ANDROID_API_LEVEL=30"       >> "$GITHUB_ENV"
           echo "ANDROID_TARGET=google_apis" >> "$GITHUB_ENV"
           echo "ANDROID_ARCH=x86_64"        >> "$GITHUB_ENV"
           echo "ANDROID_PROFILE=pixel_2"    >> "$GITHUB_ENV"

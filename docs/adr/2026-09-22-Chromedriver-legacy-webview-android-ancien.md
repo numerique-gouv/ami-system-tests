@@ -1,4 +1,4 @@
-# WebView Android "ancien" : viser un Chrome nativement ≥ ES2020 (API 29) plutôt que piloter du legacy
+# WebView Android "ancien" : viser un Chrome nativement ≥ ES2020 (API 30)
 
 ## Problème
 
@@ -16,11 +16,17 @@ la version embarquée par l'appareil ancien (local et CI). Vérifié en lançant
 nous-mêmes, hors Appium/Android, contre `chromedriver.storage.googleapis.com` : 2.45
 (1er binaire corrigé, déc. 2018) répond correctement.
 
+Contexte qui contraint la solution : ce dépôt teste 3 plateformes avec une seule chaîne
+d'outillage (Appium, WebdriverIO, Allure) — toute solution forçant une deuxième chaîne de
+versions pour le seul appareil ancien a un coût de maintenance à long terme (cf.
+[`2026-08-04-Integration-continue-Github-Actions.md`](2026-08-04-Integration-continue-Github-Actions.md)).
+
 ## Pistes écartées
 
 - **`google_apis` ↔ `google_apis_playstore`** : sans effet — Chrome est déjà le provider WebView
   sur l'image x86_64 des runners CI dans les deux cas (c'est l'architecture qui compte, pas le
-  tag playstore). L'arm64-v8a local (macos), lui, n'a jamais Chrome, avec ou sans playstore. Et le playstore ne téléchargera pas de mise à jour sans compte google.
+  tag playstore). L'arm64-v8a local (macOS), lui, n'a jamais Chrome, avec ou sans playstore — et
+  Play Store n'y télécharge de toute façon aucune mise à jour sans compte Google connecté.
 - **Forcer `com.google.android.webview` comme provider** (`cmd webviewupdate
   set-webview-implementation`) : rejeté par le système — le WebView Update Service refuse tout
   provider de `versionCode` inférieur au plancher déjà fixé par Chrome.
@@ -44,36 +50,32 @@ nous-mêmes, hors Appium/Android, contre `chromedriver.storage.googleapis.com` :
 - **Mettre à jour Chrome vers 80 via Play Store sur l'AVD API 28 existante** : `market://…`
   atterrit sur `UnauthenticatedMainActivity` — Play Store n'installe/ne met rien à jour sans
   compte Google connecté, indisponible sur un émulateur CI éphémère (chantier d'infra à part).
+- **API 29 (Android 10)** : WebView 91.0.4472.114 vérifié empiriquement sur AVD **arm64** local
+  (largement > 80). Retenue un temps, puis abandonnée : un run CI réel (**x86_64**, l'archi des
+  runners GitHub-hosted) a montré `chrome=74.0.3729.185` sur cette même API 29 — très en dessous
+  du seuil, le `SyntaxError: Unexpected token .` (`?.`) est réapparu. Les images x86_64 restent
+  apparemment figées près de leur version de sortie AOSP initiale (74, confirmé par le dépôt
+  AOSP `external/chromium-webview`, tag `android-10.0.0_r1`), alors que les images arm64
+  reçoivent des révisions de maintenance plus fréquentes — un écart d'architecture bien plus
+  marqué que celui observé sur l'API 28 (66 arm64 vs 69 x86_64, mineur).
 
 ## Décision
 
-Plutôt que de faire fonctionner Chromedriver/Appium *malgré* un WebView Chrome 66-69,
-**cibler une image système dont le WebView est nativement ≥ Chrome 80** (V8 8.0, premier à
-supporter `?.`/`??` — confirmé via `v8.dev/blog/v8-release-80`, absent de la 79) : ça élimine
-le bug binaire, tout contournement Chromedriver, et la contrainte de codage applicatif d'un
-coup. Chromedriver étant conçu pour être apparié à la même version majeure que Chrome, Chrome
-80 + Chromedriver 80 (résolu automatiquement par `chromedriverAutodownload`, déjà actif, sans
-capability supplémentaire) sont nativement compatibles — vérifié en standalone
-(`ready:true`, pas de bug "alpha").
+Plutôt que de faire fonctionner Chromedriver/Appium *malgré* un WebView Chrome legacy, **cibler
+une image système dont le WebView est nativement ≥ Chrome 80** (V8 8.0, premier à supporter
+`?.`/`??` — confirmé via `v8.dev/blog/v8-release-80`, absent de la 79) : ça élimine le bug
+binaire 2.39-2.44, tout contournement Chromedriver, et la contrainte de codage applicatif d'un
+coup. Chromedriver étant conçu pour être apparié à la même version majeure que Chrome, Chrome 80
++ Chromedriver 80 (résolu automatiquement par `chromedriverAutodownload`, déjà actif, sans
+capability supplémentaire) sont nativement compatibles — vérifié en standalone (`ready:true`,
+pas de bug "alpha").
 
-Vérifié dans le dépôt AOSP `platform/external/chromium-webview` (commits "WebView AOSP
-Integration Request") : Android 10 (`android-10.0.0_r1`) embarque un WebView 74 (< 80),
-Android 11 (`android-11.0.0_r1`) embarque 83 (> 80). Mais les images système distribuées par
-`sdkmanager` correspondent à des révisions de maintenance bien plus tardives que ce tag `_r1`
-de sortie initiale — vérifié en bootant réellement les AVD (arm64-v8a, en local) :
-`system-images;android-29;google_apis` et `;android-30;google_apis` embarquent tous deux la
-**même** révision, WebView **91.0.4472.114**. **API 29 est donc retenue** (même WebView
-qu'API 30, mais plus proche du `minSdk` réel de l'app, 28).
-
-Un test E2E réel (`chromedriverAutodownload` seul, aucune capability spéciale) confirme :
-plus aucune trace de la boucle SIGTERM ni du bug "alpha", contexte `WEBVIEW_*` atteint et
-piloté normalement — flux FranceConnect complet jusqu'au callback OIDC. L'échec résiduel
-observé est une assertion UI ordinaire, sans rapport avec cette investigation.
-
-**Réserve non levée** : ces vérifications sont faites en arm64 (rapide, natif, local), pas en
-x86_64 (architecture réelle des runners CI) — un écart de version WebView entre architectures a
-déjà été observé sur l'API 28 (66 en arm64 vs 69 en x86_64). Vu la marge (91 très au-dessus du
-seuil 80), la conclusion qualitative est jugée solide mais reste à confirmer par un run CI réel.
+**API 30 (Android 11) est retenue**, à la place de l'API 29 initialement envisagée : sa sortie
+AOSP initiale (`android-11.0.0_r1`, dépôt `external/chromium-webview`) embarque déjà un WebView
+**83** (> 80) — contre 74 (< 80) pour l'API 29. Comme les images x86_64 (architecture réelle des
+runners CI) semblent rester figées près de ce build initial plutôt que de recevoir les révisions
+de maintenance que reçoivent les images arm64, l'API 30 reste viable même dans le pire cas
+(figée sur son build de sortie), alors que l'API 29 ne l'était pas.
 
 ### Configuration retenue
 
@@ -86,11 +88,11 @@ valeur lue par `just`/`capabilities.ts` (`appium:deviceName`) — une seule vari
 
 | | Ancien (retenu) | Récent (inchangé) |
 |---|---|---|
-| API level | 29 (Android 10) | 36 |
+| API level | 30 (Android 11) | 36 |
 | target | google_apis | google_apis |
 | arch | x86_64 | x86_64 |
 | profile | pixel_2 | pixel_8 |
-| avd-name | pixel_2_api29 | pixel_8_api36 |
+| avd-name | pixel_2_api30 | pixel_8_api36 |
 
 `src/driver/capabilities.ts` reste sur sa configuration d'origine — `chromedriverAutodownload:
 true` seul, aucun override, aucun correctif applicatif requis.
@@ -101,10 +103,13 @@ corrigé (`env_var_or_default("ANDROID_DEVICE_NAME", "Pixel_modern")`).
 
 ## Statut
 
-Configuration committée, **pas encore vérifiée par un run CI réel** (x86_64) — prochaine étape
-avant de clore le sujet. Si le WebView réel en CI s'avère finalement < 80, revenir à cet ADR :
-le downgrade de driver (`APPIUM_HOME` dédié) reste une option de repli documentée ci-dessus, ou
-accepter de retirer la couverture WebView de l'appareil ancien.
+Configuration committée pour l'API 30, **pas encore vérifiée par un run CI réel** (x86_64) — le
+run CI qui a servi à écarter l'API 29 a précisément montré la limite d'une vérification faite
+uniquement en arm64 local ; il ne faut donc pas répéter cette erreur et confirmer l'API 30
+directement en conditions CI (x86_64) avant de considérer ce sujet clos. Si le WebView réel
+s'avère finalement < 80 même sur l'API 30, revenir à cet ADR : le downgrade de driver
+(`APPIUM_HOME` dédié) reste une option de repli documentée ci-dessus, ou accepter de retirer la
+couverture WebView de l'appareil ancien.
 
 ## Notes
 
@@ -114,3 +119,6 @@ accepter de retirer la couverture WebView de l'appareil ancien.
   clos.
 - Un `dumpsys webviewupdate` propre ne garantit rien sur la capacité d'Appium à piloter la
   WebView — piège à ne pas répéter : seule l'exécution réelle d'un test fait foi.
+- Une vérification faite sur une architecture (arm64, pratique en local sur Apple Silicon) ne
+  garantit rien sur une autre (x86_64, celle des runners CI) — même image système, même API
+  level : les versions de WebView bundlées peuvent diverger significativement entre les deux.

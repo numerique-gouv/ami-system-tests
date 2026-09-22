@@ -26,7 +26,7 @@ ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI-Productio
 
 # env_var_or_default (pas juste "Pixel_modern" en dur) : sans ça, `start-android` ignore
 # ANDROID_DEVICE_NAME et boote toujours Pixel_modern, même quand on demande explicitement un
-# autre AVD (ex. ANDROID_DEVICE_NAME=pixel_2_api29 just test-android-suite short) — le device
+# autre AVD (ex. ANDROID_DEVICE_NAME=pixel_2_api30 just test-android-suite short) — le device
 # ciblé par les capabilities Appium (capabilities.ts) et l'AVD réellement démarré divergeaient.
 android_avd := env_var_or_default("ANDROID_DEVICE_NAME", "Pixel_modern")
 android_sdk := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
