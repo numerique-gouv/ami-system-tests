@@ -156,20 +156,22 @@ runs:
         disable-animations: false
         script: echo "Snapshot AVD généré pour mise en cache."
 
-    # target: google_apis (retour arrière depuis google_apis_playstore, cf. historique ci-dessous).
-    # Historique : google_apis seul avait causé une boucle "Chromedriver exited unexpectedly
-    # ... signal SIGTERM" (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673),
-    # corrigée par le passage à google_apis_playstore (requis par ailleurs pour les
-    # notifications système testées par cette suite). Mais cette image playstore embarque
-    # Chrome en plus du WebView standalone : le WebView Update Service sélectionne Chrome
-    # (versionCode 349710067) dès le premier boot et fixe un plancher de version qui rend
-    # ensuite le standalone WebView définitivement inéligible (pm enable/install-existing ni
-    # `cmd webviewupdate set-webview-implementation` n'y changent rien) — aucun contexte
-    # WEBVIEW_* n'était plus détecté par Appium (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35243397138/job/105278651817).
-    # Sur un AVD google_apis local (sans Chrome), le standalone WebView est le seul provider
-    # possible et fonctionne sans ce conflit — d'où ce retour à google_apis ici. À surveiller :
-    # si la boucle SIGTERM liée aux notifications réapparaît, il faudra trouver un autre moyen
-    # de fournir les services Play nécessaires aux notifications sans réintroduire Chrome.
+    # target: google_apis (pas playstore — piste playstore abandonnée, cf. historique git de ce
+    # fichier pour le détail des tentatives infructueuses menées dessus : forcer
+    # com.google.android.webview comme provider via `cmd webviewupdate set-webview-implementation`
+    # rejeté par le système, absence totale de contexte WEBVIEW_* détecté par Appium avec Chrome
+    # comme provider).
+    #
+    # Sur google_apis (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35708560883/job/106684569047),
+    # dumpsys webviewupdate montre le même Chrome 69.0.3497.100 comme provider que sous
+    # google_apis_playstore — sur l'image x86_64 des runners GitHub-hosted, Chrome est déjà le
+    # provider WebView même sans le tag "playstore". Ce run a aussi vu réapparaître la boucle
+    # "Chromedriver exited unexpectedly ... signal SIGTERM" (68 occurrences en ~5 min, 4/4
+    # suites en échec sur getAppToStartingState) — à date pas confirmé si c'est spécifiquement
+    # lié aux notifications (hypothèse d'origine, cf. run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673)
+    # ou à autre chose : cette fois la boucle est apparue dès le test d'authentification, avant
+    # tout test de notification. À investiguer en direct sur google_apis plutôt qu'en
+    # réintroduisant Chrome via playstore.
     - name: Tests E2E — appareil ancien (API 28, minSdk)
       if: ${{ inputs.run_old_device == 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
@@ -190,8 +192,14 @@ runs:
           echo "::group::Diagnostic WebView (paquets installés)"
           adb shell pm list packages | grep -i webview || true
           echo "::endgroup::"
-          echo "::group::Diagnostic WebView (logcat webview/chromium/cronet)"
-          adb logcat -d -t 2000 | grep -iE "webview|chromium|cronet" || true
+          echo "::group::Diagnostic logcat (buffer complet, non filtré)"
+          # Pas de grep ici : un filtre webview/chromium/cronet ne remontait rien d'utile (run
+          # https://github.com/numerique-gouv/ami-app-android/actions/runs/35708560883/job/106684569047)
+          # — sans doute parce que -t 2000 ne gardait que la toute fin du buffer, alors que la
+          # boucle SIGTERM survenait plusieurs minutes avant la fin de la suite. On dump tout le
+          # buffer disponible (pas de limite -t) pour pouvoir filtrer/grep a posteriori sur les
+          # logs complets plutôt que deviner un filtre a priori.
+          adb logcat -d || true
           echo "::endgroup::"
       env:
         ANDROID_DEVICE_NAME: pixel_2_api28
