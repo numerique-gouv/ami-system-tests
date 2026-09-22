@@ -23,6 +23,10 @@ export const config: Options.Testrunner = {
           // Appium 3 : format "<driver>:<feature>" requis pour les features insecure
           allowInsecure: 'uiautomator2:chromedriver_autodownload',
           log: '.wdio-logs/appium-android.log',
+          // debug (et non le défaut info) : nécessaire pour que
+          // appium:showChromedriverLog (cf. capabilities.ts) fasse remonter la sortie du
+          // process chromedriver dans ce fichier — diagnostic de la boucle SIGTERM en CI.
+          logLevel: 'debug',
         },
       },
     ],

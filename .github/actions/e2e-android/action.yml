@@ -195,6 +195,12 @@ runs:
           echo "::group::Diagnostic WebView (paquets installés)"
           adb shell pm list packages | grep -i webview || true
           echo "::endgroup::"
+          echo "::group::Diagnostic log Appium (debug, avec sortie chromedriver)"
+          # appium:showChromedriverLog + logLevel debug (cf. capabilities.ts / wdio.android.conf.ts)
+          # font remonter ici la commande/version chromedriver réellement lancée et sa sortie au
+          # moment du crash — ce fichier n'apparaît pas dans stdout, il faut le cat explicitement.
+          cat .wdio-logs/appium-android.log || true
+          echo "::endgroup::"
       env:
         ANDROID_DEVICE_NAME: pixel_2_api28
 
