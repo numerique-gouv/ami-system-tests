@@ -137,7 +137,7 @@ runs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-28-google_apis_playstore-x86_64-pixel_2
+        key: avd-28-google_apis-x86_64-pixel_2
 
     # Ne s'exécute qu'au premier run (cache miss) : crée l'AVD et génère un snapshot de boot,
     # capturés ensuite par le step actions/cache ci-dessus (post-job). Les runs suivants
@@ -147,7 +147,7 @@ runs:
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 28
-        target: google_apis_playstore
+        target: google_apis
         arch: x86_64
         profile: pixel_2
         avd-name: pixel_2_api28
@@ -156,27 +156,26 @@ runs:
         disable-animations: false
         script: echo "Snapshot AVD généré pour mise en cache."
 
-    # target: google_apis_playstore (et non google_apis) — requis pour les notifications système
-    # testées par cette suite (google_apis seul n'a pas les services Play nécessaires).
-    # La bascule google_apis -> google_apis_playstore a corrigé la boucle infinie
-    # "Chromedriver exited unexpectedly ... signal SIGTERM" observée avec google_apis
-    # (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673)
-    # mais a fait apparaître un nouveau symptôme : aucun contexte WEBVIEW_* n'est détecté du
-    # tout par Appium (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35243397138/job/105278651817).
-    # dumpsys webviewupdate montre com.android.chrome (69.0.3497.100) comme provider actif et
-    # valide — le WebView Update Service ne signale donc aucune anomalie côté provider. En local
-    # (device où le contexte WEBVIEW_* est bien détecté), le provider est com.google.android.webview
-    # (66.0.3359.158), pas Chrome. Ce paquet est présent sur l'image google_apis_playstore
-    # (listé "Valid package" par dumpsys) mais pas actif : on le force explicitement en provider
-    # avant de lancer les tests, plutôt que de continuer sur Chrome comme provider WebView.
-    # La bascule doit se faire dans ce même step (script `reactivecircus/android-emulator-runner`) :
-    # l'émulateur ne vit que le temps du step, un step séparé n'aurait pas de device `adb`.
+    # target: google_apis (retour arrière depuis google_apis_playstore, cf. historique ci-dessous).
+    # Historique : google_apis seul avait causé une boucle "Chromedriver exited unexpectedly
+    # ... signal SIGTERM" (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35240129711/job/105267621673),
+    # corrigée par le passage à google_apis_playstore (requis par ailleurs pour les
+    # notifications système testées par cette suite). Mais cette image playstore embarque
+    # Chrome en plus du WebView standalone : le WebView Update Service sélectionne Chrome
+    # (versionCode 349710067) dès le premier boot et fixe un plancher de version qui rend
+    # ensuite le standalone WebView définitivement inéligible (pm enable/install-existing ni
+    # `cmd webviewupdate set-webview-implementation` n'y changent rien) — aucun contexte
+    # WEBVIEW_* n'était plus détecté par Appium (run https://github.com/numerique-gouv/ami-app-android/actions/runs/35243397138/job/105278651817).
+    # Sur un AVD google_apis local (sans Chrome), le standalone WebView est le seul provider
+    # possible et fonctionne sans ce conflit — d'où ce retour à google_apis ici. À surveiller :
+    # si la boucle SIGTERM liée aux notifications réapparaît, il faudra trouver un autre moyen
+    # de fournir les services Play nécessaires aux notifications sans réintroduire Chrome.
     - name: Tests E2E — appareil ancien (API 28, minSdk)
       if: ${{ inputs.run_old_device == 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 28
-        target: google_apis_playstore
+        target: google_apis
         arch: x86_64
         profile: pixel_2
         avd-name: pixel_2_api28
@@ -184,12 +183,6 @@ runs:
         disable-animations: true
         working-directory: ami-system-tests
         script: |
-          echo "::group::Bascule provider WebView -> com.google.android.webview"
-          adb shell pm enable com.google.android.webview || true
-          adb shell pm install-existing --user 0 com.google.android.webview || true
-          adb shell cmd webviewupdate set-webview-implementation com.google.android.webview
-          adb shell dumpsys webviewupdate || true
-          echo "::endgroup::"
           just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
           echo "::group::Diagnostic WebView (dumpsys webviewupdate)"
           adb shell dumpsys webviewupdate || true
@@ -211,14 +204,14 @@ runs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-36-google_apis_playstore-x86_64-pixel_8
+        key: avd-36-google_apis-x86_64-pixel_8
 
     - name: créer l'AVD et générer le snapshot (appareil récent, API 36)
       if: ${{ inputs.run_old_device != 'true' && steps.avd-cache-new.outputs.cache-hit != 'true' }}
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 36
-        target: google_apis_playstore
+        target: google_apis
         arch: x86_64
         profile: pixel_8
         avd-name: pixel_8_api36
@@ -232,7 +225,7 @@ runs:
       uses: reactivecircus/android-emulator-runner@v2.38.0
       with:
         api-level: 36
-        target: google_apis_playstore
+        target: google_apis
         arch: x86_64
         profile: pixel_8
         avd-name: pixel_8_api36
