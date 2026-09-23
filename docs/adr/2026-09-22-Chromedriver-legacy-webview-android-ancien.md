@@ -122,3 +122,22 @@ couverture WebView de l'appareil ancien.
 - Une vérification faite sur une architecture (arm64, pratique en local sur Apple Silicon) ne
   garantit rien sur une autre (x86_64, celle des runners CI) — même image système, même API
   level : les versions de WebView bundlées peuvent diverger significativement entre les deux.
+
+## Conclusion
+
+Pas d'investissement supplémentaire sur le sujet avant la mise en production : on attendra la prod
+pour monitorer les appareils réels et pouvoir associer les pannes constatées à des couples
+device/surcouche constructeur/version d'Android/version de Chromium. L'automatisation d'une
+couverture ciblée sur ces couples ne sera envisagée qu'à ce moment-là, une fois les combinaisons
+réellement problématiques identifiées en conditions réelles plutôt que supposées.
+
+Piste écartée pour l'instant : forcer un Chrome moderne sur un vieil Android (reflash + changement
+de la configuration système). Pas incohérent en soi, mais qualifié d'« avancé »/« fragile » et pas
+testé à ce jour — à ne considérer que si le monitoring prod ci-dessus justifie l'effort. Rappel de
+contexte (recherche web, pas vérifié sur ce dépôt) : depuis Android 5.0, la WebView système est un
+APK séparé (`com.google.android.webview`), et seul un moteur Chromium/Blink peut être fournisseur
+de WebView Android — Firefox (Gecko) ne peut jamais tenir ce rôle, même en navigateur par défaut.
+
+Repère de compatibilité Chrome/Android (cf. recherche du jour) : Chrome 138 a été la dernière
+version à supporter Android 8 (Oreo) et 9 (Pie) ; Chrome 139 (5 août 2025) est le premier à exiger
+Android 10 (API 29) minimum — seuil qui reste valable pour les versions actuelles (151).
