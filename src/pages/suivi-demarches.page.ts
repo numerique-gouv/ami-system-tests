@@ -1,4 +1,4 @@
-import { tl, retourJusquATexteVisible } from '@helpers/webview'
+import { tl } from '@helpers/webview'
 import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
@@ -174,23 +174,34 @@ class SuiviDemarchesPage {
   }
 
     /**
-     * Revient sur la page Suivi (profondeur de navigation enfant inconnue) en répétant un
-     * back natif jusqu'à ce que la démarche `visibleText` soit de nouveau visible dans la liste.
-     * Pas de bouton retour dédié sur cet écran (contrairement au détail) : fallback direct
-     * sur browser.back() à chaque itération de `goBackUntilVisible`.
+     * Revient sur la page Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur
+     * la page du lien externe de la démarche. Observé 2026-10-06 (Android, staging) : cette page est une
+     * page serveur « Not Found » (404 HTML, hors SPA) — sans bouton de retour, et des `browser.back()`
+     * répétés toutes les 500 ms ressortaient de l'app avant que la SPA ait fini de se recharger.
+     * Un seul retour est donc tenté ; si le titre de la page Suivi n'est pas revenu, la route SPA
+     * `#/followup` est rechargée depuis l'origine de la page courante (même origine que l'app).
      */
     async retourJusquAPageSuivi(): Promise<void> {
-        let demarchesLocators = getSuiviDemarchesLocators();
+        const demarchesLocators = getSuiviDemarchesLocators()
+        const isSuiviVisible = (): Promise<boolean> => tl()
+            .queryByRole('heading', { name: demarchesLocators.pageTitle })
+            .then((el) => el !== null)
+            .catch(() => false)
+
         await platform().inWebContext(async () => {
-            await retourJusquATexteVisible(
-                () => tl()
-                    .queryByRole('heading', { name: demarchesLocators.pageTitle })
-                    .then((el) => el !== null)
-                    .catch(() => false),
-                // () => driver.execute((t: string) => document.body.innerText.includes(t),
-                //     demarchesLocators.pageTitle) as Promise<boolean>,
-                10000
-            )
+            if (await isSuiviVisible()) return
+            await browser.back()
+            const backOk = await browser.waitUntil(isSuiviVisible, {timeout: 4000, interval: 500})
+                .then(() => true).catch(() => false)
+            if (backOk) return
+
+            const origin = await driver.execute(() => location.origin) as string
+            log.warn(`retourJusquAPageSuivi: retour arrière sans effet, rechargement de ${origin}/#/followup`)
+            await browser.url(`${origin}/#/followup`)
+            await browser.waitUntil(isSuiviVisible, {
+                timeout: 20000, interval: 500,
+                timeoutMsg: `Page Suivi (titre "${demarchesLocators.pageTitle}") non atteinte après rechargement de ${origin}/#/followup`,
+            })
         })
     }
 }

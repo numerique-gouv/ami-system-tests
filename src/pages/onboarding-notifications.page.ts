@@ -32,34 +32,52 @@ class OnboardingNotificationsPage {
      * Sonde dédiée, réutilisée par HomePage.assertHomeVisible() (détection d'écran) et par
      * dismiss() elle-même (même sentinelle, un seul appel).
      */
+    /**
+     * Route SPA `/#/welcome/notifications` affichée ? Sonde dédiée au contexte WebView/DOM
+     * (quasi-identité en webapp, cf. platform().inWebContext()).
+     */
+    private async isWebRouteVisible(timeout: number): Promise<boolean> {
+        if (platform().kind !== 'webapp' && !await platform().isWebContextAvailable()) return false
+        return await browser.waitUntil(
+            () => platform().inWebContext(
+                () => driver.execute(() => /#\/welcome\/notifications/.test(location.hash)) as Promise<boolean>
+            ),
+            {timeout, interval: 300}
+        ).then(() => true).catch(() => false)
+    }
+
+    /**
+     * Depuis la SPA d'octobre 2026, l'écran est rendu par la WebView sur Android aussi (observé
+     * 2026-10-06 : au moment où il est affiché, l'arbre natif ne contient aucun texte alors que
+     * l'URL de la WebView est `#/welcome/notifications`). Android passe donc par la route SPA comme
+     * la webapp, avec repli sur l'écran natif (OnboardingNotificationScreen.kt) pour un ancien
+     * build ; iOS reste sur la sheet SwiftUI.
+     */
     async isOnboardingVisible(timeout = 5000): Promise<boolean> {
-        // Webapp : écran rendu par la SPA, détecté par sa route.
-        if (platform().kind === 'webapp') {
-            return await browser.waitUntil(
-                () => driver.execute(() => /#\/welcome\/notifications/.test(location.hash)) as Promise<boolean>,
-                {timeout, interval: 300}
-            ).then(() => true).catch(() => false)
-        }
+        if (platform().kind === 'webapp') return await this.isWebRouteVisible(timeout)
+        if (driver.isAndroid && await this.isWebRouteVisible(timeout)) return true
         const loc = getOnboardingNotifLocators()
-        return await $(loc.dismiss).waitForExist({timeout}).catch(() => false)
+        return await $(loc.dismiss).waitForExist({timeout: driver.isAndroid ? 1000 : timeout}).catch(() => false)
     }
 
     async dismiss(): Promise<void> {
         if (!await this.isOnboardingVisible()) return
-        if (platform().kind === 'webapp') {
+        if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebRouteVisible(1000))) {
             await platform().inWebContext(async () => {
                 const later = await tl().findByRole('button', {name: webOnboardingNotifLocators.laterButtonName}, {timeout: 10000})
                 await later.click()
             })
             await browser.waitUntil(
-                async () => !(await driver.execute(() => /#\/welcome\/notifications/.test(location.hash))),
+                () => platform().inWebContext(
+                    async () => !(await driver.execute(() => /#\/welcome\/notifications/.test(location.hash)))
+                ),
                 {timeout: 10000, interval: 300, timeoutMsg: 'Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »'}
             )
             return
         }
         const loc = getOnboardingNotifLocators()
         await $(loc.dismiss).click()
-        await $(loc.title).waitForDisplayed({timeout: 1000, reverse: true})
+        await $(loc.title).waitForDisplayed({timeout: 5000, reverse: true})
     }
 }
 
