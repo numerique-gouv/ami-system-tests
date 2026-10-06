@@ -12,12 +12,12 @@
  * `ami-notifications-api/public/mobile-app/src/routes/login-callback/+page.svelte`.
  */
 
-export interface PasskeyRegistrationPromptLocators {
+export interface OnboardingPasskeyLocators {
   createButtonName: RegExp // "Ajouter une clé d'accès"
   laterButtonName: RegExp  // "Peut-être plus tard"
 }
 
-export const passkeyRegistrationPromptLocators: PasskeyRegistrationPromptLocators = {
+export const onboardingPasskeyLocators: OnboardingPasskeyLocators = {
   createButtonName: /ajouter une clé/i,
   laterButtonName: /plus tard/i,
 }

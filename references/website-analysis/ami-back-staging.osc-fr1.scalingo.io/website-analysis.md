@@ -1,111 +1,106 @@
 # Analyse — AMI webapp (staging)
 
 - **Cible** : `ami-back-staging.osc-fr1.scalingo.io` (URL dérivée de `AMI_ENV`, voir `wdio.webapp.conf.ts` / `src/helpers/environment.ts`)
-- **Date d'analyse** : 2026-09-08 (webapp + code), complété le 2026-09-08 (écrans natifs Android **et iOS**, live via Appium)
+- **Dates d'analyse** : webapp **2026-10-02** (reconstruction complète, remplace celle du 2026-09-08) ; écrans natifs Android/iOS **2026-09-08** (non ré-observés, conservés tels quels)
 - **Preuves utilisées** :
-  - Exploration live du site en Chrome (session déjà authentifiée dans le navigateur — compte de test "Pierre DUBOIS", données fixture `yopmail.com`)
-  - Exploration live des écrans **natifs Android et iOS** via des scripts WDIO/Appium temporaires et jetables (supprimés après usage), captures dans `.wdio-logs/native-screens-{android,ios}/` (non versionné)
-  - Code source lu en lecture seule dans les dépôts frères :
-    - `../ami-notifications-api/public/mobile-app` (SvelteKit — la SPA servie en navigateur ET en WebView)
-    - `../ami-app-android/`
-    - `../ami-app-ios/`
-  - Code de test existant dans ce dépôt (`src/pages/*.page.ts`, `src/tests/mobile/*.test.ts`)
+  - Exploration live headless de la webapp de staging, compte de test `avec_nom_dusage` (« Pierre DUBOIS », données fixture `yopmail.com`), via un script WDIO jetable (`getAppToStartingState()` puis navigation par hash et clics sur les boutons non mutants, supprimé après usage). Captures dans `.wdio-logs/webapp-explore/` (non versionné). Les URLs enregistrées sont purgées de leur query string (`id_token`/`user_data`) — ne jamais les persister.
+  - Code source lu en lecture seule dans `../ami-notifications-api/public/mobile-app` (dépôt frère, HEAD `2ac75804` du 2026-09-22 ; 38 commits sur `src/routes` depuis le 2026-09-08)
+  - Code de test existant (`src/pages/*.page.ts`, `src/tests/mobile/*.test.ts`)
 
-Toute affirmation ci-dessous est reliée soit à une capture live, soit à un chemin de fichier exact. Les zones non vérifiées sont marquées **non confirmé**.
+Toute affirmation est reliée à une capture live (2026-10-02) ou à un chemin de fichier exact. Ce qui n'a pas été observé est marqué **non confirmé**.
 
 ## Vue d'ensemble
 
-AMI est l'application (SPA Svelte + coques natives Android/iOS) du ministère des Armées destinée aux militaires et leurs proches (services "PMI", "CNMSS", "Départment soins et suivi du blessé et du pensionné" observés dans Services > Démarches et outils). Authentification via FranceConnect (eIDAS). La même SPA (SvelteKit, `@sveltejs/adapter-static`) est servie :
-- en **navigateur** (webapp de staging, testée ici) à la racine `/`, navigation en **hash routing** (`/#/...`)
-- en **WebView** dans les apps Android (Chromedriver) et iOS (WebKit remote debugging) — cf. `ami-app-android/`, `ami-app-ios/`
+AMI est l'application (SPA SvelteKit + coques natives Android/iOS) du ministère des Armées destinée aux militaires et leurs proches. Authentification via FranceConnect (eIDAS, mire de démonstration FCP-LOW en staging). La même SPA (`@sveltejs/adapter-static`) est servie en **navigateur** (hash routing `/#/...`) et en **WebView** Android/iOS.
+
+La SPA navigue **exclusivement par `<button>`** : aucun `<a href="#/...">` n'a été trouvé sur les pages explorées (0 lien interne sur toutes les routes), la navigation passe par `AMIGoto()` côté code. Conséquence pour les tests : cibler `tl().getByRole('button', {name})`, pas `getByRole('link')`.
 
 ## Section map (niveau 1) — navigation principale
 
-Barre de navigation basse, présente sur tout l'app, 5 entrées (capture live) :
+Barre basse, 5 `<button>` sur toutes les pages d'onglet (capture live 2026-10-02) :
 
-| Section | Route (hash) | Fichier SPA source |
+| Section | Route (hash) | Fichier SPA |
 |---|---|---|
 | Accueil | `/` | `src/routes/+page.svelte` |
-| Agenda | `/#/agenda` | non détaillé (route existe, non lue en profondeur) |
-| Services | `/#/services` | `src/routes/services/**` |
-| Suivi | `/#/followup` | `src/routes/followup/**` |
-| Plus | *(modale, pas une route)* | — |
+| Agenda | `/agenda` | `src/routes/agenda/+page.svelte` |
+| Services | `/services` | `src/routes/services/+page.svelte` |
+| Suivi | `/followup` | `src/routes/followup/+page.svelte` |
+| Plus | *(dialogue modal « La suite de la navigation », pas une route)* | — |
 
-"Plus" ouvre une **modale** (pas de navigation d'URL) avec 4 entrées observées live : Mon profil, Préférences, Contact, Me déconnecter — correspond à `HomePage.isMenuPlusVisible()` / menu "Plus" dans le code de test.
+Menu **Plus** (6 entrées, était 4 le 2026-09-08) — chaque entrée navigue (vérifié live) :
+
+| Entrée | Destination |
+|---|---|
+| Mon profil | `/profile` |
+| Préférences | `/preferences` |
+| Aide et contact | `/help-center` (**nouveau**) |
+| Données personnelles et sécurité | `/page/donnees-personnelles` (**nouveau**) |
+| Accessibilité | `/page/accessibilite` (**nouveau**) |
+| Me déconnecter | non exercé dans cette passe (couvert par `profile_deletion_at_logout.test.ts`) |
+
+Les pages sans onglet (profil, préférences, aide, contact, notifications, archivés, pages légales, formulaires d'édition) ont un bouton « Retour à la page précédente » et pas de barre basse.
 
 ## Content sequences par section (niveau 2)
 
 ### Accueil (`/`)
-Capture live :
-1. Salutation "Bonjour {prénom}" + date du jour (texte utilisé par `HomePage.probeWelcomeText()` pour détecter l'arrivée post-login)
-2. Icône cloche notifications avec badge de compte (observé : 236 — lié à l'accumulation de notifications de test, cf. section Suivi)
-3. Bloc "Mon agenda" (aperçu, lien "voir plus" vers `/#/agenda`)
-4. Bloc "Mes démarches" (aperçu de la dernière démarche suivie, lien vers `/#/followup`)
+1. Salutation « Bonjour {prénom} » + date, rendue en `<h1 class="fr-ellipsis fr-h5 …">` (était `<p>` le 2026-09-08 ; sentinelle `HomePage.probeWelcomeText()`)
+2. Cloche « Voir les notifications(N) » → `/notifications`
+3. **Carrousel** (nouveau, Splide : une seule carte accessible à la fois, les autres `aria-hidden` hors écran — « Diapositive suivante » pour atteindre OTV) : cartes « Renseignez votre adresse » (→ `/edit-address`) et « Opération Tranquillité Vacances » (→ `/services/service/psl/OperationTranquilliteVacances`), contrôles « Diapositive suivante », « Aller à la diapositive N »
+4. « Mon agenda » : aperçu du prochain évènement ; « Voir tous mes évènements » → `/agenda` ; le bouton « Ouvrir la modale liée à l'élément de l'agenda » ouvre un dialogue (`data-testid="item-modal"`, fermé par « Fermer la modale ») avec l'action **Supprimer** dont le **nom accessible est « Cacher l'élément de l'agenda »** (aria-label ≠ texte visible)
+5. « Mes démarches » : dernière démarche ; « Voir toutes mes démarches » → `/followup` ; le bouton « Ouvrir la modale liée à l'élément du suivi » ouvre un dialogue avec l'action **Archiver** ; cliquer le titre → `/followup/item/{partner}/{type}/{id}`
 
-### Agenda (`/#/agenda`)
-Capture live : liste chronologique de jours fériés/vacances scolaires groupés par mois (ex. "Vacances de la Toussaint", "Armistice 1918"). Icône réglage en haut à droite (rôle non exploré — **non confirmé**).
+### Agenda (`/agenda`)
+Liste « Prochainement » puis « Les mois suivants », groupée par mois : vacances scolaires et jours fériés (« VACANCES ET JOURS FÉRIÉS », dates). Bouton **Préférences** (dialogue de zones fermé par « Fermer ») → dialogue « Zones scolaires » (même contenu que `/welcome/zones` : champ `city-input`, cases Zone A/B/C, Corse, Guadeloupe, Guyane, Martinique, Mayotte, Nouvelle Calédonie, Polynésie, Réunion, Saint Pierre et Miquelon, Wallis et Futuna ; sur le compte de test A/B/C/Corse cochées). Chaque évènement ouvre un dialogue avec l'action **Supprimer**.
 
-### Services (`/#/services`)
-Capture live, 2 onglets :
-- **Trouver de l'aide** : blocs "SOS, j'ai un problème !" (raccourcis : cybermalveillance, violences conjugales/sexuelles/sexistes, "Test WebView AMI"), "Comment faire si...?", lien externe vers un annuaire de services publics
-- **Démarches et outils** : liste de démarches partenaires (APIAS, CNMSS "Changement de situation familiale"/"Rattachement des enfants mineurs", "Contacter l'équipe AMI", DILA "Déclaration de changement d'adresse"/"Recensement citoyen", "Opération Tranquillité Vacances")
+### Services (`/services`) — 2 onglets (`role=tab`) ; les entrées des listes se rendent après les titres de section (chargement API)
+- **Trouver de l'aide** : « SOS, j'ai un problème ! » (Je suis victime de cybermalveillance → `/procedure-17cyber` ; Signaler une violence conjugale, sexuelle ou sexiste → www.service-public.gouv.fr/cmi ; Test WebView AMI → demarche.numerique.gouv.fr/commencer/…) ; « J'ai besoin d'aide sur un autre sujet » → service-public.gouv.fr/contact/accueil ; « Comment faire si … ? » = 5 **checklists** (Je crée une association `F3109`, Je deviens parent `F16225`, Je pars vivre à l'étranger `F2485`, Je souhaite accompagner mon enfant de 15 à 18 ans `F39617`, Je suis affecté à l'étranger `CNMSS001`) → `/checklist/{id}` ; « Accéder à l'annuaire » → lannuaire.service-public.gouv.fr
+- **Démarches et outils** : cartes partenaires (APIAS, Changement de situation familiale (CNMSS), Contacter l'équipe AMI, Déclaration de changement d'adresse (Dila), PMI DROM-COM, Rattachement des enfants mineurs, Recensement citoyen, Limite de déclaration d'impôts (DGFIP), Opération Tranquillité Vacances, Rendez-vous (rdv.anct.gouv.fr), Test SP, Test WebView SP, « Voir toutes les démarches »). Chaque carte quitte la SPA (navigation d'onglet vers demarche.numerique.gouv.fr/commencer/…, service-public.gouv.fr/…, rdv.anct.gouv.fr), **y compris « Opération Tranquillité Vacances »** depuis cet onglet ; la fiche interne `/services/service/psl/OperationTranquilliteVacances` (« Bénéficier de ce service ») n'est atteinte que par le carrousel de l'accueil (ou par sa route) ; **destination de « Déclaration de changement d'adresse » et de « Bénéficier de ce service » non confirmée** (le contexte WebDriver a été perdu au clic, navigation externe probable).
 
-Fichier source : `src/routes/services/+page.svelte` (+ `src/routes/services/service/[partner_id]/[item_type]/+page.svelte` pour le détail d'un service).
+### Checklist (`/checklist/{id}` → `/checklist/{id}/checks/{section}/`)
+`/checklist/{id}` liste les sections (« Cas général 0/7 », « Avant mon départ 0/10 »…, compteur fait/total) ; une section ouvre `/checklist/{id}/checks/{slug}/` avec une case à cocher `checkboxes-small-{hash}` par action. La route d'item `…/item/{id}` existe dans le code, non observée.
 
-### Suivi (`/#/followup`)
-Capture live : liste "Mes démarches", chaque entrée = titre + badge de statut (`TERMINÉ` observé) + libellé libre (ex. "Clôture E2E") + horodatage + chevron.
+### Suivi (`/followup`) et détail
+Liste « Mes démarches » : titre, libellé libre, badge de statut, horodatage. Bouton « Sous-menu » (rôle **non confirmé**, aucun dialogue observé). Détail (`/followup/item/{partner}/{type}/{id}`) : badge de statut, titre, partenaire (« AMI »), « référence dossier », « Accéder à ma démarche » (lien externe, vers `demarches/{id}/vN` en staging), « Messages : » = historique chronologique (cycle `new → wip → closed` du test `demarches.test.ts`).
 
-Ouverture d'une démarche → route `/#/followup/item/{partner_id}/{item_type}/{item_external_id}` (capturé en live : `.../item/dinum-ami/OTV/E2E-...`). Contenu :
-- Badge statut + titre + partenaire ("AMI") + "référence dossier"
-- Bouton "Accéder à ma démarche" (lien externe — correspond à `DemarcheDetailPage.assertLienExterne()`)
-- Historique chronologique des mises à jour (chaque publication de notification liée à cette démarche apparaît comme une ligne : "Corps de la notification…", "Mise à jour…", "Clôture…")
+### Démarches archivées (`/followup/archived`, nouveau)
+« Démarches archivées » + encart accordéon fermé « Votre démarche n'apparaît pas ? » (à déplier) listant les partenaires suivis (AMI, Démarche Numérique, RDV Service Public, Service Public, Test, Tets partenaire) et « Je veux suivre mes démarches ». Le chemin d'accès depuis le Suivi est **non confirmé** (l'action « Archiver » du dialogue d'une démarche est la piste, non exercée car mutante).
 
-Ceci correspond exactement au cycle `new → wip → closed` testé dans `src/tests/mobile/demarches.test.ts` : chaque `publishNotification()` avec un `itemId` donné ajoute une ligne à l'historique de cette même démarche.
+### Notifications (`/notifications`)
+Liste : titre, corps, âge relatif (« 10j »), badge « Non lu »/« Lu ». « Gérer » (nom accessible **« Gérer les notifications »**, aria-label) → `/preferences/notifications`. Une notification liée à une démarche → détail `/followup/item/…` ; une notification simple reste sur l'inbox. Une notification d'accueil « Bienvenue sur AMI 👋 » est présente.
 
-Fichiers SPA : `src/routes/followup/+page.svelte`, `src/routes/followup/item/[partner_id]/[item_type]/[item_external_id]/+page.svelte`, `.../subitem/...` (sous-items — **non confirmé** en détail).
+### Profil (`/profile`) et édition
+3 blocs, structure inchangée : Mon identité (nom, naissance, « Informations fournies par FranceConnect », Modifier → `/edit-preferred-username`), Contact (email, Modifier → `/edit-email`), Mon adresse (« Définir une adresse » quand vide → `/edit-address`). Formulaires d'édition (ouverts, **non soumis**) : champ unique (`input`/`address-input`), bandeau « Modification non transmise », boutons Masquer le message / Annuler / Enregistrer.
 
-### Notifications (inbox in-app, `/#/notifications`)
-Capture live : liste d'entrées avec icône par type (🚩 clôture, 👁 mise à jour, 🔔 nouvelle démarche, icône "device" pour notifications simples), titre, corps, horodatage relatif ("4h"), point rouge = non lu. Bouton "Gérer" en haut à droite → probablement `/#/preferences/notifications` (**non confirmé**, non cliqué).
+### Préférences (`/preferences`)
+3 entrées : **Suivi des démarches** → `/preferences/consents` (« Tout suivre » + une case à cocher par partenaire `dinum-ami`, `dinum-dn`, `dinum-rdvsp`, `psl`, `Test`, `test-test`) ; **Notifications** → `/preferences/notifications` (une case `notification-toggle` « Recevoir les notifications sur mon appareil mobile ») ; **Zones scolaires** → dialogue (même contenu que l'Agenda).
 
-Entrées observées de type "AMI-vanilla-{timestamp}" / "Test vanilla — push OS non autorisé, doit apparaître dans l'inbox" — correspond exactement au test `"reçoit une notification publiée dans l'inbox in-app"` de `src/tests/mobile/notifications.test.ts`.
+### Aide et contact
+- `/help-center` : « J'ai besoin de l'aide de l'administration » → service-public.gouv.fr/contact/accueil ; « Je rencontre un problème sur l'application » → `/contact`
+- `/contact` : « Contacter notre équipe » ouvre un dialogue : « Faire une demande en ligne » (→ demarche.numerique.gouv.fr/commencer/retour-ami, même onglet) et « Envoyer un mail » (comportement **non confirmé**, probablement `mailto:`)
 
-Accessible depuis Accueil (icône cloche) et depuis Préférences.
+### Pages légales (nouveau)
+`/page/donnees-personnelles` (6 sections : Qui traite vos données ?, Finalité et base légale, Catégories de données et durée de conservation, Qui sont les destinataires, Quels sont vos droits, Transfert hors UE) et `/page/accessibilite` (Déclaration d'accessibilité, Retour d'information et contact, Voies de recours). Chaque section est un bouton ; la route de section `/page/{slug}/{section}` existe dans le code, non ouverte (**non confirmé**).
 
-### Profil (`/#/profile`, sous "Plus > Mon profil")
-Capture live : 3 blocs, chacun avec un bouton "Modifier" :
-- **Mon identité** — nom/prénom/nom de naissance/date et lieu de naissance, libellé "Informations fournies par FranceConnect", bouton Modifier → `/#/edit-preferred-username` (**routes confirmées côté code**, pas cliquées en live pour éviter d'altérer les données du compte de test)
-- **Contact** — email, "Informations fournies par FranceConnect", Modifier → `/#/edit-email`
-- **Mon adresse** — adresse postale, "Informations fournies par la Caf", Modifier → `/#/edit-address`
+### Parcours d'accueil (`/welcome/*`, nouveau dans le flux de connexion)
+Après FranceConnect, la SPA redirige vers `/#/welcome/zones` (« Zones scolaires », bouton **Passer**) puis `/#/welcome/notifications` (« Activez les notifications pour suivre vos démarches », « Activer » / « Peut-être plus tard »). Preuve : redirection `#/welcome/zones` observée en live juste après login (2026-10-02) et ``AMIGoto(`/${passKeyParam}#/welcome/zones`)`` dans la SPA. `/notifications-welcome-page` redirige vers `/welcome/notifications`. L'écran zones n'était pas géré par `authenticate.process.ts` : géré depuis le 2026-10-02 par `OnboardingZonesPage` (voir diff). Fréquence : `user_first_login=true` est posé par le backend — observé une fois sur ~8 logins ; lien avec la suppression des données au logout (modale « Suppression de vos données ») **non confirmé**.
 
-Correspond exactement à `ProfilePage.getIdentityBolds()/getEmailBold()/getAddressBolds()` et au scénario `src/tests/mobile/profile_deletion_at_logout.test.ts`.
+### Pages d'erreur (`/network-error`, `/technical-error`, `/forbidden`)
+Pages statiques : « Problème de connexion Internet » / « Petit problème de notre côté… » (bouton Retour) / « L'application n'est pas ouverte au public ». Une route inexistante affiche « Erreur 404 - Not Found » avec « Retour ».
 
-### Préférences (`/#/preferences`, sous "Plus > Préférences")
-Capture live, 3 entrées :
-- **Suivi des démarches** (`/#/preferences/consents`) — 4 interrupteurs "Suivre mes démarches {Partenaire} sur mon appareil" pour les partenaires **Service Public**, **Démarches Numériques**, **AMI**, **Rendez-vous SP** (tous OFF sur le compte observé — relation avec le consentement API `checkConsent`/`grantConsent` de `notifications-api.ts` **non confirmée**, ce sont possiblement deux mécanismes distincts : consentement légal côté API vs. préférence d'affichage côté UI)
-- **Notifications** (non ouvert en détail — **non confirmé**)
-- **Zones scolaires** (non ouvert en détail — **non confirmé**, probablement lié aux zones A/B/C affichées dans l'Agenda)
+### Pages de prototype (`/step`, `/step-form`, `/procedure-17cyber`)
+`/step` (« Je deviens parent », cartes « Pendant la grossesse »…) et `/step-form` (formulaire 1/6, « Quelle est votre situation ? ») sont atteignables par URL mais leurs liens mènent à des 404 (`#/checklist`, `#/2`, `#/3`) et aucun bouton de l'app n'y mène : **prototype probable, non confirmé**. `/procedure-17cyber` est la cible du bouton « Je suis victime de cybermalveillance » mais se rend vide en direct : redirection externe probable, **non confirmé**.
 
-### Authentification FranceConnect (non observé en live sur ce run — évidence par code + logs de test uniquement)
-D'après `src/pages/franceconnect/*.page.ts` et `src/tests/mobile/authentication.test.ts` :
-1. Sélecteur d'environnement de review (mobile uniquement, natif — cf. `EnvironmentPickerPage`, absent en webapp)
-2. Écran de connexion FranceConnect (bouton natif sur Android/iOS natif — `fcButtonIsNative` — ou bouton DOM en webapp)
-3. Sélection eIDAS (faible/substantiel)
-4. Mire de démonstration FCP-LOW ("Fournisseur d'identité de démonstration - FCP-LOW", cf. `authenticate.process.ts:probeFranceConnectWebScreen`)
-5. Onboarding notifications (`OnboardingNotificationsPage`)
-6. Deuxième confirmation FranceConnect (consentement)
-7. Arrivée sur Accueil, salutation "Bonjour {prénom}"
-
-Côté SPA : routes `/login`, `/login-callback`, `/relogin`, `/silent-login` (`src/routes/login*/+page.svelte`) gèrent les redirections OIDC ; `src/lib/state/User.svelte.ts` gate toute route protégée (`if (!userStore.connected) AMIGoto('/#/login')`).
+### Authentification FranceConnect
+Séquence applicative (code `src/pages/franceconnect/*.page.ts`, `authenticate.process.ts`) : bouton FranceConnect → eIDAS faible → mire FCP-LOW (identifiant/mot de passe) → [proposition de clé d'accès, conditionnée par feature flag] → **`/welcome/zones` → `/welcome/notifications`** → Accueil. En webapp, l'authenticateur virtuel WebAuthn et le cookie `access_key` sont posés par `wdio.webapp.conf.ts`. Routes OIDC : `/login`, `/login-callback`, `/relogin`, `/silent-login`, `/passkey-authentication`.
 
 ## Composants transverses (webapp)
 
 | Module | Fichier | Rôle |
 |---|---|---|
 | Store utilisateur | `src/lib/state/User.svelte.ts` | état de connexion, gate de navigation |
-| Auth HTTP | `src/lib/auth.ts` | `logout()`, `apiFetch()` avec redirection auto sur 401 |
-| FranceConnect logout | `src/lib/france-connect.ts` | `franceConnectLogout()`, `parseJwt()` |
-| Statuts démarche | `src/lib/followup.ts` | `type Status = 'new' \| 'wip' \| 'closed'` — confirme le mapping avec `item_generic_status` de l'API partenaire |
-| Pages d'erreur dédiées | `src/routes/network-error`, `/technical-error`, `/forbidden` | pages SPA spécifiques (à ne pas confondre avec l'écran natif Android `WifiErrorScreen.kt` — deux couches d'erreur réseau distinctes, **relation non confirmée**) |
+| Auth HTTP | `src/lib/auth.ts` | `logout()`, `apiFetch()` (redirection 401) |
+| Statuts démarche | `src/lib/followup.ts` | `Status = 'new' | 'wip' | 'closed'` |
+| Dialogues d'élément | composants Svelte (agenda/suivi) | bouton « Ouvrir la modale liée à l'élément … » → dialogue avec action Supprimer (agenda) / Archiver (suivi) |
 
 ## Composants transverses (natif, hors WebView)
 
@@ -140,47 +135,69 @@ Point à noter (précisé par l'utilisateur, confirmé indépendamment par `docs
 
 Non couvert par cette exploration : `Presentation/Settings/SettingsView.swift`, `Presentation/Partner/PartnerView.swift`, gestion APNs (`Services/NotificationManager/*`) — pas de point d'entrée simple dans le flow de démarrage pour les atteindre sans naviguer plus loin dans l'app authentifiée.
 
+
 ## Inventaire des composants (niveau composant)
 
 | Composant | Localisation | But | États observés | Dépendances |
 |---|---|---|---|---|
-| Barre de navigation basse | globale | navigation principale | actif/inactif | — |
-| Carte "Mes démarches" (liste) | Suivi | résumé d'une démarche | `TERMINÉ` (autres statuts non observés en live, `Brouillon`/`En cours` confirmés par code — `demarches.test.ts`) | API partenaire (`publishNotification`) |
-| Timeline de démarche | Suivi > détail | historique des mises à jour | liste chronologique, pas d'état "vide" observé | idem |
-| Liste inbox notifications | `/#/notifications` | notifications in-app | lu/non lu (point rouge) | API notifications |
-| Toggle consentement partenaire | Préférences > Suivi des démarches | activer/désactiver le suivi par partenaire | ON/OFF (tous OFF observés) | API consentement (relation avec `checkConsent`/`grantConsent` **non confirmée**) |
-| Formulaire modification profil | Profil > Modifier (identité/email/adresse) | édition des données FranceConnect/CAF locales à l'app | non ouvert en live (**non confirmé** le détail du formulaire), confirmé par code : `ProfilePage.editPreferredUsername/editEmail/editAddress` |
-| Menu "Plus" | modale globale | accès profil/préférences/contact/déconnexion | ouvert/fermé | — |
+| Barre de navigation basse | pages d'onglet | navigation principale (5 `<button>`) | actif/inactif | — |
+| Menu « Plus » | dialogue modal global (`dialog#modal-main-nav-plus-…`, DSFR) | accès profil/préférences/aide/pages légales/déconnexion | ouvert/fermé ; reste parfois ouvert après login (cf. `HomePage.closeOpenNavPlusMenu`) | — |
+| Carrousel d'accueil | Accueil | raccourcis (adresse, OTV) | slide 1..N | données profil (adresse vide → carte « Renseignez votre adresse ») |
+| Dialogue d'élément | Accueil, Agenda, Suivi | actions Supprimer / Archiver | ouvert/fermé | — |
+| Carte démarche (liste) | Accueil, Suivi | résumé d'une démarche | `TERMINÉ` ; `Brouillon`/`En cours` par `demarches.test.ts` | API partenaire |
+| Timeline de démarche | Suivi > détail | historique des mises à jour | liste chronologique | idem |
+| Liste inbox | Notifications | notifications in-app | Lu / Non lu | API notifications + WebSocket |
+| Cases de consentement | Préférences > Suivi des démarches | suivre/ne plus suivre un partenaire | coché/décoché (AMI coché après `grantConsent`) | API consentement |
+| Sélecteur de zones scolaires | Agenda, Préférences, `/welcome/zones` | filtrer l'agenda | cases cochées par défaut A/B/C/Corse | — |
+| Checklist | `/checklist/*` | suivi d'actions par section | compteur `0/N`, cases | contenu éditorial |
+| Formulaires d'édition | `/edit-*` | modifier nom d'usage / email / adresse | vide ; adresse = autocomplétion BAN | API profil |
 
 ## Matrice d'importance des fonctionnalités
 
-| Fonctionnalité | Importance | Justification |
+Importances **non confirmées** par le produit (déduites du code et des tests existants).
+
+| Fonctionnalité | Importance | Couverture webapp avant ce travail |
 |---|---|---|
-| Authentification FranceConnect | **high** | point d'entrée obligatoire, testé comme flow critique (`AllureReporter.addSeverity('critical')` dans `authentication.test.ts`) |
-| Suivi des démarches (cycle new/wip/closed) | **high** | fonctionnalité métier centrale, testée end-to-end via l'API partenaire réelle |
-| Notifications in-app | **high** | canal d'information principal pour l'usager, testé explicitement |
-| Profil usager (édition identité/email/adresse) | **medium** | fonctionnalité usuelle mais non transactionnelle ; erreurs actuellement instables (cf. investigation précédente sur `affiche l'adresse originale`) |
-| Services (annuaire, démarches partenaires) | **medium** | navigation/orientation, pas de logique métier propre testée |
-| Agenda (jours fériés/vacances) | **low** | contenu informatif statique |
-| Préférences (zones scolaires, notifications) | **low/medium** (non confirmé) | non testé actuellement dans `ami-system-tests`, contenu non exploré en détail |
+| Authentification FranceConnect + parcours d'accueil (zones, notifications) | **high** | aucune (dossier `src/tests/webapp` vide) |
+| Suivi des démarches (cycle new/wip/closed, détail, historique) | **high** | aucune |
+| Notifications in-app (réception, ouverture, Gérer) | **high** | aucune |
+| Navigation principale + menu Plus | **high** (porte d'entrée de tout) | aucune |
+| Profil usager (affichage, édition) | **medium** | aucune |
+| Services (onglets, checklists, liens partenaires) | **medium** | aucune |
+| Préférences (consentements, notifications, zones) | **medium** | aucune |
+| Aide et contact, pages légales | **medium** (obligations légales/accessibilité) | aucune |
+| Agenda (liste, zones scolaires) | **low/medium** | aucune |
+| Pages d'erreur statiques | **low** | aucune |
+| Pages de prototype (`/step*`) | **low** (non confirmé) | aucune |
+
+## Diff vs baseline 2026-09-08
+
+| Impact | Changement | Preuve |
+|---|---|---|
+| **breaking** | La salutation « Bonjour {prénom} » est un `<h1>` et non plus un `<p>` : les sentinelles `HomePage.probeWelcomeText` et `probeFranceConnectWebScreen` (`querySelectorAll('p')`) ne reconnaissent plus l'accueil, `getAppToStartingState()` échoue à chaque run (« dernier écran détecté : login ») alors que l'accueil est affiché. **Corrigé le 2026-10-02** (`h1, p`). | capture DOM : `<h1 class="fr-ellipsis fr-h5 fr-mb-1w">Bonjour Pierre</h1>` ; logs de run |
+| **significant** | Nouvel écran `/welcome/zones` après une première connexion, non géré (bloquait `getAppToStartingState()`). **Géré depuis le 2026-10-02** par `OnboardingZonesPage` + `OnboardingNotificationsPage` (branche webapp). | log de run (URL `#/welcome/zones`) ; ``AMIGoto(`/${passKeyParam}#/welcome/zones`)`` |
+| **significant** | Menu Plus : 6 entrées au lieu de 4 (Aide et contact, Données personnelles et sécurité, Accessibilité ajoutées ; « Contact » remplacé par « Aide et contact » → `/help-center` → `/contact`) | capture live |
+| **significant** | Nouvelles routes : `/followup/archived`, `/help-center`, `/page/{slug}[/{section}]`, `/preferences/notifications`, `/welcome/*`, `/checklist/*`, `/step*` | `find src/routes` + captures |
+| **significant** | Services : l'onglet « Trouver de l'aide » contient désormais 5 checklists éditoriales | capture live |
+| **significant** | Accueil : carrousel (adresse / OTV) et dialogues Supprimer/Archiver | capture live |
+| **minor** | « Préférences > Notifications » n'est plus « non confirmé » : une case `notification-toggle` | capture live |
+| **minor** | Le bloc « Mon agenda » de l'accueil affiche bien un évènement (le « vide » vu en Android natif le 2026-09-08 reste inexpliqué) | capture live |
 
 ## Implications pour les tests (couverture prioritaire)
 
-- Le cycle **Suivi des démarches** (new→wip→closed) et l'**inbox de notifications** sont déjà bien couverts (`demarches.test.ts`, `notifications.test.ts`) et correspondent fidèlement à l'UI observée.
-- Le **Profil usager** est couvert (`profile.test.ts`, `profile_deletion_at_logout.test.ts`) mais c'est la zone qui a montré le plus d'instabilité (cf. investigation de flakiness du 2026-09-08) — la structure "3 blocs + Modifier" observée en live est cohérente avec le code, donc la flakiness est probablement temporelle/sélecteur, pas structurelle.
-- **Préférences > Suivi des démarches, Notifications, Zones scolaires** ne semblent pas couvertes par la suite mobile actuelle (`src/tests/mobile/`) — écart de couverture potentiel si ces réglages sont importants métier (à confirmer avec l'équipe produit).
-- Le bouton "Gérer" de l'inbox notifications n'a pas été suivi — destination non confirmée, à vérifier si une fonctionnalité de gestion des notifications doit être testée.
+- (Fait le 2026-10-02) sentinelle de l'accueil `h1, p` et gestion de `/welcome/zones` + `/welcome/notifications` dans le flux d'authentification ; sans cela aucun test authentifié ne démarrait.
+- Écrire un scénario webapp par section du plan ci-dessus (voir `src/tests/webapp/`).
+- Les liens sortants (`demarche.numerique.gouv.fr`, `service-public.gouv.fr`…) sortent de la SPA : tester la **présence** des entrées, pas la disponibilité des sites tiers.
+- Les actions mutantes (Supprimer, Archiver, Enregistrer, Tout suivre, Activer, Me déconnecter) ne sont exercées qu'avec restauration d'état (cf. CONTRIBUTING §6).
 
 ## Non confirmé / zones d'ombre
 
-- Détail exact de `src/lib/ami-navigation.ts` (`AMIGoto`) côté webapp.
-- Contenu détaillé des routes `/agenda`, `/checklist`, `/step`, `/step-form`, `/procedure-17cyber`, `/welcome/zones`.
-- Relation exacte entre le consentement API (`checkConsent`/`grantConsent`, `notifications-api.ts`) et les toggles UI de "Préférences > Suivi des démarches" (deux mécanismes a priori distincts, non vérifié).
-- ~~Mécanisme du bug de concurrence iOS~~ — **clarifié par l'utilisateur** : implémenté dans le flow OIDC FranceConnect par une équipe tierce, hors périmètre du code AMI. Ne pas chercher à le localiser dans `ami-app-ios/`.
-- Distinction exacte entre la page SPA `/technical-error`/`/network-error` et l'écran natif Android `WifiErrorScreen.kt` (deux couches d'erreur réseau potentiellement redondantes ou complémentaires) — non déclenché lors de l'exploration live (nécessiterait de couper la connectivité de l'émulateur).
-- Détail des formulaires d'édition profil (`/edit-address`, `/edit-email`, `/edit-preferred-username`) — non ouverts en live pour ne pas modifier les données du compte de test partagé.
-- Destination du bouton "Gérer" dans l'inbox notifications.
-- Écran vide vs rempli du bloc "Mon agenda" sur la home (vu vide en Android natif, vu rempli en webapp) — cause non déterminée.
-- Sheet d'onboarding notifications iOS encore visible après le 2ᵉ `tapFranceConnect()` lors de l'exploration live — lien avec le bug OIDC non confirmé, possible artefact du script d'exploration (cf. section iOS ci-dessus).
-- `Presentation/Settings/SettingsView.swift`, `Presentation/Partner/PartnerView.swift` et la gestion APNs iOS (`Services/NotificationManager/*`) — non atteints par l'exploration live (nécessitent une navigation plus poussée dans l'app authentifiée).
-- Écran natif d'erreur réseau iOS (équivalent de `WifiErrorScreen.kt` Android, non identifié dans le code iOS lu) — non exploré.
+- Rôle du bouton « Sous-menu » du Suivi ; chemin d'accès à `/followup/archived` ; effet réel de « Archiver » et « Supprimer » (non exercés, mutants).
+- Destination de « Déclaration de changement d'adresse » (Dila), de « Bénéficier de ce service » (OTV) et de `/procedure-17cyber` (navigation externe, contexte perdu).
+- Comportement de « Envoyer un mail » (contact).
+- Routes `/checklist/{id}/checks/{section}/item/{item}` et `/page/{slug}/{section}` : existent dans le code, non ouvertes.
+- `/step`, `/step-form` : prototypes ? (liens vers des 404).
+- Relation entre le consentement API (`checkConsent`/`grantConsent`) et les cases « Suivre mes démarches {partenaire} » (la case AMI est cochée après `grantConsent`, ce qui suggère un lien — non prouvé).
+- Fréquence de `/welcome/zones` (`user_first_login=true`) : une occurrence observée, cause non vérifiée.
+- Écran vide vs rempli du bloc « Mon agenda » en Android natif (2026-09-08).
+- Toutes les zones d'ombre natives Android/iOS de la section ci-dessus (non ré-observées).

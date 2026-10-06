@@ -1,4 +1,4 @@
-import {passkeyRegistrationPromptLocators} from './locators/passkey-registration-prompt.locators'
+import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
 import {platform} from '../platform'
 import {tl} from '../helpers/webview'
 import {traced} from '../helpers/traced'
@@ -10,7 +10,7 @@ import {traced} from '../helpers/traced'
  * cf. `login-callback/+page.svelte` (app AMI). Conditionné par un feature flag applicatif :
  * peut être absent selon l'environnement/l'utilisateur, d'où le no-op silencieux de dismiss().
  */
-class PasskeyRegistrationPromptPage {
+class OnboardingPasskeyPage {
     /**
      * Sonde dédiée, réutilisée par dismiss() (même sentinelle, un seul appel).
      */
@@ -21,7 +21,7 @@ class PasskeyRegistrationPromptPage {
                 () => driver.execute(
                     (pattern: string) => Array.from(document.querySelectorAll('button'))
                         .some(b => new RegExp(pattern, 'i').test(b.textContent ?? '')),
-                    passkeyRegistrationPromptLocators.createButtonName.source
+                    onboardingPasskeyLocators.createButtonName.source
                 ) as Promise<boolean>,
                 {timeout, interval: 300}
             ).then(() => true)
@@ -35,10 +35,10 @@ class PasskeyRegistrationPromptPage {
     async dismiss(): Promise<void> {
         if (!await this.isVisible()) return
         await platform().inWebContext(async () => {
-            const later = await tl().findByRole('button', {name: passkeyRegistrationPromptLocators.laterButtonName})
+            const later = await tl().findByRole('button', {name: onboardingPasskeyLocators.laterButtonName})
             await later.click()
         })
     }
 }
 
-export default traced(new PasskeyRegistrationPromptPage(), 'PasskeyRegistrationPromptPage')
+export default traced(new OnboardingPasskeyPage(), 'OnboardingPasskeyPage')

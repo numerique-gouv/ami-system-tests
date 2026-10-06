@@ -3,10 +3,32 @@ import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
+import {pageText, waitForPageText} from '@helpers/spa'
 
 const DEMARCHE_DETAIL_TIMEOUT_MS = 20000
 
 class DemarcheDetailPage {
+  /**
+   * Vérifie le contenu du détail (`/#/followup/item/…`) : statut, titre, partenaire, référence
+   * dossier et historique chronologique des messages — sans quitter la SPA (contrairement à
+   * `assertLienExterne`, qui suit le lien partenaire). Chaque notification publiée avec cet
+   * `itemId` ajoute une ligne à l'historique.
+   */
+  async assertDetail(expected: {title: string; statusLabel: string; reference: string; messages: string[]}): Promise<void> {
+    // Sentinelle propre au détail : le titre de la démarche est aussi dans la liste du Suivi, qui reste
+    // affichée un instant après le clic — « référence dossier » n'existe que sur la page de détail.
+    await waitForPageText('référence dossier')
+    const text = await pageText()
+    for (const part of [expected.statusLabel.toUpperCase(), expected.title, 'AMI', `référence dossier : ${expected.reference}`, 'Messages', ...expected.messages]) {
+      if (!text.includes(part))
+        throw new AssertionError({message: `Détail de la démarche : "${part}" absent (texte : ${text.slice(0, 400)})`})
+    }
+    // Ordre chronologique de l'historique : chaque message vient après le précédent.
+    const positions = expected.messages.map(m => text.indexOf(m))
+    if (positions.some((p, i) => i > 0 && p < positions[i - 1]))
+      throw new AssertionError({message: `Historique dans le désordre : ${expected.messages.join(' → ')} (positions ${positions.join(', ')})`})
+  }
+
   /**
    * Depuis la page de détail (atteinte via `DemarchesPage.ouvreDemarche()`), clique "Accéder à
    * ma démarche" et vérifie que la WebView navigue vers `expectedUrl` (navigation JS qui
