@@ -127,11 +127,32 @@ class FranceConnectMirePage {
             })
             if (tapped) {
                 log.info('btn natif FC trouvé et tap effectif (Android, écran natif) !!!')
+                // Depuis la SPA du 2026-10 (observé 2026-10-06 sur le build staging) : le tap natif n'ouvre
+                // plus directement la mire eIDAS mais une WebView affichant la page de login de la SPA
+                // ("Me connecter à AMI") avec son propre bouton "S'identifier avec FranceConnect".
+                // Best-effort : un build qui enchaînerait directement sur l'eIDAS ne l'affiche pas.
+                const onSpaLogin = await this.tapFranceConnectInWebView(true, 8000).catch((err: unknown) => {
+                    log.info('pas de page de login SPA après le tap natif (Android) :', err instanceof Error ? err.message : err)
+                    return false
+                })
+                if (!onSpaLogin && await this.reloadSpaRootIfLoggedOut()) {
+                    await this.tapFranceConnectInWebView(true, 15000).catch((err: unknown) =>
+                        log.info('pas de page de login SPA après rechargement de la racine (Android) :', err instanceof Error ? err.message : err))
+                }
                 return
             }
             log.info('bouton FranceConnect natif introuvable (Android) — tentative en WebView')
         }
 
+        await this.tapFranceConnectInWebView(isOkToFail, timeout)
+    }
+
+    /**
+     * Tape le bouton "S'identifier avec FranceConnect" rendu par la SPA (WebView / DOM).
+     * Retourne `true` si le bouton a été tapé (utile en mode best-effort, où son absence n'est pas une erreur).
+     */
+    private async tapFranceConnectInWebView(isOkToFail: boolean, timeout: number): Promise<boolean> {
+        let tapped = false
         await platform().inWebContext(async () => {
             try {
                 await browser.waitUntil(
@@ -140,6 +161,7 @@ class FranceConnectMirePage {
                 )
                 const fcButton = await tl().getByRole('button', {name: /^S.identifier avec FranceConnect$/i})
                 await fcButton.click()
+                tapped = true
                 log.info('btn web FC trouvé et tap effectif !!!')
             } catch {
                 const [title, url] = await Promise.all([
@@ -182,6 +204,23 @@ class FranceConnectMirePage {
             // getAppToStartingState().
             throw new AssertionError({message: err.message})
         })
+        return tapped
+    }
+
+    /**
+     * Après une déconnexion, la WebView reste sur `/?is_logged_out#/` : page vide, sans bouton
+     * FranceConnect — seul un chargement complet de la racine fait rediriger la SPA vers `#/login`
+     * (même constat que getAppToStartingState() pour la webapp). Observé 2026-10-06 sur Android
+     * (reconnexion de profile_deletion_at_logout.test.ts). Retourne `true` si la racine a été rechargée.
+     */
+    private async reloadSpaRootIfLoggedOut(): Promise<boolean> {
+        return await platform().inWebContext(async () => {
+            const href = await driver.execute(() => location.href) as string
+            if (!/is_logged_out/.test(href)) return false
+            log.info(`WebView sur "${href}" : rechargement de la racine de la SPA pour atteindre #/login`)
+            await browser.url(new URL('/', href).href)
+            return true
+        }).catch(() => false)
     }
 }
 

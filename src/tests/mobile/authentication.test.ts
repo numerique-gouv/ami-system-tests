@@ -4,6 +4,7 @@ import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
 import OnboardingPasskeyPage from '../../pages/onboarding-passkey.page'
+import OnboardingZonesPage from '../../pages/onboarding-zones.page'
 import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/test-users'
@@ -31,11 +32,22 @@ describe('Authentification', () => {
 
     await AllureReporter.addStep('2. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)
-    await FranceConnectEidasPage.selectEidasFaible()
-    await FranceConnectCredentialsPage.fillCredentials(user)
+    // Une session FranceConnect encore ouverte dans le simulateur/émulateur (run précédent, SSO) renvoie
+    // directement vers l'app sans afficher la mire eIDAS : observé 2026-10-06 sur iOS, la capture de l'échec
+    // montrait déjà l'onboarding des notifications. On ne saisit alors ni eIDAS ni identifiants.
+    const fcDemandeIdentifiants = await browser.waitUntil(
+      () => FranceConnectEidasPage.isEidasVisible(), {timeout: 15000, interval: 500}
+    ).then(() => true).catch(() => false)
+    if (fcDemandeIdentifiants) {
+      await FranceConnectEidasPage.selectEidasFaible()
+      await FranceConnectCredentialsPage.fillCredentials(user)
+    } else {
+      await AllureReporter.addStep('(session FranceConnect déjà ouverte : eIDAS et identifiants non demandés)')
+    }
 
-    await AllureReporter.addStep('3. Passer la proposition de clé d\'accès puis l\'onboarding des notifications')
+    await AllureReporter.addStep('3. Passer la proposition de clé d\'accès, le choix des zones puis l\'onboarding des notifications')
     await OnboardingPasskeyPage.dismiss()
+    await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
     await FranceConnectMirePage.tapFranceConnect(true )
 

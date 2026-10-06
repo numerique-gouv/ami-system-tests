@@ -7,6 +7,15 @@ import {pageText, waitForPageText} from '@helpers/spa'
 
 const DEMARCHE_DETAIL_TIMEOUT_MS = 20000
 
+function decodeURIComponentSafe(value: string): string {
+  try { return decodeURIComponent(value) } catch { return value }
+}
+
+/** L'URL du lien externe peut porter un `id_token` (SSO) : jamais dans les logs ni dans Allure. */
+function maskIdToken(url: string | null): string | null {
+  return url?.replace(/(id_token=)[^&#]*/g, '$1***') ?? url
+}
+
 class DemarcheDetailPage {
   /**
    * Vérifie le contenu du détail (`/#/followup/item/…`) : statut, titre, partenaire, référence
@@ -87,7 +96,9 @@ class DemarcheDetailPage {
         await browser.waitUntil(
           async () => {
             lastUrl = await browser.getUrl()
-            return lastUrl.includes(expectedUrl)
+            // iOS (observé 2026-10-06) : le lien passe par la racine de l'app, la cible étant encodée dans
+            // `?login_redirect_url=…` (Android atterrit directement sur l'URL en clair).
+            return lastUrl.includes(expectedUrl) || decodeURIComponentSafe(lastUrl).includes(expectedUrl)
           },
           {
             timeout: timeoutMs,
@@ -96,7 +107,7 @@ class DemarcheDetailPage {
           }
         )
       } catch {
-        throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${loc.detailExternalButtonName}" (dernière URL observée : ${lastUrl})` })
+        throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${loc.detailExternalButtonName}" (dernière URL observée : ${maskIdToken(lastUrl)})` })
       }
     })
   }
