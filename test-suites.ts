@@ -29,6 +29,16 @@ export const testSuites: Record<string, string[][]> = {
         r('src/tests/mobile/**/*.test.ts'),
     ]],
     
+    mobile_all: [[
+        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/**/*.test.ts'),
+    ]],
+    
+    webapp_all: [[
+        r('src/tests/webapp/authentication.test.ts'),
+        r('src/tests/webapp/**/*.test.ts'),
+    ]],
+    
     /** short suite to shorten CI debug **/
     short: [[
         r('src/tests/mobile/authentication.test.ts'),

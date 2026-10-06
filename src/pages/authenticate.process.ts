@@ -2,7 +2,9 @@ import EnvironmentPickerPage from './franceconnect/environment-picker.page'
 import FranceConnectMirePage, {FranceConnectProviderError} from './franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from './franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect/franceconnect-credentials.page'
-import PasskeyRegistrationPromptPage from './passkey-registration-prompt.page'
+import OnboardingPasskeyPage from './onboarding-passkey.page'
+import OnboardingZonesPage from './onboarding-zones.page'
+import OnboardingNotificationsPage from './onboarding-notifications.page'
 import HomePage from './home.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/test-users'
@@ -31,9 +33,14 @@ const FC_SCREEN_SEQUENCE: Array<[FcScreen, (user: TestUser) => Promise<void>]> =
     }],
     ['credentials', (user): Promise<void> => FranceConnectCredentialsPage.fillCredentials(user)],
     // Proposition de création de clé d'accès (passkey), conditionnée par un feature flag
-    // applicatif — no-op silencieux si absente (cf. PasskeyRegistrationPromptPage.dismiss()).
+    // applicatif — no-op silencieux si absente (cf. OnboardingPasskeyPage.dismiss()).
+    // Puis onboarding de première connexion (/welcome/zones, puis /welcome/notifications), lui aussi
+    // no-op s'il est absent. Sur mobile, l'écran notifications est natif et traité par
+    // HomePage.assertHomeVisible() — on ne le sonde ici qu'en webapp.
     ['home', async (): Promise<void> => {
-        await PasskeyRegistrationPromptPage.dismiss()
+        await OnboardingPasskeyPage.dismiss()
+        await OnboardingZonesPage.dismiss()
+        if (platform().kind === 'webapp') await OnboardingNotificationsPage.dismiss()
     }],
 ]
 
@@ -51,13 +58,16 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
         const providerError = await FranceConnectMirePage.detectProviderErrorBare()
         if (providerError) throw providerError
         return driver.execute(() => {
+            // Parcours d'accueil de première connexion : l'étape 'home' le passe (cf. OnboardingZonesPage / OnboardingNotificationsPage).
+            if (/#\/welcome\/(zones|notifications)/.test(location.hash)) return 'home'
             // Restreint à <button> : la mire eIDAS de FranceConnect (hors contrôle de l'app AMI)
             // contient elle-même le mot "FranceConnect" dans un lien de pied de page — un simple
             // innerText.includes() sur tout le body matcherait donc aussi cet écran suivant.
             const hasButtonTextIncluding = (needle: string): boolean =>
                 Array.from(document.querySelectorAll('button'))
                     .some(b => b.textContent?.toLowerCase().includes(needle))
-            if (Array.from(document.querySelectorAll('p'))
+            // <h1> depuis la SPA du 2026-10-02 (était <p>) : on tolère les deux (cf. HomePage.probeWelcomeText).
+            if (Array.from(document.querySelectorAll('h1, p'))
                 .some(p => (p as HTMLElement).innerText?.trim().startsWith('Bonjour')))
                 return 'home'
             if (hasButtonTextIncluding('franceconnect')) return 'login'
@@ -133,6 +143,9 @@ export async function getAppToStartingState({grantConsent: shouldGrantConsent = 
             const screen = await detectCurrentScreen()
             if (screen === null) {
                 log.warn(`getAppToStartingState: écran non reconnu (dernier connu : ${lastScreen}), tentative de retour vers Home au cas où nous serions déjà connectés (essai ${attempts}/${MAX_ATTEMPTS})`)
+                // Webapp : après un logout, forcer le hash `#/` ne fait pas rediriger la SPA vers `#/login`
+                // (page vide, `?is_logged_out`) — seul un chargement complet de la racine le fait.
+                if (platform().kind === 'webapp') await browser.url('/').catch(() => {})
                 // best-effort : un échec ici est revu par une nouvelle détection au tour suivant.
                 await HomePage.goToHomeFromAnywhere(5000).catch(() => {
                 })

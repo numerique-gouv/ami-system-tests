@@ -8,14 +8,15 @@ Tests E2E WebdriverIO v9 + Appium 3 + TypeScript pour l'app AMI (mobile Android/
 
 ## Modèle du site testé (déjà construit — ne pas re-scanner)
 
-Un modèle de la webapp cible existe déjà : **`references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.{md,json}`** (miroir : `.webdriverio-skills/website-analysis.{md,json}`), produit par le skill `analyze-website` le 2026-09-08 à partir d'une exploration live du site + lecture du code des dépôts frères (`ami-notifications-api/public/mobile-app`, `ami-app-android`, `ami-app-ios`).
+Un modèle de la webapp cible existe déjà : **`references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.{md,json}`** (miroir : `.webdriverio-skills/website-analysis.{md,json}`), reconstruit le **2026-10-02** (remplace celui du 2026-09-08 ; écrans natifs inchangés depuis le 2026-09-08) par le skill `analyze-website` à partir d'une exploration live du site + lecture du code des dépôts frères (`ami-notifications-api/public/mobile-app`, `ami-app-android`, `ami-app-ios`).
 
 Résumé exploitable directement par les autres skills :
-- **Navigation** : 5 sections (Accueil `/`, Agenda `/#/agenda`, Services `/#/services`, Suivi `/#/followup`, Plus — modale)
-- **Fonctionnalités `high`** : authentification FranceConnect, cycle de vie d'une démarche (`new`→`wip`→`closed`, route détail `/#/followup/item/{partner_id}/{item_type}/{item_external_id}`), notifications in-app (`/#/notifications`)
-- **Fonctionnalités `medium`** : Profil usager (`/#/profile`, 3 blocs identité/contact/adresse), Services (annuaire/démarches partenaires)
-- **Fonctionnalités `low`/`unknown`** : Agenda, Préférences (Suivi des démarches / Notifications / Zones scolaires — cette dernière section n'est pas couverte par la suite mobile actuelle, écart de couverture à considérer)
-- **Zones d'ombre documentées** : détail de `AMIGoto`, relation consentement API vs toggles UI, mécanisme du bug de concurrence iOS (réaffichage écran FranceConnect), destination du bouton "Gérer" de l'inbox
+- **Navigation** : 5 `<button>` (Accueil `/`, Agenda `/#/agenda`, Services `/#/services`, Suivi `/#/followup`, Plus — dialogue à 6 entrées : profil, préférences, aide et contact, données personnelles, accessibilité, déconnexion). **Aucun `<a href>` interne : tout est `button`.**
+- **Fonctionnalités `high`** : authentification FranceConnect + onboarding de 1re connexion (`/welcome/zones` → `/welcome/notifications`), cycle de vie d'une démarche (`new`→`wip`→`closed`, détail `/#/followup/item/{partner}/{type}/{id}`), notifications in-app (`/#/notifications`), navigation + menu Plus
+- **Fonctionnalités `medium`** : Profil (`/#/profile`), Services (onglets, 5 checklists, fiches partenaires), Préférences (consentements, notifications, zones), Aide/contact/pages légales
+- **Fonctionnalités `low`** : Agenda, pages d'erreur ; prototypes `/step*` (non confirmé)
+- **Pièges de sélection constatés (2026-10-02)** : le **nom accessible peut différer du texte visible** (« Supprimer » = aria-label « Cacher l'élément de l'agenda », « Gérer » = « Gérer les notifications ») ; la salutation « Bonjour {prénom} » est un `<h1>` ; le carrousel d'accueil (Splide) ne rend accessible qu'une carte à la fois ; les listes de Services se chargent après les titres de section ; l'encart des archivés est un accordéon fermé
+- **Zones d'ombre documentées** : effets d'« Archiver »/« Supprimer », destinations externes (changement d'adresse, OTV depuis Services, 17cyber), `AMIGoto`, relation consentement API vs cases UI
 
 Avant toute tâche de planification de test (`creating-test-structure`) ou d'investigation (`gathering-context`, `investigate-failing-tests`) touchant à la webapp, lire ce modèle plutôt que de ré-explorer le site. Le rafraîchir via `analyze-website` seulement si la structure du site a changé depuis.
 
@@ -75,6 +76,9 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 | `src/helpers/notifications-api.ts` | Client HTTP API partenaire (`checkConsent`, `grantConsent`, `publishNotification` avec retry sur 5xx). **Timeout de requête ajouté le 2026-09-08** (`REQUEST_TIMEOUT_MS = 15000`, via `AbortSignal.timeout()`) suite à une investigation de flakiness liée à une coupure réseau — avant ce fix, un `fetch()` bloqué remontait jusqu'au timeout Mocha du hook englobant (120-180s), causant des cascades de hooks en échec. |
 | `src/helpers/environment.ts` | `resolveEnvironment()` — dérive `webappUrl`/`apiUrl` depuis `AMI_ENV` (numérique → review app PR, sinon staging) |
 | `src/helpers/access-code.ts` | gestion du code d'accès webapp (`WEB_APP_ACCESS_KEYS`, gate `window.prompt` côté staging) |
+| `src/helpers/spa.ts` | primitives communes aux Page Objects de la SPA : `clickButton`, `waitForHeading`, `waitForButtons`, `clickButtonInDialog`, `visibleButtonTexts`, `pageText`, `checkboxStates` (toutes par nom accessible / DOM visible) |
+| `src/pages/navigation.page.ts` | barre basse, menu Plus (`openPlusEntry`), navigation par route (`goToRoute`) — partagé par tous les Page Objects « onglet » |
+| `src/pages/onboarding-{passkey,zones,notifications}.page.ts` | écrans d'onboarding : clé d'accès, zones scolaires (`/welcome/zones`), notifications (natif sur mobile, `/welcome/notifications` en webapp) |
 | `src/helpers/traced.ts` | wrapper des singletons Page Object (`traced(new XxxPage(), 'XxxPage')`) |
 | `src/pages/authenticate.process.ts` | `getAppToStartingState()` — séquence FranceConnect avec re-détection d'écran, retry borné (`MAX_ATTEMPTS`), timeouts dédiés (`AUTHENTICATE_TIMEOUT_MS` 60000, `FINAL_HOME_TIMEOUT_MS` 15000) |
 
@@ -95,3 +99,9 @@ Rappel projet : ne jamais lire `.env.local` ni afficher ses valeurs, y compris v
 - `custom-rules.md` — règles d'équipe (sélecteurs, garde-fous)
 - `health-recommendations.md` — recommandations d'amélioration détectées
 - `references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.md` — modèle détaillé du site
+
+## Tests webapp (`src/tests/webapp/`) — état au 2026-10-02
+
+12 fichiers, un par parcours usager : `authentication`, `navigation`, `accueil`, `agenda`, `services`, `suivi`, `notifications`, `profil`, `preferences`, `aide-contact`, `deconnexion`, `erreurs`. Chaque fichier s'authentifie seul (`getAppToStartingState()`), les actions mutantes (profil, déconnexion) restaurent l'état en `after()`. Les liens sortants (service-public.gouv.fr, demarche.numerique.gouv.fr) ne sont jamais suivis : seule leur présence est testée.
+
+Commandes utiles : `just test-webci` (tous, headless), `just test-webapp "<glob>"` (Chrome visible). Si WDIO échoue à télécharger Chromedriver (« the executable is missing ») : `just fix-chromedriver <version exacte de Chrome>` (WDIO exige la version exacte, p.ex. `154.0.8037.97`, pas la plus proche). Pour un script d'exploration long (> 120 s), `WDIO_DEBUG=1` porte le timeout Mocha à 24 h (`this.timeout()` dans un `it` n'est pas pris en compte).

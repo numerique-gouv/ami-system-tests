@@ -131,6 +131,31 @@ class ProfilePage {
     }
 
     /**
+     * Ouvre le formulaire d'édition d'un bloc (« Modifier ») sans rien saisir ni enregistrer, et
+     * attend son titre. Les 3 boutons « Modifier » ont le même nom : data-testid (cf. ProfileLocators).
+     */
+    async openEditForm(block: 'identity' | 'email' | 'address'): Promise<void> {
+        const loc = getProfileLocators()
+        const testId = {identity: loc.preferredUsernameEditButtonTestId, email: loc.emailEditButtonTestId, address: loc.addressEditButtonTestId}[block]
+        const heading = {identity: 'Mon identité', email: 'Contact', address: /Où habitez-vous/}[block]
+        await platform().inWebContext(async () => {
+            const editBtn = await tl().findByTestId(testId, {}, {timeout: 5000})
+            await editBtn.click()
+            await tl().findByRole('heading', {name: heading}, {timeout: 5000})
+        })
+    }
+
+    /** « Annuler » dans un formulaire d'édition : retour au profil sans modification. */
+    async cancelEdit(): Promise<void> {
+        const loc = getProfileLocators()
+        await platform().inWebContext(async () => {
+            const cancel = await tl().findByRole('button', {name: 'Annuler'}, {timeout: 5000})
+            await cancel.click()
+            await tl().findByRole('heading', {name: loc.pageTitle}, {timeout: 5000})
+        })
+    }
+
+    /**
      * Ouvre le formulaire d'édition du nom d'usage, saisit la valeur, enregistre,
      * et attend le retour sur la page profil.
      *

@@ -2,6 +2,8 @@ import {tl} from '../helpers/webview'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
+import {clickButton} from '../helpers/spa'
+import NavigationPage from './navigation.page'
 import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
@@ -47,6 +49,15 @@ class NotificationsInboxPage {
             await this.waitForNotificationsHeading()
         })
     }
+    /**
+     * « Gérer » (en-tête de l'inbox) ouvre les préférences de notifications. Texte visible « Gérer »,
+     * mais nom accessible = aria-label « Gérer les notifications » (vérifié en live le 2026-10-02).
+     */
+    async openManage(): Promise<void> {
+        await clickButton('Gérer les notifications')
+        await NavigationPage.waitForHash(/#\/preferences\/notifications$/)
+    }
+
     /**
      * Attend qu'un item avec ce titre exact apparaisse dans l'inbox.
      *

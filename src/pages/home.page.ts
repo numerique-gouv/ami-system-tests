@@ -1,8 +1,10 @@
-import {getHomeLocators} from './locators/home.locators'
+import {getHomeLocators, homeContentLocators} from './locators/home.locators'
 import {tl, describeCurrentPage} from '../helpers/webview';
+import {clickButton, visibleButtonTexts, waitForHeading, pageText} from '../helpers/spa'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import OnboardingNotificationsPage from './onboarding-notifications.page'
+import OnboardingZonesPage from './onboarding-zones.page'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
 
@@ -55,7 +57,7 @@ class HomePage {
      * "Plus" restée ouverte après un logout, cf. closeOpenNavPlusMenu).
      *
      * Sentinel principal : texte de salutation "Bonjour <prénom>" en haut à gauche du header —
-     * seul le header de la home l'affiche ; les 3 boutons de nav (Accueil, Agenda, Suivi) sont
+     * seul le header de la home l'affiche (titre <h1> « Bonjour <prénom> ») ; les 3 boutons de nav (Accueil, Agenda, Suivi) sont
      * affichés ensemble sur tous les écrans, donc ne discriminent pas Home à eux seuls.
      * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
      *
@@ -66,6 +68,12 @@ class HomePage {
     async assertHomeVisible(timeout = 30000): Promise<void> {
         // La page d'accueil est une webview'
         if (await platform().isWebContextAvailable()) {
+            // Première connexion du compte : la SPA affiche d'abord /welcome/zones (puis l'onboarding des
+            // notifications, traité juste après) avant la home.
+            if (await OnboardingZonesPage.isVisible(1000)) {
+                await OnboardingZonesPage.dismiss()
+            }
+
             // L'écran d'onboarding peut apparaitre, et doit être refusé (ca évite les pop-in native de notification qui pourraient intercépter les clicks).
             if (await OnboardingNotificationsPage.isOnboardingVisible()) {
                 await OnboardingNotificationsPage.dismiss()
@@ -98,7 +106,9 @@ class HomePage {
             return await platform().inWebContext(async () => {
                 await browser.waitUntil(
                     async () => driver.execute(() =>
-                        Array.from(document.querySelectorAll('p'))
+                        // <h1> depuis la SPA du 2026-10-02 (était <p>) : on tolère les deux, les builds
+                        // mobiles embarquent une version de la SPA qui peut être plus ancienne.
+                        Array.from(document.querySelectorAll('h1, p'))
                             .some(p => (p as HTMLElement).innerText?.trim().startsWith('Bonjour'))
                     ) as Promise<boolean>,
                     {
@@ -190,6 +200,73 @@ class HomePage {
         // donc on attend l'arrivée sur la page cible — assertHomeVisible() lève elle-même
         // l'erreur (avec describeCurrentPage()) en cas d'échec.
         await this.assertHomeVisible(timeout)
+    }
+
+    /** Vérifie les blocs de l'accueil : salutation, date, « Mon agenda », « Mes démarches », cloche. */
+    async assertContentVisible(): Promise<void> {
+        await waitForHeading(homeContentLocators.greetingPattern)
+        await waitForHeading(homeContentLocators.agendaHeading)
+        await waitForHeading(homeContentLocators.proceduresHeading)
+        const buttons = await visibleButtonTexts()
+        if (!buttons.some(t => homeContentLocators.notificationsBellName.test(t)))
+            throw new AssertionError({message: `Cloche de notifications absente de l'accueil (boutons visibles : ${buttons.join(' | ')})`})
+    }
+
+    /** Texte de la salutation « Bonjour <prénom> » (titre <h1> de l'accueil). */
+    async greeting(): Promise<string> {
+        return await platform().inWebContext(async () => {
+            const heading = await tl().findByRole('heading', {name: homeContentLocators.greetingPattern}, {timeout: 10000})
+            return (await heading.getText()).trim()
+        })
+    }
+
+    /** La date du jour est affichée sous la salutation (ex. « vendredi 2 octobre 2026 »). */
+    async assertDateVisible(): Promise<void> {
+        const text = await pageText()
+        if (!/(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d{1,2} \p{L}+ \d{4}/u.test(text))
+            throw new AssertionError({message: `Date du jour absente de l'accueil (texte : ${text.slice(0, 200)})`})
+    }
+
+    /** Ouvre l'inbox via la cloche de l'accueil. */
+    async openNotificationsBell(): Promise<void> {
+        await clickButton(homeContentLocators.notificationsBellName)
+    }
+
+    async openAllEvents(): Promise<void> {
+        await clickButton(homeContentLocators.seeAllEventsName)
+    }
+
+    async openAllProcedures(): Promise<void> {
+        await clickButton(homeContentLocators.seeAllProceduresName)
+    }
+
+    /**
+     * Ouvre la fiche du service « Opération Tranquillité Vacances » depuis le carrousel (Splide) :
+     * une seule carte est accessible à la fois (les autres sont aria-hidden, hors écran) — on avance
+     * avec « Diapositive suivante » jusqu'à ce que la carte soit atteignable.
+     */
+    async openOtvCard(): Promise<void> {
+        await platform().inWebContext(async () => {
+            for (let slide = 0; slide < 4; slide++) {
+                const card = await tl().queryByRole('button', {name: homeContentLocators.otvCardName})
+                if (card) {
+                    await card.click()
+                    return
+                }
+                const next = await tl().findByRole('button', {name: homeContentLocators.carouselNextName}, {timeout: 5000})
+                await next.click()
+                await browser.waitUntil(
+                    async () => !!await tl().queryByRole('button', {name: homeContentLocators.otvCardName}),
+                    {timeout: 2500, interval: 250}
+                ).catch(() => undefined) // animation du carrousel : on retente au tour suivant
+            }
+            throw new AssertionError({message: `Carte "${homeContentLocators.otvCardName}" jamais atteignable dans le carrousel`})
+        })
+    }
+
+    /** Ouvre le formulaire d'adresse depuis la carte « Renseignez votre adresse » du carrousel (1re diapositive). */
+    async openAddressCard(): Promise<void> {
+        await clickButton(homeContentLocators.addressCardName)
     }
 
     /**

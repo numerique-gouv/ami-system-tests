@@ -28,6 +28,23 @@ export const iosHomeLocators: HomeLocators = {
   userAvatarCss: '#notification-icon',
 }
 
+/**
+ * Contenu de l'accueil rendu par la SPA (WebView/webapp, DOM identique), par nom accessible —
+ * vérifié en live le 2026-10-02.
+ */
+export const homeContentLocators = {
+  greetingPattern: /^Bonjour /,
+  agendaHeading: 'Mon agenda',
+  proceduresHeading: 'Mes démarches',
+  seeAllEventsName: 'Voir tous mes évènements',
+  seeAllProceduresName: 'Voir toutes mes démarches',
+  notificationsBellName: /^Voir les notifications/,
+  /** Cartes du carrousel (chacune apparaît plusieurs fois dans le DOM). */
+  carouselNextName: 'Diapositive suivante',
+  addressCardName: 'Renseignez votre adresse',
+  otvCardName: 'Opération Tranquillité Vacances',
+}
+
 export function getHomeLocators(): HomeLocators {
   return driver.isIOS ? iosHomeLocators : androidHomeLocators
 }

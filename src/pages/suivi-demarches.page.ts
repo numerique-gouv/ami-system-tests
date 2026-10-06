@@ -6,6 +6,8 @@ import HomePage from './home.page'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/notifications-api'
+import NavigationPage from './navigation.page'
+import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa'
 
 const log = logger('page-object')
 
@@ -141,6 +143,25 @@ class SuiviDemarchesPage {
         throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" à ouvrir` })
       }
     })
+  }
+
+  /**
+   * Ouvre la page des démarches archivées (`/#/followup/archived`). Aucun bouton de la SPA n'y mène
+   * de façon confirmée (cf. website-analysis.md § Démarches archivées) : navigation directe par route.
+   */
+  async openArchived(): Promise<void> {
+    await NavigationPage.goToRoute('/followup/archived')
+    await NavigationPage.waitForHash(/#\/followup\/archived$/)
+    await waitForHeading('Démarches archivées')
+  }
+
+  /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
+  async archivedPartners(): Promise<string[]> {
+    // L'encart est un accordéon fermé par défaut : les partenaires ne sont visibles qu'une fois déplié.
+    await clickButton(/Votre démarche n.apparaît pas/)
+    await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
+    const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
+    return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))
   }
 
   /**

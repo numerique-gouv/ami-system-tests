@@ -1,6 +1,7 @@
-import {getOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
+import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
+import {tl} from '../helpers/webview'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -10,6 +11,7 @@ import {traced} from '../helpers/traced'
  *
  * Android : écran natif (OnboardingNotificationScreen.kt) — boutons sans resource-id stable.
  * iOS     : sheet SwiftUI (OnboardingView.swift) — sans accessibilityIdentifier.
+ * Webapp  : route SPA `/#/welcome/notifications` (après OnboardingZonesPage, première connexion).
  */
 
 class OnboardingNotificationsPage {
@@ -31,14 +33,30 @@ class OnboardingNotificationsPage {
      * dismiss() elle-même (même sentinelle, un seul appel).
      */
     async isOnboardingVisible(timeout = 5000): Promise<boolean> {
-        // Écran natif — inexistant en webapp (pas de permission OS à demander).
-        if (platform().kind === 'webapp') return false
+        // Webapp : écran rendu par la SPA, détecté par sa route.
+        if (platform().kind === 'webapp') {
+            return await browser.waitUntil(
+                () => driver.execute(() => /#\/welcome\/notifications/.test(location.hash)) as Promise<boolean>,
+                {timeout, interval: 300}
+            ).then(() => true).catch(() => false)
+        }
         const loc = getOnboardingNotifLocators()
         return await $(loc.dismiss).waitForExist({timeout}).catch(() => false)
     }
 
     async dismiss(): Promise<void> {
         if (!await this.isOnboardingVisible()) return
+        if (platform().kind === 'webapp') {
+            await platform().inWebContext(async () => {
+                const later = await tl().findByRole('button', {name: webOnboardingNotifLocators.laterButtonName}, {timeout: 10000})
+                await later.click()
+            })
+            await browser.waitUntil(
+                async () => !(await driver.execute(() => /#\/welcome\/notifications/.test(location.hash))),
+                {timeout: 10000, interval: 300, timeoutMsg: 'Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »'}
+            )
+            return
+        }
         const loc = getOnboardingNotifLocators()
         await $(loc.dismiss).click()
         await $(loc.title).waitForDisplayed({timeout: 1000, reverse: true})

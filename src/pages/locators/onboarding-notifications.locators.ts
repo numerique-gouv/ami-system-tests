@@ -27,6 +27,16 @@ export const iosOnboardingNotifLocators: OnboardingNotifLocators = {
   dismiss: '-ios predicate string:label CONTAINS[c] "plus tard"',
 }
 
+/**
+ * Webapp : même écran rendu par la SPA (route `/#/welcome/notifications`, titre h1 « Activez les
+ * notifications pour suivre vos démarches », boutons « Activer » / « Peut-être plus tard ») —
+ * vérifié en live sur staging le 2026-10-02. Ciblage par nom accessible ; « Activer » n'est jamais
+ * utilisé (il déclencherait la demande de permission de notification).
+ */
+export const webOnboardingNotifLocators = {
+  laterButtonName: /plus tard/i,
+}
+
 export function getOnboardingNotifLocators(): OnboardingNotifLocators {
   return driver.isIOS ? iosOnboardingNotifLocators : androidOnboardingNotifLocators
 }

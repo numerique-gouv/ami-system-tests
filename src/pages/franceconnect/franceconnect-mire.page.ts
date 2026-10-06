@@ -69,6 +69,16 @@ class FranceConnectMirePage {
     }
 
     /**
+     * Attend l'écran de connexion (ex. après un logout : la SPA redirige vers `/#/login` après la
+     * suppression des données, ce qui prend quelques secondes). Échec dur avec message explicite.
+     */
+    async waitForLoginScreen(timeout = 20000): Promise<void> {
+        await browser.waitUntil(() => this.isLoginScreenVisible(), {
+            timeout, interval: 500, timeoutMsg: `Écran de connexion FranceConnect non affiché après ${timeout}ms`,
+        })
+    }
+
+    /**
      * Détecte la page d'erreur technique FCP-LOW — bare (à appeler depuis un inWebContext déjà
      * ouvert, même contrainte que isFranceConnectTextVisible() ci-dessus). Réutilisée par
      * probeFranceConnectWebScreen() (authenticate.process.ts) pour distinguer cette page

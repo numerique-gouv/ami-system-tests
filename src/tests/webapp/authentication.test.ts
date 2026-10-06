@@ -1,17 +1,21 @@
 import AllureReporter from '@wdio/allure-reporter'
-import EnvironmentPickerPage from '../../pages/franceconnect/environment-picker.page'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
 import OnboardingPasskeyPage from '../../pages/onboarding-passkey.page'
+import OnboardingZonesPage from '../../pages/onboarding-zones.page'
 import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/test-users'
 
 /**
- * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
- * L'authentification est sous la responsabilité d'une autre équipe — ce test
- * valide uniquement que notre intégration fonctionne de bout en bout.
+ * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil, en webapp.
+ * L'authentification est sous la responsabilité d'une autre équipe — ce test valide uniquement
+ * que notre intégration fonctionne de bout en bout.
+ *
+ * Pas de sélecteur d'environnement en webapp (cf. resolveEnvironment) : la session démarre
+ * directement sur l'écran de connexion. Les écrans d'onboarding (clé d'accès, zones scolaires,
+ * notifications) ne sont affichés qu'à certaines connexions — chacun est un no-op s'il est absent.
  */
 describe('Authentification', () => {
   before(async function () {
@@ -22,25 +26,23 @@ describe('Authentification', () => {
     await AllureReporter.addSeverity('critical')
     await AllureReporter.addTag('franceconnect')
   })
-  
+
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
+    this.timeout(180000)
     const user = getUser('avec_nom_dusage')
 
-    await AllureReporter.addStep('1. Sélectionner l\'environnement de review')
-    await EnvironmentPickerPage.reviewEnvironmentPicker()
-
-    await AllureReporter.addStep('2. Démarrer le flow FranceConnect (eIDAS faible)')
+    await AllureReporter.addStep('1. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)
     await FranceConnectEidasPage.selectEidasFaible()
     await FranceConnectCredentialsPage.fillCredentials(user)
 
-    await AllureReporter.addStep('3. Passer la proposition de clé d\'accès puis l\'onboarding des notifications')
+    await AllureReporter.addStep("2. Passer les écrans d'onboarding présents (clé d'accès, zones scolaires, notifications)")
     await OnboardingPasskeyPage.dismiss()
+    await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
-    await FranceConnectMirePage.tapFranceConnect(true )
 
-    await AllureReporter.addStep('4. Vérifier l\'arrivée sur la page d\'accueil')
+    await AllureReporter.addStep("3. Vérifier l'arrivée sur la page d'accueil")
     await HomePage.assertHomeVisible(30000)
+    expect(await HomePage.greeting()).toMatch(/^Bonjour \S+/)
   })
-
 })
