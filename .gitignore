@@ -23,6 +23,9 @@ apps/
 .playwright-mcp/
 build/
 
+# cache des navigateurs/drivers téléchargés par WDIO (Chrome for Testing, cf. .chrome-version)
+.cache/
+
 # campagnes d'analyse d'instabilité (skill analyzing-test-flakiness)
 flaky-runs/
 flaky-test*
