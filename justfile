@@ -70,66 +70,82 @@ clean-install:
     just install-appium-drivers
     @echo "✅ node_modules reconstruit."
 
-# Télécharger et installer manuellement chromedriver dans le cache WDIO.
-# Utile quand le téléchargement automatique WDIO échoue (proxy/réseau) avec une erreur du type
-# "All providers failed for chromedriver ... the executable is missing".
-# Sans argument : détecte la version depuis le Chrome installé localement (macOS).
-# Usage : just fix-chromedriver                  → auto-détection
-#         just fix-chromedriver 151.0.7922.174   → force une version précise
-fix-chromedriver version="":
+# Pré-installe Chrome for Testing + chromedriver (version de `.chrome-version`) dans `.cache/`.
+# Contourne WDIO : son extraction (`extract-zip`) ne se termine pas sous Node 26 — le process quitte
+# en plein dépaquetage (« unsettled top-level await », exit 13), laisse un dossier à moitié extrait
+# (sans l'exécutable) et WDIO conclut « All providers failed ». `unzip` système n'a pas ce défaut.
+# Idempotent : ne fait rien si les exécutables sont déjà là. macOS uniquement (sinon WDIO se charge de tout).
+_ensure-chrome:
     #!/usr/bin/env bash
     set -euo pipefail
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "arm64" ]; then
-        PLATFORM_TAG="mac_arm"; DOWNLOAD_PLATFORM="mac-arm64"
-    else
-        PLATFORM_TAG="mac_x64"; DOWNLOAD_PLATFORM="mac-x64"
-    fi
+    [ "$(uname -s)" = "Darwin" ] || exit 0
+    if [ "$(uname -m)" = "arm64" ]; then TAG="mac_arm"; PLATFORM="mac-arm64"; else TAG="mac_x64"; PLATFORM="mac-x64"; fi
+    VERSION=$(tr -d '[:space:]' < .chrome-version)
+    install() { # nom exécutable-relatif
+        local name="$1" exe="$2" dir=".cache/$1/${TAG}-${VERSION}"
+        if [ -x "$dir/$exe" ]; then return 0; fi
+        echo "📥 $name $VERSION → $dir"
+        rm -rf "$dir"; mkdir -p "$dir"
+        local zip; zip=$(mktemp -t "$name").zip
+        curl -fSL -o "$zip" "https://storage.googleapis.com/chrome-for-testing-public/${VERSION}/${PLATFORM}/${name}-${PLATFORM}.zip"
+        unzip -q "$zip" -d "$dir"
+        rm -f "$zip"
+        xattr -dr com.apple.quarantine "$dir" 2>/dev/null || true
+        [ -x "$dir/$exe" ] || { echo "❌ $name : exécutable absent après extraction ($dir/$exe)" >&2; exit 1; }
+    }
+    install chrome "chrome-${PLATFORM}/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+    install chromedriver "chromedriver-${PLATFORM}/chromedriver"
 
+# Version de Chrome for Testing utilisée par les tests webapp (fichier `.chrome-version`, lu par
+# wdio.webapp.conf.ts). WDIO télécharge ce Chrome + le chromedriver apparié dans `.cache/` (une
+# seule fois) — le Chrome installé sur la machine et ses mises à jour automatiques sont ignorés.
+# Sans argument : affiche la version épinglée, les versions disponibles par canal, et signale
+#                 celles plus récentes que l'épinglée.
+# Avec une version : l'épingle (ex. `just update-chrome 156.0.8078.4`), vérifie qu'elle est publiée
+#                 pour cette plateforme ; le téléchargement a lieu au prochain `just test-webapp*`.
+update-chrome version="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname -m)" = "arm64" ]; then PLATFORM="mac-arm64"; else PLATFORM="mac-x64"; fi
+    PINNED=$(tr -d '[:space:]' < .chrome-version)
     VERSION="{{version}}"
-    if [ -z "$VERSION" ]; then
-        CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        if [ ! -x "$CHROME_BIN" ]; then
-            echo "❌ Chrome introuvable à '$CHROME_BIN' — passe la version explicitement : just fix-chromedriver <version>" >&2
-            exit 1
-        fi
-        CHROME_VERSION=$("$CHROME_BIN" --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
-        echo "🔍 Chrome installé : $CHROME_VERSION"
-        VERSION=$(curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
+
+    if [ -n "$VERSION" ]; then
+        curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
             | node -e "
                 const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-                const target = '$CHROME_VERSION';
-                const hasDriver = v => v.downloads.chromedriver?.some(d => d.platform === '$DOWNLOAD_PLATFORM');
-                const exact = data.versions.find(v => v.version === target && hasDriver(v));
-                if (exact) { console.log(exact.version); process.exit(0); }
-                const prefix = target.split('.').slice(0, 3).join('.') + '.';
-                const candidates = data.versions.filter(v => v.version.startsWith(prefix) && hasDriver(v));
-                if (!candidates.length) process.exit(1);
-                console.log(candidates[candidates.length - 1].version);
-            ")
-        if [ -z "$VERSION" ]; then
-            echo "❌ Aucun chromedriver publié pour Chrome $CHROME_VERSION." >&2
-            exit 1
-        fi
-        echo "🎯 Chromedriver ciblé : $VERSION"
-    fi
-
-    CACHE_ROOT="${TMPDIR:-/tmp}"
-    CACHE_DIR="${CACHE_ROOT%/}/chromedriver/${PLATFORM_TAG}-${VERSION}"
-    TARGET="$CACHE_DIR/chromedriver-${DOWNLOAD_PLATFORM}/chromedriver"
-    if [ -x "$TARGET" ]; then
-        echo "✅ Déjà présent : $TARGET"
+                const v = data.versions.find(v => v.version === '$VERSION');
+                const ok = k => v?.downloads[k]?.some(d => d.platform === '$PLATFORM');
+                if (!ok('chrome') || !ok('chromedriver')) {
+                    console.error('❌ $VERSION : Chrome + chromedriver non publiés pour $PLATFORM (cf. just update-chrome sans argument).');
+                    process.exit(1);
+                }
+            "
+        echo "$VERSION" > .chrome-version
+        echo "✅ Chrome for Testing épinglé : $PINNED → $VERSION (téléchargé au prochain test webapp)"
+        echo "   Pense à relancer la suite webapp, puis à commiter .chrome-version."
         exit 0
     fi
-    mkdir -p "$CACHE_DIR"
-    ZIP="$CACHE_DIR/chromedriver-${DOWNLOAD_PLATFORM}.zip"
-    URL="https://storage.googleapis.com/chrome-for-testing-public/${VERSION}/${DOWNLOAD_PLATFORM}/chromedriver-${DOWNLOAD_PLATFORM}.zip"
-    echo "📥 Téléchargement : $URL"
-    curl -fSL -o "$ZIP" "$URL"
-    unzip -o "$ZIP" -d "$CACHE_DIR"
-    chmod +x "$TARGET"
-    xattr -d com.apple.quarantine "$TARGET" 2>/dev/null || true
-    echo "✅ Chromedriver installé : $TARGET"
+
+    echo "📌 Version épinglée : $PINNED"
+    echo
+    curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" \
+        | node -e "
+            const pinned = '$PINNED';
+            const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+            const ok = (c, k) => c.downloads[k]?.some(d => d.platform === '$PLATFORM');
+            const cmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number);
+                for (let i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
+            console.log('Versions disponibles ($PLATFORM, chrome + chromedriver) :');
+            for (const [name, c] of Object.entries(data.channels)) {
+                if (!ok(c, 'chrome') || !ok(c, 'chromedriver')) continue;
+                const d = cmp(c.version, pinned);
+                const tag = d === 0 ? '(= épinglée)' : d > 0 ? '⬆ plus récente' : '(plus ancienne)';
+                console.log('  ' + name.padEnd(7) + c.version.padEnd(18) + tag);
+            }
+            console.log();
+            console.log('Pour changer : just update-chrome <version>   (Stable recommandée)');
+        "
 
 # Afficher les dépendances dépassées (sans modifier package.json)
 check-deps:
@@ -301,7 +317,7 @@ test-ios-suite suite: _require-dotenv start-ios
 
 # Lancer les tests E2E webapp (CI) — Chrome headless, pas d'émulateur/simulateur à démarrer
 # Usage : just test-webci [glob…]   — un ou plusieurs globs de fichiers (optionnels)
-test-webci *globs="": _require-dotenv
+test-webci *globs="": _require-dotenv _ensure-chrome
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🌐 Tests E2E webapp (headless)…"
@@ -317,7 +333,7 @@ test-webci *globs="": _require-dotenv
 
 # Lancer les tests E2E webapp (CI) avec une suite nommée (session partagée — auth une seule fois)
 # Usage : just test-webci-suite <suite>   ex: just test-webci-suite all
-test-webci-suite suite: _require-dotenv
+test-webci-suite suite: _require-dotenv _ensure-chrome
     WDIO_SUITE={{suite}} npm run test:webapp
 
 # Lancer les tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver
@@ -328,7 +344,7 @@ test-webci-suite suite: _require-dotenv
 # 20s avec un message explicite plutôt qu'un hang silencieux, cf. ENSURE_APP_WINDOW_TIMEOUT_MS
 # dans src/platform/browser.adapter.ts).
 # Usage : just test-webapp [glob…]   — un ou plusieurs globs de fichiers (optionnels)
-test-webapp *globs="": _require-dotenv
+test-webapp *globs="": _require-dotenv _ensure-chrome
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🌐 Tests E2E webapp (Chrome visible)…"
@@ -344,7 +360,7 @@ test-webapp *globs="": _require-dotenv
 
 # Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (session partagée — auth une seule fois)
 # Usage : just test-webapp-suite <suite>   ex: just test-webapp-suite all
-test-webapp-suite suite: _require-dotenv
+test-webapp-suite suite: _require-dotenv _ensure-chrome
     WEBAPP_HEADLESS=false WDIO_SUITE={{suite}} npm run test:webapp
 
 # ─── Inspection / Reporting ─────────────────────────────────────────────────

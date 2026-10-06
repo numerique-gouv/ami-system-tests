@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import type { Options } from '@wdio/types'
 import { baseConfig } from './wdio.base.conf'
@@ -9,6 +10,12 @@ import { handleAccessKeyCookie } from './src/helpers/access-code'
 import { setBackendUrl } from './src/helpers/notifications-api'
 
 const { webappUrl, apiUrl } = resolveEnvironment()
+
+// Chrome for Testing épinglé (fichier .chrome-version, mis à jour via `just update-chrome`) :
+// WDIO télécharge ce Chrome ET le chromedriver apparié, indépendamment du Chrome installé sur la
+// machine — évite de retélécharger/casser à chaque auto-mise à jour de Chrome (patch parfois non
+// publié côté chromedriver).
+const chromeVersion = fs.readFileSync(path.resolve(__dirname, '.chrome-version'), 'utf8').trim()
 
 // Pas de picker natif en webapp (cf. resolveEnvironment) pour déclencher setBackendUrl()
 // comme EnvironmentPickerPage.reviewEnvironmentPicker() le fait côté mobile — on le fixe
@@ -31,9 +38,13 @@ export const config: Options.Testrunner = {
 
   baseUrl: webappUrl,
 
+  // Cache persistant (gitignoré) plutôt que $TMPDIR, que macOS purge.
+  cacheDir: path.resolve(__dirname, '.cache'),
+
   capabilities: [
     {
       browserName: 'chrome',
+      browserVersion: chromeVersion,
       webSocketUrl: true,
       'goog:chromeOptions': {
         args: headless ? ['--headless=new'] : [],
