@@ -178,6 +178,20 @@ Même modèle que `docs/process/model/spec.md` (§3.3 et §4.2) : **un écran se
 5. **Donnée asynchrone** : une page abonnée au temps réel (accueil, inbox de notifications via WebSocket) se met à jour en place — attendre simplement avec une primitive `spa.ts`. Une page sans abonnement (Suivi) ne se met à jour qu'au chargement : recharger entre deux essais avec un backoff (référence : `SuiviDemarchesPage.waitForDemarche`).
 6. **Ne pas vérifier la disparition d'un composant** après une action : les pages se recyclent, la résolution d'un élément disparu génère des warnings bénins **et attend la durée du timeout**.
 
+### Cas nominal et écarts : le Page Object décrit la cible, les écarts sont des anomalies visibles
+
+L'app est testée sur des contextes **modernes** (appareil et OS récents) **et anciens** (vieil appareil, vieil OS, surcouche constructeur). Le comportement attendu est le même partout ; quand il ne l'est pas, c'est une **anomalie**, pas une variante normale.
+
+- **Le code d'un Page Object suit le parcours nominal** : la cible. Exemple : **un seul tap** sur « S'identifier avec FranceConnect ».
+- **Un écart (appareil ancien contre moderne, WebView, surcouche constructeur, état résiduel…) est écrit dans le code du Page Object**, par une branche **explicite et facultative**, pour qu'il saute aux yeux en revue. Elle porte :
+  1. un **commentaire** qui sépare ce qui est **constaté** (appareil, version, date) de ce qui n'est qu'une **hypothèse** ;
+  2. un **`log.warn('ANOMALIE …')`** émis **quand elle se déclenche**, pour que le journal du test la montre ;
+  3. une attente **courte** et une absence **sans effet** : un appareil conforme à la cible ne doit jamais échouer à cause d'elle.
+- **Ne pas cacher un écart** dans un fichier de locators ou de configuration (ils décrivent le chemin nominal : sélecteurs, contexte) ni le traiter en silence (`log.info`, ou rien) : il deviendrait une variante « normale » que plus personne ne remet en cause.
+- **Une branche d'écart est temporaire** : quand l'app est corrigée, on la supprime ; le `warn` dit si elle sert encore.
+
+Exemples du dépôt : le 2e tap FranceConnect sur Android (`FranceConnectMirePage.tapFranceConnect`), l'onboarding des notifications affiché en natif au lieu de la route SPA sur Android (`OnboardingNotificationsPage.isOnboardingVisible`), la WebView restée sur `/?is_logged_out` après une déconnexion (`FranceConnectMirePage.reloadSpaRootIfLoggedOut`).
+
 ### Squelette d'une page WebView
 
 ```typescript
