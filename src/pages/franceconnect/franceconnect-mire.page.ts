@@ -127,14 +127,24 @@ class FranceConnectMirePage {
             })
             if (tapped) {
                 log.info('btn natif FC trouvé et tap effectif (Android, écran natif) !!!')
-                // Depuis la SPA du 2026-10 (observé 2026-10-06 sur le build staging) : le tap natif n'ouvre
-                // plus directement la mire eIDAS mais une WebView affichant la page de login de la SPA
-                // ("Me connecter à AMI") avec son propre bouton "S'identifier avec FranceConnect".
-                // Best-effort : un build qui enchaînerait directement sur l'eIDAS ne l'affiche pas.
+                // CIBLE : UN SEUL tap. Le 2e tap (page de login de la SPA « Me connecter à AMI », avec son propre
+                // bouton « S'identifier avec FranceConnect ») est FACULTATIF et constitue une ANOMALIE de l'app :
+                // il est tapé pour que le test continue, mais signalé par un warn.
+                // Constaté : appareil ancien (hypothèse non confirmée : la WebView ne supporte pas l'ES2020 de FC,
+                // la redirection JS silencieuse casse) ET émulateur moderne Pixel_modern (WebView 153) le 2026-10-06
+                // — donc la cause n'est pas établie. Pour la trancher : logs console de la WebView (`logs --errors`
+                // de `wdio session`, ou logcat) pendant ce tap.
                 const onSpaLogin = await this.tapFranceConnectInWebView(true, 8000).catch((err: unknown) => {
                     log.info('pas de page de login SPA après le tap natif (Android) :', err instanceof Error ? err.message : err)
                     return false
                 })
+                if (onSpaLogin) {
+                    const caps = driver.capabilities as Record<string, unknown>
+                    log.warn('ANOMALIE FranceConnect (Android) : un 2e tap a été nécessaire sur la page de login de la SPA ' +
+                        '(cible : un seul tap, la redirection silencieuse devait suffire). Cause non établie. ' +
+                        `Appareil : ${String(caps['appium:deviceName'] ?? caps.deviceName ?? '?')}, ` +
+                        `Android ${String(caps.platformVersion ?? caps['appium:platformVersion'] ?? '?')}.`)
+                }
                 if (!onSpaLogin && await this.reloadSpaRootIfLoggedOut()) {
                     await this.tapFranceConnectInWebView(true, 15000).catch((err: unknown) =>
                         log.info('pas de page de login SPA après rechargement de la racine (Android) :', err instanceof Error ? err.message : err))
@@ -217,7 +227,7 @@ class FranceConnectMirePage {
         return await platform().inWebContext(async () => {
             const href = await driver.execute(() => location.href) as string
             if (!/is_logged_out/.test(href)) return false
-            log.info(`WebView sur "${href}" : rechargement de la racine de la SPA pour atteindre #/login`)
+            log.warn(`ANOMALIE (app) : la WebView est restée sur "${href}" après une déconnexion ; rechargement de la racine de la SPA pour atteindre #/login`)
             await browser.url(new URL('/', href).href)
             return true
         }).catch(() => false)

@@ -1,6 +1,7 @@
 import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
+import logger from '@wdio/logger'
 import {findRole} from '../helpers/spa'
 
 /**
@@ -13,6 +14,8 @@ import {findRole} from '../helpers/spa'
  * iOS     : sheet SwiftUI (OnboardingView.swift) — sans accessibilityIdentifier.
  * Webapp  : route SPA `/#/welcome/notifications` (après OnboardingZonesPage, première connexion).
  */
+
+const log = logger('page-object')
 
 class OnboardingNotificationsPage {
     /**
@@ -57,7 +60,14 @@ class OnboardingNotificationsPage {
         if (platform().kind === 'webapp') return await this.isWebRouteVisible(timeout)
         if (driver.isAndroid && await this.isWebRouteVisible(timeout)) return true
         const loc = getOnboardingNotifLocators()
-        return await $(loc.dismiss).waitForExist({timeout: driver.isAndroid ? 1000 : timeout}).catch(() => false)
+        const nativeShown = await $(loc.dismiss).waitForExist({timeout: driver.isAndroid ? 1000 : timeout}).catch(() => false)
+        // Android : le chemin nominal est la route SPA (observée sur l'émulateur moderne). L'écran natif
+        // (OnboardingNotificationScreen.kt) est un ÉCART, à voir dans les logs ; on le traite pour que le test continue.
+        if (nativeShown && driver.isAndroid) {
+            log.warn('ANOMALIE (Android) : onboarding des notifications affiché en NATIF au lieu de la route SPA ' +
+                '#/welcome/notifications (chemin nominal). Écart d\'appareil/WebView probable : non confirmé.')
+        }
+        return nativeShown
     }
 
     async dismiss(): Promise<void> {
