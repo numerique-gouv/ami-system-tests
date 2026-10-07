@@ -1,6 +1,7 @@
 import {getHomeLocators, homeContentLocators} from './locators/home.locators'
-import {tl, describeCurrentPage} from '../helpers/webview';
-import {clickButton, visibleButtonTexts, waitForHeading, pageText} from '../helpers/spa'
+import {navigationLocators} from './locators/navigation.locators'
+import {describeCurrentPage} from '../helpers/webview';
+import {clickButton, visibleButtonTexts, waitForHeading, pageText, findRole, queryRole} from '../helpers/spa'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import OnboardingNotificationsPage from './onboarding-notifications.page'
@@ -125,13 +126,13 @@ class HomePage {
     }
 
     /**
-     * Navigue vers la section "Suivi" en cliquant sur le lien visible dans la nav.
-     * Attend que le titre "Mes démarches" soit visible pour confirmer la navigation.
+     * Navigue vers la section "Suivi" en cliquant sur le bouton de la nav. L'arrivée est vérifiée par
+     * la page Suivi (`SuiviDemarchesPage.assertDisplayed()` ou ses propres méthodes).
      */
     async ouvreSuivi(): Promise<void> {
         await platform().inWebContext(async () => {
             await this.closeOpenNavPlusMenu()
-            let suivi = await tl().findByRole('button', {name: /Suivi/}, {timeout: 10000})
+            let suivi = await findRole('button', /Suivi/, {timeout: 10000})
             await suivi.click()
         })
     }
@@ -189,7 +190,17 @@ class HomePage {
      */
     async goToHomeFromAnywhere(timeout: number): Promise<void> {
         await platform().inWebContext(async () => {
-            const clicked = await this.clickLinkByText('Accueil')
+            // Webapp : clic sur le bouton « Accueil » de la barre basse (vrai geste utilisateur). Le hash seul
+            // n'aboutit pas quand la page quittée est encore en cours de montage (observé le 2026-10-07 :
+            // retour à l'accueil depuis l'agenda 20 ms après l'apparition de son titre).
+            // Mobile : hash uniquement, comme avant (clic sur la barre basse non validé sur mobile : l'iOS
+            // du 2026-10-07 était instable, y compris sur le commit précédent — à réévaluer).
+            let clicked = false
+            if (platform().kind === 'webapp') {
+                // Le menu « Plus » peut rester ouvert et intercepter le clic (cf. closeOpenNavPlusMenu()).
+                await this.closeOpenNavPlusMenu()
+                clicked = await this.clickBottomBarButton('Accueil').catch(() => false)
+            }
             if (!clicked) {
                 await driver.execute(() => {
                     window.location.hash = '/'
@@ -215,7 +226,7 @@ class HomePage {
     /** Texte de la salutation « Bonjour <prénom> » (titre <h1> de l'accueil). */
     async greeting(): Promise<string> {
         return await platform().inWebContext(async () => {
-            const heading = await tl().findByRole('heading', {name: homeContentLocators.greetingPattern}, {timeout: 10000})
+            const heading = await findRole('heading', homeContentLocators.greetingPattern, {timeout: 10000})
             return (await heading.getText()).trim()
         })
     }
@@ -248,15 +259,15 @@ class HomePage {
     async openOtvCard(): Promise<void> {
         await platform().inWebContext(async () => {
             for (let slide = 0; slide < 4; slide++) {
-                const card = await tl().queryByRole('button', {name: homeContentLocators.otvCardName})
+                const card = await queryRole('button', homeContentLocators.otvCardName)
                 if (card) {
                     await card.click()
                     return
                 }
-                const next = await tl().findByRole('button', {name: homeContentLocators.carouselNextName}, {timeout: 5000})
+                const next = await findRole('button', homeContentLocators.carouselNextName, {timeout: 5000})
                 await next.click()
                 await browser.waitUntil(
-                    async () => !!await tl().queryByRole('button', {name: homeContentLocators.otvCardName}),
+                    async () => !!await queryRole('button', homeContentLocators.otvCardName),
                     {timeout: 2500, interval: 250}
                 ).catch(() => undefined) // animation du carrousel : on retente au tour suivant
             }
@@ -270,24 +281,18 @@ class HomePage {
     }
 
     /**
-     * Clique un lien <a> par son texte visible. driver.execute (find + click atomique en un
-     * seul appel JS) plutôt que tl()/$$() : ces deux derniers résolvent l'élément dans un appel
-     * puis cliquent dans un second — si la SPA se re-rend entre les deux (cas réel constaté dans
-     * ouvreSuivi(), appelé dans une boucle waitUntil pendant une navigation potentiellement
-     * active), le handle devient stale ("Request encountered a stale element"). driver.execute
-     * élimine cette fenêtre.
-     * Retourne false si le lien n'existe pas (l'appelant décide du fallback).
+     * Clique un bouton de la barre de navigation basse (`nav` « Menu principal ») — le vrai geste
+     * utilisateur, qui passe par le routeur de la SPA. La SPA n'a aucun `<a>` interne (tout est
+     * `<button>`) : l'ancienne recherche d'un lien « Accueil » ne trouvait jamais rien et retombait
+     * toujours sur le hash, qui n'aboutit pas quand la page quittée est encore en cours de montage
+     * (observé le 2026-10-07 : retour à l'accueil depuis l'agenda 20 ms après l'apparition de son titre).
+     * Retourne false si la barre est absente (page enfant sans nav basse) : l'appelant choisit le repli.
      */
-    private async clickLinkByText(text: string): Promise<boolean> {
-        return await driver.execute((t: string) => {
-            const link = Array.from(document.querySelectorAll('a'))
-                .find(a => (a as HTMLElement).innerText?.trim() === t) as HTMLElement | undefined
-            if (link) {
-                link.click()
-                return true
-            }
-            return false
-        }, text) as boolean
+    private async clickBottomBarButton(name: string): Promise<boolean> {
+        const button = await queryRole('button', name, {in: {role: 'navigation', name: navigationLocators.bottomBarName}}).catch(() => null)
+        if (!button) return false
+        await button.click()
+        return true
     }
 
 }

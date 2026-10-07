@@ -48,8 +48,7 @@ async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
   await driver.switchContext(webviewContext)
   // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
   // Android/Chromedriver : le défaut est 30 000 ms.
-  // @testing-library/webdriverio utilise executeAsync (pas execute) → toutes les requêtes
-  // findBy* sont soumises à ce plafond. On force 60 s sur les deux plateformes.
+  // Plafond des scripts exécutés dans la page (`execute` / `executeAsync`) : 60 s sur les deux plateformes.
   await browser.setTimeout({ script: 60000 }).catch(() => {})
   // Après le switch, re-sélectionner le dernier window handle disponible.
   // Pendant le flow OIDC, le tab callback se ferme juste après le redirect ;

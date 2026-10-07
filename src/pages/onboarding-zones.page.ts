@@ -1,7 +1,7 @@
 import {onboardingZonesLocators} from './locators/onboarding-zones.locators'
 import {platform} from '../platform'
-import {tl} from '../helpers/webview'
 import {traced} from '../helpers/traced'
+import {findRole} from '../helpers/spa'
 
 /**
  * Page Object de l'écran d'onboarding « Zones scolaires » (`/#/welcome/zones`).
@@ -30,7 +30,7 @@ class OnboardingZonesPage {
     async dismiss(timeout = 3000): Promise<void> {
         if (!await this.isVisible(timeout)) return
         await platform().inWebContext(async () => {
-            const skip = await tl().findByRole('button', {name: onboardingZonesLocators.skipButtonName}, {timeout: 10000})
+            const skip = await findRole('button', onboardingZonesLocators.skipButtonName, {timeout: 10000})
             await skip.click()
         })
         await browser.waitUntil(async () => !await this.isOnZonesRoute(), {

@@ -1,9 +1,9 @@
 import {fcCredentialsLocators} from '../locators/franceconnect/franceconnect-credentials.locators'
 import {traced} from '../../helpers/traced'
-import {tl} from '../../helpers/webview'
 import {platform} from '../../platform'
 import type {TestUser} from '../../helpers/test-users'
 import logger from "@wdio/logger";
+import {findLabel, findRole} from '../../helpers/spa'
 
 const log = logger('page-object')
 
@@ -41,16 +41,16 @@ class FranceConnectCredentialsPage {
                         timeoutMsg: `Page FCP-LOW non chargée — texte "${fcCredentialsLocators.fcpLowHeadingText}" absent après 10s`
                     }
                 )
-                const idField = await tl().getByLabelText(/identifiant/i)
+                const idField = await findLabel(/identifiant/i)
                 //await idField.scrollIntoView()
                 await idField.clearValue()
                 await idField.setValue(user.login)
-                const pwdField = await tl().getByLabelText(/mot de passe/i)
+                const pwdField = await findLabel(/mot de passe/i)
                 //await pwdField.scrollIntoView()
                 await pwdField.clearValue()
                 await pwdField.setValue(user.password)
                 // pas de fallback driver.execute nécessaire ici (cf. franceconnect-credentials.locators.ts).
-                const submitBtn = await tl().getByRole('button', {name: /valider/i})
+                const submitBtn = await findRole('button', /valider/i)
                 await submitBtn.click()
                 //await submitBtn.waitForDisplayed({timeout: 15000, reverse: true})
             } catch {

@@ -14,7 +14,7 @@ sur cette app, indépendamment d'un échec de test.
 1. [Page Objects — architecture 3 niveaux](#1-page-objects--architecture-3-niveaux)
     - [1bis. Logging](#1bis-logging)
 2. [Sélection des éléments](#2-sélection-des-éléments)
-3. [Cycle complet d'une « tuile » par type de page](#3-cycle-complet-dune-tuile-par-type-de-page)
+3. [Attendre sa page, puis agir](#3-attendre-sa-page-puis-agir)
 4. [WebView et contextes](#4-webview-et-contextes)
 5. [Qualité des assertions](#5-qualité-des-assertions)
 6. [Isolation des tests](#6-isolation-des-tests)
@@ -62,7 +62,7 @@ Quand une page est entièrement en WebView avec un DOM identique iOS/Android, ex
 ### Niveau 2 — `pages/*.page.ts`
 
 - **Aucun sélecteur direct** — appel à `getXxxLocators()` à chaque méthode.
-- Les requêtes Testing Library sont inline dans le Page Object, **pas** dans le fichier locators (elles n'ont de sens qu'en WebView).
+- Les éléments de la SPA (WebView/webapp) s'atteignent par les primitives de `src/helpers/spa.ts` (`clickRole`, `waitForRole`, `fillByLabel`…), appelées dans le Page Object, **pas** par un sélecteur dans le fichier locators (rôle + nom accessible n'ont de sens qu'en WebView).
 - Exporté comme singleton tracé : `export default traced(new XxxPage(), 'XxxPage')`.
 - `if (driver.isIOS)` acceptable **seulement** quand le *comportement d'interaction* diffère vraiment (pas juste le sélecteur) — ex. submit de formulaire OIDC (fallback `driver.execute` sur iOS pour le bug WKRDP, inutile sur Android), clic JS vs pointer events, attente post-redirect.
 - **Avant d'écrire un branchement plateforme**, chercher si un signal DOM/WebView commun couvre déjà les deux cas (ex. la disparition d'une modale de confirmation est un événement observable identiquement sur iOS et Android — pas besoin de détecter la fin d'un logout différemment par plateforme).
@@ -113,188 +113,84 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 
 **Par défaut, sélectionner par le sens perçu par l'utilisateur**, pas par la structure DOM :
 
-- **WebView** — Testing Library via `tl()` (`getByRole`, `findByText`, `findByLabelText`…), toujours à l'intérieur de
-  `platform().inWebContext()`.
+- **WebView / webapp** — par rôle + nom accessible, via les primitives de `src/helpers/spa.ts`. Deux familles : celles qui **ouvrent le contexte** (`clickRole`, `waitForRole`, `clickButton`, `waitForHeading`, `fillByLabel`…), utilisables directement depuis un Page Object ; et les primitives **nues** (`findRole`, `findRoles`, `queryRole`, `findTestId`, `findLabel`, `findText`), à appeler dans un `platform().inWebContext()` déjà ouvert quand l'élément trouvé est réutilisé (attribut, saisie, plusieurs actions).
 - **Natif** (hors WebView) — `accessibility id` (`~xxx`) de préférence à un XPath par texte ou un resource-id brut.
 
-### Règle canonique : `tl()` vs `driver.execute()`
+### Ordre de préférence
 
-`tl()` repose sur `executeAsync` (Testing Library) : un appel qui peut être **tué** si une navigation SPA ou un re-rendu concurrent interrompt l'event loop pendant l'attente — d'où des `stale element` ou des timeouts en apparence aléatoires.
-`driver.execute()` est un JS **synchrone** : find + lecture/action dans le **même** appel, donc atomique et résistant à un re-rendu concurrent.
+1. **Les primitives `spa.ts`** (`WaitOptions {timeout, interval}`) — elles réessaient jusqu'à trouver : c'est *le* mécanisme d'attente, il n'y a rien à enrouler dans une boucle (cf. §7). Augmenter `timeout` (ou régler `interval`) plutôt que d'ajouter un retry.
+2. **Les API WDIO indépendantes de la plateforme**, sur un élément déjà obtenu : `.click()`, `.getText()`, `.isSelected()`, `waitForClickable()`… Elles fonctionnent en natif comme en WebView — elles survivront à la « promotion » d'une page de la SPA en écran natif.
+3. **`driver.execute()`** — dernier recours : c'est du JavaScript, donc **uniquement valable dans une WebView / webapp**, inutilisable le jour où l'écran devient natif. Un `driver.execute` doit porter un commentaire qui dit pourquoi les primitives `spa.ts` et les API WDIO ne suffisent pas.
 
-```typescript
-// Page qui se met à jour en tâche de fond (WebSocket) : lecture atomique, pas $$()+.getText()
-// Appel de vérification que la page est bien présente et disponible, pour les tl() ne soient pas fait trop tôt
-const title = await driver.execute(() => {
-    const el = document.querySelector('h1, h2, h3, [role="heading"]')
-    return el ? el.textContent?.trim() : ''
-})
-```
-
-- **Interactions sur page stable** (formulaire, bouton, une fois la destination confirmée) → `tl()`.
-- **Sentinelles de navigation, pages mises à jour en WebSocket, find+action dans une boucle de polling** →
-  `driver.execute()`.
-- Les sélecteurs CSS utilisés dans les callbacks `driver.execute` sont centralisés dans
-  `pages/locators/*.locators.ts`, pas codés en dur inline.
-- Sur une page stable, hors des sentinelles de navigation, quand tl () ne permet pas de sélectionner une tuile, préférer les méthodes WDIO standard (`$$()`, `.getText()`) à un callback `driver.execute` manuel dès que la logique s'exprime avec l'API WDIO — ne pas réinventer en JS ce que WDIO fait déjà. e.g. Les cas de tuile de notifications ou l'on trouve les tuiles par leurs classes CSS et on veut trouver leur titre et d'autres attributs à l'intérieur.
-  `$$()` capture une liste de handles d'éléments à un instant T — si la page se re-rend (WebSocket, re-rendu réactif concurrent) entre cette capture et la lecture de chaque élément, la commande suivante lève un
-  `stale element reference`. `$()` seul, jamais pré-`await`é, ne souffre pas de ce risque : il ré-résout le sélecteur à chaque commande via le protocole WebDriver standard, sans handle figé.
-  `driver.execute` reste réservé aux pages où cette fenêtre de staleness `$$()` est un risque réel (mise à jour WebSocket concurrente), pas à la navigation SPA elle-même (ce risque-là concerne `tl()`).
-
-  ```typescript
-  // ✅ Une seule boucle : identifie ET asserte dans le même waitUntil, $$() + .getText()
-  await browser.waitUntil(async () => {
-    for await (const card of $$(loc.cardContent)) {
-      const titleText = await card.$(loc.cardTitle).getText().catch(() => '')
-      if (!titleText.includes(title)) continue
-      const status = (await card.$(loc.cardBadge).getText().catch(() => '')).trim().toLowerCase()
-      return status.includes(statusLabel.toLowerCase())
-    }
-    return false
-  }, { timeout: 20000, interval: 2000, timeoutMsg: `Démarche "${title}" non trouvée` })
-
-  // ❌ driver.execute + textContent réimplémente ce que $$().getText() fait déjà, et re-parcourt
-  //    le DOM une fois par critère (titre, puis statut, puis URL séparément)
-  driver.execute((contentSel, titleSel, badgeSel, t) => {
-    const cards = Array.from(document.querySelectorAll(contentSel))
-    const card = cards.find(c => c.querySelector(titleSel)?.textContent?.includes(t))
-    return (card?.querySelector(badgeSel) as HTMLElement | null)?.innerText?.trim() ?? ''
-  }, loc.cardContent, loc.cardTitle, loc.cardBadge, title)
-  ```
-
-### `innerText` vs `textContent`
-
-- `textContent` pour **identifier** un élément dans le DOM brut (indépendant du CSS).
-- `innerText` pour **asserter un état visible** — il respecte `display:none`/`visibility:hidden`, donc il reflète ce qu'un utilisateur voit réellement. Si un QA humain peut confirmer l'état en lisant l'écran, utiliser `innerText`.
+- **Testing Library (`tl()`) est retiré du projet** : `@testing-library/webdriverio` n'est plus maintenu (dernière release 3.2.1, janvier 2023 ; la PR de compatibilité WDIO 9 est restée ouverte, `within()` est cassé sous WDIO 9). Ne plus importer `setupBrowser`, ne plus écrire `tl()`, `findBy*`, `getBy*`, `queryBy*` ni `within()`.
+- **Pas de `get*` sans attente** : toute primitive attend le rendu (le `getBy*` immédiat échouait dès que le rendu n'était pas terminé). Seule exception assumée : `queryRole`, qui ne réessaie pas et retourne `null` — pour un cas où l'absence est légitime (carte non atteignable dans un carrousel, dialogue qui doit avoir disparu).
+- **Agrégats** (liste de textes, états de cases à cocher) : primitives `spa.ts` existantes (`visibleButtonTexts`, `checkboxStates`). Pour cibler dans un dialogue : `clickButtonInDialog` (sélecteur WDIO `aria/…` depuis l'élément dialogue).
+- Besoin non couvert : **ajouter une primitive dans `src/helpers/spa.ts`** plutôt que d'écrire un sélecteur dans le Page Object.
+- **Comment ça marche** (`src/helpers/dom-query.ts`) : chaque tentative est un seul `browser.execute` qui cherche et marque l'élément (`data-wdio-pick`), puis l'élément est récupéré par ce marqueur. Le rôle est résolu par balise ou attribut `role`, les éléments non accessibles (masqués, `aria-hidden`, `inert`) sont exclus, et le nom est celui de `aria-labelledby`, `aria-label`, du texte visible ou de `title`. Le nom accepte un **texte exact ou une RegExp** (vérifié le 2026-10-07 sur Chrome, WebView Android et WKWebView iOS). `aria/…` de WDIO n'est **pas** utilisé pour cela : c'est un XPath à égalité stricte, sans RegExp ni filtre de rôle. Un échec lève une `AssertionError` qui liste les candidats vus.
 
 ### `data-testid` : dernier recours documenté
 
-Avant d'ajouter un `data-testid`, essayer `tl().getByRole()`/`findByText()` et ne basculer que si cette requête échoue **réellement**. Documenter alors l'échec observé en commentaire à côté du champ (pas « structure observée via
-`just inspect` »). Deux cas justifiés : rôle+nom dupliqués sur la page, ou texte imprévisible (contenu dynamique).
+Avant d'ajouter un `data-testid`, essayer `clickRole`/`waitForRole`/`waitForPageText` (rôle, nom, texte) et ne basculer que si cette requête échoue **réellement**. Documenter alors l'échec observé en commentaire à côté du champ (pas « structure observée via `just inspect` »). Deux cas justifiés : rôle+nom dupliqués sur la page, ou texte imprévisible (contenu dynamique).
 
 ### Classes CSS : DSFR oui, Svelte hashé non
 
-Avant d'ajouter un `fr-*`, essayer `data-testid`. Les classes du design system État (`fr-tile__content`, `fr-badge`,
-`fr-tabs__tab--selected`) sont un contrat stable, utilisables comme sélecteur. Les classes générées par Svelte (`svelte-19k7n5y`) sont un détail d'implémentation qui change à chaque build — **jamais** les utiliser comme sélecteur.
+Les classes du design system État (`fr-tile__content`, `fr-badge`, `fr-tabs__tab--selected`) sont un contrat stable, utilisables comme sélecteur — après `data-testid` si une requête sémantique ne suffit pas. Les classes générées par Svelte (`svelte-19k7n5y`) changent à chaque build : **jamais** comme sélecteur.
 
 ### Apostrophe dans un texte matché : regex avec `.`, jamais de caractère littéral
 
-`findByText`/`findByLabelText` font un matching **exact** par défaut. Le contenu FR (DSFR, Svelte) utilise souvent
-l'apostrophe typographique `’` (U+2019), alors qu'on tape naturellement l'apostrophe droite `'` (U+0027) dans le
-code — les deux caractères sont visuellement quasi identiques en review humaine, donc l'erreur ne saute pas aux
-yeux et casse le test au runtime (`Unable to find a label with the text of: ...`).
-
-Préférer une regex avec `.` à la place de l'apostrophe, tolérante aux deux variantes :
+Les primitives par texte ou libellé (`waitForPageText`, `fillByLabel`) font un matching **exact** par défaut quand on leur passe une chaîne. Le contenu FR (DSFR, Svelte) utilise souvent l'apostrophe typographique `’` (U+2019), alors qu'on tape naturellement `'` (U+0027) — visuellement quasi identiques en review, donc l'erreur casse le test au runtime (`Champ de libellé "Nom d'usage" introuvable après …ms. Candidats vus : [...]`). Préférer une regex avec `.` :
 
 ```typescript
-// À éviter : dépend du caractère exact utilisé côté app, invisible en review
-const input = await tl().findByLabelText("Nom d'usage")
-
-// Préférer : `.` matche `'` comme `’`, review humaine explicite sur l'intention
-const input = await tl().findByLabelText(/Nom d.usage/)
+await fillByLabel(/Nom d.usage/, newValue)   // `.` matche `'` comme `’`
 ```
 
-Cas sans regex possible (sélecteur WDIO natif `button=`, `document.body.textContent.includes()` dans un
-`driver.execute` avec argument sérialisé…) : copier l'apostrophe exacte depuis le DOM réellement rendu (`just
-inspect`), jamais la retaper au clavier, et documenter en commentaire le caractère utilisé (ex. `franceconnect-mire.locators.ts`).
+Cas sans regex possible (sélecteur WDIO natif `button=`…) : copier l'apostrophe exacte depuis le DOM rendu (`just inspect`), jamais la retaper, et documenter le caractère en commentaire (ex. `franceconnect-mire.locators.ts`).
+
+### Écran natif
+
+Ni les primitives `spa.ts` ni `driver.execute()` n'ont de prise sur les éléments natifs XCUITest/UiAutomator2 : `$()` avec des sélecteurs natifs y est **obligatoire**, pas un choix de style. Ne pas `await` le `$()` lui-même — il se re-résout à chaque commande et résiste aux changements de navigation.
+
+```typescript
+const tile = $(loc.pickerTile)
+await tile.waitForClickable({timeout: 15000})
+await tile.click()
+```
+
+Le raisonnement détaillé du choix d'API (historique) est archivé dans l'ADR `docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`.
 
 ---
 
-## 3. Cycle complet d'une « tuile » par type de page
+## 3. Attendre sa page, puis agir
 
-Cinq étapes communes à toute interaction sur un composant de page : **1.** vérifier qu'il est affiché ET interactif · **2.** lire son contenu · **3.** remplir un champ qu'il contient · **4.**
-cliquer son bouton · **5.** ne pas vérifier sa disparition.
+Même modèle que `docs/process/model/spec.md` (§3.3 et §4.2) : **un écran se vérifie lui-même ; une action source ne vérifie jamais sa destination.**
 
-Les pages se recyclent, les résolution post-recyclage génèrent des warning bénin **ET attendent la durée du timeout**, donc du bruit qui ralentit.
+1. **Chaque méthode publique d'un Page Object commence par s'assurer qu'elle est sur sa page** — une attente (`waitForHeading`, `waitForRole`) avec `timeout` sur le titre (`heading`) ou le rôle de l'élément qu'elle va utiliser. Jamais via `window.location.hash` (le hash peut changer avant que le contenu soit rendu).
+2. **Une méthode qui navigue ne connaît pas la page suivante** : elle clique (ou fixe la route) et rend la main. Les Page Objects ne s'importent pas entre eux (hors `NavigationPage` et les helpers). L'arrivée est vérifiée par la page cible, via une méthode d'identité `assertDisplayed()` ; quand le titre est dynamique, il est passé en argument (`DemarcheDetailPage.assertDisplayed(title)`). Le scénario enchaîne les deux, ce qui se lit comme un parcours :
 
-### Écran natif — `$()` obligatoire (pas de `tl()`/`driver.execute` possible)
+   ```typescript
+   await HomePage.openAllEvents()
+   await AgendaPage.assertDisplayed()
+   ```
 
-Ni `tl()` ni `driver.execute()` n'ont de prise sur les éléments natifs XCUITest/UiAutomator2 (pas de moteur JS côté natif) — `$()`/`$$()` avec des sélecteurs natifs y sont donc obligatoires, pas un choix de style.
+   Faire retourner à la méthode de navigation le Page Object cible est une solution de dernier recours (dépendances circulaires entre pages) : à éviter tant qu'elle n'est pas nécessaire.
+3. **Par défaut, on ne vérifie pas qu'une action est terminée** : le clic est supposé pris en compte, la page suivante vérifiera son arrivée. C'est une **exception** qui demande une preuve — un clic dont la perte est établie (re-rendu concurrent). La postcondition porte alors sur la **page d'origine** (`clickButtonUntilGone` : le bouton disparaît), jamais sur la page suivante ; on n'observe pas le réseau.
+4. **Page au contenu imprévisible** (services du catalogue) : vérifier seulement que ce n'est pas une page d'erreur.
+5. **Donnée asynchrone** : une page abonnée au temps réel (accueil, inbox de notifications via WebSocket) se met à jour en place — attendre simplement avec une primitive `spa.ts`. Une page sans abonnement (Suivi) ne se met à jour qu'au chargement : recharger entre deux essais avec un backoff (référence : `SuiviDemarchesPage.waitForDemarche`).
+6. **Ne pas vérifier la disparition d'un composant** après une action : les pages se recyclent, la résolution d'un élément disparu génère des warnings bénins **et attend la durée du timeout**.
 
-```typescript
-// Pas de await sur $(), permet de re-résoudre la promise à chaque appel et résister aux changement de navigation
-const tile = $(loc.pickerTile)
-await tile.waitForClickable({timeout: 15000})
-
-const label = await tile.getText()
-
-await $(loc.tileInput).setValue('valeur')
-
-await tile.click()
-
-```
-
-### WebView stable & WebView avec redirection OIDC (une fois stabilisée) — `tl()` en priorité
-
-Même code dans les deux cas dès que la page ne bouge plus.
+### Squelette d'une page WebView
 
 ```typescript
-await platform().inWebContext(async () => {
-    const editBtn = await tl().findByRole('button', {name: 'Modifier'})
-    await editBtn.click()
-
-    const input = await tl().findByLabelText(/Nom d.usage/)
-    const currentValue = await input.getValue()
-
-    await input.setValue('Nouvelle valeur')
-
-    const submitBtn = await tl().findByRole('button', {name: 'Enregistrer'})
-    await submitBtn.click()
-
-})
+await clickRole('button', 'Modifier')                       // attend la page, puis agit
+await fillByLabel(/Nom d.usage/, 'Nouvelle valeur')
+await clickRole('button', 'Enregistrer', {timeout: 5000})
 ```
-
-### Attendre une information asynchrone (backoff exponentiel) — `driver.execute` en priorité
-
-Cas d'une donnée qui arrive côté backend sans mécanisme de push testé (ex. notification publiée via l'API) : on ne peut pas attendre un événement, on **poll** avec un rafraîchissement explicite à chaque tentative — backoff exponentiel, un
-`platform().inWebContext()` minimal par essai, `window.location.reload()` dans la WebView via `driver.execute`.
-
-```typescript
-// Extrait de notifications.page.ts — assertNotificationReceived()
-const backoffMs = [0, 500, 1000, 2000, 4000, 8000]
-let elapsed = 0
-for (const delay of backoffMs) {
-    await browser.pause(delay) // hors inWebContext : WebView libre de recevoir la WebSocket
-    elapsed += delay
-    let found = false
-    await platform().inWebContext(async () => {
-        await driver.execute(() => window.location.reload())
-        // Après un reload, les appels pour vérifier que la page est chargée peuvent s'appliquer sur
-        // la page en train de disparaitre. On contourne ce problème en cherchant le nouvel élément
-        // que l'on poll — l'autre option serait de tester que la date de la page a changé
-        // (driver.execute(() => performance.timeOrigin) as unknown as Promise<number>).
-        found = await browser.waitUntil(
-            async () => driver.execute(
-                (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
-                    .some(el => el.children.length === 0 && el.textContent?.trim() === text),
-                title
-            ) as unknown as boolean,
-            {timeout: 1000, interval: 100}
-        ).catch(() => false)
-    })
-    if (found) {
-        log.log(`[notifications] reçue (≤ ${elapsed} ms)`)
-        return found
-    } else {
-        log.log(`[notifications] toujours pas reçue  (≤ ${elapsed} ms)`)
-    }
-}
-// AssertionError, pas Error : ce timeout signale que l'application n'a pas fait ce qui est
-// attendu d'elle (la notification n'est jamais arrivée), pas un problème d'infra — cf. §8.
-throw new AssertionError({message: `Notification not received:${title}.`})
-```
-
-Le choix détaillé de l'API par type de page et par action (avec le raisonnement complet) est archivé dans l'ADR
-`docs/adr/2026-07-09-Strategie-de-selection-des-elements.md` — ce document-ci n'en garde que la règle opérationnelle et les trois squelettes ci-dessus.
 
 ---
 
 ## 4. WebView et contextes
 
-Le point de couplage Appium/mobile (bascule de contexte, gestes natifs, dispatch iOS/Android) est isolé
-derrière `PlatformAdapter` (`src/platform/types.ts`), avec une implémentation par plateforme :
-`appiumAdapter` (Android/iOS) et `browserAdapter` (webapp). `platform()` retourne la bonne selon
-`browser.isMobile`.
+Le point de couplage Appium/mobile (bascule de contexte, gestes natifs, dispatch iOS/Android) est isolé derrière `PlatformAdapter` (`src/platform/types.ts`), avec une implémentation par plateforme : `appiumAdapter` (Android/iOS) et `browserAdapter` (webapp). `platform()` retourne la bonne selon `browser.isMobile`.
 
 ```typescript
 interface PlatformAdapter {
@@ -308,18 +204,11 @@ interface PlatformAdapter {
 }
 ```
 
-- **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA** — jamais
-  `driver.switchContext()` directement. Sur mobile, `inWebContext()` bascule `NATIVE_APP` → `WEBVIEW_*`
-  et garantit le retour en `NATIVE_APP` dans un `finally`, même en cas d'exception. Sur webapp,
-  `inWebContext()` est quasi-identité : la session entière est déjà ce contexte.
+- **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA** — jamais `driver.switchContext()` directement. Sur mobile, il bascule `NATIVE_APP` → `WEBVIEW_*` et garantit le retour en `NATIVE_APP` dans un `finally`, même en cas d'exception. Sur webapp, il est quasi-identité. **Ne pas imbriquer** deux `inWebContext()` : le `finally` du second rebascule en natif et casse la suite du premier (d'où les méthodes « bare » à appeler dans un contexte déjà ouvert).
 - Les sélecteurs CSS/XPath ne fonctionnent qu'en `WEBVIEW_*` (mobile) ; les gestes natifs (swipe, pull-to-refresh) et les sélecteurs natifs ne fonctionnent qu'en `NATIVE_APP`. Un geste natif **ne doit jamais** être appelé depuis l'intérieur d'un `inWebContext()`.
-- **Flow OIDC FranceConnect : un seul `platform().inWebContext()`** pour tout le flow (eIDAS → identifiants → callback). Cas particulier documenté : sortir du contexte WebView au milieu de *ce flow précis*
-  provoque un blocage ~25 s sur iOS — ce n'est pas une règle générale de couplage navigation/sentinelle (cf. points suivants), c'est une contrainte technique propre à ce flow OIDC.
-- **Responsabilité de la navigation** : la méthode qui navigue appartient à la Page Object *source*, pas à la destination. La vérification d'arrivée sur la page cible appartient à la page cible. Chaque méthode de la page cible doit avoir une sentinelle (trouve un élément visible de la cible) avant de faire son travail.
-- **Chaque méthode publique d'un Page Object doit s'assurer, avant d'utiliser `tl()` ou un sélecteur natif, qu'elle est bien sur l'écran attendu** — via une sentinelle (élément visible de la page), jamais via `window.location.hash` (le hash peut être mis à jour avant que le contenu soit rendu). Cette vérification est systématique en entrée de méthode, que la page soit en natif ou en WebView, et que la méthode vienne d'être appelée juste après une navigation ou non — c'est elle, pas un couplage artificiel avec l'appel qui a navigué, qui garantit qu'on n'agit jamais sur une page pas encore chargée.
-- Naviguer par un vrai clic utilisateur (`$(sel).click()` après `waitForClickable()`, ou Testing Library) plutôt que
-  `driver.execute(() => el.click())` — le clic JS est silencieux sur iOS en cas d'échec. Réserver
-  `driver.execute(?.click())` aux sentinelles, pas à la navigation principale.
+- **Flow OIDC FranceConnect : un seul `platform().inWebContext()`** pour tout le flow (eIDAS → identifiants → callback). Cas particulier : sortir du contexte WebView au milieu de *ce flow précis* provoque un blocage ~25 s sur iOS.
+- **Naviguer par un vrai clic utilisateur** (`clickRole(…)`, ou `$(sel).click()` après `waitForClickable()`) plutôt que `driver.execute(() => el.click())` — le clic JS est silencieux sur iOS en cas d'échec.
+- **Les éléments ne survivent pas à un switch de contexte** : toute interaction WebView se fait dans `platform().inWebContext()`, pas avec les matchers WDIO natifs.
 
 ---
 
@@ -345,8 +234,6 @@ expect(typeof enabled).toBe('boolean')
 - **Fusionner les vérifications séquentielles sur un même item.** Dès qu'un scénario doit vérifier N critères sur le même élément/la même liste, écrire une seule méthode de Page Object qui les vérifie tous dans le même `waitUntil`, avec une variable d'état (`failReason`) qui capture jusqu'où l'attente est allée avant d'échouer — pas N méthodes à un seul critère chacune (deux sources de flakiness au lieu d'une, et un message d'échec qui ne dit pas lequel des deux critères a échoué).
 - **Ne pas doubler `waitForDisplayed` et `isDisplayed`** — `waitForDisplayed`/`waitForVisible`
   garantit déjà l'affichage ; un `isDisplayed()` qui suit immédiatement est redondant.
-- Dans la WebView, les éléments ne survivent pas à un switch de contexte : utiliser `driver.execute()`
-  ou Testing Library dans `platform().inWebContext()`, pas les matchers WDIO natifs.
 
 ---
 
@@ -401,7 +288,9 @@ Trois niveaux, à ne pas confondre :
 - **Retry applicatif** (backend cold-start type Scalingo/Heroku) : retry sur 5xx uniquement, jamais sur 4xx (erreur client, non transitoire).
 - **Retry court en Page Object** (élément instable qui réapparaît brièvement, ex. bouton FranceConnect en fin de redirect OIDC) : le `catch` best-effort **ne doit jamais être totalement silencieux** — logger avec `log.warn()` (voir §1, jamais `console.warn`) conditionné au cas attendu documenté. Un
   `catch {}` vide masque un vrai bug (sélecteur cassé, timeout réseau) derrière un « comportement normal ».
-- **Ne pas retrier les `findBy*` de Testing Library** — ils intègrent déjà une attente interne (`timeout` en 3e argument). Augmenter ce timeout plutôt que d'enrouler l'appel dans une boucle de retry manuelle.
+- **Ne pas retrier les primitives `spa.ts`** — elles intègrent déjà une attente interne (`WaitOptions {timeout, interval}`). Augmenter ce timeout plutôt que d'enrouler l'appel dans une boucle de retry manuelle.
+
+- **Ne pas corriger chaque échec temporaire.** Un échec isolé dû à l'infrastructure (bac à sable FranceConnect, émulateur, réseau) ou à un parcours différent parce qu'une session/des cookies traînent d'un tir sur l'autre ne justifie pas un correctif de code. Corriger sur récurrence mesurée (campagne de stabilité), avec une cause établie.
 
 En débogage, mettre `specFileRetries: 0` (voir la vraie cause plutôt que le retry qui la masque).
 

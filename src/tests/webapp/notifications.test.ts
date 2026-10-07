@@ -1,7 +1,8 @@
 import AllureReporter from '@wdio/allure-reporter'
 import NotificationsInboxPage from '../../pages/notifications.page'
 import HomePage from '../../pages/home.page'
-import NavigationPage from '../../pages/navigation.page'
+import DemarcheDetailPage from '../../pages/demarche-detail.page'
+import PreferencesPage from '../../pages/preferences.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
@@ -26,6 +27,8 @@ describe('Notifications', () => {
   beforeEach(async () => {
     await HomePage.goToHomeFromAnywhere(15000)
     await NotificationsInboxPage.openFromHome()
+    // Avant de publier : l'inbox ouvre son WebSocket au montage, une notification publiée plus tôt serait perdue.
+    await NotificationsInboxPage.assertDisplayed()
   })
 
   it("reçoit une notification publiée dans l'inbox in-app", async () => {
@@ -49,11 +52,11 @@ describe('Notifications', () => {
     })
     await NotificationsInboxPage.assertNotificationReceived(title)
     await NotificationsInboxPage.clickNotification(title)
-    await NavigationPage.waitForHash(new RegExp(`#/followup/item/dinum-ami/OTV/${itemId.replace(/[.:]/g, '\\$&')}$`))
+    await DemarcheDetailPage.assertDisplayed(title)
   })
 
   it('« Gérer » ouvre les préférences de notifications', async () => {
     await NotificationsInboxPage.openManage()
-    await NavigationPage.waitForHeading('Notifications')
+    await PreferencesPage.assertNotificationsDisplayed()
   })
 })

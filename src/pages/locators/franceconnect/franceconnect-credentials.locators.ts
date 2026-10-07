@@ -4,7 +4,7 @@
  * WebView, structure identique Android/iOS (mock OIDC hors app AMI).
  *
  * Note : les champs identifiant/mot de passe et le bouton de soumission sont ciblés via
- * tl() (getByLabelText / getByRole) directement dans le Page Object, pas ici.
+ * findLabel / findRole directement dans le Page Object, pas ici.
  */
 
 export interface FranceConnectCredentialsLocators {

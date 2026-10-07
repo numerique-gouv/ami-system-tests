@@ -1,9 +1,8 @@
-import { tl } from '@helpers/webview'
 import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
-import {pageText, waitForPageText} from '@helpers/spa'
+import {pageText, waitForPageText, findRole} from '@helpers/spa'
 
 const DEMARCHE_DETAIL_TIMEOUT_MS = 20000
 
@@ -17,6 +16,16 @@ function maskIdToken(url: string | null): string | null {
 }
 
 class DemarcheDetailPage {
+  /**
+   * Vérifie l'arrivée sur le détail d'une démarche. Le titre est dynamique (propre à chaque démarche) :
+   * il est passé en argument. « référence dossier » n'existe que sur la page de détail, le titre
+   * seul étant aussi dans la liste du Suivi qui reste affichée un instant après le clic.
+   */
+  async assertDisplayed(title: string): Promise<void> {
+    await waitForPageText('référence dossier')
+    await waitForPageText(title)
+  }
+
   /**
    * Vérifie le contenu du détail (`/#/followup/item/…`) : statut, titre, partenaire, référence
    * dossier et historique chronologique des messages — sans quitter la SPA (contrairement à
@@ -45,11 +54,9 @@ class DemarcheDetailPage {
    * navigation native de l'app (bouton "Retour à la page précédente" de la page de détail, PUIS
    * bouton "Retour" de la nav) pour laisser l'app dans un état propre entre les tests.
    *
-   * findByRole (pas getByRole) sert de sentinelle d'arrivée sur la page de détail : le clic de
-   * `ouvreDemarche()` vient de déclencher une navigation SPA, le bouton n'existe pas forcément
-   * déjà dans le DOM au moment de l'appel — getByRole échoue immédiatement sans réessayer,
-   * findByRole poll jusqu'à `timeout`. Cette sentinelle appartenait auparavant à `ouvreDemarche`
-   * (DemarchesPage) ; elle est ici car c'est cette méthode qui utilise le bouton.
+   * `findRole` attend le bouton : le clic de `ouvreDemarche()` vient de déclencher une navigation SPA,
+   * il n'existe pas forcément déjà dans le DOM au moment de l'appel. C'est cette méthode qui utilise
+   * le bouton, c'est donc elle qui vérifie son arrivée sur la page de détail.
    *
    * `browser.back()` (une seule fois) ramène de `chrome-error://chromewebdata` (le domaine
    * partenaire `.example`, RFC 2606, ne résout jamais) à la page de détail de l'app. Le retour
@@ -71,21 +78,8 @@ class DemarcheDetailPage {
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
     const loc = getDemarcheDetailLocators()
     await platform().inWebContext(async () => {
-      // Sentinelle de rendu — driver.execute (pas tl()) : ouvreDemarche() (SuiviDemarchesPage)
-      // déclenche la navigation SPA vers cette page sans attendre son arrivée (cf. son
-      // commentaire, la sentinelle lui appartient ici). Attendre un <h1> non vide avant le
-      // premier tl() évite de faire courir l'injection de Testing Library (3 commandes WebDriver
-      // distinctes côté @testing-library/webdriverio) contre une navigation encore en cours.
-      await browser.waitUntil(
-        async () => driver.execute(() => {
-          const h1 = document.querySelector('h1')
-          return !!h1 && !!h1.textContent?.trim()
-        }) as Promise<boolean>,
-        { timeout: timeoutMs, interval: 300, timeoutMsg: 'Page de détail non chargée (h1 absent)' }
-      )
-
       try {
-        let externalButton = await tl().findByRole('button', { name: loc.detailExternalButtonName }, { timeout: timeoutMs })
+        let externalButton = await findRole('button', loc.detailExternalButtonName, { timeout: timeoutMs })
         await externalButton.click()
       } catch {
         throw new AssertionError({ message: `Bouton "${loc.detailExternalButtonName}" absent après ${timeoutMs}ms` })

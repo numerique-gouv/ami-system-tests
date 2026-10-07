@@ -35,10 +35,7 @@ describe('Authentification', () => {
     // Une session FranceConnect encore ouverte dans le simulateur/émulateur (run précédent, SSO) renvoie
     // directement vers l'app sans afficher la mire eIDAS : observé 2026-10-06 sur iOS, la capture de l'échec
     // montrait déjà l'onboarding des notifications. On ne saisit alors ni eIDAS ni identifiants.
-    const fcDemandeIdentifiants = await browser.waitUntil(
-      () => FranceConnectEidasPage.isEidasVisible(), {timeout: 15000, interval: 500}
-    ).then(() => true).catch(() => false)
-    if (fcDemandeIdentifiants) {
+    if (await FranceConnectEidasPage.waitForEidasTile()) {
       await FranceConnectEidasPage.selectEidasFaible()
       await FranceConnectCredentialsPage.fillCredentials(user)
     } else {

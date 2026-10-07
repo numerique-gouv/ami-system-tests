@@ -3,7 +3,7 @@
 Suite de tests système mobiles (iOS + Android) et webapp (Chrome) pour l'application AMI.
 Les scénarios couvrent les parcours utilisateurs complets : authentification FranceConnect, notifications push, démarches, etc.
 
-**Stack** : WebdriverIO v9 + Appium 3 + TypeScript + Testing Library
+**Stack** : WebdriverIO v9 + Appium 3 + TypeScript
 
 ---
 
@@ -70,7 +70,8 @@ src/
   platform/
     index.ts               platform() : PlatformAdapter — dispatch android/ios/webapp
   helpers/
-    webview.ts             tl(), retourJusquATexteVisible()
+    spa.ts / dom-query.ts  findRole(), clickButton(), waitForHeading()… (recherche par rôle ARIA)
+    webview.ts             describeCurrentPage()
     notifications-api.ts   publishNotification() avec retry 5xx
   pages/
     *.page.ts              Page Objects — actions métier, sans sélecteurs
@@ -94,10 +95,10 @@ un utilisateur les perçoit (rôle ARIA, texte visible, `accessibility id` en na
 ```
 test (scénario)
   └── Page Object ("ouvrir l'inbox")
-        └── tl().getByRole / findByText  — élément par rôle ARIA ou texte visible
+        └── findRole / findText (src/helpers/spa.ts)  — élément par rôle ARIA ou texte visible
 ```
 
-Le détail des conventions (POM 3 niveaux, `tl()` vs `$()`/`$$()` vs `driver.execute()`, WebView
+Le détail des conventions (POM 3 niveaux, `findRole()` vs `$()`/`$$()` vs `driver.execute()`, WebView
 et contextes) est dans **[CONTRIBUTING.md](CONTRIBUTING.md)** — à lire avant d'écrire un test. Le
 raisonnement complet derrière la règle de sélection (tableaux type de page × action) est archivé
 dans l'ADR
@@ -218,7 +219,7 @@ Dans le REPL :
 > await webViewInfo()                             // { url, visible: 'visible'|'hidden', title }
 > await $('~Notifications').click()               // tester un locator natif
 > await inWebContext(async () => {                // tester un locator WebView
-    const el = await tl().findByRole('link', { name: /Notifications/i })
+    const el = await findRole('link', /Notifications/i)
     await el.click()
   })
 > await saveScreenshot('inbox-empty')             // → /tmp/inbox-empty.png

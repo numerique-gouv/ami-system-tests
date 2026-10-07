@@ -19,7 +19,7 @@ import type { Locator } from './types'
  *
  * Deux formats de valeur cohabitent selon le consommateur :
  *   Locator (CSS)  — pour $()/$$()/driver.execute(document.querySelector(...))
- *   string (id nu) — pour tl().findByTestId(), qui attend la valeur brute de
+ *   string (id nu) — pour findTestId(), qui attend la valeur brute de
  *                     l'attribut data-testid, pas un sélecteur CSS
  */
 export interface ProfileLocators {
@@ -29,19 +29,21 @@ export interface ProfileLocators {
   addressSection: Locator     // section "Mon adresse"
 
   // Titre <h2> de la page (NavWithBackButton) — sentinelle d'arrivée par requête sémantique
-  // (tl().findByRole('heading', {name: pageTitle})), plutôt qu'un data-testid sur le conteneur.
+  // (findRole('heading', pageTitle)), plutôt qu'un data-testid sur le conteneur.
   pageTitle: string
+  /** Titre du formulaire d'adresse (`/#/edit-address`), atteint depuis le profil ou la carte d'accueil. */
+  addressFormTitle: RegExp
 
   // DETTE : data-testid non justifié pour ces 2 champs. Choisi à l'origine (commit 09e9798)
   // parce que c'est le premier attribut remonté par `just inspect`, pas parce qu'un
-  // tl().findByRole()/findByText() aurait été essayé et aurait échoué — "ce que just inspect
+  // findRole()/findText() aurait été essayé et aurait échoué — "ce que just inspect
   // montre en premier" n'est pas une raison valable (cf. CONTRIBUTING.md §2 "data-testid : dernier
   // recours documenté"). À retester avec une query sémantique avant de considérer ce champ comme figé.
   profileMenuButtonTestId: string  // "Mon profil" dans le menu avatar
   settingsMenuButtonTestId: string // "Paramètres" dans le menu avatar
 
   // Ambiguïté CONFIRMÉE : les 3 boutons "Modifier" de la page profil partagent le même rôle
-  // (button) et le même texte visible — tl().findByRole('button', {name:'Modifier'}) ne peut
+  // (button) et le même texte visible — findRole('button', 'Modifier') ne peut
   // pas les distinguer, data-testid est ici la seule option (pas un choix de confort).
   preferredUsernameEditButtonTestId: string
   emailEditButtonTestId: string
@@ -60,6 +62,7 @@ export const profileLocators: ProfileLocators = {
   addressSection: '#profile-address',
 
   pageTitle: 'Mon profil',
+  addressFormTitle: /Où habitez-vous/,
   profileMenuButtonTestId: 'profile-button',
   settingsMenuButtonTestId: 'settings-button',
   preferredUsernameEditButtonTestId: 'preferred-username-button',

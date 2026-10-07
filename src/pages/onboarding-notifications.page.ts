@@ -1,7 +1,7 @@
 import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import {tl} from '../helpers/webview'
+import {findRole} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -64,7 +64,7 @@ class OnboardingNotificationsPage {
         if (!await this.isOnboardingVisible()) return
         if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebRouteVisible(1000))) {
             await platform().inWebContext(async () => {
-                const later = await tl().findByRole('button', {name: webOnboardingNotifLocators.laterButtonName}, {timeout: 10000})
+                const later = await findRole('button', webOnboardingNotifLocators.laterButtonName, {timeout: 10000})
                 await later.click()
             })
             await browser.waitUntil(

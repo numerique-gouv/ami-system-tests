@@ -1,7 +1,7 @@
 import {fcEidasLocators} from '../locators/franceconnect/franceconnect-eidas.locators'
 import {traced} from '../../helpers/traced'
-import {tl} from '../../helpers/webview'
 import {platform} from '../../platform'
+import {findRole} from '../../helpers/spa'
 
 class FranceConnectEidasPage {
     /**
@@ -26,6 +26,15 @@ class FranceConnectEidasPage {
         return await platform().inWebContext(() => this.isEidasTileVisibleBare()).catch(() => false)
     }
 
+    /**
+     * Attend que la mire eIDAS soit affichée. `false` si elle ne vient pas : FranceConnect a pu
+     * authentifier directement (session SSO déjà ouverte), sans demander eIDAS ni identifiants.
+     */
+    async waitForEidasTile(timeout = 15000): Promise<boolean> {
+        return await browser.waitUntil(() => this.isEidasVisible(), {timeout, interval: 500})
+            .then(() => true).catch(() => false)
+    }
+
     async selectEidasFaible(): Promise<void> {
         await platform().inWebContext(async () => {
             // Écran atteint juste après le redirect OIDC login → eIDAS — no-op sur Android,
@@ -40,7 +49,7 @@ class FranceConnectEidasPage {
                     timeoutMsg: `Tuile "${fcEidasLocators.eidasFaibleLabel}" non visible après ${tileTimeoutMs}ms`
                 }
             )
-            const eidasLink = await tl().getByRole('link', {name: new RegExp(fcEidasLocators.eidasFaibleLabel, 'i')})
+            const eidasLink = await findRole('link', new RegExp(fcEidasLocators.eidasFaibleLabel, 'i'))
             await eidasLink.click()
         })
     }

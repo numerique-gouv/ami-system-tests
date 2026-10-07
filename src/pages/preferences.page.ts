@@ -9,35 +9,45 @@ class PreferencesPage {
         await NavigationPage.openPlusEntry('Préférences')
     }
 
+    /** Vérifie l'arrivée sur la page Préférences (titre). */
+    async assertDisplayed(): Promise<void> {
+        await waitForHeading(preferencesLocators.pageTitle)
+    }
+
     async entries(): Promise<string[]> {
+        await this.assertDisplayed()
         const texts = await visibleButtonTexts()
         return texts.filter(t => preferencesLocators.entries.includes(t))
     }
 
     async openConsents(): Promise<void> {
         await clickButton(preferencesLocators.entries[0])
-        await NavigationPage.waitForHash(/#\/preferences\/consents$/)
-        await waitForHeading(preferencesLocators.consentsTitle)
     }
 
     async openNotifications(): Promise<void> {
         await clickButton(preferencesLocators.entries[1])
-        await NavigationPage.waitForHash(/#\/preferences\/notifications$/)
+    }
+
+    /** Vérifie l'arrivée sur la page des préférences de notifications (titre). */
+    async assertNotificationsDisplayed(): Promise<void> {
         await waitForHeading(preferencesLocators.notificationsTitle)
     }
 
     /** États des cases de consentement par identifiant de partenaire (`name`), sans les modifier. */
     async consentStates(): Promise<Record<string, boolean>> {
+        await waitForHeading(preferencesLocators.consentsTitle)
         return await checkboxStates()
     }
 
     /** Libellés « Suivre mes démarches {partenaire} sur mon appareil mobile » affichés. */
     async consentLabels(): Promise<string[]> {
+        await waitForHeading(preferencesLocators.consentsTitle)
         const text = await pageText()
         return Array.from(text.matchAll(/Suivre mes démarches (.+?) sur mon appareil mobile/g)).map(m => m[1])
     }
 
     async notificationToggleState(): Promise<boolean | undefined> {
+        await this.assertNotificationsDisplayed()
         return (await checkboxStates())[preferencesLocators.notificationToggleName]
     }
 }

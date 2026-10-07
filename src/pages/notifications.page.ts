@@ -1,9 +1,7 @@
-import {tl} from '../helpers/webview'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
-import {clickButton} from '../helpers/spa'
-import NavigationPage from './navigation.page'
+import {clickButton, findRole, findRoles} from '../helpers/spa'
 import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
@@ -11,42 +9,38 @@ const log = logger('page-object')
 class NotificationsInboxPage {
 
     /**
-     * Sentinelle de rendu de la page inbox — driver.execute (pas tl()) car une navigation peut
-     * être en cours (executeAsync serait tué, cf. CONTRIBUTING.md §2). Le heading "Notifications"
-     * confirme le rendu réel de la page, pas juste le changement d'URL (le hash peut être mis à
-     * jour avant que le contenu soit rendu, cf. CONTRIBUTING.md §4). Appeler avant tout tl() dans
-     * cette classe évite de faire courir l'injection de Testing Library (3 commandes WebDriver
-     * distinctes côté @testing-library/webdriverio) contre une navigation ou un reload en cours,
-     * ce qui laisserait window.TestingLibraryDom indéfini entre son injection et son .configure().
+     * Attend le heading « Notifications » (titre de la page inbox) — bare : à appeler dans un
+     * `inWebContext` déjà ouvert. Le titre confirme le rendu réel de la page, pas seulement l'URL.
      */
     private async waitForNotificationsHeading(timeout = 15000): Promise<void> {
-        await browser.waitUntil(
-            async () => driver.execute(() =>
-                Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
-                    .some(h => h.innerText?.trim() === 'Notifications')
-            ) as Promise<boolean>,
-            {timeout, interval: 500, timeoutMsg: 'Heading "Notifications" absent'}
-        )
+        await findRole('heading', 'Notifications', {timeout})
     }
 
     /**
-     * Ouvre l'inbox en tapant l'icône cloche dans la WebView SPA, puis attend que la page
-     * /#/notifications soit réellement montée (heading "Notifications" visible) avant de rendre
-     * la main. Nécessaire pour éviter une course avec publishNotification() côté appelant : la
-     * page /#/notifications ouvre son propre WebSocket au montage (cf. docstring de
-     * assertNotificationReceived) — publier une notification avant que cet abonnement soit
-     * établi la fait perdre définitivement sur Android (pas de rattrapage par reload, cf.
-     * assertNotificationReceived ci-dessous).
+     * Vérifie l'arrivée sur l'inbox : le titre ET la liste initiale rendue (au moins une notification,
+     * chacune étant un `<h3>`). À appeler avant de publier une notification : la SPA ne s'abonne à son
+     * WebSocket qu'après `buildFollowup()` puis `retrieveNotifications()` (`onMount` de
+     * `routes/notifications/+page.svelte`), alors que le titre est affiché bien avant. Une notification
+     * publiée entre-temps est perdue (observé le 2026-10-07 : webapp et iOS). Le compte de test a
+     * toujours au moins la notification d'accueil « Bienvenue sur AMI ».
+     */
+    async assertDisplayed(): Promise<void> {
+        await platform().inWebContext(async () => {
+            await this.waitForNotificationsHeading()
+            await findRoles('heading', undefined, {level: 3, timeout: 15000})
+        })
+    }
+
+    /**
+     * Ouvre l'inbox en tapant l'icône cloche dans la WebView SPA. La page d'origine ne connaît pas
+     * l'inbox : l'arrivée est vérifiée par `assertDisplayed()`.
      * Pré-condition : l'onboarding notifications a déjà été refusé.
      */
     async openFromHome(): Promise<void> {
         await platform().inWebContext(async () => {
-            // getByRole('button') cible la cloche par son rôle ARIA et son nom accessible —
-            // plus robuste que le sélecteur CSS structurel '#notification-icon button'.
-            const bell = await tl().getByRole('button', {name: /notifications/i})
-            await bell.waitForDisplayed({timeout: 15000})
+            // Rôle ARIA + nom accessible : plus robuste que le sélecteur CSS structurel '#notification-icon button'.
+            const bell = await findRole('button', /notifications/i, {timeout: 15000})
             await bell.click()
-            await this.waitForNotificationsHeading()
         })
     }
     /**
@@ -55,7 +49,6 @@ class NotificationsInboxPage {
      */
     async openManage(): Promise<void> {
         await clickButton('Gérer les notifications')
-        await NavigationPage.waitForHash(/#\/preferences\/notifications$/)
     }
 
     /**
@@ -123,15 +116,10 @@ class NotificationsInboxPage {
      * puis attend que le routeur Svelte navigue vers la page de détail (changement de hash).
      * Pré-condition : la notification est déjà visible dans l'inbox (utiliser waitForNotification avant).
      *
-     * driver.execute plutôt que tl() : le reload forcé par assertNotificationReceived pour obtenir
-     * la notification fraîche laisse souvent la page encore en cours de (re)construction à ce stade
-     * (WKWebView sur iOS notamment) — le heading peut déjà être visible alors que le document est
-     * encore en train d'être remplacé. tl() a tendance à planter dans ce contexte : son injection
-     * de Testing Library tient en 3 aller-retours WebDriver non atomiques (vérifier présence,
-     * injecter le script, appeler .configure()), et une navigation qui se termine entre ces 3
-     * étapes vide window.TestingLibraryDom avant que .configure() ne s'exécute
-     * ("window.TestingLibraryDom.configure" undefined). driver.execute trouve et clique l'élément
-     * en un seul aller-retour synchrone, sans cette fenêtre de course.
+     * driver.execute : trouve et clique l'élément en un seul aller-retour synchrone — le reload forcé par
+     * assertNotificationReceived laisse souvent la page encore en cours de (re)construction à ce stade
+     * (WKWebView sur iOS notamment), et le heading peut déjà être visible alors que le document est
+     * encore en train d'être remplacé.
      */
     async clickNotification(title: string): Promise<void> {
         await platform().inWebContext(async () => {
@@ -157,7 +145,7 @@ class NotificationsInboxPage {
      * le DOM peut se re-rendre et invalider les handles ("stale element", cf. CONTRIBUTING.md §2
      * pour le cas général où driver.execute reste préférable).
      * driver.execute lit tout dans le même instantané JS synchrone, pas de fenêtre de staleness.
-     * Utilise driver.execute plutôt que getByRole({ level: 1 }) également car la SPA AMI utilise
+     * Utilise driver.execute plutôt que findRole(…, {level: 1}) également car la SPA AMI utilise
      * <h2> / <h3> (composants DSFR fr-tile) et non systématiquement <h1>.
      */
     async getTopNotificationTitle(): Promise<string> {
