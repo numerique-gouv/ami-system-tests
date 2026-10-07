@@ -1,7 +1,7 @@
 # CLAUDE.md — WebdriverIO / Appium
 
 Tests E2E mobiles (iOS + Android) et webapp (Chrome) pour l'application AMI.
-Stack : WebdriverIO v9 + Appium 3 + TypeScript + Testing Library.
+Stack : WebdriverIO v9 + Appium 3 + TypeScript.
 
 Les apps cibles sont dans les dépôts frères `../ami-app-android` et `../ami-app-ios`.
 
@@ -71,7 +71,8 @@ src/
     appium.adapter.ts       # implémentation mobile (Appium)
     browser.adapter.ts      # implémentation webapp (Chrome)
   helpers/
-    webview.ts             # tl(), retourJusquATexteVisible()
+    spa.ts, dom-query.ts   # findRole(), clickButton()… : recherche par rôle ARIA, sans Testing Library
+    webview.ts             # describeCurrentPage()
     notifications-api.ts   # publishNotification() avec retry 5xx
   pages/
     *.page.ts              # Page Objects — actions métier, sans sélecteurs directs
@@ -86,7 +87,7 @@ src/
 
 ### Pattern locators
 
-L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les requêtes Testing Library (`tl().getByRole`, `tl().findByText`) sont donc identiques sur les deux plateformes.
+L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les recherches par rôle ARIA (`findRole`, `findText`, cf. `src/helpers/spa.ts`) sont donc identiques sur les deux plateformes.
 
 Le dispatch `getXxxLocators()` n'est nécessaire que pour les **éléments natifs** (hors WebView) :
 - `androidXxxLocators` — resource-id (`fr.gouv.ami.staging:id/<name>`)
@@ -129,7 +130,8 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 | `test-suites.ts` | Suites nommées (`WDIO_SUITE`) consommées par les recettes `just *-suite` et la CI |
 | `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
 | `src/platform/` | `platform()` / `PlatformAdapter` — abstraction android/ios/webapp |
-| `src/helpers/webview.ts` | `tl()`, `retourJusquATexteVisible()` |
+| `src/helpers/spa.ts` / `dom-query.ts` | `findRole()`, `clickButton()`, `waitForHeading()`… |
+| `src/helpers/webview.ts` | `describeCurrentPage()` |
 | `src/helpers/notifications-api.ts` | `publishNotification()` avec retry 5xx |
 | `src/pages/locators/` | Un fichier par écran, `getXxxLocators()` dispatch plateforme |
 

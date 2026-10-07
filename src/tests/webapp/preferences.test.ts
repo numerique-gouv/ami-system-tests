@@ -21,6 +21,7 @@ describe('Préférences', () => {
   beforeEach(async () => {
     await HomePage.goToHomeFromAnywhere(15000)
     await PreferencesPage.open()
+    await PreferencesPage.assertDisplayed()
   })
 
   it('propose les 3 entrées : suivi des démarches, notifications, zones scolaires', async () => {

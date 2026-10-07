@@ -1,14 +1,18 @@
 import {agendaLocators} from './locators/agenda.locators'
 import {platform} from '../platform'
-import {tl} from '../helpers/webview'
 import {traced} from '../helpers/traced'
-import {checkboxStates, clickButton, clickButtonInDialog, waitForHeading} from '../helpers/spa'
+import {checkboxStates, clickButton, clickButtonInDialog, waitForHeading, findRole, findRoles, queryRole} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 
 /** Page Object de l'Agenda (`/#/agenda`) : liste des évènements et sélecteur de zones scolaires. */
 class AgendaPage {
     async open(): Promise<void> {
         await NavigationPage.goToTab('Agenda')
+    }
+
+    /** Vérifie l'arrivée sur la page Agenda (titre). */
+    async assertDisplayed(): Promise<void> {
+        await waitForHeading(agendaLocators.pageTitle)
     }
 
     async assertSectionsVisible(): Promise<void> {
@@ -18,13 +22,13 @@ class AgendaPage {
 
     /** Nombre d'évènements listés (un bouton d'ouverture de dialogue par évènement). */
     async countEvents(): Promise<number> {
-        return await platform().inWebContext(async () => (await tl().findAllByRole('button', {name: agendaLocators.eventDialogButtonName})).length)
+        return await platform().inWebContext(async () => (await findRoles('button', agendaLocators.eventDialogButtonName)).length)
     }
 
     /** Ouvre le dialogue du premier évènement. */
     async openFirstEvent(): Promise<void> {
         await platform().inWebContext(async () => {
-            const [first] = await tl().findAllByRole('button', {name: agendaLocators.eventDialogButtonName}, {timeout: 10000})
+            const [first] = await findRoles('button', agendaLocators.eventDialogButtonName, {timeout: 10000})
             await first.click()
         })
     }
@@ -32,7 +36,7 @@ class AgendaPage {
     /** Vérifie que le dialogue d'évènement propose l'action « Supprimer » — sans l'utiliser (mutante). */
     async assertDeleteActionOffered(): Promise<void> {
         await platform().inWebContext(async () => {
-            await tl().findByRole('button', {name: agendaLocators.deleteActionName}, {timeout: 5000})
+            await findRole('button', agendaLocators.deleteActionName, {timeout: 5000})
         })
     }
 
@@ -46,7 +50,7 @@ class AgendaPage {
 
     private async isDeleteActionVisible(): Promise<boolean> {
         return await platform().inWebContext(() =>
-            tl().queryByRole('button', {name: agendaLocators.deleteActionName}).then(el => !!el).catch(() => false)
+            queryRole('button', agendaLocators.deleteActionName).then(el => !!el).catch(() => false)
         )
     }
 

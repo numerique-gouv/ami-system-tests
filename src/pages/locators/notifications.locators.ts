@@ -3,9 +3,9 @@
  *
  * Les sélecteurs WebView (cloche, items, heading) vivent directement dans
  * notifications.page.ts, pas ici :
- *   tl().getByRole('button', { name: /notifications/i })  — cloche (openFromHome)
+ *   findRole('button', /notifications/i)  — cloche (openFromHome)
  *   driver.execute(...)                                    — items et heading
- *     (pas tl()/findByText : la page reçoit des mises à jour WebSocket en continu et
+ *     (pas findRole/findText : la page reçoit des mises à jour WebSocket en continu et
  *     l'inbox est reload()-ée pour rafraîchir, ce qui invaliderait une requête Testing
  *     Library en cours — voir les commentaires de notifications.page.ts pour le détail)
  *

@@ -1,7 +1,7 @@
 import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
 import {platform} from '../platform'
-import {tl} from '../helpers/webview'
 import {traced} from '../helpers/traced'
+import {findRole} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran de proposition de création de clé d'accès (passkey).
@@ -35,7 +35,7 @@ class OnboardingPasskeyPage {
     async dismiss(): Promise<void> {
         if (!await this.isVisible()) return
         await platform().inWebContext(async () => {
-            const later = await tl().findByRole('button', {name: onboardingPasskeyLocators.laterButtonName})
+            const later = await findRole('button', onboardingPasskeyLocators.laterButtonName)
             await later.click()
         })
     }

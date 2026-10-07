@@ -102,9 +102,9 @@ async function listWebViewElements(
         const id = el.id
 
         let testingLibraryQuery = ''
-        if (ariaLabel) testingLibraryQuery = `getByRole('${role}', { name: /${ariaLabel}/i })`
-        else if (text) testingLibraryQuery = `getByRole('${role}', { name: /${text.slice(0, 30)}/i })`
-        else testingLibraryQuery = `getByRole('${role}')`
+        if (ariaLabel) testingLibraryQuery = `findRole('${role}', /${ariaLabel}/i)`
+        else if (text) testingLibraryQuery = `findRole('${role}', /${text.slice(0, 30)}/i)`
+        else testingLibraryQuery = `findRole('${role}')`
 
         results.push({ tag, role, text, ariaLabel, href, id, testingLibraryQuery })
       }

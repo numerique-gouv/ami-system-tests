@@ -1,4 +1,3 @@
-import { tl } from '@helpers/webview'
 import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
@@ -7,7 +6,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/notifications-api'
 import NavigationPage from './navigation.page'
-import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa'
+import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading, findRole, queryRole} from '@helpers/spa'
 
 const log = logger('page-object')
 
@@ -18,9 +17,9 @@ class SuiviDemarchesPage {
      * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
      * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
      *
-     * Backend sans push testé (cf. CONTRIBUTING.md §3 "Attendre une information asynchrone") :
+     * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
      * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
-     * stratégie que `NotificationsInboxPage.waitForNotification`. `tl().findByText()` avec
+     * stratégie que `NotificationsInboxPage.waitForNotification`. `findText()` avec
      * timeout court : le titre d'une carte est un seul nœud de texte (contrairement à
      * `assertVisibleDemarcheWith`, qui a besoin de lire le badge/lien voisins via `$$()`) —
      * une correspondance exacte par texte visible convient, pas besoin de sous-chaîne manuelle.
@@ -57,7 +56,6 @@ class SuiviDemarchesPage {
                 // iOS (cf. refreshAxTree()) — no-op sur Android.
                 await platform().refreshAxTree()
                 return driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
-                //tl().findByText(title, {}, {timeout: 500}).then(() => true).catch(() => false)
             })
 
             if (found) {
@@ -72,7 +70,7 @@ class SuiviDemarchesPage {
   /**
    * Attend qu'une carte de démarche visible corresponde à `title` et `statusLabel`.
    *
-   * $$()/card.$() plutôt que tl() : on ne sait pas à l'avance quelle carte contient `title`,
+   * $$()/card.$() plutôt que findRole : on ne sait pas à l'avance quelle carte contient `title`,
    * il faut donc lire le titre de chaque carte pour le comparer. Une fois la bonne carte
    * trouvée, lire le badge. $$() donne directement la carte, le badge
    * se lit dedans sans remonter le DOM.
@@ -134,10 +132,10 @@ class SuiviDemarchesPage {
       // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
       // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
       await platform().refreshAxTree()
-      // tl() par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
+      // findRole par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
       // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
       try {
-        const link = await tl().findByRole('button', { name: title }, { timeout: timeoutMs })
+        const link = await findRole('button', title, { timeout: timeoutMs })
         await link.click()
       } catch {
         throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" à ouvrir` })
@@ -151,17 +149,21 @@ class SuiviDemarchesPage {
    */
   async openArchived(): Promise<void> {
     await NavigationPage.goToRoute('/followup/archived')
-    await NavigationPage.waitForHash(/#\/followup\/archived$/)
-    await waitForHeading('Démarches archivées')
   }
 
   /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
   async archivedPartners(): Promise<string[]> {
+    await waitForHeading('Démarches archivées')
     // L'encart est un accordéon fermé par défaut : les partenaires ne sont visibles qu'une fois déplié.
     await clickButton(/Votre démarche n.apparaît pas/)
     await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
     const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
     return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))
+  }
+
+  /** Vérifie l'arrivée sur la page Suivi (titre « Mes démarches »). */
+  async assertDisplayed(): Promise<void> {
+    await waitForHeading(getSuiviDemarchesLocators().pageTitle)
   }
 
   /**
@@ -183,8 +185,7 @@ class SuiviDemarchesPage {
      */
     async retourJusquAPageSuivi(): Promise<void> {
         const demarchesLocators = getSuiviDemarchesLocators()
-        const isSuiviVisible = (): Promise<boolean> => tl()
-            .queryByRole('heading', { name: demarchesLocators.pageTitle })
+        const isSuiviVisible = (): Promise<boolean> => queryRole('heading', demarchesLocators.pageTitle)
             .then((el) => el !== null)
             .catch(() => false)
 

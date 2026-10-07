@@ -1,5 +1,5 @@
 import AllureReporter from '@wdio/allure-reporter'
-import NavigationPage from '../../pages/navigation.page'
+import ErrorPage from '../../pages/error.page'
 import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
@@ -24,8 +24,8 @@ describe('Pages d\'erreur', () => {
   ]
   for (const [route, title] of pages) {
     it(`${route} affiche « ${title} »`, async () => {
-      await NavigationPage.goToRoute(route)
-      await NavigationPage.waitForHeading(title)
+      await ErrorPage.openRoute(route)
+      await ErrorPage.assertDisplayed(title)
     })
   }
 })

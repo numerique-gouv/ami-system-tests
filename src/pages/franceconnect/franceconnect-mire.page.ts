@@ -1,9 +1,9 @@
 import {getFranceConnectMireLocators} from '../locators/franceconnect/franceconnect-mire.locators'
 import {traced} from '../../helpers/traced'
-import {tl} from '../../helpers/webview'
 import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
+import {findRole} from '../../helpers/spa'
 
 const log = logger('page-object')
 
@@ -159,7 +159,7 @@ class FranceConnectMirePage {
                     () => this.isFranceConnectTextVisible(),
                     {timeout, interval: 300}
                 )
-                const fcButton = await tl().getByRole('button', {name: /^S.identifier avec FranceConnect$/i})
+                const fcButton = await findRole('button', /^S.identifier avec FranceConnect$/i)
                 await fcButton.click()
                 tapped = true
                 log.info('btn web FC trouvé et tap effectif !!!')

@@ -38,7 +38,7 @@ describe('Aide, contact et pages légales', () => {
 
   it('« Données personnelles et sécurité » liste ses 6 sections', async () => {
     await NavigationPage.openPlusEntry('Données personnelles et sécurité')
-    expect(await AideContactPage.legalSections()).toEqual([
+    expect(await AideContactPage.legalSections('Données personnelles et sécurité')).toEqual([
       'Qui traite vos données ?',
       'Finalité et base légale',
       'Catégories de données et durée de conservation',
@@ -50,7 +50,7 @@ describe('Aide, contact et pages légales', () => {
 
   it('« Accessibilité » liste ses sections', async () => {
     await NavigationPage.openPlusEntry('Accessibilité')
-    expect(await AideContactPage.legalSections()).toEqual([
+    expect(await AideContactPage.legalSections('Accessibilité')).toEqual([
       'Déclaration d’accessibilité',
       'Déclaration d’accessibilité',
       'Retour d’information et contact',

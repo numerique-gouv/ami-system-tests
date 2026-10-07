@@ -19,7 +19,6 @@
     "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report"
   },
   "devDependencies": {
-    "@testing-library/webdriverio": "^3.2.1",
     "@types/node": "^26.4.0",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",

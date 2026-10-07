@@ -3,6 +3,7 @@
  * WebView/webapp, DOM identique — ciblage par nom accessible (vérifié en live le 2026-10-02).
  */
 export const agendaLocators = {
+  pageTitle: 'Mon agenda',
   upcomingHeading: 'Prochainement',
   laterMonthsHeading: 'Les mois suivants',
   /** Bouton qui ouvre le dialogue d'un évènement (présent à l'identique sur chaque évènement). */

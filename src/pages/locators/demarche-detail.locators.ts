@@ -15,7 +15,7 @@
 export interface DemarcheDetailLocators {
   /**
    * Nom accessible du bouton "Accéder à ma démarche" sur la page de détail.
-   * Sélectionné par rôle+nom via `tl().getByRole('button', { name: ... })` dans le PO
+   * Sélectionné par rôle+nom via `findRole('button', name)` dans le PO
    * (CONTRIBUTING §2 : sélecteur sémantique avant data-testid). Fallback documenté si le nom
    * accessible s'avère instable : `#external-item-button`.
    */

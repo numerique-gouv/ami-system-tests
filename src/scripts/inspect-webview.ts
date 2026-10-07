@@ -13,7 +13,7 @@ import nodeRepl from 'node:repl'
 import { remote } from 'webdriverio'
 import { androidCapabilities, iosCapabilities } from '../driver/capabilities'
 import { listInteractiveAll, getContexts, saveScreenshot, webViewInfo } from '../helpers/repl'
-import { tl } from '../helpers/webview'
+import { findRole, findRoles, queryRole, findText, findTestId, findLabel } from '../helpers/spa'
 import { platform } from '../platform'
 import { listInteractive } from '../helpers/inspect'
 
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
   g.refreshAxTree      = (): Promise<void> => platform().refreshAxTree()
   g.getContexts        = getContexts
   g.saveScreenshot     = saveScreenshot
-  g.tl                 = tl
+  Object.assign(g, { findRole, findRoles, queryRole, findText, findTestId, findLabel })
   g.help               = showHelp
 
   // eslint-disable-next-line no-console
@@ -79,9 +79,10 @@ Helpers disponibles dans ce REPL :
   await getContexts()            — liste les contextes Appium
   await saveScreenshot('name')   — sauve /tmp/name.png
 
-  tl()                           — Testing Library (à utiliser dans inWebContext)
+  findRole(role, name?, opts?)   — élément par rôle + nom accessible (texte ou RegExp), à utiliser dans inWebContext
+  findRoles / queryRole / findText / findTestId / findLabel — mêmes conventions (cf. src/helpers/dom-query.ts)
     ex : await inWebContext(async () => {
-           const el = await tl().findByText('Mon texte')
+           const el = await findRole('button', /Suivi/)
            console.log(await el.getText())
          })
 

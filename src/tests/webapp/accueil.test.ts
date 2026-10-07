@@ -1,7 +1,10 @@
 import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
-import NavigationPage from '../../pages/navigation.page'
+import AgendaPage from '../../pages/agenda.page'
+import NotificationsInboxPage from '../../pages/notifications.page'
+import ProfilePage from '../../pages/profile.page'
 import ServicesPage from '../../pages/services.page'
+import SuiviDemarchesPage from '../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
 /**
@@ -29,31 +32,26 @@ describe('Accueil', () => {
 
   it('la cloche ouvre les notifications', async () => {
     await HomePage.openNotificationsBell()
-    await NavigationPage.waitForHash(/#\/notifications$/)
-    await NavigationPage.waitForHeading('Notifications')
+    await NotificationsInboxPage.assertDisplayed()
   })
 
   it('« Voir tous mes évènements » ouvre l\'agenda', async () => {
     await HomePage.openAllEvents()
-    await NavigationPage.waitForHash(/#\/agenda$/)
-    await NavigationPage.waitForHeading('Mon agenda')
+    await AgendaPage.assertDisplayed()
   })
 
   it('« Voir toutes mes démarches » ouvre le suivi', async () => {
     await HomePage.openAllProcedures()
-    await NavigationPage.waitForHash(/#\/followup$/)
-    await NavigationPage.waitForHeading('Mes démarches')
+    await SuiviDemarchesPage.assertDisplayed()
   })
 
   it('la carte « Opération Tranquillité Vacances » ouvre la fiche du service', async () => {
     await HomePage.openOtvCard()
-    await NavigationPage.waitForHash(/#\/services\/service\/psl\/OperationTranquilliteVacances$/)
     await ServicesPage.assertBenefitButtonOffered()
   })
 
   it('la carte « Renseignez votre adresse » ouvre le formulaire d\'adresse sans rien enregistrer', async () => {
     await HomePage.openAddressCard()
-    await NavigationPage.waitForHash(/#\/edit-address$/)
-    await NavigationPage.waitForHeading(/Où habitez-vous/)
+    await ProfilePage.assertAddressFormDisplayed()
   })
 })
