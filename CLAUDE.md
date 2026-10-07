@@ -54,6 +54,14 @@ Le raisonnement détaillé (tableaux page × action) derrière la règle de sél
 CONTRIBUTING.md §2 est archivé dans l'ADR
 `docs/adr/2026-07-09-Strategie-de-selection-des-elements.md`.
 
+## Rôle respectif des tests mobiles et webapp
+
+Les deux familles de tests ne couvrent pas la même chose :
+
+- **Tests mobiles (Android + iOS)** : ils testent les **écrans natifs** ET les **collaborations entre le natif et la WebView** (échanges de données, passages d'un monde à l'autre — ex. bouton FranceConnect natif → page de login de la SPA, onboarding, déconnexion). C'est ce que seul le mobile peut vérifier.
+- **Tests webapp (Chrome)** : ils permettent d'aller **loin et vite** dans la navigation des pages de la SPA, sans émulateur ni simulateur.
+- **Évolution prévue** : des pages de la SPA seront **progressivement « promues » en natif**, au fil des mois. La frontière natif / WebView n'est donc pas figée — un écran peut changer de nature d'une version de l'app à l'autre.
+
 ## Architecture
 
 ```
