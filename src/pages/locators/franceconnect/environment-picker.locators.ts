@@ -17,9 +17,13 @@ export interface EnvironmentPickerLocators {
 // process.env.AMI_ENV à l'exécution et n'a pas de valeur par défaut sensée (voir le getter
 // ci-dessous). C'est le seul locator du dépôt calculé dynamiquement depuis une variable
 // d'environnement.
+//
+// iOS : la tuile est un seul bouton (label « Staging, Staging » : titre + sous-titre) ; viser le bouton et non
+// le texte « Staging », qui existe deux fois (titre et sous-titre) et que WDIO 10 refuse (`$()` strict).
+// Android : `text("Staging")` peut avoir le même défaut (titre et sous-titre) — à vérifier sur l'émulateur.
 const PICKER_SENTINEL = {
   android: 'android=new UiSelector().text("Staging")',
-  ios:     '-ios predicate string:label == "Staging"',
+  ios:     '-ios predicate string:type == "XCUIElementTypeButton" AND label BEGINSWITH "Staging"',
 } satisfies Record<'android' | 'ios', Locator>
 
 export function getEnvironmentPickerLocators(): EnvironmentPickerLocators {
@@ -27,9 +31,10 @@ export function getEnvironmentPickerLocators(): EnvironmentPickerLocators {
   if (driver.isIOS) {
     return {
       pickerSentinel: PICKER_SENTINEL.ios,
-      // type == StaticText : évite de matcher un conteneur parent dont le label agrégé contient le fragment
+      // type == Button : la tuile entière (un seul élément), alors que le titre et le sous-titre sont deux textes
+      // pouvant porter le même label (ambigu sous WDIO 10).
       // CONTAINS[c] : correspondance insensible à la casse (fragment ex : "1234" dans "PR-1234")
-      environmentPicker: `-ios predicate string:type == "XCUIElementTypeStaticText" AND label CONTAINS[c] "${env}"`,
+      environmentPicker: `-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "${env}"`,
     }
   }
   return {

@@ -1,6 +1,7 @@
 import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
+import FranceConnectMirePage from '@pages/franceconnect/franceconnect-mire.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
 import logger from '@wdio/logger'
 
@@ -84,8 +85,13 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
 
   it('se déconnecte via le menu plus', async () => {
     await AllureReporter.addStep('Taper Me déconnecter depuis le menu plus')
-    await HomePage.isHomeReachable()
+    await HomePage.goToHomeFromAnywhere(15000)
     await ProfilePage.logout()
+
+    // La déconnexion n'est finie qu'au retour sur l'écran de connexion : la fin de session FranceConnect
+    // est un aller-retour que la suite ne doit pas interrompre.
+    await AllureReporter.addStep('Attendre l\'écran de connexion')
+    await FranceConnectMirePage.waitForLoginScreen()
   })
 
   it('se reconnecte avec le même compte', async () => {

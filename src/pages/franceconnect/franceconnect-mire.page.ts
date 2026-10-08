@@ -64,6 +64,12 @@ class FranceConnectMirePage {
         if (platform().fcButtonIsNative) {
             return await this.isNativeFcButtonDisplayed()
         }
+        const nativeAx = getFranceConnectMireLocators().fcButtonNativeAx
+        if (nativeAx) {
+            // iOS : lecture native, jamais bloquée par un `execute` resté sans réponse pendant que la WebView
+            // change de domaine (cf. fcButtonNativeAx).
+            return await $$(nativeAx).length > 0
+        }
         if (!await platform().isWebContextAvailable()) return false
         return await platform().inWebContext(() => this.isFranceConnectTextVisible()).catch(() => false)
     }

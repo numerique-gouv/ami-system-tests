@@ -43,7 +43,7 @@ describe('Déconnexion', () => {
     expect((await ProfilePage.getIdentityBolds()).some(b => b.includes(MODIFIED_PREFERRED_USERNAME))).toBe(true)
 
     await AllureReporter.addStep('2. Se déconnecter via le menu Plus et confirmer la suppression des données')
-    await HomePage.isHomeReachable()
+    await HomePage.goToHomeFromAnywhere(15000)
     await ProfilePage.logout()
 
     await AllureReporter.addStep("3. L'écran de connexion FranceConnect est de nouveau proposé")

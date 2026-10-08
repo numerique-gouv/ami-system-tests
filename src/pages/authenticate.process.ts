@@ -10,38 +10,48 @@ import {platform} from '../platform'
 import type {TestUser} from '../helpers/test-users'
 import {getUser} from '../helpers/test-users'
 import {grantConsent} from '../helpers/notifications-api'
+import {currentUrlForLog, hasSessionToken, openAppRoot} from '../helpers/session'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
 
 const log = logger('helper')
 
-// Délai maximal du process complet
-const AUTHENTICATE_TIMEOUT_MS = 60000
+// La boucle échoue après ce délai SANS progrès (écran de connexion franchi, page d'onboarding fermée) : une
+// action longue mais réussie (ex. saisie des identifiants, 22 s mesurées sur Android) ne le consomme pas.
+const NO_PROGRESS_TIMEOUT_MS = 30000
+// Plafond absolu, quoi qu'il arrive (progrès sans fin).
+const AUTHENTICATE_MAX_MS = 300000
+// Une page d'onboarding qui revient après autant de fermetures ne se ferme pas : on échoue clairement.
+const MAX_DISMISSALS_PER_PAGE = 3
 // borne un simple check de présence (doit rester rapide, ré-exécuté à chaque tentative)
 const DETECTION_TIMEOUT_MS = 2000
-// FINAL_HOME_TIMEOUT_MS attend une vraie transition asynchrone (redirects OIDC, rendu SPA).
-const FINAL_HOME_TIMEOUT_MS = 15000
+// Sondes rapides du tour de boucle : l'accueil (« Bonjour ») et chaque page d'onboarding. La sortie normale
+// est l'accueil ; on n'attend donc pas une page qui n'est pas là.
+const HOME_PROBE_MS = 500
+const ONBOARDING_PROBE_MS = 500
+// Rien de reconnu (ni accueil, ni onboarding, ni écran de connexion) pendant ce délai : on recharge la racine
+// de l'app une fois. Assez long pour laisser finir une redirection en cours (ex. fin de session FranceConnect).
+const UNRECOGNIZED_BEFORE_ROOT_MS = 15000
 
 type FcScreen = 'review-picker' | 'login' | 'eidas' | 'credentials' | 'home'
+type ConnectionScreen = Exclude<FcScreen, 'home'>
 
-// L'ordre des étapes et leurs actions associées.
-const FC_SCREEN_SEQUENCE: Array<[FcScreen, (user: TestUser) => Promise<void>]> = [
+// Les écrans de connexion, dans l'ordre, et leurs actions associées.
+const CONNECTION_SEQUENCE: Array<[ConnectionScreen, (user: TestUser) => Promise<void>]> = [
     ['review-picker', (): Promise<void> => EnvironmentPickerPage.reviewEnvironmentPicker()],
     ['login', (): Promise<void> => FranceConnectMirePage.tapFranceConnect(false)],
     ['eidas', async (): Promise<void> => {
         await FranceConnectEidasPage.selectEidasFaible()
     }],
     ['credentials', (user): Promise<void> => FranceConnectCredentialsPage.fillCredentials(user)],
-    // Proposition de création de clé d'accès (passkey), conditionnée par un feature flag
-    // applicatif — no-op silencieux si absente (cf. OnboardingPasskeyPage.dismiss()).
-    // Puis onboarding de première connexion (/welcome/zones, puis /welcome/notifications), lui aussi
-    // no-op s'il est absent. Sur mobile, l'écran notifications est natif et traité par
-    // HomePage.assertHomeVisible() — on ne le sonde ici qu'en webapp.
-    ['home', async (): Promise<void> => {
-        await OnboardingPasskeyPage.dismiss()
-        await OnboardingZonesPage.dismiss()
-        if (platform().kind === 'webapp') await OnboardingNotificationsPage.dismiss()
-    }],
+]
+
+// Les pages d'onboarding connues. Chacune : une sonde rapide et sa fermeture. Sur mobile, l'écran
+// « notifications » peut être natif (feuille SwiftUI) : sa page le gère.
+const ONBOARDING_PAGES: Array<{name: string, isVisible: () => Promise<boolean>, dismiss: () => Promise<void>}> = [
+    {name: 'passkey', isVisible: () => OnboardingPasskeyPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingPasskeyPage.dismiss()},
+    {name: 'zones', isVisible: () => OnboardingZonesPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingZonesPage.dismiss()},
+    {name: 'notifications', isVisible: () => OnboardingNotificationsPage.isOnboardingVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingNotificationsPage.dismiss()},
 ]
 
 /**
@@ -95,22 +105,91 @@ async function detectCurrentScreen(): Promise<FcScreen | null> {
 
 /**
  * La séquence fonctionne bien en général.
- * À chaque essai, on part de là où on est et on essaye de finir le process.
- * Un échec remonte à getAppToStartingState, qui re-détecte l'écran et relance.
+ * On part de l'écran détecté et on essaye de finir la connexion. Un échec remonte à `reachHome`, qui
+ * re-détecte l'écran et relance.
  */
-async function runSequenceFrom(startScreen: FcScreen, user: TestUser): Promise<void> {
-    const startIndex = FC_SCREEN_SEQUENCE.findIndex(([screen]) => screen === startScreen)
-    for (const [, run] of FC_SCREEN_SEQUENCE.slice(startIndex)) {
+async function runConnectionFrom(startScreen: ConnectionScreen, user: TestUser): Promise<void> {
+    const startIndex = CONNECTION_SEQUENCE.findIndex(([screen]) => screen === startScreen)
+    for (const [, run] of CONNECTION_SEQUENCE.slice(startIndex)) {
         await run(user)
     }
-    await HomePage.assertHomeVisible(FINAL_HOME_TIMEOUT_MS)
 }
 
-// Au-delà de ce nombre d'essais, aucune progression n'est possible : la séquence ne comporte
-// que FC_SCREEN_SEQUENCE.length écrans distincts, +1 pour absorber un échec ponctuel
-// (ex. re-détection après un clic qui n'a pas encore pris effet). Boucler davantage ne fait
-// qu'attendre le TIMEOUT pour rien — on préfère échouer vite avec un message clair.
-const MAX_ATTEMPTS = FC_SCREEN_SEQUENCE.length + 1
+/**
+ * Ferme la première page d'onboarding affichée. `true` si une page a été fermée (il faut alors réobserver).
+ * `dismissals` compte les fermetures par page : une page qui revient sans cesse est une anomalie à signaler.
+ */
+async function dismissOnboardingPage(dismissals: Map<string, number>): Promise<boolean> {
+    for (const page of ONBOARDING_PAGES) {
+        if (!await page.isVisible()) continue
+        const count = (dismissals.get(page.name) ?? 0) + 1
+        if (count > MAX_DISMISSALS_PER_PAGE)
+            throw new AssertionError({message: `getAppToStartingState: la page d'onboarding « ${page.name} » revient après ${MAX_DISMISSALS_PER_PAGE} fermetures (${await currentUrlForLog()})`})
+        dismissals.set(page.name, count)
+        log.info(`getAppToStartingState: onboarding « ${page.name} » affiché, fermeture (${count}/${MAX_DISMISSALS_PER_PAGE})`)
+        await page.dismiss()
+        return true
+    }
+    return false
+}
+
+// Au-delà de ce nombre d'échecs de la séquence de connexion, aucune progression n'est possible :
+// elle ne comporte que CONNECTION_SEQUENCE.length écrans distincts, +1 pour absorber un échec ponctuel
+// (ex. re-détection après un clic qui n'a pas encore pris effet). On préfère échouer vite avec un message clair.
+const MAX_CONNECTION_FAILURES = CONNECTION_SEQUENCE.length + 1
+
+/**
+ * Tourne jusqu'à l'accueil : à chaque tour, « Bonjour » → fini ; sinon une page d'onboarding connue → on la
+ * ferme ; sinon un écran de connexion → on déroule la séquence ; sinon on laisse la page évoluer.
+ */
+async function reachHome(user: TestUser): Promise<void> {
+    const startedAt = Date.now()
+    let lastProgressAt = startedAt
+    const dismissals = new Map<string, number>()
+    let connectionFailures = 0
+    let unrecognizedSince: number | null = null
+    let rootOpened = false
+
+    while (Date.now() - lastProgressAt < NO_PROGRESS_TIMEOUT_MS && Date.now() - startedAt < AUTHENTICATE_MAX_MS) {
+        // Un seul getContexts() par tour (3 à 10 s sur iOS) : sans WebView (sélecteur d'environnement, écran
+        // natif), l'accueil et l'onboarding ne peuvent pas être affichés — on ne les sonde pas, sous peine
+        // d'attendre un contexte WebView qui n'existe pas (25 s par sonde).
+        if (await platform().isWebContextAvailable()) {
+            if (await HomePage.isHomeDisplayed(HOME_PROBE_MS)) return
+
+            if (await dismissOnboardingPage(dismissals)) {
+                unrecognizedSince = null
+                lastProgressAt = Date.now()
+                continue
+            }
+        }
+
+        const screen = await detectCurrentScreen()
+        if (screen !== null && screen !== 'home') {
+            unrecognizedSince = null
+            try {
+                await runConnectionFrom(screen, user)
+                lastProgressAt = Date.now()
+            } catch (err) {
+                connectionFailures++
+                log.warn(`getAppToStartingState: échec depuis l'écran "${screen}" (échec ${connectionFailures}/${MAX_CONNECTION_FAILURES})`, err)
+                if (connectionFailures >= MAX_CONNECTION_FAILURES) throw err
+            }
+            continue
+        }
+
+        unrecognizedSince ??= Date.now()
+        if (!rootOpened && Date.now() - unrecognizedSince > UNRECOGNIZED_BEFORE_ROOT_MS) {
+            rootOpened = true
+            log.warn(`ANOMALIE : page non reconnue depuis ${UNRECOGNIZED_BEFORE_ROOT_MS}ms (${await currentUrlForLog()}), rechargement de la racine de l'app.`)
+            await openAppRoot().catch((err: unknown) => log.warn('getAppToStartingState: rechargement de la racine impossible', err))
+        }
+    }
+
+    throw new AssertionError({
+        message: `getAppToStartingState: l'accueil n'est pas atteint (${Math.round((Date.now() - lastProgressAt) / 1000)}s sans progrès, ${Math.round((Date.now() - startedAt) / 1000)}s au total, ${await currentUrlForLog()})`
+    })
+}
 
 interface AuthenticateOptions {
     // Fournit le consentement partenaire par défaut, y compris si l'utilisateur était déjà
@@ -119,56 +198,28 @@ interface AuthenticateOptions {
     grantConsent?: boolean
 }
 
-// borne le check initial de présence sur home (doit rester rapide, session déjà ouverte ou non).
-const HOME_REACHABLE_TIMEOUT_MS = 1000
-
 /**
- * Amène l'app dans l'état de départ attendu par les tests : connecté et consentement partenaire
- * fourni. Si l'utilisateur est déjà sur la home (session laissée par un test précédent),
- * l'authentification FranceConnect est sautée. Détecte l'écran une fois puis marche la séquence
- * connue jusqu'à la home ; ne redétecte (nouvelle tentative) qu'en cas d'échec — un tour de
- * boucle par échec, pas par écran.
+ * Remet l'app dans l'état de départ attendu par les tests : connecté, sur l'accueil, consentement partenaire
+ * fourni. Chaque test (sauf l'authentification) commence par là : le test précédent a pu s'arrêter
+ * n'importe où dans l'app.
+ *
+ * 1. Cookie de session présent → chargement de la racine de l'app (la SPA route vers l'accueil).
+ * 2. Absent → rien n'est touché : la boucle déroule la connexion (sélecteur d'environnement, FranceConnect,
+ *    eIDAS, identifiants) à partir de l'écran affiché.
+ * 3. Jusqu'à l'accueil (« Bonjour »), les pages d'onboarding connues sont fermées.
+ * 4. L'URL d'arrivée est journalisée.
  */
 export async function getAppToStartingState({grantConsent: shouldGrantConsent = true}: AuthenticateOptions = {}): Promise<void> {
     const user = getUser('avec_nom_dusage')
 
-    if (!await HomePage.isHomeReachable(HOME_REACHABLE_TIMEOUT_MS)) {
-        const deadline = Date.now() + AUTHENTICATE_TIMEOUT_MS
-        let lastScreen: FcScreen | null = null
-        let attempts = 0
-        let authenticated = false
-
-        while (Date.now() < deadline && attempts < MAX_ATTEMPTS) {
-            attempts++
-            const screen = await detectCurrentScreen()
-            if (screen === null) {
-                log.warn(`getAppToStartingState: écran non reconnu (dernier connu : ${lastScreen}), tentative de retour vers Home au cas où nous serions déjà connectés (essai ${attempts}/${MAX_ATTEMPTS})`)
-                // Webapp : après un logout, forcer le hash `#/` ne fait pas rediriger la SPA vers `#/login`
-                // (page vide, `?is_logged_out`) — seul un chargement complet de la racine le fait.
-                if (platform().kind === 'webapp') {
-                    await browser.url('/').catch((err: unknown) => log.warn('getAppToStartingState: browser.url(\'/\') a échoué', err))
-                }
-                // best-effort : un échec ici est revu par une nouvelle détection au tour suivant.
-                await HomePage.goToHomeFromAnywhere(5000).catch((err: unknown) =>
-                    log.warn('getAppToStartingState: retour vers Home a échoué', err))
-                continue
-            }
-            lastScreen = screen
-            try {
-                await runSequenceFrom(screen, user)
-                authenticated = true
-                break
-            } catch (err) {
-                log.warn(`getAppToStartingState: échec depuis l'écran "${screen}", nouvelle tentative (essai ${attempts}/${MAX_ATTEMPTS})`, err)
-            }
-        }
-
-        if (!authenticated) {
-            throw new AssertionError({
-                message: `getAppToStartingState: la page d'accueil n'est pas visible après ${attempts} essai(s) (max ${MAX_ATTEMPTS}, ${Date.now() < deadline ? 'limite d\'essais atteinte' : `TIMEOUT ${AUTHENTICATE_TIMEOUT_MS}ms`}, dernier écran détecté : ${lastScreen})`
-            })
-        }
+    if (await hasSessionToken()) {
+        log.info('getAppToStartingState: session ouverte, chargement de la racine de l\'app')
+        await openAppRoot()
+    } else {
+        log.info('getAppToStartingState: pas de session lisible, connexion depuis l\'écran affiché')
     }
+    await reachHome(user)
+    log.info(`getAppToStartingState: état de départ atteint, URL : ${await currentUrlForLog()}`)
 
     // Échec permanent (pas lié à l'écran) : remonte tel quel à l'appelant, sans retenter la séquence.
     if (shouldGrantConsent) {

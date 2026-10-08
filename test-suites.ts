@@ -51,6 +51,18 @@ export const testSuites: Record<string, string[][]> = {
         r('src/tests/mobile/profile.test.ts'),
     ]],
 
+    /** Authentification + déconnexion/reconnexion (mobile). */
+    mobile_auth: [[
+        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/login_logout_login.test.ts'),
+    ]],
+
+    /** Authentification + déconnexion/reconnexion (webapp). */
+    webapp_auth: [[
+        r('src/tests/webapp/authentication.test.ts'),
+        r('src/tests/webapp/deconnexion.test.ts'),
+    ]],
+
     /** Tous les tests d'authentification en session séparée. */
     auth: [[
         r('src/tests/mobile/authentication.test.ts'),
