@@ -46,7 +46,7 @@ just test-webci                                       # tests webapp, headless (
 just test-android "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (glob)
 just test-android-suite CI                            # suite nommée (test-suites.ts) — idem test-ios-suite / test-webapp-suite / test-webci-suite
 just check-code                                       # lint + typecheck avant commit
-just open-report                                      # rapport Allure du dernier run
+just failures                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
 just clean-install                                    # réinstallation propre (rm node_modules + npm ci)
 just upgrade                                          # met à jour les dépendances (npm-check-updates)
 just push-notification <login> [titre]                # publie une notification de test via l'API
@@ -59,7 +59,7 @@ just push-notification <login> [titre]                # publie une notification 
 ## Architecture
 
 ```
-wdio.base.conf.ts          config partagée (timeouts, reporters Allure, hooks)
+wdio.base.conf.ts          config partagée (timeouts, reporters spec + JUnit, hooks)
 wdio.android.conf.ts       capabilities Android + service Appium port 4723
 wdio.ios.conf.ts           capabilities iOS + service Appium port 4724
 wdio.webapp.conf.ts        capabilities Chrome (headless ou visible), pas de service Appium
@@ -109,8 +109,8 @@ dans l'ADR
 ## Intégration continue
 
 Un workflow réutilisable orchestre les suites de tests par plateforme (Android, iOS, webapp),
-déclenché depuis les dépôts frères (backend, apps mobiles) sur pull request. Les résultats Allure de
-chaque plateforme sont fusionnés en un rapport unique, commenté sur la PR d'origine.
+déclenché depuis les dépôts frères (backend, apps mobiles) sur pull request. Les résultats de
+chaque plateforme (JUnit XML et dumps des échecs) sont publiés en artefact ; le résumé passants/cassés est commenté sur la PR d'origine par le workflow appelant.
 
 Ce que la CI lance correspond exactement aux suites nommées de `test-suites.ts` (`just
 test-android-suite`, `test-ios-suite`, `test-webapp-suite`, `test-webci-suite`) — reproduire
@@ -139,7 +139,7 @@ dans `.env.local` à la racine — non commité. Voir `.env` pour les noms des v
 ### Guidelines
 
 Les règles générales (Page Objects, sélection des éléments, WebView, assertions, isolation,
-retry, Allure, débogage) sont toutes dans **[CONTRIBUTING.md](CONTRIBUTING.md)**. Les cas
+retry, rapports, débogage) sont toutes dans **[CONTRIBUTING.md](CONTRIBUTING.md)**. Les cas
 particuliers (un seul écran, une seule méthode) sont documentés en commentaire directement dans
 le fichier de code concerné plutôt que dans un fichier séparé.
 
@@ -191,7 +191,7 @@ Points à connaître :
 - Les commandes directes (`npx wdio session …`) fonctionnent aussi ; le skill
   `.claude/skills/wdio-session/SKILL.md` décrit toutes les actions.
 
-Avant toute session de débogage, regarder le dernier rapport Allure (`just open-report`, captures au
+Avant toute session de débogage, regarder les dumps du dernier run (`just failures` : captures, DOM, étapes, identifiants Sentry au
 moment de l'échec) et `.wdio-logs/appium-android.log` / `appium-ios.log`.
 
 **Autres outils utiles** : `chrome://inspect/#devices` dans Chrome inspecte visuellement la WebView

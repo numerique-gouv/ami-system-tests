@@ -41,10 +41,9 @@
       "name": "spec"
     },
     {
-      "name": "allure",
-      "outputDir": "allure-results",
-      "addConsoleLogs": true,
-      "note": "outputDir jamais nettoyé automatiquement avant un run, partagé entre android/ios/webapp"
+      "name": "junit",
+      "outputDir": "test-results/junit",
+      "note": "un fichier par processus, nommé avec la plateforme ; dumps des échecs dans test-results/failures/ ; dossier jamais nettoyé automatiquement avant un run"
     }
   ],
   "services": [
@@ -75,8 +74,7 @@
     "test:webapp": "wdio run wdio.webapp.conf.ts",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report",
-    "note": "usage prescrit via justfile (just test-android/test-ios/test-webapp/test-webci/check-code/open-report), pas npm direct"
+        "note": "usage prescrit via justfile (just test-android/test-ios/test-webapp/test-webci/check-code/open-report), pas npm direct"
   },
   "testSuites": {
     "source": "test-suites.ts",
@@ -160,7 +158,7 @@
     }
   ],
   "notes": [
-    "allure-results/ et .wdio-logs/*.log ne sont jamais nettoyés automatiquement avant un run — accumulation cross-run et cross-plateforme, voir health-recommendations.md",
+    "test-results/ et .wdio-logs/*.log ne sont jamais nettoyés automatiquement avant un run — accumulation cross-run et cross-plateforme, voir health-recommendations.md",
     "Ne jamais lire .env.local ni afficher ses valeurs, y compris via un outil",
     "Le modèle du site (websiteModel ci-dessus) doit être lu par les skills de planification/investigation avant toute nouvelle exploration du site",
     "Tests webapp: 12 fichiers dans src/tests/webapp (authentication, navigation, accueil, agenda, services, suivi, notifications, profil, preferences, aide-contact, deconnexion, erreurs), mis en place le 2026-10-02",

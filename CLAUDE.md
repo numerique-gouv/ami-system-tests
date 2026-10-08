@@ -19,7 +19,7 @@ just test-android-suite CI                          # suite nommée (test-suites
 just explore webapp "/#/agenda"                     # session d'exploration (webapp | android | ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
 just debug webapp src/tests/webapp/agenda.test.ts   # test figé à son premier échec (session debug-0-0), puis `just s debug-0-0 snapshot -i`
 just doctor                                         # diagnostic de l'environnement (Node, Appium, SDK, simulateurs)
-just open-report                                    # générer et ouvrir le rapport Allure
+just failures                                       # liste les tests en échec du dernier run (dumps : capture, DOM, étapes, identifiants Sentry)
 ```
 
 > Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits. La webapp ne lance aucun serveur Appium (Chromedriver direct).
@@ -29,7 +29,7 @@ just open-report                                    # générer et ouvrir le rap
 | Type | Emplacement | Usage |
 |------|-------------|-------|
 | **Skills** (capacités Claude exécutables) | `.claude/skills/` | Chargés via `Skill` tool. Cache projet dans `.webdriverio-skills/`. |
-| **Règles générales** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | POM, sélection des éléments, WebView, assertions, isolation, retry, Allure, débogage. Lire avant d'écrire du code. |
+| **Règles générales** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | POM, sélection des éléments, WebView, assertions, isolation, retry, rapports, débogage. Lire avant d'écrire du code. |
 | **Cas particuliers** | commentaires dans le fichier de code concerné | non documentés dans un fichier séparé. |
 
 La plupart des skills sous `.claude/skills/` viennent du pack tiers `klamping/webdriverio-skills`,
@@ -65,7 +65,7 @@ Les deux familles de tests ne couvrent pas la même chose :
 ## Architecture
 
 ```
-wdio.base.conf.ts          # config partagée (timeouts, reporters Allure, hooks)
+wdio.base.conf.ts          # config partagée (timeouts, reporters spec + JUnit, hooks)
 wdio.android.conf.ts       # capabilities Android + service Appium port 4723
 wdio.ios.conf.ts           # capabilities iOS + service Appium port 4724
 wdio.webapp.conf.ts        # capabilities Chrome (headless ou visible), pas de service Appium
@@ -127,7 +127,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 
 | Fichier | Rôle |
 |---------|------|
-| `wdio.base.conf.ts` | Config partagée (reporters Allure, `afterTest` screenshot+attachement) |
+| `wdio.base.conf.ts` | Config partagée (reporters spec + JUnit, `afterTest` : dump d'échec) |
 | `wdio.android.conf.ts` | Capabilities Android, port 4723, `onPrepare` force-stop |
 | `wdio.ios.conf.ts` | Capabilities iOS, port 4724 |
 | `wdio.webapp.conf.ts` | Capabilities Chrome, `baseUrl` dérivée de `AMI_ENV`, pas de service Appium |

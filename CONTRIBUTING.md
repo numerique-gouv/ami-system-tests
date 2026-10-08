@@ -20,7 +20,7 @@ sur cette app, indépendamment d'un échec de test.
 6. [Isolation des tests](#6-isolation-des-tests)
 7. [Stratégies de retry](#7-stratégies-de-retry)
 8. [Erreurs de test vs erreurs techniques](#8-erreurs-de-test-vs-erreurs-techniques)
-9. [Rapports Allure](#9-rapports-allure)
+9. [Rapports et dumps d'échec](#9-rapports-et-dumps-déchec)
 10. [Règles de débogage](#10-règles-de-débogage)
 
 ---
@@ -80,8 +80,7 @@ Appelle uniquement des méthodes de Page Object. Le test se lit comme un scénar
 
 ## 1bis. Logging
 
-**Jamais `console.*`** dans le code qui tourne dans une session WDIO/Mocha (pages, tests, helpers appelés par ce code, hooks de config) — utiliser `@wdio/logger`, qui s'intègre au flux de logs WDIO/Allure (`addConsoleLogs: true` dans
-`wdio.base.conf.ts`) :
+**Jamais `console.*`** dans le code qui tourne dans une session WDIO/Mocha (pages, tests, helpers appelés par ce code, hooks de config) — utiliser `@wdio/logger`, qui s'intègre au flux de logs WDIO :
 
 ```typescript
 import logger from '@wdio/logger'
@@ -241,7 +240,7 @@ expect(typeof enabled).toBe('boolean')
 
 - **`await` devant `expect`** uniquement quand `expect` reçoit un élément WDIO (matcher qui retourne une Promise) :
   `await expect($(loc)).toBeDisplayed()`. Jamais devant une valeur déjà résolue (`string`/`boolean`/`number`) — ça déclenche l'avertissement TypeScript `[80007]` et n'a aucun effet.
-- **`waitUntil` : toujours passer `timeoutMsg`.** Sans lui, le rapport Allure ne montre qu'un cryptique « Timeout exceeded ».
+- **`waitUntil` : toujours passer `timeoutMsg`.** Sans lui, le rapport ne montre qu'un cryptique « Timeout exceeded ».
 - **Asserter une absence via `waitUntil`, jamais par un check immédiat** — après une action qui change l'état, la SPA a besoin d'un cycle de rendu ; un check immédiat produit souvent un faux positif (l'élément est encore dans le DOM).
 - **Fusionner les vérifications séquentielles sur un même item.** Dès qu'un scénario doit vérifier N critères sur le même élément/la même liste, écrire une seule méthode de Page Object qui les vérifie tous dans le même `waitUntil`, avec une variable d'état (`failReason`) qui capture jusqu'où l'attente est allée avant d'échouer — pas N méthodes à un seul critère chacune (deux sources de flakiness au lieu d'une, et un message d'échec qui ne dit pas lequel des deux critères a échoué).
 - **Ne pas doubler `waitForDisplayed` et `isDisplayed`** — `waitForDisplayed`/`waitForVisible`
@@ -295,7 +294,7 @@ Trois niveaux, à ne pas confondre :
 | **Applicatif**  | Retry dans le code      | Conservée                   | API tiers cold-start (5xx transitoires)        |
 | **Page Object** | `try/catch` dans le POM | Conservée                   | Élément instable post-redirect                 |
 
-- **Éviter `mochaOpts.retries`.** Il relance le `it()` dans la **même** session Appium : l'état de l'app peut être corrompu (onboarding à moitié passé, token expiré), les logs Appium du premier essai restent dans le même flux (Allure ne peut pas distinguer les tentatives), et un bug réel qui passe au 2e essai devient invisible. `specFileRetries`
+- **Éviter `mochaOpts.retries`.** Il relance le `it()` dans la **même** session Appium : l'état de l'app peut être corrompu (onboarding à moitié passé, token expiré), les logs Appium du premier essai restent dans le même flux (impossible de distinguer les tentatives), et un bug réel qui passe au 2e essai devient invisible. `specFileRetries`
   relance le fichier entier dans un nouveau processus avec une session fraîche et des logs propres par tentative.
 - **Retry applicatif** (backend cold-start type Scalingo/Heroku) : retry sur 5xx uniquement, jamais sur 4xx (erreur client, non transitoire).
 - **Retry court en Page Object** (élément instable qui réapparaît brièvement, ex. bouton FranceConnect en fin de redirect OIDC) : le `catch` best-effort **ne doit jamais être totalement silencieux** — logger avec `log.warn()` (voir §1, jamais `console.warn`) conditionné au cas attendu documenté. Un
@@ -317,10 +316,9 @@ Deux catégories d'échec, à ne jamais mélanger dans le type d'exception levé
 | **Erreur de test**   | L'application n'a pas fait ce qu'on attendait d'elle (le test s'est exécuté correctement, le résultat observé est faux) | Librairie d'assertion (`expect(...).toXxx()`) ou, hors contexte `expect-webdriverio` (boucle de polling manuelle, réponse HTTP), `AssertionError` (`node:assert`) |
 | **Erreur technique** | Le test n'a pas pu s'exécuter (infra, environnement, configuration — rien à voir avec le comportement de l'application) | `Error`                                                                                                                                                           |
 
-- **Pourquoi la distinction compte** : `@wdio/allure-reporter` classe chaque échec en `failed` (rouge) ou
-  `broken` (jaune) selon que le message/stack de l'exception contient `"expect"` ou commence par
-  `"AssertionError"`. Lever le bon type au bon endroit rend le rapport Allure directement actionnable :
-  `failed` → suivre un bug applicatif ; `broken` → réparer le test ou l'environnement, pas l'application.
+- **Pourquoi la distinction compte** : le type de l'exception (`AssertionError` ou `Error`) dit s'il faut suivre un bug
+  applicatif (`AssertionError`, ou un matcher `expect`) ou réparer le test ou l'environnement (`Error`), pas l'application.
+  Lever le bon type au bon endroit rend le rapport et le dump d'échec directement actionnables.
 - **`expect(...).toXxx()` reste le premier choix** dès qu'un matcher `expect-webdriverio` existe pour le cas — il lève déjà le bon type en interne. `AssertionError` explicite est réservé aux échecs métier qui ne passent pas par un
   `expect()` : sortie d'une boucle de backoff (`waitForDemarche`,
   `assertNotificationReceived`), réponse HTTP inattendue d'une API partenaire (`publishNotification`), élément de confirmation attendu absent.
@@ -343,32 +341,17 @@ throw new Error(
 
 ---
 
-## 9. Rapports Allure
+## 9. Rapports et dumps d'échec
 
-- **`addFeature` et `addSeverity` sont obligatoires** dans chaque `describe` ou `it` — ils permettent le filtrage par feature/sévérité en CI. `addStory` et `addTag` sont optionnels.
-- **`addStep`** pour découper un scénario long en étapes métier — chaque étape regroupe dans Allure les commandes qui lui appartiennent, avec un indicateur pass/fail par étape.
-- **`addAttachment`** pour joindre une donnée de debug utile en cas d'échec (réponse API, URL courante, screenshot ponctuel avant un clic fragile) — au-delà du screenshot automatique déjà pris par le hook `afterTest`.
+Allure a été retiré (2026-10-08). Ce qui reste :
 
-```typescript
-import AllureReporter from '@wdio/allure-reporter'
+- **`step('…')`** (`src/helpers/report.ts`) pour découper un scénario long en étapes métier : l'étape est journalisée et mémorisée, puis écrite dans le dump d'un test en échec (« où le scénario s'est arrêté »). Les annotations `feature` / `severity` / `epic` / `story` / `tag` d'Allure n'existent plus : les titres de `describe` et de `it` portent la fonctionnalité.
+- **Résumé passants/cassés** : reporter JUnit (`test-results/junit/results-<cible>-<cid>.xml`), publié en artefact de CI et commenté sur la PR par le workflow appelant.
+- **Dump systématique d'un test en échec** (`src/helpers/failure-dump.ts`, appelé par le hook `afterTest`) dans `test-results/failures/<test>__<horodatage>/` : `context.json` (test, étapes, erreur, plateforme, appareil, backend, URL aux jetons masqués, horodatage UTC, identifiants Sentry de la SPA), `screenshot.png`, `dom.html` (contexte web) ou `native-source.xml` (natif), `interactive.txt` (éléments interactifs avec la requête du projet qui les cible). Lister les échecs : `just failures`.
+- **Sentry** : on journalise le trace id et le dernier identifiant d'événement lus dans la SPA (`src/helpers/sentry.ts`). Le trace id change à chaque chargement de page et `lastEventId` vaut `null` sans erreur capturée ; les apps natives n'ont pas d'intégration Sentry.
+- **Ne jamais écrire de secret ni de jeton** dans un dump ou un log : les URL passent par `maskSensitiveUrl` (`src/helpers/session.ts`).
 
-AllureReporter.addFeature('Notifications')
-AllureReporter.addSeverity('critical') // blocker | critical | normal | minor | trivial
-
-AllureReporter.addStep('1. Login FranceConnect')
-// ...
-
-try {
-    await publishNotification({title, body})
-} catch (err) {
-    // addAttachment puis re-throw tel quel — ne jamais changer le type de l'exception ici : publishNotification()
-    // lève déjà AssertionError (échec API, §8) ou Error (config manquante, §8) selon la nature réelle de l'échec.
-    AllureReporter.addAttachment('Erreur API', String(err), 'text/plain')
-    throw err
-}
-```
-
-La configuration du reporter (`outputDir`, `disableWebdriverStepsReporting`, `addConsoleLogs`) est commentée directement dans `wdio.base.conf.ts`. La commande pour générer et ouvrir le rapport est documentée dans le [README](README.md).
+La configuration des reporters est commentée dans `wdio.base.conf.ts`.
 
 ---
 
@@ -378,6 +361,6 @@ La configuration du reporter (`outputDir`, `disableWebdriverStepsReporting`, `ad
 - **Ne jamais commiter un locator ou un workaround qui n'a pas été validé** en exécution réelle. Un commit de workaround hypothétique casse silencieusement un autre cas. Tester d'abord, puis commiter avec un message qui décrit le **pourquoi** (bug WKRDP, AX tree périmé, etc.), pas seulement le *quoi*.
 - **Toggles de debug** (`logLevel: 'info'`, `specFileRetries: 0`) : tolérés commités tant que la suite est en développement actif, pour faciliter le diagnostic quotidien. `wdio.base.conf.ts` est aujourd'hui à
   `logLevel: 'warn'` / `specFileRetries: 0`.
-- Avant toute session de débogage approfondie, regarder le dernier rapport Allure et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
+- Avant toute session de débogage approfondie, regarder les dumps d'échec (`just failures`) et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
 
 La boucle d'exploration (`wdio session` : `just explore`, `just s`, `just webview`, `just explore-export`, `just debug`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).

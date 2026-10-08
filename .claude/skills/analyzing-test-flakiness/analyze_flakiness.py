@@ -1,308 +1,52 @@
 #!/usr/bin/env python3
-"""Analyse d'instabilité (flakiness) des tests E2E AMI, à partir d'archives Allure/wdio-logs
-produites par une campagne multi-runs.
+"""Analyse d'instabilité (flakiness) des tests E2E AMI, à partir d'archives JUnit XML et de dumps d'échec.
 
-Appelé par le skill `analyzing-test-flakiness` (voir SKILL.md) après une campagne de la forme :
+Entrée : un dossier de campagne contenant une archive par exécution, nommée `<plateforme>-run-<i>/` :
 
     flaky-runs/
-      android-run-1/{allure-results,.wdio-logs}/
-      android-run-2/...
-      ios-run-1/...
-      webapp-run-1/...   (webci archivé sous le nom "webapp")
+      android-run-1/test-results/junit/*.xml          (reporter JUnit de WebdriverIO)
+      android-run-1/test-results/failures/*/context.json  (dump systématique d'un test en échec)
+      ios-run-2/…
+      webapp-run-1/…
 
-Python 3 stdlib uniquement — aucune dépendance externe.
+Sortie : un tableau console, `SYNTHESIS.md` et `clusters.json` (consommé par les agents de diagnostic).
 
-Points de conception (voir docs/process ou le plan qui a produit ce script pour le détail) :
+Règles de lecture (elles pèsent sur les ratios) :
+- Le NOM DU DOSSIER d'archive fait autorité pour la plateforme et l'index de run.
+- Un hook qui RÉUSSIT n'est jamais journalisé : un « 0 succès / N entrées » calculé sur les seules entrées surestime donc
+  l'échec. Le dénominateur est le nombre de runs où le test a réellement tourné (`observed`), à côté du nombre de runs
+  archivés (`runs`).
+- Un test dont le seul échec est « Test skipped due to failure in hook » est une CASCADE : il n'a pas échoué par lui-même.
+  Il est compté à part (`cascade`) et ne compte ni comme succès ni comme échec propre.
+- Les messages d'erreur sont normalisés en « signatures » (nombres, chaînes, horodatages, identifiants masqués) pour regrouper
+  les échecs de même famille ; les messages bruts restent dans `clusters.json`.
 
-- Le NOM DU DOSSIER d'archive fait autorité pour la plateforme et l'index de run. Les labels
-  Allure ne servent que de contrôle de cohérence (ils sont absents sur une bonne partie du corpus,
-  et le préfixe `spec` de `fullName` est pollué en session Appium partagée — vérifié empiriquement
-  sur le dépôt : cf. avertissement `unreliable_spec_hint`).
-- Un hook "before all" qui RÉUSSIT n'est jamais journalisé par Allure/Mocha. Un ratio "0 succès /
-  N entrées" calculé naïvement sur les seules entrées Allure surestime donc l'échec. Ce script
-  calcule deux dénominateurs (`denominator_observed` vs `denominator_runs`) précisément pour ça.
-- Les messages d'erreur des hooks ne sont PAS dans les `*-result.json` (statusDetails vide) mais
-  dans les `*-container.json`, sous `befores[]/afters[].statusDetails.message`. Le script les
-  rejoint explicitement — c'est la découverte qui a débloqué l'analyse manuelle initiale.
+Bibliothèque standard uniquement (Python 3). Code retour : 0 analyse complète ; 2 analyse valide mais partielle (une
+exécution absente, vide ou illisible) ; 1 aucune donnée exploitable.
 """
-
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
-from collections import Counter, defaultdict
+import xml.etree.ElementTree as ET
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
-SCHEMA_VERSION = 1
-TOOL_VERSION = "1.0.0"
+SCHEMA_VERSION = 2
+TOOL_VERSION = "2.0.0"
 
-Platform = Literal["android", "ios", "webapp"]
-Origin = Literal["test", "hook"]
-Status = Literal["passed", "failed", "broken", "skipped", "unknown"]
-Verdict = Literal[
-    "always-failing", "flaky", "stable", "skipped-intentional",
-    "cascade-blocked", "coverage-gap", "infra-missing", "mixed",
-]
-
+PLATFORMS = ["android", "ios", "webapp"]
 RUN_DIR_RE = re.compile(r"^(?P<plat>android|ios|webapp|webci)-run-(?P<idx>\d+)$")
-HOOK_NAME_RE = re.compile(
-    r'^"(?P<kind>before|after) (?P<scope>all|each)" hook(?: for (?P<target>.+))?$'
-)
-DEVICE_TO_PLATFORM = {"Pixel_modern": "android", "iPhone 17 Pro": "ios"}
-
-
-def normalize_platform_token(token: str) -> Platform:
-    return "webapp" if token == "webci" else token  # type: ignore[return-value]
-
+HOOK_RE = re.compile(r'"(before all|before each|after all|after each)" hook', re.I)
+CASCADE_RE = re.compile(r"skipped due to failure in hook", re.I)
 
 # ---------------------------------------------------------------------------
-# 1. Inventaire des runs
-# ---------------------------------------------------------------------------
-
-@dataclass(slots=True)
-class RunInfo:
-    platform: Platform
-    run_index: int
-    dir: Optional[Path]
-    results_dir: Optional[Path]
-    wdio_logs_dir: Optional[Path]
-    console_log: Optional[Path]
-    state: Literal["ok", "empty", "missing"]
-    result_count: int = 0
-    container_count: int = 0
-
-
-def discover_runs(runs_dir: Path, repo_root: Path, platforms: list[Platform], min_runs: int) -> list[RunInfo]:
-    found: dict[tuple[Platform, int], Path] = {}
-    if runs_dir.is_dir():
-        for entry in sorted(os.scandir(runs_dir), key=lambda e: e.name):
-            if not entry.is_dir():
-                continue
-            m = RUN_DIR_RE.match(entry.name)
-            if not m:
-                continue
-            plat = normalize_platform_token(m.group("plat"))
-            idx = int(m.group("idx"))
-            found[(plat, idx)] = Path(entry.path)
-
-    runs: list[RunInfo] = []
-    for plat in platforms:
-        for idx in range(1, min_runs + 1):
-            d = found.get((plat, idx))
-            console_log = repo_root / f"flaky-test-{plat if plat != 'webapp' else 'webci'}-run-{idx}.log"
-            if not console_log.exists():
-                # tolère aussi le nom réellement demandé par l'utilisateur (webapp vs webci)
-                alt = repo_root / f"flaky-test-webapp-run-{idx}.log"
-                console_log = alt if plat == "webapp" and alt.exists() else console_log
-            if d is None:
-                runs.append(RunInfo(plat, idx, None, None, None,
-                                     console_log if console_log.exists() else None, "missing"))
-                continue
-            results_dir = d / "allure-results"
-            wdio_logs_dir = d / ".wdio-logs"
-            result_count = sum(1 for _ in results_dir.glob("*-result.json")) if results_dir.is_dir() else 0
-            container_count = sum(1 for _ in results_dir.glob("*-container.json")) if results_dir.is_dir() else 0
-            state = "ok" if result_count > 0 else "empty"
-            runs.append(RunInfo(plat, idx, d, results_dir if results_dir.is_dir() else None,
-                                 wdio_logs_dir if wdio_logs_dir.is_dir() else None,
-                                 console_log if console_log.exists() else None,
-                                 state, result_count, container_count))
-    return runs
-
-
-# ---------------------------------------------------------------------------
-# 2. Chargement + jointure result <-> container
-# ---------------------------------------------------------------------------
-
-@dataclass(slots=True)
-class TestId:
-    suite: str          # titre du describe, ou "<inconnu>" si non résolu
-    name: str            # titre du "it", vide pour un hook
-    hook: Optional[str]  # "before all" | "after all" | "before each" | "after each" | None
-
-    def key(self) -> str:
-        if self.hook:
-            return f"{self.suite}::[hook {self.hook}]"
-        return f"{self.suite}::{self.name}"
-
-
-@dataclass(slots=True)
-class Attempt:
-    test_id: TestId
-    origin: Origin
-    platform: Platform
-    run_index: int
-    status: Status
-    raw_message: Optional[str]
-    message_source: Literal["result", "container_before", "container_after", "none"]
-    trace_head: Optional[str]
-    signature: Optional[str] = None
-    signature_id: Optional[str] = None
-    category_id: Optional[str] = None
-    category_name: Optional[str] = None
-    duration_ms: Optional[int] = None
-    spec_hint: Optional[str] = None
-    result_file: Path = None  # type: ignore[assignment]
-    container_file: Optional[Path] = None
-    uuid: str = ""
-    platform_mismatch: bool = False
-
-
-def _read_json(path: Path) -> Optional[dict]:
-    try:
-        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
-    except (json.JSONDecodeError, OSError):
-        return None
-
-
-def _resolve_platform(result: dict, run: RunInfo, warnings: list[dict]) -> tuple[Platform, bool]:
-    """Le dossier d'archive fait autorité. Les labels/paramètres ne servent qu'à détecter
-    un désaccord (archivage cassé), jamais à écraser la valeur retenue."""
-    params = {p.get("name"): p.get("value") for p in result.get("parameters", []) or []}
-    labels = {l.get("name"): l.get("value") for l in result.get("labels", []) or []}
-    declared = labels.get("platform") or params.get("platform")
-    if not declared:
-        device = params.get("device")
-        declared = DEVICE_TO_PLATFORM.get(device, "webapp") if device is not None else "webapp"
-    mismatch = bool(declared) and declared != run.platform
-    if mismatch:
-        warnings.append({
-            "code": "platform_mismatch",
-            "message": (f"le résultat {result.get('uuid')} déclare la plateforme "
-                        f"'{declared}' mais est archivé sous '{run.platform}'"),
-            "platform": run.platform, "run_index": run.run_index,
-        })
-    return run.platform, mismatch
-
-
-def _hook_identity(name: str) -> Optional[TestId]:
-    m = HOOK_NAME_RE.match(name)
-    if not m:
-        return None
-    hook = f'{m.group("kind")} {m.group("scope")}'
-    target = m.group("target") or "<inconnu>"
-    # Pour un hook "all", la cible est le describe (= la suite). Pour un hook "each" attaché à un
-    # test précis, la cible est un titre de test, pas une suite — non observé dans le corpus de
-    # calibration ; traité en best-effort en gardant la cible comme "suite" avec un avertissement
-    # implicite (spec_hint marquera la limite si besoin).
-    return TestId(suite=target, name="", hook=hook)
-
-
-_NAME_TO_SUITE: dict[str, Counter] = defaultdict(Counter)
-
-
-def _test_identity(result: dict) -> tuple[TestId, Optional[str]]:
-    """Retourne (TestId provisoire, spec_hint). La suite peut valoir '<inconnu>' à ce stade ;
-    la réconciliation globale (§ reconcile_identities) la corrige quand c'est possible."""
-    name = result.get("name") or "?"
-    hook_id = _hook_identity(name)
-    if hook_id is not None:
-        return hook_id, None
-    full_name = result.get("fullName") or ""
-    spec_hint = None
-    suite = "<inconnu>"
-    if "#" in full_name:
-        spec_hint, rest = full_name.split("#", 1)
-        suffix = "." + name
-        if rest.endswith(suffix):
-            candidate = rest[: -len(suffix)]
-            if candidate:
-                suite = candidate
-                _NAME_TO_SUITE[name][suite] += 1
-    return TestId(suite=suite, name=name, hook=None), spec_hint
-
-
-def reconcile_identities(attempts: list[Attempt], warnings: list[dict]) -> None:
-    """Deuxième passe : les tests sans fullName exploitable (suite == '<inconnu>') récupèrent la
-    suite majoritaire observée ailleurs pour le même nom de test. Signale une ambiguïté si le nom
-    a été vu sous plus d'une suite distincte dans le corpus."""
-    for name, counter in _NAME_TO_SUITE.items():
-        if len(counter) > 1:
-            warnings.append({
-                "code": "ambiguous_test_name",
-                "message": (f'le test "{name}" est associé à plusieurs suites distinctes '
-                            f"({', '.join(counter.keys())}) — la suite majoritaire a été retenue"),
-            })
-    for a in attempts:
-        if a.origin == "test" and a.test_id.suite == "<inconnu>":
-            counter = _NAME_TO_SUITE.get(a.test_id.name)
-            if counter:
-                a.test_id.suite = counter.most_common(1)[0][0]
-
-
-def _extract_message(result: dict, containers_by_child: dict[str, list[dict]]) -> tuple[Optional[str], str, Optional[str]]:
-    sd = result.get("statusDetails") or {}
-    if sd.get("message"):
-        return sd["message"], "result", sd.get("trace")
-    name = result.get("name")
-    status = result.get("status")
-    for c in containers_by_child.get(result.get("uuid", ""), []):
-        for kind in ("befores", "afters"):
-            for fx in c.get(kind, []) or []:
-                fx_sd = fx.get("statusDetails") or {}
-                if fx.get("name") == name and fx.get("status") in ("broken", "failed") and fx_sd.get("message"):
-                    src = "container_before" if kind == "befores" else "container_after"
-                    return fx_sd["message"], src, fx_sd.get("trace")
-    if status in ("broken", "failed"):
-        for c in containers_by_child.get(result.get("uuid", ""), []):
-            for fx in c.get("afters", []) or []:
-                fx_sd = fx.get("statusDetails") or {}
-                if fx.get("status") in ("broken", "failed") and fx_sd.get("message"):
-                    return fx_sd["message"], "container_after", fx_sd.get("trace")
-    return None, "none", None
-
-
-def load_run_attempts(run: RunInfo, warnings: list[dict]) -> list[Attempt]:
-    if run.state != "ok" or run.results_dir is None:
-        return []
-    containers_by_child: dict[str, list[dict]] = defaultdict(list)
-    for cf in run.results_dir.glob("*-container.json"):
-        c = _read_json(cf)
-        if c is None:
-            warnings.append({"code": "corrupt_json", "message": f"container illisible : {cf}"})
-            continue
-        for child in c.get("children", []) or []:
-            containers_by_child[child].append(c)
-
-    attempts: list[Attempt] = []
-    for rf in run.results_dir.glob("*-result.json"):
-        r = _read_json(rf)
-        if r is None:
-            warnings.append({"code": "corrupt_json", "message": f"result illisible : {rf}"})
-            continue
-        platform, mismatch = _resolve_platform(r, run, warnings)
-        test_id, spec_hint = _test_identity(r)
-        message, message_source, trace = _extract_message(r, containers_by_child)
-        start, stop = r.get("start"), r.get("stop")
-        duration = (stop - start) if isinstance(start, int) and isinstance(stop, int) else None
-        status = r.get("status") if r.get("status") in ("passed", "failed", "broken", "skipped") else "unknown"
-        attempts.append(Attempt(
-            test_id=test_id,
-            origin="hook" if test_id.hook else "test",
-            platform=platform,
-            run_index=run.run_index,
-            status=status,  # type: ignore[arg-type]
-            raw_message=message,
-            message_source=message_source,  # type: ignore[arg-type]
-            trace_head="\n".join((trace or "").splitlines()[:40]) or None,
-            duration_ms=duration,
-            spec_hint=spec_hint,
-            result_file=rf,
-            container_file=None,
-            uuid=r.get("uuid", ""),
-            platform_mismatch=mismatch,
-        ))
-    return attempts
-
-
-# ---------------------------------------------------------------------------
-# 3. Normalisation des messages
+# Normalisation des messages en signatures
 # ---------------------------------------------------------------------------
 
 _RE_HTML_TAIL = re.compile(r"(?is)<!doctype html.*$|<html[ >].*$")
@@ -323,8 +67,8 @@ _PROTECT_BASE = 0xE000  # zone Unicode privée : aucun caractère ici n'est un c
 
 
 def normalize_message(raw: str) -> str:
-    """Ordre imposé (voir docstring du fichier) : première ligne -> HTML résiduel -> espaces ->
-    ISO/UUID/hash -> protection HTTP/version -> guillemets -> durées -> nombres -> restauration."""
+    """Ordre imposé : première ligne -> HTML résiduel -> espaces -> ISO/UUID/hash -> protection HTTP/version ->
+    guillemets -> durées -> nombres -> restauration."""
     protected: list[str] = []
 
     def _protect(text: str) -> str:
@@ -355,364 +99,15 @@ def signature_id(signature: str) -> str:
     return "c-" + hashlib.sha1(signature.encode("utf-8")).hexdigest()[:12]
 
 
-# ---------------------------------------------------------------------------
-# 4. Classification — règles allurerc.mjs, avec repli explicite
-# ---------------------------------------------------------------------------
-
-@dataclass(slots=True)
-class Rule:
-    id: str
-    name: str
-    pattern: "re.Pattern[str]"
-    statuses: Optional[set[str]]
-
-
-EXPECTED_USABLE_RULES = 6
-
-# Copie littérale de allurerc.mjs:46-... (règles avec matcher `message`) — repli si le parsing
-# textuel du fichier échoue ou trouve un nombre de règles inattendu. GARDER SYNCHRONISÉ avec
-# allurerc.mjs ; un désaccord entre les deux est signalé (jamais silencieux, cf. parse_allurerc).
-FALLBACK_RULES: list[Rule] = [
-    Rule("env-locale-manquante", "Configuration locale manquante (.env.local)",
-         re.compile(r"WEB_APP_ACCESS_KEYS est absent|Variable d'environnement manquante"), None),
-    Rule("api-notifications-partenaire", "Échec API partenaire (publishNotification)",
-         re.compile(r"PUT /api/v2/event"), None),
-    Rule("contexte-webview-perdu", "Contexte WebView/Appium perdu ou session fermée",
-         re.compile(r"no such context|session is either terminated|invalid session id"), None),
-    Rule("france-connect-erreur-fournisseur",
-         "Erreur technique du fournisseur d'identité FranceConnect (FCP-LOW)",
-         re.compile(r"Le fournisseur d'identité de démonstration FranceConnect renvoie une page "
-                    r"d'erreur \(code: Y.*?, id: .*?, url=\".*?\"\)"), None),
-    Rule("notification-websocket-non-recue", "Notification WebSocket non reçue (Android)",
-         re.compile(r"Notification not received:AMI\-vanilla\-.*?\."), None),
-    Rule("timeout-attente-element", "Timeout d'attente d'un élément (waitForDisplayed / waitUntil)",
-         re.compile(r"waitForDisplayed|waitUntil|still not displayed|element.*not found", re.IGNORECASE),
-         {"broken", "failed"}),
-]
-
-
-def parse_allurerc(path: Path) -> tuple[list[Rule], list[str], Literal["parsed", "fallback"]]:
-    diagnostics: list[str] = []
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as e:
-        return FALLBACK_RULES, [f"allurerc.mjs illisible ({e}) — repli sur les règles intégrées"], "fallback"
-
-    m = re.search(r"categories:\s*\{\s*rules:\s*\[", text)
-    if not m:
-        return FALLBACK_RULES, ["bloc categories.rules introuvable dans allurerc.mjs — repli"], "fallback"
-
-    start = m.end() - 1  # index du '[' d'ouverture
-    depth, end = 0, None
-    for i in range(start, len(text)):
-        if text[i] == "[":
-            depth += 1
-        elif text[i] == "]":
-            depth -= 1
-            if depth == 0:
-                end = i
-                break
-    if end is None:
-        return FALLBACK_RULES, ["tableau rules[] non refermé dans allurerc.mjs — repli"], "fallback"
-
-    block = text[start:end]
-    id_matches = list(re.finditer(r"id:\s*'([^']+)'", block))
-    rules: list[Rule] = []
-    for idx, idm in enumerate(id_matches):
-        seg_end = id_matches[idx + 1].start() if idx + 1 < len(id_matches) else len(block)
-        seg = block[idm.start(): seg_end]
-        rid = idm.group(1)
-        # Deux alternatives dédiées (double puis simple guillemets), pas une classe [\"'] partagée
-        # pour ouvrir/fermer : un `name` à guillemets doubles contenant une apostrophe (ex. "...
-        # fournisseur d'identité...") se refermerait sinon prématurément sur cette apostrophe.
-        name_m = re.search(r'name:\s*"([^"]*)"', seg) or re.search(r"name:\s*'([^']*)'", seg)
-        msg_m = re.search(r"message:\s*/((?:[^/\\]|\\.)*)/([a-z]*)", seg)
-        if not msg_m:
-            continue  # règle sans matcher `message` (ex. flaky-ou-regresse) — hors périmètre
-        pattern_src, flags_src = msg_m.group(1), msg_m.group(2)
-        py_flags = 0
-        for f in flags_src:
-            if f == "i":
-                py_flags |= re.IGNORECASE
-            else:
-                diagnostics.append(f"règle '{rid}' : flag JS '{f}' non traduit, ignoré")
-        try:
-            compiled = re.compile(pattern_src, py_flags)
-        except re.error as e:
-            diagnostics.append(f"règle '{rid}' : regex non compatible Python ({e}) — règle ignorée")
-            continue
-        statuses_m = re.search(r"statuses:\s*\[([^\]]*)\]", seg)
-        statuses = set(re.findall(r"'([^']+)'", statuses_m.group(1))) if statuses_m else None
-        rules.append(Rule(rid, name_m.group(1) if name_m else rid, compiled, statuses))
-
-    if len(rules) != EXPECTED_USABLE_RULES:
-        diagnostics.append(
-            f"{len(rules)} règle(s) à matcher.message extraite(s) de allurerc.mjs, "
-            f"{EXPECTED_USABLE_RULES} attendue(s) — repli sur les règles intégrées pour rester sûr"
-        )
-        return FALLBACK_RULES, diagnostics, "fallback"
-    return rules, diagnostics, "parsed"
-
-
-def classify(message: Optional[str], status: str, rules: list[Rule]) -> tuple[Optional[str], Optional[str]]:
-    if not message:
-        return None, None
-    for rule in rules:
-        if rule.statuses is not None and status not in rule.statuses:
-            continue
-        if rule.pattern.search(message):
-            return rule.id, rule.name
-    return None, None
-
-
-def suggest_regex(signature: str) -> str:
-    """Regex suggérée à copier dans allurerc.mjs (matcher `message`). Les espaces ne sont
-    échappés par `re.escape` ni utiles ni valides à copier tels quels en JS — on les déséchappe."""
-    escaped = re.escape(signature).replace(r"\ ", " ")
-    for placeholder in ("<S>", "<N>", "<D>ms", "<D>s", "<D>sec", "<HASH>", "<UUID>", "<TS>", "<HTML>"):
-        escaped = escaped.replace(re.escape(placeholder).replace(r"\ ", " "), r".*?")
-    return escaped.replace("…", ".*?")
-
-
-# ---------------------------------------------------------------------------
-# 5. Agrégation : dénominateurs, cascade, verdicts
-# ---------------------------------------------------------------------------
-
-def ratio(num: int, den: int) -> Optional[float]:
-    return None if den == 0 else round(num / den, 4)
-
-
-@dataclass(slots=True)
-class PlatformCell:
-    runs_expected: int = 0
-    denominator_observed: int = 0
-    denominator_runs: int = 0
-    observed: int = 0
-    passed: int = 0
-    failed: int = 0
-    skipped: int = 0
-    blocked: int = 0
-    absent_infra: int = 0
-    absent_unexplained: int = 0
-    teardown_failed: bool = False
-    categories: Counter = field(default_factory=Counter)
-    signatures: Counter = field(default_factory=Counter)
-    durations_ms: list[int] = field(default_factory=list)
-    clusters: set = field(default_factory=set)
-    run_outcomes: dict[int, str] = field(default_factory=dict)
-
-    @property
-    def fail_ratio(self) -> Optional[float]:
-        return ratio(self.failed, self.observed)
-
-    @property
-    def verdict(self) -> Verdict:
-        if self.observed == 0 and self.absent_infra == self.runs_expected and self.runs_expected > 0:
-            return "infra-missing"
-        if self.observed == 0 and self.blocked > 0:
-            return "cascade-blocked"
-        if self.observed == 0:
-            return "coverage-gap"
-        if self.skipped == self.observed:
-            return "skipped-intentional"
-        if self.failed == self.observed:
-            return "always-failing"
-        if self.failed == 0 and self.blocked == 0 and self.absent_infra == 0:
-            return "stable"
-        if 0 < self.failed < self.observed:
-            return "flaky"
-        return "mixed"
-
-
-def build_matrix(runs: list[RunInfo], attempts: list[Attempt]) -> tuple[
-        dict[str, dict[Platform, PlatformCell]], dict[str, TestId], dict[str, str], list[dict]]:
-    """Construit la matrice test x plateforme avec dénominateurs corrects et détection de cascade."""
-    warnings: list[dict] = []
-
-    # Suites dont le "before all" a échoué, par (run_index, platform)
-    failed_before_suites: dict[tuple[int, Platform], set[str]] = defaultdict(set)
-    for a in attempts:
-        if a.origin == "hook" and a.test_id.hook and a.test_id.hook.startswith("before") and a.status in ("broken", "failed"):
-            failed_before_suites[(a.run_index, a.platform)].add(a.test_id.suite)
-
-    # Suites représentées (≥1 attempt, test ou hook) par (run_index, platform)
-    suites_present: dict[tuple[int, Platform], set[str]] = defaultdict(set)
-    for a in attempts:
-        suites_present[(a.run_index, a.platform)].add(a.test_id.suite)
-
-    attempts_by_key: dict[tuple[str, Platform, int], list[Attempt]] = defaultdict(list)
-    test_ids: dict[str, TestId] = {}
-    for a in attempts:
-        k = a.test_id.key()
-        test_ids[k] = a.test_id
-        attempts_by_key[(k, a.platform, a.run_index)].append(a)
-
-    platforms: list[Platform] = sorted({r.platform for r in runs})
-    matrix: dict[str, dict[Platform, PlatformCell]] = defaultdict(dict)
-
-    for test_key, test_id in test_ids.items():
-        for plat in platforms:
-            cell = PlatformCell()
-            plat_runs = [r for r in runs if r.platform == plat]
-            cell.runs_expected = len(plat_runs)
-            for run in plat_runs:
-                if run.state != "ok":
-                    cell.absent_infra += 1
-                    continue
-                matched = attempts_by_key.get((test_key, plat, run.run_index), [])
-                if test_id.hook:
-                    fail = next((x for x in matched if x.status in ("broken", "failed")), None)
-                    if fail is not None:
-                        cell.denominator_observed += 1
-                        cell.observed += 1
-                        cell.failed += 1
-                        cell.run_outcomes[run.run_index] = fail.status
-                        if fail.category_id:
-                            cell.categories[fail.category_id] += 1
-                        if fail.signature_id:
-                            cell.signatures[fail.signature_id] += 1
-                            cell.clusters.add(fail.signature_id)
-                        if fail.duration_ms is not None:
-                            cell.durations_ms.append(fail.duration_ms)
-                    elif test_id.suite in suites_present.get((run.run_index, plat), set()):
-                        # la suite a tourné (des tests existent) et le hook n'a produit aucune
-                        # entrée d'échec => il a réussi, même si Mocha ne le journalise pas.
-                        cell.denominator_observed += 1
-                        cell.observed += 1
-                        cell.passed += 1
-                        cell.run_outcomes[run.run_index] = "passed"
-                    else:
-                        cell.absent_unexplained += 1
-                else:
-                    if matched:
-                        x = matched[0]
-                        cell.denominator_observed += 1
-                        cell.observed += 1
-                        if x.status == "passed":
-                            cell.passed += 1
-                        elif x.status == "skipped":
-                            cell.skipped += 1
-                        else:
-                            cell.failed += 1
-                        cell.run_outcomes[run.run_index] = x.status
-                        if x.category_id:
-                            cell.categories[x.category_id] += 1
-                        if x.signature_id:
-                            cell.signatures[x.signature_id] += 1
-                            cell.clusters.add(x.signature_id)
-                        if x.duration_ms is not None:
-                            cell.durations_ms.append(x.duration_ms)
-                    elif test_id.suite in failed_before_suites.get((run.run_index, plat), set()):
-                        cell.blocked += 1
-                    elif test_id.suite in suites_present.get((run.run_index, plat), set()):
-                        cell.absent_unexplained += 1
-                    else:
-                        cell.absent_unexplained += 1  # suite jamais représentée sur cette plateforme
-                cell.denominator_runs += 1
-            matrix[test_key][plat] = cell
-    return matrix, test_ids, {}, warnings
-
-
-# ---------------------------------------------------------------------------
-# 6. Clusters
-# ---------------------------------------------------------------------------
-
-@dataclass(slots=True)
-class Cluster:
-    id: str
-    signature: str
-    category_id: Optional[str]
-    category_name: Optional[str]
-    occurrences: int = 0
-    origins: Counter = field(default_factory=Counter)
-    statuses: Counter = field(default_factory=Counter)
-    by_platform: Counter = field(default_factory=Counter)
-    by_run: Counter = field(default_factory=Counter)
-    affected_test_keys: set = field(default_factory=set)
-    affected_suites: set = field(default_factory=set)
-    exemplar: Optional[Attempt] = None
-
-
-def build_clusters(attempts: list[Attempt]) -> list[Cluster]:
-    clusters: dict[str, Cluster] = {}
-    for a in attempts:
-        if a.status not in ("broken", "failed"):
-            continue
-        sig = a.signature or "<sans message>"
-        sid = a.signature_id or "c-nomessage"
-        c = clusters.setdefault(sid, Cluster(sid, sig, a.category_id, a.category_name))
-        c.occurrences += 1
-        c.origins[a.origin] += 1
-        c.statuses[a.status] += 1
-        c.by_platform[a.platform] += 1
-        c.by_run[str(a.run_index)] += 1
-        c.affected_test_keys.add(a.test_id.key())
-        c.affected_suites.add(a.test_id.suite)
-        if c.exemplar is None or (a.raw_message and not c.exemplar.raw_message):
-            c.exemplar = a
-    ordered = sorted(clusters.values(), key=lambda c: (-c.occurrences, c.id))
-    return ordered
-
-
-# ---------------------------------------------------------------------------
-# 7. Rendu — console, markdown, JSON
-# ---------------------------------------------------------------------------
-
-VERDICT_SYMBOL = {
-    "stable": "✓", "flaky": "✗", "always-failing": "✗✗",
-    "coverage-gap": "—", "cascade-blocked": "⋖", "skipped-intentional": "skip",
-    "infra-missing": "!", "mixed": "?",
-}
-VERDICT_ORDER = ["always-failing", "flaky", "mixed", "cascade-blocked", "coverage-gap",
-                  "infra-missing", "skipped-intentional", "stable"]
-
-
-def cell_repr(cell: PlatformCell) -> str:
-    if cell.verdict in ("coverage-gap",):
-        return "—"
-    if cell.verdict == "cascade-blocked":
-        return "⋖"
-    if cell.verdict == "infra-missing":
-        return "!"
-    if cell.verdict == "skipped-intentional":
-        return "skip"
-    sym = "✓" if cell.failed == 0 else "✗"
-    return f"{cell.observed - cell.failed}/{cell.observed}{sym}"
-
-
-def render_console(matrix: dict, platforms: list[Platform]) -> str:
-    def sort_key(item):
-        key, cells = item
-        worst = min((VERDICT_ORDER.index(c.verdict) for c in cells.values()), default=len(VERDICT_ORDER))
-        worst_ratio = min((c.fail_ratio or 0) for c in cells.values())
-        return (worst, -worst_ratio, key)
-
-    rows = sorted(matrix.items(), key=sort_key)
-    name_w = min(60, max((len(k) for k in matrix), default=20))
-    header = f"{'test':<{name_w}}  " + "  ".join(f"{p:<9}" for p in platforms) + "  verdict"
-    lines = [header, "-" * len(header)]
-    for key, cells in rows:
-        label = key if len(key) <= name_w else key[: name_w - 1] + "…"
-        row_cells = "  ".join(f"{cell_repr(cells[p]):<9}" for p in platforms)
-        worst = min(cells.values(), key=lambda c: VERDICT_ORDER.index(c.verdict))
-        lines.append(f"{label:<{name_w}}  {row_cells}  {worst.verdict}")
-    return "\n".join(lines)
-
-
 def md_safe(text: str) -> str:
-    """Échappe le texte pour une insertion en prose Markdown (hors code span). Les signatures
-    contiennent par construction des jetons `<S>`/`<N>`/`<D>`/`<HASH>`/`<UUID>`/`<TS>`/`<HTML>`, et
-    les messages bruts peuvent contenir du vrai HTML (ex. balise `<b>` citée dans un message
-    d'erreur applicatif) — sans échappement, un moteur Markdown CommonMark les interprète comme du
-    HTML brut (le `<S>` disparaît, un `<b>` non fermé peut faire dériver le style du reste du
-    document)."""
+    """Échappe le texte pour une insertion en prose Markdown (hors code span). Les signatures contiennent par construction
+    des jetons `<S>`/`<N>`/`<D>`/`<HASH>`/`<UUID>`/`<TS>`/`<HTML>`, et les messages bruts peuvent contenir du vrai HTML :
+    sans échappement, un moteur CommonMark les interprète comme du HTML brut."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def html_fold(message: str, limit: int = 400) -> str:
-    """Destiné à être inséré dans un code span Markdown (`` `...` ``) : le code span protège déjà
-    `<`/`>` d'une interprétation HTML, mais pas un backtick littéral dans le message, qui romprait
-    prématurément le span — neutralisé ici."""
+    """Pour un code span Markdown : neutralise un backtick littéral (qui romprait le span) et replie le HTML."""
     message = message.replace("`", "'")
     if "<html" in message.lower() or "<!doctype" in message.lower():
         head = message.split("<")[0].strip()
@@ -720,291 +115,339 @@ def html_fold(message: str, limit: int = 400) -> str:
     return message if len(message) <= limit else message[:limit] + "…"
 
 
-def render_markdown(matrix: dict, platforms: list[Platform],
-                     runs: list[RunInfo], clusters: list[Cluster], warnings: list[dict],
-                     rules_mode: str, rules_diagnostics: list[str]) -> str:
-    out: list[str] = ["# Synthèse d'instabilité — tests E2E AMI", ""]
+# ---------------------------------------------------------------------------
+# Lecture des archives
+# ---------------------------------------------------------------------------
 
-    out.append("## Inventaire des runs\n")
-    out.append("| Plateforme | Run | État | result.json | container.json |")
-    out.append("|---|---|---|---|---|")
-    for r in sorted(runs, key=lambda r: (r.platform, r.run_index)):
-        state = f"**{r.state}**" if r.state != "ok" else r.state
-        out.append(f"| {r.platform} | {r.run_index} | {state} | {r.result_count} | {r.container_count} |")
-    out.append("")
+@dataclass
+class Run:
+    platform: str
+    index: int
+    path: Path
+    state: str = "ok"  # ok | missing | empty | unreadable
+    junit_files: int = 0
 
-    out.append("## Tableau des ratios\n")
-    out.append("| Test | " + " | ".join(platforms) + " | Verdict |")
-    out.append("|---|" + "---|" * len(platforms) + "---|")
-    for key, cells in sorted(matrix.items()):
-        worst = min(cells.values(), key=lambda c: VERDICT_ORDER.index(c.verdict))
-        row = " | ".join(cell_repr(cells[p]) for p in platforms)
-        out.append(f"| {md_safe(key)} | {row} | {worst.verdict} |")
-    out.append("")
 
-    out.append("## Verdicts\n")
-    out.append(
-        "_Un test n'apparaît que sous son PIRE verdict (celui du tableau ci-dessus) — un test "
-        "stable sur une plateforme et always-failing sur une autre est classé always-failing, pas "
-        "listé deux fois._\n"
-    )
-    worst_by_key = {k: min(cells.values(), key=lambda c: VERDICT_ORDER.index(c.verdict)).verdict
-                     for k, cells in matrix.items()}
-    for verdict in ("always-failing", "flaky", "stable", "skipped-intentional"):
-        keys = [k for k, w in worst_by_key.items() if w == verdict]
-        out.append(f"### {verdict} ({len(keys)})\n")
-        if verdict == "skipped-intentional" and keys:
-            out.append("_cf. `src/tests/mobile/login_logout_login.test.ts:6` (`it.skip()` intentionnel)_\n")
-        for k in sorted(keys):
-            out.append(f"- {md_safe(k)}")
-        out.append("")
+@dataclass
+class Attempt:
+    platform: str
+    run: int
+    test: str
+    status: str            # passed | failed | cascade | skipped
+    is_hook: bool = False
+    message: str = ""
+    dump: Optional[str] = None   # dossier du dump d'échec, relatif à runs-dir
+    sentry: Optional[dict] = None
 
-    out.append("## Trous de couverture et cascades\n")
-    cov = [k for k, cells in matrix.items() if any(c.verdict == "coverage-gap" for c in cells.values())]
-    casc = [k for k, cells in matrix.items() if any(c.verdict == "cascade-blocked" for c in cells.values())]
-    out.append(f"- **coverage-gap** (jamais exécuté, suite pourtant représentée) : {len(cov)}")
-    for k in sorted(cov):
-        out.append(f"  - {md_safe(k)}")
-    out.append(f"- **cascade-blocked** (bloqué par un hook `before all` en échec) : {len(casc)}")
-    for k in sorted(casc):
-        out.append(f"  - {md_safe(k)}")
-    out.append("")
 
-    out.append("## Clusters d'erreurs\n")
-    for c in clusters:
-        cat = md_safe(c.category_name) if c.category_name else "⚠ non couverte par allurerc.mjs"
-        out.append(f"### `{c.id}` — {md_safe(c.signature)}\n")
-        out.append(f"- Catégorie : {cat}")
-        out.append(f"- Occurrences : {c.occurrences} ({dict(c.by_platform)})")
-        out.append(f"- Tests touchés : {md_safe(', '.join(sorted(c.affected_test_keys)))}")
-        if c.exemplar is not None and c.exemplar.raw_message:
-            out.append(f"- Exemple : `{html_fold(c.exemplar.raw_message)}`")
-            out.append(f"  - `{c.exemplar.result_file}`")
-        out.append("")
+def normalize_platform(token: str) -> str:
+    return "webapp" if token == "webci" else token
 
-    out.append("## Avertissements méthodologiques\n")
-    out.append(
-        "- Un hook `before all` qui réussit n'est jamais journalisé par Allure/Mocha : le "
-        "dénominateur retenu (`denominator_observed`) compte les runs où la suite a réellement "
-        "tourné (test ou échec de hook présent), pas le nombre brut d'entrées Allure.\n"
-        "- Le préfixe `spec` de `fullName` et le label `package` sont pollués en session Appium "
-        "partagée (héritage du premier spec du groupe) — l'identité d'un test repose sur "
-        "`<describe>.<it>`, jamais sur ce préfixe.\n"
-        "- `specFileRetries: 0` (`wdio.base.conf.ts`) : une seule tentative par run, la mesure "
-        "n'est pas polluée par des retries automatiques."
-    )
-    if rules_mode == "fallback":
-        out.append(f"- ⚠ Règles de classification en **repli** (allurerc.mjs non exploitable) : "
-                    + "; ".join(rules_diagnostics))
-    for w in warnings:
-        out.append(f"- `{w['code']}` : {md_safe(w['message'])}")
-    out.append("")
+
+def discover_runs(runs_dir: Path, platforms: list[str], min_runs: int, warnings: list[str]) -> list[Run]:
+    found: dict[tuple[str, int], Path] = {}
+    if runs_dir.is_dir():
+        for d in sorted(runs_dir.iterdir()):
+            m = RUN_DIR_RE.match(d.name)
+            if m and d.is_dir():
+                found[(normalize_platform(m.group("plat")), int(m.group("idx")))] = d
+    runs: list[Run] = []
+    for plat in platforms:
+        indices = sorted(i for (p, i) in found if p == plat)
+        expected = max(indices + [min_runs]) if indices or min_runs else 0
+        for i in range(1, expected + 1):
+            path = found.get((plat, i))
+            if path is None:
+                runs.append(Run(plat, i, runs_dir / f"{plat}-run-{i}", "missing"))
+                warnings.append(f"{plat}-run-{i} : archive absente")
+                continue
+            junit_dir = path / "test-results" / "junit"
+            files = sorted(junit_dir.glob("*.xml")) if junit_dir.is_dir() else []
+            run = Run(plat, i, path, "ok", len(files))
+            if not files:
+                run.state = "empty"
+                warnings.append(f"{plat}-run-{i} : aucun fichier JUnit dans {junit_dir} (échec d'infrastructure ?)")
+            runs.append(run)
+    return runs
+
+
+def match_key(text: str) -> str:
+    """Clé de rapprochement test <-> dump : lettres et chiffres Unicode, en minuscules. Le reporter JUnit retire la
+    ponctuation des titres ; les dumps portent le titre brut."""
+    return re.sub(r"[^\w@]+", " ", text).strip().lower()
+
+
+def load_attempts(run: Run, runs_dir: Path, warnings: list[str]) -> list[Attempt]:
+    attempts: list[Attempt] = []
+    dumps = load_dumps(run, runs_dir, warnings)
+    for xml_file in sorted((run.path / "test-results" / "junit").glob("*.xml")):
+        try:
+            root = ET.parse(xml_file).getroot()
+        except (ET.ParseError, OSError) as err:
+            run.state = "unreadable"
+            warnings.append(f"{run.platform}-run-{run.index} : {xml_file.name} illisible ({err})")
+            continue
+        for suite in root.iter("testsuite"):
+            suite_name = (suite.get("name") or "").strip()
+            for case in suite.findall("testcase"):
+                name = (case.get("name") or "").strip()
+                if not name:
+                    continue
+                test = f"{suite_name} › {name}" if suite_name else name
+                failure = case.find("failure")
+                if failure is None:
+                    failure = case.find("error")
+                if failure is not None:
+                    message = (failure.get("message") or failure.text or "").strip()
+                    status = "cascade" if CASCADE_RE.search(message) else "failed"
+                    attempt = Attempt(run.platform, run.index, test, status, bool(HOOK_RE.search(name)), message)
+                    dump = dumps.get((match_key(suite_name), match_key(name)))
+                    if dump:
+                        attempt.dump, attempt.sentry = dump
+                    attempts.append(attempt)
+                elif case.find("skipped") is not None:
+                    attempts.append(Attempt(run.platform, run.index, test, "skipped"))
+                else:
+                    attempts.append(Attempt(run.platform, run.index, test, "passed"))
+    return attempts
+
+
+def load_dumps(run: Run, runs_dir: Path, warnings: list[str]) -> dict[tuple[str, str], tuple[str, Optional[dict]]]:
+    """Dumps d'échec de la run, indexés par (suite, titre) rapprochés : (dossier relatif, identifiants Sentry)."""
+    result: dict[tuple[str, str], tuple[str, Optional[dict]]] = {}
+    root = run.path / "test-results" / "failures"
+    if not root.is_dir():
+        return result
+    for ctx in sorted(root.glob("*/context.json")):
+        try:
+            data = json.loads(ctx.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as err:
+            warnings.append(f"{run.platform}-run-{run.index} : {ctx} illisible ({err})")
+            continue
+        title = str(data.get("test", "")).strip()
+        if title:
+            result[(match_key(str(data.get("suite") or "")), match_key(title))] = (str(ctx.parent.relative_to(runs_dir)), data.get("sentry"))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Matrice et verdicts
+# ---------------------------------------------------------------------------
+
+VERDICT_ORDER = ["always-failing", "flaky", "cascade-blocked", "stable", "skip"]
+VERDICT_SYMBOL = {"always-failing": "✗", "flaky": "~", "cascade-blocked": "⋖", "stable": "✓", "skip": "·"}
+
+
+@dataclass
+class Cell:
+    passed: int = 0
+    failed: int = 0
+    cascade: int = 0
+    skipped: int = 0
+
+    @property
+    def observed(self) -> int:
+        return self.passed + self.failed + self.cascade
+
+    @property
+    def verdict(self) -> str:
+        if self.observed == 0:
+            return "skip" if self.skipped else "stable"
+        if self.failed and self.passed:
+            return "flaky"
+        if self.failed and not self.passed:
+            return "always-failing"
+        if self.cascade and not self.passed:
+            return "cascade-blocked"
+        return "stable"
+
+
+def build_matrix(attempts: list[Attempt]) -> dict[str, dict[str, Cell]]:
+    matrix: dict[str, dict[str, Cell]] = defaultdict(lambda: defaultdict(Cell))
+    for a in attempts:
+        cell = matrix[a.test][a.platform]
+        if a.status == "passed":
+            cell.passed += 1
+        elif a.status == "failed":
+            cell.failed += 1
+        elif a.status == "cascade":
+            cell.cascade += 1
+        else:
+            cell.skipped += 1
+    return matrix
+
+
+def overall_verdict(cells: dict[str, Cell]) -> str:
+    verdicts = [c.verdict for c in cells.values()]
+    for v in VERDICT_ORDER:
+        if v in verdicts:
+            return v
+    return "stable"
+
+
+@dataclass
+class Cluster:
+    id: str
+    signature: str
+    occurrences: int = 0
+    tests: set = field(default_factory=set)
+    platforms: set = field(default_factory=set)
+    runs: set = field(default_factory=set)
+    exemplar: str = ""
+    dumps: list = field(default_factory=list)
+    sentry: list = field(default_factory=list)
+
+
+def build_clusters(attempts: list[Attempt]) -> list[Cluster]:
+    clusters: dict[str, Cluster] = {}
+    for a in attempts:
+        if a.status != "failed":
+            continue
+        signature = normalize_message(a.message) if a.message else "(message vide)"
+        cid = signature_id(signature)
+        c = clusters.setdefault(cid, Cluster(cid, signature, exemplar=a.message))
+        c.occurrences += 1
+        c.tests.add(a.test)
+        c.platforms.add(a.platform)
+        c.runs.add(f"{a.platform}-run-{a.run}")
+        if a.dump and a.dump not in c.dumps:
+            c.dumps.append(a.dump)
+        if a.sentry and a.sentry not in c.sentry:
+            c.sentry.append(a.sentry)
+    return sorted(clusters.values(), key=lambda c: (-c.occurrences, c.id))
+
+
+# ---------------------------------------------------------------------------
+# Rendu
+# ---------------------------------------------------------------------------
+
+def cell_repr(cell: Optional[Cell]) -> str:
+    """« succès/observés » ; la cascade est signalée à part."""
+    if cell is None:
+        return "—"
+    if cell.observed == 0:
+        return "skip" if cell.skipped else "—"
+    if cell.verdict == "cascade-blocked":
+        return "⋖ cascade"
+    text = f"{cell.passed}/{cell.observed}"
+    return text + (f" (+{cell.cascade} cascade)" if cell.cascade else "")
+
+
+def render_console(matrix, platforms) -> str:
+    rows = sorted(matrix.items(), key=lambda kv: (VERDICT_ORDER.index(overall_verdict(kv[1])), kv[0]))
+    width = max([len(t) for t, _ in rows] + [10])
+    width = min(width, 70)
+    out = [f"{'test'.ljust(width)}  " + "  ".join(p.ljust(14) for p in platforms) + "  verdict", "-" * (width + 20 + 16 * len(platforms))]
+    for test, cells in rows:
+        out.append(f"{test[:width].ljust(width)}  " + "  ".join(cell_repr(cells.get(p)).ljust(14) for p in platforms) + f"  {overall_verdict(cells)}")
     return "\n".join(out)
 
 
-def build_clusters_json(matrix: dict, test_ids: dict[str, TestId], platforms: list[Platform],
-                         runs: list[RunInfo], clusters: list[Cluster], warnings: list[dict],
-                         rules_mode: str, rules_diagnostics: list[str], repo_root: Path,
-                         exemplar_chars: int) -> dict:
-    def rel(p: Optional[Path]) -> Optional[str]:
-        if p is None:
-            return None
-        try:
-            return str(p.relative_to(repo_root))
-        except ValueError:
-            return str(p)
+def render_markdown(matrix, platforms, runs: list[Run], clusters: list[Cluster], warnings: list[str]) -> str:
+    out = ["# Synthèse de stabilité", ""]
+    out.append("## Exécutions archivées\n")
+    out.append("| Plateforme | Run | État | Fichiers JUnit |")
+    out.append("|---|---|---|---|")
+    for r in runs:
+        out.append(f"| {r.platform} | {r.index} | {r.state} | {r.junit_files} |")
+    out.append("")
+    out.append("## Ratios par test\n")
+    out.append("Chaque cellule : succès / runs où le test a réellement tourné (`observed`). Une cascade (échec d'un hook) n'est ni un succès "
+               "ni un échec propre du test.\n")
+    out.append("| Test | " + " | ".join(platforms) + " | Verdict |")
+    out.append("|---|" + "---|" * len(platforms) + "---|")
+    rows = sorted(matrix.items(), key=lambda kv: (VERDICT_ORDER.index(overall_verdict(kv[1])), kv[0]))
+    for test, cells in rows:
+        v = overall_verdict(cells)
+        out.append(f"| {md_safe(test)} | " + " | ".join(md_safe(cell_repr(cells.get(p))) for p in platforms) + f" | {VERDICT_SYMBOL[v]} {v} |")
+    out.append("")
+    out.append("## Verdicts\n")
+    for v in VERDICT_ORDER:
+        tests = [t for t, cells in rows if overall_verdict(cells) == v]
+        out.append(f"- **{v}** ({len(tests)})" + (" : " + " ; ".join(md_safe(t) for t in tests) if tests and v != "stable" else ""))
+    out.append("")
+    out.append("## Familles d'erreurs\n")
+    if not clusters:
+        out.append("Aucun échec propre (hors cascades).\n")
+    for c in clusters:
+        out.append(f"### {c.id} — {c.occurrences} occurrence(s)\n")
+        out.append(f"- Signature : `{html_fold(c.signature)}`")
+        out.append(f"- Plateformes : {', '.join(sorted(c.platforms))} · runs : {', '.join(sorted(c.runs))}")
+        out.append(f"- Tests ({len(c.tests)}) : " + " ; ".join(md_safe(t) for t in sorted(c.tests)))
+        out.append(f"- Exemple : `{html_fold(c.exemplar)}`")
+        if c.dumps:
+            out.append("- Dumps d'échec : " + ", ".join(f"`{d}`" for d in c.dumps[:5]))
+        if c.sentry:
+            out.append("- Sentry : " + " ; ".join(f"trace `{s.get('traceId')}` · dernier événement `{s.get('lastEventId')}` · {s.get('environment')}" for s in c.sentry[:5]))
+        out.append("")
+    if warnings:
+        out.append("## Avertissements\n")
+        out.extend(f"- {md_safe(w)}" for w in warnings)
+        out.append("")
+    return "\n".join(out)
 
-    verdict_index: dict[str, list[str]] = defaultdict(list)
-    tests_out = []
-    for key, cells in sorted(matrix.items()):
-        test_id = test_ids[key]
-        worst = min(cells.values(), key=lambda c: VERDICT_ORDER.index(c.verdict))
-        verdict_index[worst.verdict].append(key)
-        plats = {}
-        for p in platforms:
-            c = cells[p]
-            plats[p] = {
-                "runs_expected": c.runs_expected,
-                "denominator_observed": c.denominator_observed,
-                "denominator_runs": c.denominator_runs,
-                "denominator_biased": c.denominator_observed != c.denominator_runs,
-                "observed": c.observed, "passed": c.passed, "failed": c.failed,
-                "skipped": c.skipped, "blocked": c.blocked,
-                "absent_infra": c.absent_infra, "absent_unexplained": c.absent_unexplained,
-                "fail_ratio": c.fail_ratio,
-                "verdict": c.verdict,
-                "clusters": sorted(c.clusters),
-                "categories": dict(c.categories),
-                "duration_ms": ({"min": min(c.durations_ms), "median": sorted(c.durations_ms)[len(c.durations_ms) // 2],
-                                  "max": max(c.durations_ms)} if c.durations_ms else None),
-                "run_outcomes": {str(k): v for k, v in c.run_outcomes.items()},
-            }
-        tests_out.append({
-            "test_key": key, "suite": test_id.suite, "name": test_id.name,
-            "origin": "hook" if test_id.hook else "test", "hook": test_id.hook,
-            "overall_verdict": worst.verdict, "platforms": plats,
-        })
 
-    clusters_out = []
-    for i, c in enumerate(clusters):
-        blast_tests = sum(1 for k in c.affected_test_keys if not test_ids[k].hook)
-        blast_cascade = sum(
-            1 for key, cells in matrix.items()
-            for p in platforms
-            if cells[p].verdict == "cascade-blocked" and test_ids[key].suite in c.affected_suites
-        )
-        ex = c.exemplar
-        msg = (ex.raw_message or "") if ex else ""
-        clusters_out.append({
-            "id": c.id, "signature": c.signature,
-            "category": {"id": c.category_id, "name": c.category_name,
-                         "source": "allurerc" if c.category_id else "unclassified"},
-            "candidate_rule": c.category_id is None,
-            "suggested_regex": None if c.category_id else suggest_regex(c.signature),
-            "occurrences": c.occurrences,
-            "origins": dict(c.origins), "statuses": dict(c.statuses),
-            "by_platform": dict(c.by_platform), "by_run": dict(c.by_run),
-            "is_systematic": len(c.by_platform) == len(platforms),
-            "affected_tests": sorted(c.affected_test_keys),
-            "affected_suites": sorted(c.affected_suites),
-            "blast_radius": {"tests_directly_failed": blast_tests,
-                              "tests_blocked_by_cascade": blast_cascade,
-                              "suites": len(c.affected_suites)},
-            "priority": i + 1,
-            "exemplar": None if ex is None else {
-                "message": msg[:exemplar_chars],
-                "message_truncated": len(msg) > exemplar_chars,
-                "message_source": ex.message_source,
-                "platform": ex.platform, "run_index": ex.run_index,
-                "test_key": ex.test_id.key(),
-                "result_file": rel(ex.result_file),
-                "wdio_logs_dir": rel(next((r.wdio_logs_dir for r in runs
-                                            if r.platform == ex.platform and r.run_index == ex.run_index), None)),
-                "console_log": rel(next((r.console_log for r in runs
-                                          if r.platform == ex.platform and r.run_index == ex.run_index), None)),
-            },
-        })
-
+def build_json(matrix, platforms, runs: list[Run], clusters: list[Cluster], warnings: list[str]) -> dict:
+    tests = {}
+    for test, cells in matrix.items():
+        tests[test] = {
+            "overall_verdict": overall_verdict(cells),
+            "platforms": {p: {"passed": c.passed, "failed": c.failed, "cascade": c.cascade, "skipped": c.skipped,
+                              "denominator_observed": c.observed,
+                              "denominator_runs": sum(1 for r in runs if r.platform == p and r.state != "missing"),
+                              "verdict": c.verdict} for p, c in cells.items()},
+        }
     return {
-        "schema_version": SCHEMA_VERSION,
-        "tool": {"name": "analyze_flakiness.py", "version": TOOL_VERSION},
-        "repo_root": str(repo_root),
-        "rules_source": {"mode": rules_mode, "rules_usable": EXPECTED_USABLE_RULES if rules_mode == "parsed" else len(FALLBACK_RULES),
-                          "diagnostics": rules_diagnostics},
-        "run_inventory": [
-            {"platform": r.platform, "run_index": r.run_index, "state": r.state,
-             "dir": rel(r.dir), "results_dir": rel(r.results_dir), "wdio_logs_dir": rel(r.wdio_logs_dir),
-             "console_log": rel(r.console_log), "result_count": r.result_count, "container_count": r.container_count}
-            for r in sorted(runs, key=lambda r: (r.platform, r.run_index))
-        ],
-        "totals": {
-            "tests": sum(1 for t in test_ids.values() if not t.hook),
-            "hooks": sum(1 for t in test_ids.values() if t.hook),
-            "platforms": len(platforms),
-            "runs_expected": len(runs), "runs_ok": sum(1 for r in runs if r.state == "ok"),
-            "runs_empty": sum(1 for r in runs if r.state == "empty"),
-            "runs_missing": sum(1 for r in runs if r.state == "missing"),
-        },
-        "clusters": clusters_out,
-        "tests": tests_out,
-        "verdict_index": {v: sorted(verdict_index.get(v, [])) for v in VERDICT_ORDER},
+        "schema_version": SCHEMA_VERSION, "tool_version": TOOL_VERSION, "platforms": platforms,
+        "runs": [{"platform": r.platform, "run": r.index, "state": r.state, "junit_files": r.junit_files} for r in runs],
+        "tests": tests,
+        "clusters": [{
+            "id": c.id, "signature": c.signature, "occurrences": c.occurrences, "priority": c.occurrences,
+            "blast_radius": len(c.tests), "tests": sorted(c.tests), "platforms": sorted(c.platforms), "runs": sorted(c.runs),
+            "exemplar_message": c.exemplar, "failure_dumps": c.dumps, "sentry": c.sentry,
+        } for c in clusters],
         "warnings": warnings,
     }
 
 
 # ---------------------------------------------------------------------------
-# 8. CLI
+# Programme
 # ---------------------------------------------------------------------------
 
 def main(argv: Optional[list[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--runs-dir", type=Path, default=Path("flaky-runs"))
-    ap.add_argument("--repo-root", type=Path, default=None)
-    ap.add_argument("--platforms", default="android,ios,webapp")
-    ap.add_argument("--min-runs", type=int, default=3)
-    ap.add_argument("--allurerc", type=Path, default=None)
+    ap.add_argument("--platforms", default=",".join(PLATFORMS))
+    ap.add_argument("--min-runs", type=int, default=3, help="nombre d'exécutions attendues par plateforme")
     ap.add_argument("--out-dir", type=Path, default=None)
-    ap.add_argument("--format", choices=["table", "markdown", "json", "all"], default="all")
-    ap.add_argument("--max-clusters", type=int, default=20)
-    ap.add_argument("--exemplar-chars", type=int, default=4000)
-    ap.add_argument("--min-occurrences", type=int, default=1)
-    ap.add_argument("--fail-on-flaky", action="store_true")
-    ap.add_argument("--no-color", action="store_true")
     args = ap.parse_args(argv)
 
-    repo_root = args.repo_root or args.runs_dir.resolve().parent
+    platforms = [normalize_platform(p.strip()) for p in args.platforms.split(",") if p.strip()]
     out_dir = args.out_dir or args.runs_dir
-    allurerc = args.allurerc or (repo_root / "allurerc.mjs")
-    platforms: list[Platform] = sorted({normalize_platform_token(p.strip()) for p in args.platforms.split(",") if p.strip()})
+    warnings: list[str] = []
+    runs = discover_runs(args.runs_dir, platforms, args.min_runs, warnings)
 
-    if not args.runs_dir.is_dir():
-        print(f"Erreur : {args.runs_dir} n'existe pas.", file=sys.stderr)
-        return 4
-
-    runs = discover_runs(args.runs_dir, repo_root, platforms, args.min_runs)
-    if not any(r.state == "ok" for r in runs):
-        print(f"Erreur : aucun *-result.json exploitable sous {args.runs_dir}.", file=sys.stderr)
-        return 3
-
-    rules, rules_diagnostics, rules_mode = parse_allurerc(allurerc)
-
-    warnings: list[dict] = []
-    all_attempts: list[Attempt] = []
+    attempts: list[Attempt] = []
     for run in runs:
-        if run.state == "missing":
-            warnings.append({"code": "run_missing", "platform": run.platform, "run_index": run.run_index,
-                              "message": f"{run.platform}-run-{run.run_index} absent → compté comme échec d'infrastructure"})
-            continue
-        if run.state == "empty":
-            warnings.append({"code": "run_empty", "platform": run.platform, "run_index": run.run_index,
-                              "message": f"{run.platform}-run-{run.run_index} présent mais sans result.json exploitable"})
-            continue
-        all_attempts.extend(load_run_attempts(run, warnings))
+        if run.state in ("ok", "unreadable"):
+            attempts.extend(load_attempts(run, args.runs_dir, warnings))
+    if not attempts:
+        print(f"Erreur : aucun résultat JUnit exploitable sous {args.runs_dir}.", file=sys.stderr)
+        return 1
 
-    reconcile_identities(all_attempts, warnings)
-
-    for a in all_attempts:
-        if a.raw_message:
-            a.signature = normalize_message(a.raw_message)
-            a.signature_id = signature_id(a.signature)
-            a.category_id, a.category_name = classify(a.raw_message, a.status, rules)
-
-    matrix, test_ids, _, matrix_warnings = build_matrix(runs, all_attempts)
-    warnings.extend(matrix_warnings)
-    warnings.extend(w for a in all_attempts if a.platform_mismatch for w in [{
-        "code": "platform_mismatch", "message": f"voir {a.result_file}", "platform": a.platform, "run_index": a.run_index}])
-
-    if args.min_runs <= 1:
-        warnings.append({"code": "insufficient_runs",
-                          "message": "min-runs <= 1 : aucune instabilité n'est mesurable sur un échantillon unique"})
-
-    clusters = build_clusters(all_attempts)
-    clusters = [c for c in clusters if c.occurrences >= args.min_occurrences]
-
+    matrix = build_matrix(attempts)
+    clusters = build_clusters(attempts)
+    print(render_console(matrix, platforms))
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    if args.format in ("table", "all"):
-        print(render_console(matrix, platforms))
-        if rules_mode == "fallback":
-            print(f"\n⚠ règles de classification en repli : {'; '.join(rules_diagnostics)}", file=sys.stderr)
-
-    if args.format in ("markdown", "all"):
-        md = render_markdown(matrix, platforms, runs, clusters[: args.max_clusters],
-                              warnings, rules_mode, rules_diagnostics)
-        (out_dir / "SYNTHESIS.md").write_text(md, encoding="utf-8")
-
-    if args.format in ("json", "all"):
-        payload = build_clusters_json(matrix, test_ids, platforms, runs, clusters, warnings,
-                                       rules_mode, rules_diagnostics, repo_root, args.exemplar_chars)
-        (out_dir / "clusters.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    partial = any(r.state != "ok" for r in runs) or rules_mode == "fallback"
-    if args.fail_on_flaky:
-        has_issue = any(any(c.verdict in ("flaky", "always-failing") for c in cells.values()) for cells in matrix.values())
-        if has_issue:
-            return 10
-    return 2 if partial else 0
+    (out_dir / "SYNTHESIS.md").write_text(render_markdown(matrix, platforms, runs, clusters, warnings), encoding="utf-8")
+    (out_dir / "clusters.json").write_text(json.dumps(build_json(matrix, platforms, runs, clusters, warnings), ensure_ascii=False, indent=2), encoding="utf-8")
+    if warnings:
+        print("\nAvertissements :", file=sys.stderr)
+        for w in warnings:
+            print(f"  - {w}", file=sys.stderr)
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

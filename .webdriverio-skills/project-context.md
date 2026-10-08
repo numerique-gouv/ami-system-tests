@@ -24,13 +24,13 @@ Avant toute tâche de planification de test (`creating-test-structure`) ou d'inv
 
 | Fichier | Rôle |
 |---|---|
-| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms, `specFileRetries` 0, reporters `spec` + `allure` (`outputDir: allure-results`, `addConsoleLogs: true`) |
+| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms, `specFileRetries` 0, reporters `spec` + `junit` (`outputDir: test-results/junit`) ; hook `afterTest` : dump d'échec dans `test-results/failures/` |
 | `wdio.android.conf.ts` | capabilities Android, service Appium port 4723 |
 | `wdio.ios.conf.ts` | capabilities iOS, service Appium port 4724 |
 | `wdio.webapp.conf.ts` | capabilities Chrome, `baseUrl` dérivée de `AMI_ENV` via `resolveEnvironment()`, pas de service Appium |
 | `test-suites.ts` | suites nommées consommées via `WDIO_SUITE` : `all`, `short`, `CI` (auth+notifications+demarches+profile), `auth`, `api` (notifications+demarches) |
 
-⚠️ **`allure-results/` et `.wdio-logs/*.log` ne sont jamais nettoyés automatiquement avant un run** (pas de `rm -rf` dans le justfile avant `test-*`) — les résultats/captures/logs Appium s'accumulent entre runs et entre plateformes (android/ios/webapp partagent le même `outputDir`). Un rapport Allure généré sans nettoyage préalable peut mélanger plusieurs jours/plateformes. Voir `health-recommendations.md`.
+⚠️ **`test-results/` et `.wdio-logs/*.log` ne sont jamais nettoyés automatiquement avant un run** (pas de `rm -rf` dans le justfile avant `test-*`) — les résultats/captures/logs Appium s'accumulent entre runs et entre plateformes (android/ios/webapp partagent le même `outputDir`). Un rapport Allure généré sans nettoyage préalable peut mélanger plusieurs jours/plateformes. Voir `health-recommendations.md`.
 
 ## Scripts npm pertinents
 
@@ -40,8 +40,7 @@ test:android:staging / test:ios:staging     — idem avec APP_ENV=staging
 lint / lint:fix                             — eslint src --ext .ts
 typecheck                                   — tsc --noEmit
 appium:install / appium:update / appium:start
-report                                      — rm -rf allure-report && allure generate + open
-open-report                                 — allure open (sans régénérer)
+failures                                    — liste les tests en échec du dernier run (dumps d'échec)
 ```
 Mais l'usage prescrit passe par `just` (voir CLAUDE.md racine) — ces scripts npm sont encapsulés par le justfile, ne pas les appeler directement.
 
