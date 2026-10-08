@@ -15,7 +15,7 @@ import {AssertionError} from 'node:assert'
  * boutons, titres, liens, onglets, dialogues et barres de navigation de la SPA.
  */
 
-/** Élément WDIO retourné : même type que `$()` (cf. CLAUDE.md, ChainablePromiseElement). */
+/** Élément WDIO retourné : même type que `$()` (un ChainablePromiseElement : on enchaîne les méthodes directement). */
 export type PageElement = ReturnType<typeof $>
 
 export interface FindOptions {

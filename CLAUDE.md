@@ -5,9 +5,7 @@ Stack : WebdriverIO v9 + Appium 3 + TypeScript.
 
 Les apps cibles sont dans les dépôts frères `../ami-app-android` et `../ami-app-ios`.
 
-Les commandes se lancent toujours via `just`.
-
-Ne jamais appeler directement `npm`, `npx`, `adb`, `xcrun`, `xcodebuild` ou `appium`. Ces appels doivent être encapsulés dans le `justfile`.
+**Les cibles `just` sont pour les humains** : toute commande utile à un humain (lancer des tests, démarrer un appareil, générer un rapport, explorer une page) a une cible `just` **documentée** (commentaire d'usage au-dessus de la recette ; `just --list` les liste). Un agent peut lancer directement les outils dont il a besoin (`npm`, `npx wdio …`, `adb`, `xcrun`…) : il n'y a plus d'obligation de passer par `just`. Quand une commande directe devient utile aux humains, on l'ajoute au `justfile` avec sa documentation plutôt que de la décrire dans un texte.
 
 ```bash
 just --list                                        # voir toutes les cibles disponibles
@@ -115,8 +113,6 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 
 **POM 3 niveaux** : les tests n'importent que les page objects ; les pages appellent `getXxxLocators()` à chaque méthode ; les locators exposent `androidXxx`, `iosXxx`, `getXxxLocators()` (dispatch `driver.isIOS`).
 
-**WDIO v9 ChainablePromiseElement** : écrire `$(loc).method()` directement, jamais `(await $(loc)).method()` (déclenche TS [80007]).
-
 **Règle `await`** : `await` uniquement devant `expect(wdioElement)` (matchers expect-webdriverio) ou devant les appels retournant une Promise. Jamais devant `expect(string|boolean|number)`.
 
 **Pas de `browser.pause` comme sync** : remplacer par `waitUntil`, `waitForDisplayed`, ou `waitForClickable`.
@@ -145,7 +141,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 
 ## Prérequis locaux
 
-- Node.js ≥ 20
+- Node.js ≥ 22.19 (LTS 24 recommandée, cf. `.nvmrc` ; requis par WDIO 10)
 - `just` (`brew install just`)
 - Android SDK + `adb` dans le PATH
 - Xcode + `xcodegen` (`brew install xcodegen`)

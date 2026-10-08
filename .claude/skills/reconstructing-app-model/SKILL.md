@@ -86,14 +86,14 @@ This section is self-contained (works even if `.webdriverio-skills/project-conte
 | report generation | `just open-report` (or `just report` to regenerate) |
 | DOM/native tree inspection | `just inspect` |
 
-Never call `npm`/`npx`/`adb`/`xcrun`/`xcodebuild`/`appium` directly (CLAUDE.md).
+The `just` targets are the documented entry points for humans (CLAUDE.md); the underlying tools may also be called directly.
 
 ## Disposable Script Policy
 
 The native-screen capture script (step 3) is:
 - Temporary — written under `src/tests/mobile/_tmp-native-screens-explore-<platform>.test.ts` so it benefits from the project's TypeScript path resolution, deleted right after its captures are reviewed.
 - Built exclusively from existing Page Objects (`EnvironmentPickerPage`, `FranceConnectMirePage`, `FranceConnectEidasPage`, `FranceConnectCredentialsPage`, `OnboardingNotificationsPage`, etc.) — never a new ad hoc selector.
-- Run via `just test-android "<path>"` / `just test-ios "<path>"`, never `npx wdio`/`appium` directly.
+- Run via `just test-android "<path>"` / `just test-ios "<path>"` (documented entry points; `npx wdio run … --spec <path>` also works).
 - Never committed — verify `git status` shows no trace before moving on.
 
 ## Outputs

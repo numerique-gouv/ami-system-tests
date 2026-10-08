@@ -110,7 +110,7 @@ does not overwrite it.
 | Inspect a raw Allure result | `flaky-runs/<platform>-run-<i>/allure-results/*-result.json` — hook error messages live in the *sibling* `*-container.json`'s `befores[]/afters[].statusDetails.message`, not in the result itself |
 | Regenerate a human Allure report for one run | `just open-report flaky-runs/<platform>-run-<i>/allure-results` |
 
-Never call `npm`/`npx`/`adb`/`xcrun`/`xcodebuild`/`appium` directly (CLAUDE.md). The script itself
+The `just` targets are the documented entry points for humans (CLAUDE.md); the underlying tools may also be called directly. The script itself
 never shells out — it only reads JSON files already on disk.
 
 ## Outputs

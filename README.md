@@ -11,7 +11,7 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 
 | Outil | Installation |
 |-------|-------------|
-| Node.js ≥ 20 | [nodejs.org](https://nodejs.org) |
+| Node.js ≥ 22.19 (LTS 24, cf. `.nvmrc`) | [nodejs.org](https://nodejs.org) |
 | `just` | `brew install just` |
 | Android SDK + `adb` | Android Studio → SDK Manager |
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
@@ -52,7 +52,7 @@ just upgrade                                          # met à jour les dépenda
 just push-notification <login> [titre]                # publie une notification de test via l'API
 ```
 
-> Toutes les commandes passent par `just`. Ne jamais appeler directement `npm`, `npx`, `adb`, `xcrun` ou `appium`.
+> Les commandes utiles aux humains sont des cibles `just` documentées (`just --list`). Les outils sous-jacents (`npm`, `npx wdio`, `adb`, `xcrun`…) peuvent aussi être lancés directement.
 
 ---
 

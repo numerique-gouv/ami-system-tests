@@ -32,7 +32,7 @@ Déléguer au skill `analyze-website` (déjà existant dans `.claude/skills/`) s
 1. Écrire un script WDIO/Appium **temporaire et jetable** (jamais commité), placé provisoirement sous `src/tests/mobile/_tmp-native-screens-explore-<plateforme>.test.ts` pour bénéficier de la résolution TypeScript du projet (`tsconfig.json` n'inclut que `src/**/*.ts`).
 2. Ce script **réutilise les Page Objects existants** (`EnvironmentPickerPage`, `FranceConnectMirePage`, `FranceConnectEidasPage`, `FranceConnectCredentialsPage`, `OnboardingNotificationsPage`, etc.) — jamais de sélecteur ad hoc écrit pour l'occasion.
 3. Il prend une capture d'écran (`browser.takeScreenshot()`) après chaque étape de la séquence de démarrage (cold start → picker de review → mire FranceConnect → eIDAS → identifiants → onboarding notifications → home), écrite dans `.wdio-logs/native-screens-{android,ios}/NN-nom-etape.png`.
-4. Lancer via `just test-android "<chemin>"` / `just test-ios "<chemin>"` (jamais `npx wdio`/`appium` en direct).
+4. Lancer via `just test-android "<chemin>"` / `just test-ios "<chemin>"` (points d'entrée documentés ; `npx wdio run … --spec <chemin>` fonctionne aussi).
 5. **Supprimer le script après avoir lu les captures** — vérifier `git status` pour confirmer qu'aucune trace ne reste avant de continuer.
 
 Le chemin du build iOS a changé au moins une fois (voir Journal ci-dessous) — si `just build-ios`/`just test-ios` échoue à trouver l'app, vérifier d'abord `ios_derived` dans `justfile` et `IOS_APP_PATH` dans `src/driver/capabilities.ts` avant de suspecter autre chose.
