@@ -4,7 +4,6 @@ import fs from 'fs'
 import dotenv from 'dotenv'
 import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
-import { registerReplHelpers } from './src/helpers/repl'
 import { platform } from './src/platform'
 
 const log = logger('scenario')
@@ -68,10 +67,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   mochaOpts: {
     ui: 'bdd',
-    // WDIO_DEBUG=1 : timeout Mocha étendu à 24 h pour browser.debug() (session REPL).
-    // browser.debug(timeout) ne modifie pas le timeout Mocha.
-    // Constaté (avant relecture) : `timeout: 0` arrête le test au lieu de le laisser sans limite.
-    timeout: process.env.WDIO_DEBUG ? 24 * 60 * 60 * 1000 : 120000,
+    timeout: 120000,
   },
 
   // Hooks globaux
@@ -102,16 +98,6 @@ export const baseConfig: Partial<Options.Testrunner> = {
     if (process.env.RUN_OLD_DEVICE !== undefined) {
       AllureReporter.addLabel('run_old_device', String(process.env.RUN_OLD_DEVICE === 'true'))
     }
-  },
-
-  before: async (): Promise<void> => {
-    // Expose les helpers d'inspection sur globalThis pour le REPL browser.debug().
-    // Tape `help()` dans le REPL pour voir la liste complète.
-    registerReplHelpers()
-    // La navigation initiale et la capture du window handle sont spécifiques à la webapp
-    // (pas de notion d'onglet côté Appium/mobile) — gérées dans le before() propre à
-    // wdio.webapp.conf.ts, qui compose par-dessus celui-ci plutôt que de dupliquer
-    // registerReplHelpers().
   },
 
   afterTest: async (test, _context, result): Promise<void> => {

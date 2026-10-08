@@ -78,7 +78,7 @@ src/
     locators/
       *.locators.ts        sélecteurs par plateforme + getXxxLocators()
   scripts/
-    *.ts                   scripts CLI lancés via just (inspect-webview, push-notification)
+    *.ts                   scripts CLI lancés via just (push-notification)
   tests/
     mobile/*.test.ts        scénarios Mocha Android + iOS
     webapp/*.test.ts        scénarios Mocha webapp
@@ -130,7 +130,7 @@ dans `.env.local` à la racine — non commité. Voir `.env` pour les noms des v
 
 ### Ajouter un test
 
-1. Inspecter l'écran avec `just inspect`
+1. Explorer l'écran avec `just explore <cible>` (puis `just s <cible> snapshot -i`, `just webview <cible>`)
 2. Créer ou compléter les locators dans `src/pages/locators/`
 3. Créer ou compléter le Page Object dans `src/pages/`
 4. Écrire le scénario dans `src/tests/mobile/` ou `src/tests/webapp/` selon la cible
@@ -156,90 +156,47 @@ d'une des apps (webapp, Android ou iOS) est en soi un critère pour le rafraîch
 `managing-project-customizations` pour le contexte projet, ou `reconstructing-app-model` pour le
 modèle applicatif — indépendamment d'un échec de test constaté.
 
-### Workflow de débogage : observer avant d'écrire
+### Explorer et déboguer avec `wdio session` (WebdriverIO 10)
 
 Les apps hybrides ont deux arbres d'éléments distincts (natif XCUITest/UIAutomator2 et DOM web) :
-sans observation directe, impossible de savoir dans quel contexte on est ni quelle est la
-structure réelle. Les règles de fond (ne jamais commiter un locator non validé, etc.) sont dans
-[CONTRIBUTING.md](CONTRIBUTING.md).
+sans observation directe, impossible de savoir dans quel contexte on est ni quelle est la structure
+réelle. Les règles de fond (ne jamais commiter un locator non validé, etc.) sont dans
+[CONTRIBUTING.md](CONTRIBUTING.md). Une session `wdio session` survit à la commande qui l'a ouverte
+(arrêt après 30 min d'inactivité) : on enchaîne de petites commandes, sans relancer l'app.
 
-1. **Inspecter** l'écran avant d'écrire un sélecteur :
-   ```bash
-   just inspect   # liste les éléments interactifs de la WebView courante
-   ```
-   La cible auto-détecte la plateforme via le seul appareil connecté (émulateur Android ou
-   simulateur iOS déjà démarré).
-2. **Tester** un sélecteur sur un scénario isolé plutôt que sur tout le fichier :
-   ```bash
-   just test-android "src/tests/mobile/notifications.test.ts"
-   ```
-3. **Consigner** uniquement ce qui a été vérifié : commiter avec un message qui explique le
-   *pourquoi* (bug WKRDP, AX tree périmé, etc.), pas juste le sélecteur qui « devrait marcher ».
+| Je veux… | Commande |
+|---|---|
+| Ouvrir une session sur la webapp, Android ou iOS | `just explore webapp "/#/agenda"` · `just explore android` · `just explore ios` (l'appareil doit déjà tourner : `just start-android` / `just start-ios`) |
+| Lire la page : éléments interactifs, avec refs | `just s <cible> snapshot -i` · `just s <cible> find "texte"` |
+| Agir sur une ref, et voir ce que l'action a changé | `just s <cible> click e3` · `just s <cible> fill e4 "valeur"` |
+| Lister le DOM de la WebView (mobile) | `just webview <cible>` — en Android hybride, `snapshot` lit l'arbre natif et plante après `contexts switch` (WDIO 10.0.1) |
+| Voir les contextes, basculer | `just s <cible> contexts` · `just s <cible> contexts switch WEBVIEW_…` |
+| Lire les erreurs console ou les appels réseau (web) | `just s <cible> logs --errors` · `just s <cible> requests` |
+| Transformer les étapes en test | `just explore-export <nom> <cible>` → `exports/<nom>.e2e.ts` (à ranger dans un Page Object) |
+| Figer un test à son échec et l'inspecter | `just debug <cible> <spec>` puis `just s debug-0-0 snapshot -i`, `screenshot`, `resume` |
+| Diagnostiquer la machine | `just doctor` (les ✖ cloud et desktop sont sans objet) |
+| Fermer | `just explore-close <cible>` |
 
-Avant toute session de débogage, regarder le dernier rapport Allure (`just open-report`,
-screenshots au moment de l'échec) et `.wdio-logs/appium-android.log` / `appium-ios.log`.
+Points à connaître :
+- **Natif d'abord.** Après `just explore android|ios`, l'app est sur le sélecteur d'environnement
+  (écran natif, sans WebView). Il faut choisir une tuile (`just s <cible> snapshot`, puis un clic)
+  pour charger la SPA ; `contexts` échoue tant qu'il n'existe aucune WebView.
+- **`just debug`** se met en pause au premier échec d'un *test* ; un échec de *hook* (`before all`)
+  ne déclenche pas la pause.
+- **Webapp** : la route d'une page est `/#/agenda` (hash). Le cookie d'accès est posé sans jamais
+  afficher la clé.
+- **iOS** : ne jamais appeler `driver.switchContext('NATIVE_APP')` au milieu du flow FranceConnect
+  (voir [CONTRIBUTING.md §4](CONTRIBUTING.md#4-webview-et-contextes)). Si une liste est vide alors que
+  la page est rendue (arbre d'accessibilité périmé après un redirect), relancer l'observation.
+- Les commandes directes (`npx wdio session …`) fonctionnent aussi ; le skill
+  `.claude/skills/wdio-session/SKILL.md` décrit toutes les actions.
 
-### Débogage interactif : `browser.debug()` + REPL
+Avant toute session de débogage, regarder le dernier rapport Allure (`just open-report`, captures au
+moment de l'échec) et `.wdio-logs/appium-android.log` / `appium-ios.log`.
 
-Le cycle « modifier un locator → relancer `just test-android` » coûte ~60 s (boot émulateur,
-install, login FranceConnect, navigation) ; trouver le bon sélecteur prend souvent 3 à 5 cycles.
-`browser.debug()` suspend le test en cours et ouvre un REPL Node dans la session Appium **vivante** :
-`browser`, `driver`, `$`, `$$` sont disponibles, plus des helpers projet (`listInteractive`,
-`listInteractiveAll`, `inWebContext`, `webViewInfo`, `refreshAxTree`, `getContexts`,
-`saveScreenshot`). Taper `help()` dans le REPL pour la liste à jour.
-
-```bash
-# App déjà buildée et installée, émulateur/simulateur démarré
-just build-android && just start-android   # ou build-ios / start-ios
-
-export WDIO_DEBUG=1   # désactive le timeout Mocha (2 min par défaut) — sans ça le REPL se fait tuer
-```
-
-```typescript
-// Dans src/tests/, test scratch qui navigue jusqu'à l'écran à explorer puis se suspend
-it('debug — explorer la page notifications', async () => {
-  await authenticate()
-  await NotificationsInboxPage.openFromHome()
-  await browser.debug()  // ← suspend ici, le REPL s'ouvre dans le terminal
-})
-```
-
-```bash
-WDIO_DEBUG=1 just test-android "debug — explorer"
-```
-
-Dans le REPL :
-
-```js
-> help()                                          // liste des helpers disponibles
-> await getContexts()                             // ['NATIVE_APP', 'WEBVIEW_fr.gouv.ami.staging']
-> await listInteractive()                         // éléments natifs du contexte courant
-> await listInteractiveAll()                      // natif puis webview en un seul appel
-> await inWebContext(async () => await listInteractive())  // éléments de la WebView
-> await webViewInfo()                             // { url, visible: 'visible'|'hidden', title }
-> await $('~Notifications').click()               // tester un locator natif
-> await inWebContext(async () => {                // tester un locator WebView
-    const el = await findRole('link', /Notifications/i)
-    await el.click()
-  })
-> await saveScreenshot('inbox-empty')             // → /tmp/inbox-empty.png
-> .exit                                           // ou Ctrl-C deux fois
-```
-
-Recopier les locators validés dans `src/pages/locators/*.locators.ts` — jamais un locator non
-testé dans le REPL ou en run complet.
-
-**Autres outils utiles** : `chrome://inspect/#devices` dans Chrome pendant une session
-`browser.debug()` inspecte visuellement la WebView Android. **Appium Inspector** (app desktop),
-connecté sur `localhost:4724`, inspecte le contexte natif iOS. `logLevel: 'debug'` dans
-`wdio.base.conf.ts` affiche chaque commande Appium — à ne pas commiter. `wdio repl` (CLI
-standalone) est déconseillé pour AMI : il faudrait redéclarer toutes les capabilities à la main, et
-l'app ne serait pas dans son état post-login — toujours préférer `browser.debug()` dans un test scratch.
-
-Sur iOS, ne jamais appeler `driver.switchContext('NATIVE_APP')` au milieu du flow FranceConnect —
-voir [CONTRIBUTING.md §4](CONTRIBUTING.md#4-webview-et-contextes). Si `listInteractive()` retourne
-une liste vide en WebView alors que la page est visuellement rendue (AX tree iOS périmé après un
-redirect), appeler `await refreshAxTree()` puis relister.
+**Autres outils utiles** : `chrome://inspect/#devices` dans Chrome inspecte visuellement la WebView
+Android ; **Appium Inspector** (app desktop), connecté sur `localhost:4724`, inspecte le contexte natif
+iOS. `logLevel: 'debug'` dans `wdio.base.conf.ts` affiche chaque commande Appium — à ne pas commiter.
 
 ### Débogage webapp
 

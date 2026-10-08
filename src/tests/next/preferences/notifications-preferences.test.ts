@@ -12,13 +12,13 @@ describe('Préférences — réglages des notifications', () => {
     await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - usager FranceConnect connecté (getAppToStartingState())
-    //   - contenu exact de l'écran à inspecter via `just inspect` avant d'écrire les assertions (non observé en détail)
+    //   - contenu exact de l'écran à inspecter via `just explore` + `snapshot -i` avant d'écrire les assertions (non observé en détail)
   })
 
   it.skip("accède au sous-écran Notifications depuis Plus > Préférences", async () => {
     // 1. Naviguer vers Plus > Préférences
     // 2. Ouvrir l'entrée "Notifications"
-    // 3. Vérifier l'arrivée sur le bon écran (route/heading à déterminer via just inspect)
+    // 3. Vérifier l'arrivée sur le bon écran (route/heading à déterminer via just explore + snapshot -i)
   })
 
   // À CONFIRMER avant implémentation : la destination du bouton "Gérer" en haut à droite de

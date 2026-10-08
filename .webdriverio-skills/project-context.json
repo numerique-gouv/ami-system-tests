@@ -17,7 +17,6 @@
       "connectionRetryTimeout": 120000,
       "connectionRetryCount": 3,
       "mochaOptsTimeout": 120000,
-      "mochaOptsTimeoutDebug": "24h si WDIO_DEBUG=1",
       "specFileRetries": 0
     },
     {
@@ -142,7 +141,6 @@
     "ANDROID_SDK_ROOT",
     "IOS_DEVICE_NAME",
     "RUN_OLD_DEVICE",
-    "WDIO_DEBUG",
     "WEBAPP_HEADLESS",
     "WEB_APP_ACCESS_KEYS",
     "NOTIF_PARTNER_ID",
@@ -167,6 +165,6 @@
     "Le modèle du site (websiteModel ci-dessus) doit être lu par les skills de planification/investigation avant toute nouvelle exploration du site",
     "Tests webapp: 12 fichiers dans src/tests/webapp (authentication, navigation, accueil, agenda, services, suivi, notifications, profil, preferences, aide-contact, deconnexion, erreurs), mis en place le 2026-10-02",
     "Le nom accessible d'un bouton de la SPA peut différer de son texte visible (aria-label) — vérifier le DOM rendu avant de choisir un sélecteur par nom",
-    "Chromedriver: si WDIO échoue au téléchargement, just fix-chromedriver <version exacte de Chrome>; WDIO_DEBUG=1 pour dépasser le timeout Mocha de 120 s"
+    "Chromedriver: si WDIO échoue au téléchargement, just fix-chromedriver <version exacte de Chrome>"
   ]
 }

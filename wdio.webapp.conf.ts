@@ -1,4 +1,3 @@
-import fs from 'fs'
 import path from 'path'
 import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
@@ -6,19 +5,12 @@ import { baseConfig } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
-import { registerReplHelpers } from './src/helpers/repl'
 import { handleAccessKeyCookie } from './src/helpers/access-code'
 import { setBackendUrl } from './src/helpers/notifications-api'
 
 const log = logger('config')
 
 const { webappUrl, apiUrl } = resolveEnvironment()
-
-// Chrome for Testing épinglé (fichier .chrome-version, mis à jour via `just update-chrome`) :
-// WDIO télécharge ce Chrome ET le chromedriver apparié, indépendamment du Chrome installé sur la
-// machine — évite de retélécharger/casser à chaque auto-mise à jour de Chrome (patch parfois non
-// publié côté chromedriver).
-const chromeVersion = fs.readFileSync(path.resolve(__dirname, '.chrome-version'), 'utf8').trim()
 
 // Pas de picker natif en webapp (cf. resolveEnvironment) pour déclencher setBackendUrl()
 // comme EnvironmentPickerPage.reviewEnvironmentPicker() le fait côté mobile — on le fixe
@@ -47,7 +39,6 @@ export const config: Options.Testrunner = {
   capabilities: [
     {
       browserName: 'chrome',
-      browserVersion: chromeVersion,
       webSocketUrl: true,
       'goog:chromeOptions': {
         args: headless ? ['--headless=new'] : [],
@@ -80,10 +71,8 @@ export const config: Options.Testrunner = {
   // Pas de service Appium — session Chrome pilotée directement par WebdriverIO/Chromedriver.
   services: [],
   before: async (): Promise<void> => {
-    // Compose avec le before() partagé (registerReplHelpers, cf. wdio.base.conf.ts) plutôt que
-    // de le dupliquer ou de le remplacer — la navigation initiale + capture du handle sont
-    // spécifiques à la webapp (pas de notion d'onglet côté Appium/mobile), donc gérées ici.
-    registerReplHelpers()
+    // La navigation initiale et la capture du window handle sont spécifiques à la webapp (pas de notion
+    // d'onglet côté Appium/mobile) : gérées ici.
     // Authenticator virtuel WebDriver (spec WebAuthn niveau 2) : sans lui, tout appel
     // navigator.credentials.create()/.get() — qu'il vienne d'un clic explicite sur "Ajouter
     // une clé d'accès" ou d'une offre automatique de Chrome après une connexion par mot de

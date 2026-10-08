@@ -16,7 +16,9 @@ just test-webapp                                    # tests webapp, Chrome visib
 just test-webci                                     # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*" # un ou plusieurs fichiers (glob)
 just test-android-suite CI                          # suite nommée (test-suites.ts), idem test-ios-suite / test-webapp-suite / test-webci-suite
-just inspect                                        # explorer la WebView (auto-détecte Android ou iOS via le seul appareil connecté)
+just explore webapp "/#/agenda"                     # session d'exploration (webapp | android | ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
+just debug webapp src/tests/webapp/agenda.test.ts   # test figé à son premier échec (session debug-0-0), puis `just s debug-0-0 snapshot -i`
+just doctor                                         # diagnostic de l'environnement (Node, Appium, SDK, simulateurs)
 just open-report                                    # générer et ouvrir le rapport Allure
 ```
 
@@ -85,7 +87,7 @@ src/
     locators/
       *.locators.ts        # sélecteurs par plateforme + fonction getXxxLocators()
   scripts/
-    *.ts                   # scripts CLI lancés via just (inspect-webview, push-notification)
+    *.ts                   # scripts CLI lancés via just (push-notification)
   tests/
     mobile/*.test.ts        # scénarios Mocha Android + iOS
     webapp/*.test.ts        # scénarios Mocha webapp
@@ -114,8 +116,6 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 **POM 3 niveaux** : les tests n'importent que les page objects ; les pages appellent `getXxxLocators()` à chaque méthode ; les locators exposent `androidXxx`, `iosXxx`, `getXxxLocators()` (dispatch `driver.isIOS`).
 
 **Règle `await`** : `await` uniquement devant `expect(wdioElement)` (matchers expect-webdriverio) ou devant les appels retournant une Promise. Jamais devant `expect(string|boolean|number)`.
-
-**Pas de `browser.pause` comme sync** : remplacer par `waitUntil`, `waitForDisplayed`, ou `waitForClickable`.
 
 **Abstraction de plateforme (`src/platform/`)** : `platform()` retourne un `PlatformAdapter` (android, ios ou webapp) qui isole les points de couplage mobile — `inWebContext()` (atteindre le DOM de la SPA), `isWebContextAvailable()`, `refreshAxTree()`, `pullToRefresh()`, `fcButtonIsNative`. Sur webapp, `inWebContext()` est quasi-identité (la session est déjà ce contexte).
 

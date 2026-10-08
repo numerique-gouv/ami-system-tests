@@ -103,9 +103,7 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 | `wdio.android.conf.ts` / `wdio.ios.conf.ts` / `wdio.webapp.conf.ts` (`onPrepare`, etc.) | `config`      |
 | Autres `helpers/*.ts` appelés en session                        | `helper`      |
 
-**Exception : scripts CLI et REPL hors session de test.** `src/scripts/*.ts` (lancés via `just` en dehors d'une suite WDIO, ex. `push-notification.ts`, `inspect-webview.ts`) ainsi que
-`src/helpers/repl.ts` et `src/helpers/inspect.ts` (sortie destinée à un humain dans le REPL
-`browser.debug()`) restent en `console.*` : `@wdio/logger` n'apporte rien hors du flux WDIO/Allure, et cette sortie est un affichage terminal direct, pas un log de scénario.
+**Exception : scripts CLI hors session de test.** `src/scripts/*.ts` (lancés via `just` en dehors d'une suite WDIO, ex. `push-notification.ts`) restent en `console.*` : `@wdio/logger` n'apporte rien hors du flux WDIO, et cette sortie est un affichage terminal direct, pas un log de scénario.
 
 ---
 
@@ -130,7 +128,7 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 
 ### `data-testid` : dernier recours documenté
 
-Avant d'ajouter un `data-testid`, essayer `clickRole`/`waitForRole`/`waitForPageText` (rôle, nom, texte) et ne basculer que si cette requête échoue **réellement**. Documenter alors l'échec observé en commentaire à côté du champ (pas « structure observée via `just inspect` »). Deux cas justifiés : rôle+nom dupliqués sur la page, ou texte imprévisible (contenu dynamique).
+Avant d'ajouter un `data-testid`, essayer `clickRole`/`waitForRole`/`waitForPageText` (rôle, nom, texte) et ne basculer que si cette requête échoue **réellement**. Documenter alors l'échec observé en commentaire à côté du champ (pas « structure observée via l'inspection »). Deux cas justifiés : rôle+nom dupliqués sur la page, ou texte imprévisible (contenu dynamique).
 
 ### Classes CSS : DSFR oui, Svelte hashé non
 
@@ -144,7 +142,7 @@ Les primitives par texte ou libellé (`waitForPageText`, `fillByLabel`) font un 
 await fillByLabel(/Nom d.usage/, newValue)   // `.` matche `'` comme `’`
 ```
 
-Cas sans regex possible (sélecteur WDIO natif `button=`…) : copier l'apostrophe exacte depuis le DOM rendu (`just inspect`), jamais la retaper, et documenter le caractère en commentaire (ex. `franceconnect-mire.locators.ts`).
+Cas sans regex possible (sélecteur WDIO natif `button=`…) : copier l'apostrophe exacte depuis le DOM rendu (`just webview <cible>` ou `just s <cible> find`), jamais la retaper, et documenter le caractère en commentaire (ex. `franceconnect-mire.locators.ts`).
 
 ### Écran natif
 
@@ -376,10 +374,10 @@ La configuration du reporter (`outputDir`, `disableWebdriverStepsReporting`, `ad
 
 ## 10. Règles de débogage
 
-- **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just inspect`) plutôt que deviner un sélecteur « qui devrait marcher ».
+- **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just explore <cible>` puis `just s <cible> snapshot -i`) plutôt que deviner un sélecteur « qui devrait marcher ».
 - **Ne jamais commiter un locator ou un workaround qui n'a pas été validé** en exécution réelle. Un commit de workaround hypothétique casse silencieusement un autre cas. Tester d'abord, puis commiter avec un message qui décrit le **pourquoi** (bug WKRDP, AX tree périmé, etc.), pas seulement le *quoi*.
 - **Toggles de debug** (`logLevel: 'info'`, `specFileRetries: 0`) : tolérés commités tant que la suite est en développement actif, pour faciliter le diagnostic quotidien. `wdio.base.conf.ts` est aujourd'hui à
   `logLevel: 'warn'` / `specFileRetries: 0`.
 - Avant toute session de débogage approfondie, regarder le dernier rapport Allure et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
 
-La boucle d'inspection interactive (`browser.debug()`, REPL, `listInteractive()`) et le détail des commandes `just` sont documentés dans le [README](README.md).
+La boucle d'exploration (`wdio session` : `just explore`, `just s`, `just webview`, `just explore-export`, `just debug`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).

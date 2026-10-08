@@ -16,8 +16,8 @@ Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — 
 - `analyze-website` — webapp model (routes, components, importance). Delegate the entire webapp exploration to it, do not re-implement it here.
 - `managing-project-customizations` — refresh `.webdriverio-skills/project-context.*`/`custom-rules.md` when stale, and read them as the baseline before starting.
 - `creating-test-structure` — scaffold new coverage gaps into `src/tests/next/<domain>/`.
-- `writing-webdriverio-code` — only once a locator has been validated live (`just inspect` or the disposable script below) — never write implementation code from the model alone.
-- `running-webdriverio-tests` — execution, translated through the Project Command Mapping below (this project forbids `npm`/`npx`/`appium` in direct calls, see CLAUDE.md).
+- `writing-webdriverio-code` — only once a locator has been validated live (`just explore <target>` + `just s <target> snapshot -i` / `just webview <target>`, or the disposable script below) — never write implementation code from the model alone.
+- `running-webdriverio-tests` — execution, translated through the Project Command Mapping below (the `just` targets are the documented entry points; direct calls work too, see CLAUDE.md).
 - Does **not** delegate: capturing native (non-WebView) screens. No skill in the pack does this — the disposable-script method below is this skill's own value-add.
 
 ## When to Use
@@ -69,7 +69,7 @@ Do not skip these even in an otherwise autonomous run — they are the seam betw
 
 Reprise de CLAUDE.md § Documentation, non négociable :
 - Never infer actors or relationships not directly observed; mark them "non confirmé" in a dedicated section instead.
-- Never commit a locator that hasn't been validated live (`just inspect`, or a capture from the disposable script) — a plausible-looking selector derived only from the model is not evidence.
+- Never commit a locator that hasn't been validated live (`just explore` + `snapshot`, or a capture from the disposable script) — a plausible-looking selector derived only from the model is not evidence.
 - Every claim in the model or the process doc traces to either a screenshot/DOM capture with a date, or an exact file path in the code.
 
 ## Project Command Mapping
@@ -84,7 +84,7 @@ This section is self-contained (works even if `.webdriverio-skills/project-conte
 | `wdio.conf.js` | `wdio.base.conf.ts` (shared) + `wdio.{android,ios,webapp}.conf.ts` (per platform) |
 | generic lint/typecheck | `just check-code` |
 | report generation | `just open-report` (or `just report` to regenerate) |
-| DOM/native tree inspection | `just inspect` |
+| DOM/native tree inspection | `just explore <target>` then `just s <target> snapshot -i` · `just webview <target>` |
 
 The `just` targets are the documented entry points for humans (CLAUDE.md); the underlying tools may also be called directly.
 

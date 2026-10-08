@@ -5,7 +5,7 @@ _Template initial généré par `managing-project-customizations` le 2026-09-08.
 ## Sélecteurs
 
 - Préférer les sélecteurs stables DOM/accessibilité (`findRole`, `findText`, etc., cf. `src/helpers/spa.ts`) plutôt que des valeurs codées en dur (ex. éviter `/suivi` en dur ou la traversée arbitraire de `parentElement`).
-- Inspecter le HTML réellement rendu (`just inspect`) avant de choisir une stratégie de sélecteur.
+- Inspecter le HTML réellement rendu (`just explore <cible>` puis `just s <cible> snapshot -i`) avant de choisir une stratégie de sélecteur.
 - Cf. `CONTRIBUTING.md §2` et l'ADR `docs/adr/2026-07-09-Strategie-de-selection-des-elements.md` pour le raisonnement complet.
 
 ## Conventions de nommage/structure

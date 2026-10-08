@@ -70,83 +70,6 @@ clean-install:
     just install-appium-drivers
     @echo "✅ node_modules reconstruit."
 
-# Pré-installe Chrome for Testing + chromedriver (version de `.chrome-version`) dans `.cache/`.
-# Contourne WDIO : son extraction (`extract-zip`) ne se termine pas sous Node 26 — le process quitte
-# en plein dépaquetage (« unsettled top-level await », exit 13), laisse un dossier à moitié extrait
-# (sans l'exécutable) et WDIO conclut « All providers failed ». `unzip` système n'a pas ce défaut.
-# Idempotent : ne fait rien si les exécutables sont déjà là. macOS uniquement (sinon WDIO se charge de tout).
-_ensure-chrome:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    [ "$(uname -s)" = "Darwin" ] || exit 0
-    if [ "$(uname -m)" = "arm64" ]; then TAG="mac_arm"; PLATFORM="mac-arm64"; else TAG="mac_x64"; PLATFORM="mac-x64"; fi
-    VERSION=$(tr -d '[:space:]' < .chrome-version)
-    install() { # nom exécutable-relatif
-        local name="$1" exe="$2" dir=".cache/$1/${TAG}-${VERSION}"
-        if [ -x "$dir/$exe" ]; then return 0; fi
-        echo "📥 $name $VERSION → $dir"
-        rm -rf "$dir"; mkdir -p "$dir"
-        local zip; zip=$(mktemp -t "$name").zip
-        curl -fSL -o "$zip" "https://storage.googleapis.com/chrome-for-testing-public/${VERSION}/${PLATFORM}/${name}-${PLATFORM}.zip"
-        unzip -q "$zip" -d "$dir"
-        rm -f "$zip"
-        xattr -dr com.apple.quarantine "$dir" 2>/dev/null || true
-        [ -x "$dir/$exe" ] || { echo "❌ $name : exécutable absent après extraction ($dir/$exe)" >&2; exit 1; }
-    }
-    install chrome "chrome-${PLATFORM}/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
-    install chromedriver "chromedriver-${PLATFORM}/chromedriver"
-
-# Version de Chrome for Testing utilisée par les tests webapp (fichier `.chrome-version`, lu par
-# wdio.webapp.conf.ts). WDIO télécharge ce Chrome + le chromedriver apparié dans `.cache/` (une
-# seule fois) — le Chrome installé sur la machine et ses mises à jour automatiques sont ignorés.
-# Sans argument : affiche la version épinglée, les versions disponibles par canal, et signale
-#                 celles plus récentes que l'épinglée.
-# Avec une version : l'épingle (ex. `just update-chrome 156.0.8078.4`), vérifie qu'elle est publiée
-#                 pour cette plateforme ; le téléchargement a lieu au prochain `just test-webapp*`.
-update-chrome version="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ "$(uname -m)" = "arm64" ]; then PLATFORM="mac-arm64"; else PLATFORM="mac-x64"; fi
-    PINNED=$(tr -d '[:space:]' < .chrome-version)
-    VERSION="{{version}}"
-
-    if [ -n "$VERSION" ]; then
-        curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
-            | node -e "
-                const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-                const v = data.versions.find(v => v.version === '$VERSION');
-                const ok = k => v?.downloads[k]?.some(d => d.platform === '$PLATFORM');
-                if (!ok('chrome') || !ok('chromedriver')) {
-                    console.error('❌ $VERSION : Chrome + chromedriver non publiés pour $PLATFORM (cf. just update-chrome sans argument).');
-                    process.exit(1);
-                }
-            "
-        echo "$VERSION" > .chrome-version
-        echo "✅ Chrome for Testing épinglé : $PINNED → $VERSION (téléchargé au prochain test webapp)"
-        echo "   Pense à relancer la suite webapp, puis à commiter .chrome-version."
-        exit 0
-    fi
-
-    echo "📌 Version épinglée : $PINNED"
-    echo
-    curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" \
-        | node -e "
-            const pinned = '$PINNED';
-            const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-            const ok = (c, k) => c.downloads[k]?.some(d => d.platform === '$PLATFORM');
-            const cmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number);
-                for (let i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
-            console.log('Versions disponibles ($PLATFORM, chrome + chromedriver) :');
-            for (const [name, c] of Object.entries(data.channels)) {
-                if (!ok(c, 'chrome') || !ok(c, 'chromedriver')) continue;
-                const d = cmp(c.version, pinned);
-                const tag = d === 0 ? '(= épinglée)' : d > 0 ? '⬆ plus récente' : '(plus ancienne)';
-                console.log('  ' + name.padEnd(7) + c.version.padEnd(18) + tag);
-            }
-            console.log();
-            console.log('Pour changer : just update-chrome <version>   (Stable recommandée)');
-        "
-
 # Afficher les dépendances dépassées (sans modifier package.json)
 check-deps:
     npx npm-check-updates
@@ -319,7 +242,7 @@ test-ios-suite suite: _require-dotenv start-ios
 
 # Lancer les tests E2E webapp (CI) — Chrome headless, pas d'émulateur/simulateur à démarrer
 # Usage : just test-webci [glob…]   — un ou plusieurs globs de fichiers (optionnels)
-test-webci *globs="": _require-dotenv _ensure-chrome
+test-webci *globs="": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🌐 Tests E2E webapp (headless)…"
@@ -335,7 +258,7 @@ test-webci *globs="": _require-dotenv _ensure-chrome
 
 # Lancer les tests E2E webapp (CI) avec une suite nommée (session partagée — auth une seule fois)
 # Usage : just test-webci-suite <suite>   ex: just test-webci-suite all
-test-webci-suite suite: _require-dotenv _ensure-chrome
+test-webci-suite suite: _require-dotenv
     WDIO_SUITE={{suite}} npm run test:webapp
 
 # Lancer les tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver
@@ -346,7 +269,7 @@ test-webci-suite suite: _require-dotenv _ensure-chrome
 # 20s avec un message explicite plutôt qu'un hang silencieux, cf. ENSURE_APP_WINDOW_TIMEOUT_MS
 # dans src/platform/browser.adapter.ts).
 # Usage : just test-webapp [glob…]   — un ou plusieurs globs de fichiers (optionnels)
-test-webapp *globs="": _require-dotenv _ensure-chrome
+test-webapp *globs="": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🌐 Tests E2E webapp (Chrome visible)…"
@@ -362,66 +285,125 @@ test-webapp *globs="": _require-dotenv _ensure-chrome
 
 # Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (session partagée — auth une seule fois)
 # Usage : just test-webapp-suite <suite>   ex: just test-webapp-suite all
-test-webapp-suite suite: _require-dotenv _ensure-chrome
+test-webapp-suite suite: _require-dotenv
     WEBAPP_HEADLESS=false WDIO_SUITE={{suite}} npm run test:webapp
 
-# ─── Inspection / Reporting ─────────────────────────────────────────────────
+# ─── Exploration et débogage (wdio session, WebdriverIO 10) ─────────────────
+# Une session `wdio session` survit à la commande qui l'a ouverte (arrêt après 30 min d'inactivité) : on enchaîne
+# de petites commandes. Cycle : explore → snapshot → actions → explore-export → test. Voir
+# `.claude/skills/wdio-session/SKILL.md` et `docs/process/migration-wdio-10.md` §4.
 
-# Lister les éléments interactifs de la WebView courante (sans réinitialiser l'app).
-# Détecte automatiquement la plateforme : exactement un appareil Android OU un simulateur iOS doit être connecté.
-# Usage : just inspect              → inspecte l'écran courant
-#         just inspect /notifications → navigue vers /#/notifications puis inspecte
-inspect:
+# Ouvre une session d'exploration sur une cible : webapp (Chrome), android ou ios.
+# - webapp : pose le cookie `access_key` comme wdio.webapp.conf.ts (valeur de WEB_APP_ACCESS_KEYS, jamais
+#   affichée) puis ouvre la route demandée de la SPA de l'environnement AMI_ENV.
+# - android / ios : l'appareil doit déjà tourner (`just start-android` / `just start-ios`) ; l'app est ouverte
+#   sans réinitialisation (--no-reset) : la connexion en cours est conservée. L'app apparaît d'abord sur
+#   le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView
+#   (`just s <cible> contexts`, puis `exec`). En Android hybride, `snapshot` lit l'arbre natif.
+# La SPA route par hash : la route d'une page est `/#/agenda` (à entourer de guillemets).
+# Usage : just explore webapp   |   just explore webapp "/#/agenda"   |   just explore ios
+explore target="webapp" route="/": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
-    ADB="{{ android_sdk }}/platform-tools/adb"
-    export ANDROID_SDK_ROOT="{{ android_sdk }}"
-    export ANDROID_HOME="{{ android_sdk }}"
+    S="npx wdio session -s {{ target }}"
+    mask() { awk -v k="${WEB_APP_ACCESS_KEYS:-}" '{ while (length(k) > 0 && (i = index($0, k)) > 0) $0 = substr($0, 1, i-1) "***" substr($0, i + length(k)); print }'; }
+    case "{{ target }}" in
+      webapp)
+        env="${AMI_ENV:-}"
+        if [[ "$env" =~ ([0-9]+) ]]; then origin="https://ami-back-staging-pr${BASH_REMATCH[1]}.osc-fr1.scalingo.io"; else origin="https://ami-back-staging.osc-fr1.scalingo.io"; fi
+        [ -n "${WEB_APP_ACCESS_KEYS:-}" ] || { echo "❌ WEB_APP_ACCESS_KEYS absent de .env.local (cf. gabarit .env)"; exit 3; }
+        $S open chrome "$origin/favicon.ico" --replace --no-snapshot --launch-timeout 240000 2>&1 | mask
+        $S exec -e 'await browser.setCookies({name: "access_key", value: process.env.WEB_APP_ACCESS_KEYS, expiry: Math.floor(Date.now() / 1000) + 7 * 24 * 3600})' 2>&1 | mask
+        $S navigate "$origin{{ route }}" 2>&1 | mask
+        ;;
+      android)
+        udid="$("{{ android_sdk }}/platform-tools/adb" devices | awk '/\tdevice$/{print $1; exit}')"
+        [ -n "$udid" ] || { echo "❌ aucun appareil Android : lance « just start-android »"; exit 3; }
+        $S open android --app "$(cd .. && pwd)/ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk" --package {{ app_id }} --udid "$udid" --no-reset --replace --launch-timeout 240000 < /dev/null 2>&1
+        ;;
+      ios)
+        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/AMI-Production.app" --bundle-id {{ app_id }} --device "{{ ios_simulator }}" --platform-version "${IOS_PLATFORM_VERSION:-27.0}" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
+        ;;
+      *) echo "cible inconnue « {{ target }} » (webapp | android | ios)"; exit 2 ;;
+    esac
+    echo
+    echo "── Et maintenant (session « {{ target }} ») ──────────────────────────────"
+    echo "  just s {{ target }} snapshot -i          éléments interactifs, avec leurs refs (e1, e2…)"
+    echo "  just s {{ target }} click e3             agir sur une ref ; le diff de la page s'affiche"
+    echo "  just s {{ target }} find \"texte\"         retrouver un élément par son texte"
+    echo "  just s {{ target }} logs --errors        erreurs console causées par la dernière action"
+    echo "  just explore-export <nom> {{ target }}   transformer les étapes en test (exports/<nom>.e2e.ts)"
+    echo "  just explore-close {{ target }}          fermer la session"
 
-    ANDROID_DEVICE=$("$ADB" devices 2>/dev/null | awk '/\tdevice$/{print $1}' | head -1 || true)
-    IOS_DEVICE=$(xcrun simctl list devices booted 2>/dev/null \
-        | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1 || true)
+# Lance une action `wdio session` sur la session d'une cible, ou sur un test en pause (debug-0-0).
+# Usage : just s webapp click e3   |   just s webapp fill e4 "Passeport biométrique"   |   just s debug-0-0 snapshot -i
+[positional-arguments]
+s target *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    t="$1"; shift
+    npx wdio session -s "$t" "$@"
 
-    if [ -n "$ANDROID_DEVICE" ] && [ -n "$IOS_DEVICE" ]; then
-        echo "❌ Android ($ANDROID_DEVICE) ET iOS ($IOS_DEVICE) détectés. Arrête-en un avec 'just stop-android' ou 'just stop-ios'."
-        exit 1
-    fi
-    if [ -z "$ANDROID_DEVICE" ] && [ -z "$IOS_DEVICE" ]; then
-        echo "❌ Aucun appareil détecté. Lance 'just start-android' ou 'just start-ios'."
-        exit 1
-    fi
+# Liste les sessions ouvertes (dont un test en pause : debug-0-0).
+sessions:
+    npx wdio session list
 
-    if [ -n "$ANDROID_DEVICE" ]; then
-        PLATFORM=android
-        echo "🤖 Appareil Android détecté : $ANDROID_DEVICE"
-        # Android 16 (API 36) : un IAccessibilityServiceClient résiduel (Maestro ou run précédent)
-        # bloque la connexion UiAutomation avec "already registered" / "id=-1".
-        # Force-stop tous les packages susceptibles d'avoir laissé un client enregistré.
-        "$ADB" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
-        "$ADB" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
-        "$ADB" shell am force-stop dev.mobile.maestro 2>/dev/null || true
-        "$ADB" shell am force-stop dev.mobile.maestro.test 2>/dev/null || true
-        # Réveiller l'écran (KEYCODE_WAKEUP=224) sans interagir avec l'app au premier plan.
-        # Ne pas utiliser keyevent 4 (BACK) : il naviguerait dans l'app et ferait perdre la page en cours.
-        "$ADB" shell input keyevent 224
-        sleep 1
-        # --allow-insecure active le téléchargement automatique de Chromedriver (requis WebView Android)
-        APPIUM_EXTRA_ARGS="--allow-insecure uiautomator2:chromedriver_autodownload"
-    else
-        PLATFORM=ios
-        echo "🍎 Simulateur iOS détecté : $IOS_DEVICE"
-        APPIUM_EXTRA_ARGS=""
-    fi
+# Écrit les étapes de la session en spec Mocha (code WDIO réellement exécuté, sélecteurs stables).
+# À relire puis ranger dans un Page Object et src/tests/<domaine>/ (cf. CONTRIBUTING.md).
+# Usage : just explore-export agenda-evenements webapp   →   exports/agenda-evenements.e2e.ts
+explore-export name target="webapp":
+    mkdir -p exports
+    npx wdio session -s {{ target }} export --out exports/{{ name }}.e2e.ts --title "{{ name }}"
+    @echo "→ exports/{{ name }}.e2e.ts"
 
-    echo "🔍 Démarrage Appium sur le port 4723…"
-    # shellcheck disable=SC2086
-    npm run appium:start -- --port 4723 $APPIUM_EXTRA_ARGS </dev/null &
-    APPIUM_PID=$!
-    trap "kill $APPIUM_PID 2>/dev/null || true" INT TERM EXIT
-    sleep 5
-    echo "🔍 Inspection de la WebView en cours ($PLATFORM)…"
-    npx ts-node --project tsconfig.json src/scripts/inspect-webview.ts "$PLATFORM"
-    kill $APPIUM_PID 2>/dev/null || true
+# Ferme la session d'une cible.
+explore-close target="webapp":
+    npx wdio session -s {{ target }} close
+
+# Liste les éléments interactifs du DOM de la WebView d'une session ouverte avec `just explore`.
+# Sert surtout sur mobile : en Android hybride, `snapshot` lit l'arbre natif et plante après `contexts switch`
+# (constaté le 2026-10-08, WDIO 10.0.1), alors que `exec` lit bien le DOM. Bascule seule sur la WebView, puis
+# revient en natif. Sans WebView (sélecteur d'environnement, écran natif), utiliser `just s <cible> snapshot -i`.
+# Usage : just webview android   |   just webview ios   |   just webview webapp
+webview target="webapp":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    npx wdio session -s {{ target }} exec <<'JS'
+    (async () => {
+      if (browser.isMobile) {
+        const web = (await browser.getContexts()).map(c => typeof c === 'string' ? c : c.id).find(c => c.startsWith('WEBVIEW'))
+        if (!web) { console.log('Aucune WebView : écran natif (just s <cible> snapshot -i).'); return }
+        await browser.switchContext(web)
+      }
+      const rows = await browser.execute(() => {
+        const sel = 'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [role=radio], [role=switch], [role=menuitem], h1, h2, h3'
+        const seen = new Set()
+        return Array.from(document.querySelectorAll(sel)).filter(el => el.getClientRects().length > 0).map(el => {
+          const labelled = el.getAttribute('aria-labelledby')
+          const name = el.getAttribute('aria-label') || (labelled ? labelled.split(' ').map(i => document.getElementById(i)?.textContent || '').join(' ') : '') || (el.textContent || '').trim() || el.value || el.title || ''
+          const role = el.getAttribute('role') || el.tagName.toLowerCase()
+          return role + '  «' + name.replace(/\s+/g, ' ').trim().slice(0, 70) + '»' + (el.id ? '  #' + el.id : '')
+        }).filter(r => !seen.has(r) && seen.add(r))
+      })
+      console.log(rows.length + ' éléments interactifs ou titres dans la WebView :')
+      for (const r of rows) console.log('  ' + r)
+      if (browser.isMobile) await browser.switchContext('NATIVE_APP')
+    })()
+    JS
+
+# Lance un test et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook
+# (`before all`) ne déclenche pas la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i,
+# just s debug-0-0 screenshot, just s debug-0-0 resume.
+# Usage : just debug webapp src/tests/webapp/agenda.test.ts   |   just debug ios src/tests/mobile/profile.test.ts
+debug target spec: _require-dotenv
+    npx wdio run wdio.{{ target }}.conf.ts --spec {{ spec }} --debug=agent
+
+# Diagnostic de l'environnement : Node, navigateurs, Appium et drivers, SDK Android, simulateurs.
+# Les croix « cloud » (BrowserStack…) et « desktop » (windows, mac2) ne nous concernent pas.
+# Usage : just doctor   |   just doctor android
+doctor target="":
+    #!/usr/bin/env bash
+    npx wdio session doctor {{ target }} || echo "→ Les ✖ cloud (BrowserStack…) et desktop (mac2, windows) sont sans objet ici ; seuls node, appium, android-sdk et simctl comptent."
 
 # Générer et ouvrir le rapport Allure du dernier run.
 # Si `folder` est un fichier, il doit s'agir d'une archive .zip (ex. artifact CI téléchargé

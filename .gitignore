@@ -23,7 +23,7 @@ apps/
 .playwright-mcp/
 build/
 
-# cache des navigateurs/drivers téléchargés par WDIO (Chrome for Testing, cf. .chrome-version)
+# cache des navigateurs/drivers téléchargés par WDIO (Chrome for Testing)
 .cache/
 
 # campagnes d'analyse d'instabilité (skill analyzing-test-flakiness)
@@ -36,3 +36,5 @@ __pycache__/
 
 # macOS
 .DS_Store
+.wdio/
+exports/

@@ -24,7 +24,7 @@ Avant toute tâche de planification de test (`creating-test-structure`) ou d'inv
 
 | Fichier | Rôle |
 |---|---|
-| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms (24h si `WDIO_DEBUG=1`), `specFileRetries` 0, reporters `spec` + `allure` (`outputDir: allure-results`, `addConsoleLogs: true`) |
+| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms, `specFileRetries` 0, reporters `spec` + `allure` (`outputDir: allure-results`, `addConsoleLogs: true`) |
 | `wdio.android.conf.ts` | capabilities Android, service Appium port 4723 |
 | `wdio.ios.conf.ts` | capabilities iOS, service Appium port 4724 |
 | `wdio.webapp.conf.ts` | capabilities Chrome, `baseUrl` dérivée de `AMI_ENV` via `resolveEnvironment()`, pas de service Appium |
@@ -57,7 +57,7 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 | `wdio.conf.js` | `wdio.base.conf.ts` (partagé) + `wdio.{android,ios,webapp}.conf.ts` (par plateforme) |
 | lint/typecheck générique | `just check-code` |
 | génération de rapport | `just open-report` (ou `just report` pour régénérer) |
-| exploration DOM/inspection | `just inspect` |
+| exploration DOM/inspection | `just explore <cible>` puis `just s <cible> snapshot -i` · `just webview <cible>` |
 
 ## Conventions de code (lint)
 
@@ -84,7 +84,7 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 
 ## Variables d'environnement (noms uniquement — jamais de valeurs)
 
-`AMI_ENV`, `ANDROID_DEVICE_NAME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `IOS_DEVICE_NAME`, `RUN_OLD_DEVICE`, `WDIO_DEBUG`, `WEBAPP_HEADLESS`, `WEB_APP_ACCESS_KEYS`, `NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET` (les deux derniers via `requireEnv()` dans `notifications-api.ts`, jamais loggés).
+`AMI_ENV`, `ANDROID_DEVICE_NAME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `IOS_DEVICE_NAME`, `RUN_OLD_DEVICE`, `WEBAPP_HEADLESS`, `WEB_APP_ACCESS_KEYS`, `NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET` (les deux derniers via `requireEnv()` dans `notifications-api.ts`, jamais loggés).
 
 Rappel projet : ne jamais lire `.env.local` ni afficher ses valeurs, y compris via un outil.
 
@@ -104,4 +104,4 @@ Rappel projet : ne jamais lire `.env.local` ni afficher ses valeurs, y compris v
 
 12 fichiers, un par parcours usager : `authentication`, `navigation`, `accueil`, `agenda`, `services`, `suivi`, `notifications`, `profil`, `preferences`, `aide-contact`, `deconnexion`, `erreurs`. Chaque fichier s'authentifie seul (`getAppToStartingState()`), les actions mutantes (profil, déconnexion) restaurent l'état en `after()`. Les liens sortants (service-public.gouv.fr, demarche.numerique.gouv.fr) ne sont jamais suivis : seule leur présence est testée.
 
-Commandes utiles : `just test-webci` (tous, headless), `just test-webapp "<glob>"` (Chrome visible). Chrome for Testing est épinglé dans `.chrome-version` (la recette `_ensure-chrome`, appelée par les `just test-web*`, installe Chrome + chromedriver dans `.cache/` avec `unzip` — l'extraction de WDIO plante sous Node 26 —, indépendamment du Chrome installé) ; `just update-chrome` liste les versions disponibles, `just update-chrome <version>` change l'épinglage. Pour un script d'exploration long (> 120 s), `WDIO_DEBUG=1` porte le timeout Mocha à 24 h (`this.timeout()` dans un `it` n'est pas pris en compte).
+Commandes utiles : `just test-webci` (tous, headless), `just test-webapp "<glob>"` (Chrome visible). Chrome pour les tests webapp est choisi et téléchargé par WDIO 10 dans `.cache/` (aucun épinglage : ni `.chrome-version` ni recette `update-chrome`). Pour un script d'exploration long (> 120 s)`this.timeout()` dans un `it` n'est pas pris en compte).
