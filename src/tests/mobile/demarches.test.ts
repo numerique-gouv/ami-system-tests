@@ -5,6 +5,9 @@ import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
+import logger from '@wdio/logger'
+
+const log = logger('test')
 
 /**
  * Cycle de vie d'une démarche partenaire dans l'app AMI.
@@ -29,7 +32,8 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
     after(async () => {
         try {
             await SuiviDemarchesPage.goToHome()
-        } catch { /* session déjà terminée */
+        } catch (err) { // session déjà terminée ?
+            log.warn('after : retour accueil impossible (session déjà terminée ?)', err)
         }
     })
 

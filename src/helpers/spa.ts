@@ -1,9 +1,10 @@
+import logger from '@wdio/logger'
 import {platform} from '../platform'
 import {findLabel, findRole, findRoleNames, findRoles, findTestId, findText, queryRole} from './dom-query'
 import type {FindOptions, RoleOptions} from './dom-query'
 
 /**
- * Primitives communes aux Page Objects de la SPA (WebView/webapp), sans Testing Library. La SPA navigue
+ * Primitives communes aux Page Objects de la SPA (WebView/webapp). La SPA navigue
  * exclusivement par <button> (aucun <a href> interne, vérifié le 2026-10-02) : tout passe par le
  * nom accessible (CONTRIBUTING.md §2).
  *
@@ -18,6 +19,8 @@ import type {FindOptions, RoleOptions} from './dom-query'
 export type WaitOptions = FindOptions
 
 export {findLabel, findRole, findRoleNames, findRoles, findTestId, findText, queryRole}
+
+const log = logger('helper')
 
 const DEFAULT_TIMEOUT = 10000
 
@@ -75,13 +78,15 @@ export async function clickButton(name: string | RegExp, timeout = DEFAULT_TIMEO
  * perte est avérée (re-rendu concurrent) — observé sur « Services » (checklists, 3 échecs sur 5 en
  * campagne du 2026-10-06). Le bouton absent prouve le clic sans que la page d'origine connaisse la suivante.
  */
-export async function clickButtonUntilGone(name: string | RegExp, timeout = 10000): Promise<void> {
+export async function clickButtonUntilGone(name: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await platform().inWebContext(async () => {
     await findRole('button', name, {timeout})
     await browser.waitUntil(async () => {
       const button = await queryRole('button', name).catch(() => null)
       if (!button) return true
-      await button.click().catch(() => {})
+      await button.click().catch((err: Error) => {
+        log.warn(`clickButtonUntilGone : clic sur "${name}" en échec (${err.message})`)
+      })
       return false
     }, {
       timeout, interval: 500,
@@ -108,9 +113,9 @@ export async function waitForButtons(names: Array<string | RegExp>, timeout = 15
  * quand plusieurs dialogues portent le même bouton (ex. « Fermer »). La portée « dans ce dialogue » est
  * résolue dans la même exécution que la recherche du bouton (option `in`).
  */
-export async function clickButtonInDialog(dialogName: string | RegExp, buttonName: string | RegExp): Promise<void> {
+export async function clickButtonInDialog(dialogName: string | RegExp, buttonName: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await platform().inWebContext(async () => {
-    const button = await findRole('button', buttonName, {timeout: 10000, in: {role: 'dialog', name: dialogName}})
+    const button = await findRole('button', buttonName, {timeout, in: {role: 'dialog', name: dialogName}})
     await button.waitForClickable({timeout: 5000})
     await button.click()
   })
@@ -140,7 +145,7 @@ export async function pageText(): Promise<string> {
 }
 
 /** Attend qu'un élément dont le texte contient `text` soit visible (sentinelle de rendu). */
-export async function waitForPageText(text: string | RegExp, timeout = 10000): Promise<void> {
+export async function waitForPageText(text: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await platform().inWebContext(async () => {
     await findText(text, {timeout, exact: typeof text === 'string' ? false : undefined})
   })

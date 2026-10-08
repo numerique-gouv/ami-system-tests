@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import type { Options } from '@wdio/types'
+import logger from '@wdio/logger'
 import { baseConfig } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
@@ -8,6 +9,8 @@ import { captureAppWindow } from './src/platform/browser.adapter'
 import { registerReplHelpers } from './src/helpers/repl'
 import { handleAccessKeyCookie } from './src/helpers/access-code'
 import { setBackendUrl } from './src/helpers/notifications-api'
+
+const log = logger('config')
 
 const { webappUrl, apiUrl } = resolveEnvironment()
 
@@ -99,8 +102,8 @@ export const config: Options.Testrunner = {
     // click…) échouent en "move target out of bounds" dès qu'un élément sort de cette zone.
     await browser.setWindowSize(deviceMetrics.width, deviceMetrics.height)
     // Équivalent webapp du lancement automatique de l'app mobile via les capabilities.
-    // Les mobiles commenent sur une première page (review picker, login, home)
-    // Cette première navigation vers home ammène les scenario en webapp sur les mêmes endroits que les senarios mobiles.
+    // Les mobiles commencent sur une première page (sélecteur d'environnement, login, accueil).
+    // Cette première navigation vers l'accueil place les scénarios webapp au même endroit que les scénarios mobiles.
     // On en profite pour valider le code d'accès (gate window.prompt() côté SPA) — sans passer
     // par le popup : handleAccessKeyCookie() pose directement le cookie access_key en amont,
     // ce qui couvre ensuite toute la session (cookie navigateur, pas besoin de le rejouer).
@@ -121,7 +124,7 @@ export const config: Options.Testrunner = {
   // src/platform/browser.adapter.ts).
   after: async (result): Promise<void> => {
     if (!headless && result === 0) {
-      await browser.closeWindow().catch(() => {})
+      await browser.closeWindow().catch(err => log.warn('closeWindow a échoué (fenêtre déjà fermée ?)', err))
     }
   },
 } as Options.Testrunner

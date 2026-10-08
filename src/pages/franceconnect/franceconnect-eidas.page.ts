@@ -31,7 +31,9 @@ class FranceConnectEidasPage {
      * authentifier directement (session SSO déjà ouverte), sans demander eIDAS ni identifiants.
      */
     async waitForEidasTile(timeout = 15000): Promise<boolean> {
-        return await browser.waitUntil(() => this.isEidasVisible(), {timeout, interval: 500})
+        return await browser.waitUntil(() => this.isEidasVisible(), {
+            timeout, interval: 500, timeoutMsg: `Mire eIDAS non affichée après ${timeout}ms`,
+        })
             .then(() => true).catch(() => false)
     }
 

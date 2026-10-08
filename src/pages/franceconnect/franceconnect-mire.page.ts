@@ -102,7 +102,7 @@ class FranceConnectMirePage {
      * détecte bien un <button> "FranceConnect" dans le DOM). Android tente donc d'abord le natif
      * en best-effort (log si absent), puis retombe sur le même chemin WebView que les autres
      * plateformes plutôt que de dépendre d'un dispatch figé.
-     * Cet écran peut apparaitre une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC.
+     * Cet écran peut apparaître une 2e fois (sur iOS) à cause d'une concurrence dans la gestion d'OIDC.
      */
     async tapFranceConnect(isOkToFail = false): Promise<void> {
         // Retry court en Page Object (5s) : distingue le cas attendu (2e apparition du bouton,
@@ -122,9 +122,8 @@ class FranceConnectMirePage {
                     }
                     return displayed
                 },
-                {timeout: 3000, interval: 500}
-            ).catch(() => {
-            })
+                {timeout: 3000, interval: 500, timeoutMsg: 'Bouton FranceConnect natif non affiché après 3000ms (Android)'}
+            ).catch((err: unknown) => log.debug('tapFranceConnect : bouton natif non tapé (Android)', err))
             if (tapped) {
                 log.info('btn natif FC trouvé et tap effectif (Android, écran natif) !!!')
                 // CIBLE : UN SEUL tap. Le 2e tap (page de login de la SPA « Me connecter à AMI », avec son propre
@@ -151,7 +150,7 @@ class FranceConnectMirePage {
                 }
                 return
             }
-            log.info('bouton FranceConnect natif introuvable (Android) — tentative en WebView')
+            log.warn('ANOMALIE FranceConnect (Android) : bouton natif absent, bouton rendu par la SPA — tentative en WebView')
         }
 
         await this.tapFranceConnectInWebView(isOkToFail, timeout)
@@ -167,7 +166,7 @@ class FranceConnectMirePage {
             try {
                 await browser.waitUntil(
                     () => this.isFranceConnectTextVisible(),
-                    {timeout, interval: 300}
+                    {timeout, interval: 300, timeoutMsg: `Bouton FranceConnect non affiché après ${timeout}ms`}
                 )
                 const fcButton = await findRole('button', /^S.identifier avec FranceConnect$/i)
                 await fcButton.click()
@@ -179,22 +178,18 @@ class FranceConnectMirePage {
                     browser.getUrl(),
                 ]).catch(() => ['?', '?'])
                 log.warn(`Pas de bouton FranceConnect affiché (title="${title}", url="${url}") — session FC déjà ouverte ?`)
-                const bodyText = await driver.execute(() => document.body.innerText).catch(() => '') as string
-                const errorCode = bodyText.match(FC_ERROR_CODE_PATTERN)?.[1]
-                if (errorCode) {
-                    const providerId = bodyText.match(FC_ERROR_ID_PATTERN)?.[1]
-                    // Panne/instabilité du sandbox externe FCP-LOW, pas un cas applicatif toléré
-                    // (cf. isOkToFail ci-dessous). Remonte une erreur typée plutôt qu'un throw
-                    // direct : l'appelant (hors inWebContext, donc de retour en NATIVE_APP) doit
-                    // encore faire un retour natif avant que l'échec ne remonte à
-                    // authenticate.process.ts pour reprise de la séquence.
-                    throw new FranceConnectProviderError(errorCode, providerId, url)
-                }
+                // Panne/instabilité du sandbox externe FCP-LOW, pas un cas applicatif toléré
+                // (cf. isOkToFail ci-dessous). Remonte une erreur typée plutôt qu'un throw
+                // direct : l'appelant (hors inWebContext, donc de retour en NATIVE_APP) doit
+                // encore faire un retour natif avant que l'échec ne remonte à
+                // authenticate.process.ts pour reprise de la séquence.
+                const providerError = await this.detectProviderErrorBare()
+                if (providerError) throw providerError
                 const message = "bouton de connexion avec FranceConnect introuvable"
                 if (isOkToFail) {
-                    // when this message stops appearing with iOS,
-                    // than the second call to tapFranceConnect will have become useless.
-                    log.info(message)
+                    // Quand ce message n'apparaît plus sur iOS, le 2e appel à tapFranceConnect
+                    // sera devenu inutile.
+                    log.warn(`ANOMALIE FranceConnect (iOS) : 2e passage sans bouton FranceConnect à taper (${message})`)
                 } else {
                     throw new AssertionError({message})
                 }
@@ -230,7 +225,10 @@ class FranceConnectMirePage {
             log.warn(`ANOMALIE (app) : la WebView est restée sur "${href}" après une déconnexion ; rechargement de la racine de la SPA pour atteindre #/login`)
             await browser.url(new URL('/', href).href)
             return true
-        }).catch(() => false)
+        }).catch((err: unknown) => {
+            log.warn('reloadSpaRootIfLoggedOut a échoué', err)
+            return false
+        })
     }
 }
 

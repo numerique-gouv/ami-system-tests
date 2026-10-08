@@ -14,6 +14,8 @@ class NavigationPage {
     /** Navigue directement vers une route (ex. `/network-error`) sans recharger la SPA. */
     async goToRoute(route: string): Promise<void> {
         await platform().inWebContext(async () => {
+            // driver.execute : aucun bouton ne mène à ces routes (ex. /network-error) — les primitives de
+            // spa.ts ne suffisent pas, navigation directe par hash.
             await driver.execute((r: string) => { window.location.hash = r }, route)
         })
     }

@@ -7,25 +7,19 @@ import type { Locator } from './types'
  *
  * Stratégie :
  *   screenRoot → sélecteur natif qui détecte la présence du conteneur WebView
- *   userAvatarCss → sélecteur CSS DOM (dans WEBVIEW_*) qui confirme que la SPA
- *                   home est authentifiée et chargée (#notification-icon toujours
- *                   présent sur le home — confirmé par Appium Inspector).
  */
 export interface HomeLocators {
   screenRoot:    Locator  // Natif : conteneur WebView
-  userAvatarCss: Locator  // WebView CSS : sentinel SPA home authentifiée
 }
 
 export const androidHomeLocators: HomeLocators = {
   // UiSelector sur la classe du conteneur WebView (seul identifiant natif disponible)
   screenRoot:    'android=new UiSelector().className("android.webkit.WebView")',
-  userAvatarCss: '#notification-icon',
 }
 
 export const iosHomeLocators: HomeLocators = {
   // XCUITest : type WebView natif
   screenRoot:    '//XCUIElementTypeWebView',
-  userAvatarCss: '#notification-icon',
 }
 
 /**

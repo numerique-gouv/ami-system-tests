@@ -2,6 +2,9 @@ import {getEnvironmentPickerLocators} from '../locators/franceconnect/environmen
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
 import {setBackendUrl} from '../../helpers/notifications-api'
+import logger from '@wdio/logger'
+
+const log = logger('page-object')
 
 class EnvironmentPickerPage {
     /**
@@ -21,7 +24,7 @@ class EnvironmentPickerPage {
      * Le picker apparaît uniquement sur les builds staging avec plusieurs review apps.
      *
      * Étape 1 — détecte si l'écran picker est affiché : attend l'item "Staging" (toujours
-     * en tête de liste). Si absent après 15 s → build sans picker, retour silencieux.
+     * en tête de liste). Si absent après 10 s → build sans picker, retour silencieux.
      *
      * Étape 2 — scroll jusqu'à l'item AMI_ENV et cliquer. Si l'item cible est introuvable
      * malgré le scroll, l'erreur se propage (configuration AMI_ENV incorrecte).
@@ -32,11 +35,9 @@ class EnvironmentPickerPage {
 
         const picker = $(loc.environmentPicker)
         await this.scrollToPickerTile(picker)
-        //await picker.waitForDisplayed({timeout: 5000})
         const title = await picker.getText()
         setBackendUrl(reviewTitleToApiUrl(title))
         await picker.click()
-        //await picker.waitForDisplayed({timeout: 1000, reverse: true})
     }
 
     /**
@@ -48,10 +49,11 @@ class EnvironmentPickerPage {
         const {width, height} = await driver.getWindowSize()
         await browser.waitUntil(
             async () => {
-                try {
-                    if (await selector.isDisplayed()) return true
-                } catch { /* tile hors du viewport ou liste encore en chargement */
-                }
+                // Tile hors du viewport ou liste encore en chargement : isDisplayed() vaut false.
+                if (await selector.isDisplayed().catch((err: unknown) => {
+                    log.warn('scrollToPickerTile : isDisplayed a échoué', err)
+                    return false
+                })) return true
                 await driver.action('pointer', {parameters: {pointerType: 'touch'}})
                     .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.7)})
                     .down({button: 0})

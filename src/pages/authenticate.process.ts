@@ -95,8 +95,8 @@ async function detectCurrentScreen(): Promise<FcScreen | null> {
 
 /**
  * La séquence fonctionne bien en général.
- * A chaque essai, on part de là ou on est et on essaye de finir le process.
- * Un échec ici remonte tel quel à l'appelant,
+ * À chaque essai, on part de là où on est et on essaye de finir le process.
+ * Un échec remonte à getAppToStartingState, qui re-détecte l'écran et relance.
  */
 async function runSequenceFrom(startScreen: FcScreen, user: TestUser): Promise<void> {
     const startIndex = FC_SCREEN_SEQUENCE.findIndex(([screen]) => screen === startScreen)
@@ -114,7 +114,7 @@ const MAX_ATTEMPTS = FC_SCREEN_SEQUENCE.length + 1
 
 interface AuthenticateOptions {
     // Fournit le consentement partenaire par défaut, y compris si l'utilisateur était déjà
-    // authentifié (avant de tous les tests). Mettre à false pour tester un scénario sans
+    // authentifié (avant tous les tests). Mettre à false pour tester un scénario sans
     // consentement AMI.
     grantConsent?: boolean
 }
@@ -145,10 +145,12 @@ export async function getAppToStartingState({grantConsent: shouldGrantConsent = 
                 log.warn(`getAppToStartingState: écran non reconnu (dernier connu : ${lastScreen}), tentative de retour vers Home au cas où nous serions déjà connectés (essai ${attempts}/${MAX_ATTEMPTS})`)
                 // Webapp : après un logout, forcer le hash `#/` ne fait pas rediriger la SPA vers `#/login`
                 // (page vide, `?is_logged_out`) — seul un chargement complet de la racine le fait.
-                if (platform().kind === 'webapp') await browser.url('/').catch(() => {})
+                if (platform().kind === 'webapp') {
+                    await browser.url('/').catch((err: unknown) => log.warn('getAppToStartingState: browser.url(\'/\') a échoué', err))
+                }
                 // best-effort : un échec ici est revu par une nouvelle détection au tour suivant.
-                await HomePage.goToHomeFromAnywhere(5000).catch(() => {
-                })
+                await HomePage.goToHomeFromAnywhere(5000).catch((err: unknown) =>
+                    log.warn('getAppToStartingState: retour vers Home a échoué', err))
                 continue
             }
             lastScreen = screen

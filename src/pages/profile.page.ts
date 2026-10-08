@@ -93,11 +93,14 @@ class ProfilePage {
             // (+page.svelte) mais le rendu de la carte peut encore être en cours juste après
             // l'arrivée sur la page — on attend que le HTML de la section soit identique sur deux
             // lectures rapprochées avant de lire les <b>, plutôt que d'exiger `>0` balise (qui
-            // traiterait une adresse légitimement vide comme un échec, cf. CONTRIBUTING.md §4).
+            // traiterait une adresse légitimement vide comme un échec, cf. CONTRIBUTING.md §5).
             let previousHtml: string | null = null
             await browser.waitUntil(
                 async () => {
-                    const html = await $(loc.addressSection).getHTML({includeSelectorTag: false}).catch(() => null)
+                    const html = await $(loc.addressSection).getHTML({includeSelectorTag: false}).catch((ex) => {
+                        log.warn('getAddressBolds: lecture du HTML de la section « Mon adresse » en échec, on retente', ex)
+                        return null
+                    })
                     const stable = html !== null && html === previousHtml
                     previousHtml = html
                     return stable
@@ -138,6 +141,8 @@ class ProfilePage {
     async navigateToProfileDirect(): Promise<void> {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
+            // driver.execute : pas de bouton menant au profil depuis une page d'édition ou après un échec —
+            // les primitives de spa.ts ne suffisent pas, navigation directe par hash.
             await driver.execute(() => {
                 window.location.hash = '/profile'
             })
@@ -174,8 +179,8 @@ class ProfilePage {
      * Ouvre le formulaire d'édition du nom d'usage, saisit la valeur, enregistre,
      * et attend le retour sur la page profil.
      *
-     * Pattern : driver.execute pour les sentinelles de navigation (nav active = executeAsync tué),
-     * findRole/findLabel pour les interactions sur la page stable (sémantique + résiliente aux refactorings DOM).
+     * Pattern : findTestId pour le bouton « Modifier » et le conteneur du formulaire, findRole/findLabel
+     * pour les interactions sur la page stable (sémantique + résiliente aux refactorings DOM).
      */
     async editPreferredUsername(newValue: string): Promise<void> {
         const loc = getProfileLocators()
@@ -212,7 +217,7 @@ class ProfilePage {
 
             await findTestId(loc.editContainerTestId, {timeout: 5000})
 
-            // Label "E-mail" — libellé observé dans l'APK staging (différent du code source Svelte)
+            // Label "E-mail" — libellé observé sur le build staging (différent du code source Svelte)
             const input = await findLabel('E-mail')
             await input.setValue(newValue)
 

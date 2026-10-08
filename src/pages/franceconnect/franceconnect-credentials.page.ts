@@ -31,8 +31,8 @@ class FranceConnectCredentialsPage {
     async fillCredentials(user: TestUser): Promise<void> {
         await platform().inWebContext(async () => {
             try {
-                // synchrone, survit à une navigation en cours (cf. commentaire selectEidasFaible
-                // dans franceconnect-eidas.page.ts).
+                // La sonde passe par driver.execute (synchrone, sans élément en cache) : elle survit
+                // à une navigation en cours, contrairement à une requête d'élément.
                 await browser.waitUntil(
                     () => this.isCredentialsPageTextVisibleBare(),
                     {
@@ -42,17 +42,14 @@ class FranceConnectCredentialsPage {
                     }
                 )
                 const idField = await findLabel(/identifiant/i)
-                //await idField.scrollIntoView()
                 await idField.clearValue()
                 await idField.setValue(user.login)
                 const pwdField = await findLabel(/mot de passe/i)
-                //await pwdField.scrollIntoView()
                 await pwdField.clearValue()
                 await pwdField.setValue(user.password)
                 // pas de fallback driver.execute nécessaire ici (cf. franceconnect-credentials.locators.ts).
                 const submitBtn = await findRole('button', /valider/i)
                 await submitBtn.click()
-                //await submitBtn.waitForDisplayed({timeout: 15000, reverse: true})
             } catch {
                 // Best-effort : la session FC peut déjà être ouverte (cf. franceconnect-eidas.page.ts
                 // selectEidasFaible). Loggé quand même — une vraie erreur d'interaction (champ/bouton

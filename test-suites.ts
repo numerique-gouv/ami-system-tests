@@ -16,33 +16,33 @@ const r = (p: string) => path.resolve(__dirname, p)
  * authentifié avant les autres specs (WDIO déduplique si le glob le couvre aussi).
  *
  * Ajouter une suite : une nouvelle entrée string[][] suffit, sans toucher aux configs WDIO.
+ *
+ * Chaque scénario doit être capable de s'authentifier seul pour être lancé en solo.
+ * Donc, si vous voulez tester l'authentification dans votre suite, ils doivent être placés en premier :
+ * dès qu'un autre fichier de test passe, vous serez déjà authentifié.
  */
 export const testSuites: Record<string, string[][]> = {
-    /**
-     * Chaque scénario doit être capable de s'authentifier seul pour être lancé en solo.
-     * Donc, si vous voulez tester l'authentification dans votre suite, ils doivent être placés en premiers.
-     * Dès qu'un autre fichier de test passe, vous serez déjà authentifiés
-     */
     /** Tous les tests en session partagée — auth une seule fois. */
     all: [[
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
     ]],
-    
+
     mobile_all: [[
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
     ]],
-    
+
     webapp_all: [[
         r('src/tests/webapp/authentication.test.ts'),
         r('src/tests/webapp/**/*.test.ts'),
     ]],
-    
-    /** short suite to shorten CI debug **/
+
+    /** Suite courte pour raccourcir le débogage en CI. */
     short: [[
         r('src/tests/mobile/authentication.test.ts'),
-    ]], 
+    ]],
+
     /** Smoke suite CI : authentification + scénarios critiques uniquement. */
     CI: [[
         r('src/tests/mobile/authentication.test.ts'),
@@ -51,17 +51,15 @@ export const testSuites: Record<string, string[][]> = {
         r('src/tests/mobile/profile.test.ts'),
     ]],
 
-    /** Tous les tests d'authentifications en session séparées. */
+    /** Tous les tests d'authentification en session séparée. */
     auth: [[
         r('src/tests/mobile/authentication.test.ts'),
-//  ],[
-//    r('src/tests/mobile/authentication_2.test.ts'),
-    ],
-    ],
+    ]],
+
     api: [[
         r('src/tests/mobile/notifications.test.ts'),
         r('src/tests/mobile/demarches.test.ts'),
-    ]]
+    ]],
 }
 
 /**

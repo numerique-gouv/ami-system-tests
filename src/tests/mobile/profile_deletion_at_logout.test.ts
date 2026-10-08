@@ -2,30 +2,31 @@ import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
+import logger from '@wdio/logger'
+
+const log = logger('test')
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
-// l'adresse était remonté de la caf qui implique une limitation légale, on l'écarte des tests en attendant un COJUR sur ce sujet.
+// L'adresse, remontée de la Caf, implique une limitation légale : elle est écartée des tests en attendant un COJUR.
 const MODIFICATIONS = {
   preferredUsername: 'NOMTEST',
   email: 'testdemiseajour@yopmail.com',
-//  addressQuery: '20 avenue de Ségur Paris',
 }
 
-describe('Profil usager — suppression des modifications au déconnexion', () => {
+describe('Profil usager — suppression des modifications à la déconnexion', () => {
   // Données initiales capturées dynamiquement — non codées en dur.
   // Initialisées dans le before() pour refléter l'état réel du compte au moment du test.
   let original: {
     identityBolds: string[]
     preferredUsername: string  // extrait du displayName pour restauration after()
     email: string
-//    addressBolds: string[]
   }
 
   before(async () => {
     await AllureReporter.addEpic('Profil usager')
     await AllureReporter.addFeature('Profil usager — suppression au logout')
-    await AllureReporter.addStory('Restauration des données au déconnexion/reconnexion')
+    await AllureReporter.addStory('Restauration des données à la déconnexion/reconnexion')
     await AllureReporter.addSeverity('critical')
     await AllureReporter.addTag('franceconnect')
 
@@ -42,7 +43,6 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
       identityBolds,
       preferredUsername,
       email: await ProfilePage.getEmailBold(),
-//      addressBolds: await ProfilePage.getAddressBolds(),
     }
   })
 
@@ -50,15 +50,11 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     // Restauration best-effort : protège le compte si le test échoue avant le logout.
     // Sans cela, les données modifiées resteraient et pollueraient les runs suivants.
     if (!original) return
-//    const restoreAddressQuery = original.addressBolds.filter(Boolean).join(' ')
-    try { await ProfilePage.navigateToProfileDirect() } catch { /* silencieux */ }
-    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch { /* silencieux */ }
-    try { await ProfilePage.editEmail(original.email) } catch { /* silencieux */ }
+    try { await ProfilePage.navigateToProfileDirect() } catch (err) { log.warn('after : retour au profil impossible', err) }
+    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch (err) { log.warn('after : restauration du nom d\'usage impossible', err) }
+    try { await ProfilePage.editEmail(original.email) } catch (err) { log.warn('after : restauration de l\'email impossible', err) }
     // Adresse originale vide (compte sans adresse Caf) : rien à restaurer, la reconnexion FranceConnect
     // a déjà ramené l'adresse à cet état vide — appeler editAddress('') échouerait dans l'autocomplétion BAN.
-//    if (restoreAddressQuery) {
-//      try { await ProfilePage.editAddress(restoreAddressQuery) } catch { /* silencieux */ }
-//    }
   })
 
   it('modifie le nom d\'usage', async () => {
@@ -76,12 +72,14 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     expect(await ProfilePage.getEmailBold()).toBe(MODIFICATIONS.email)
   })
 
+  // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).
+  // Corps conservé pour la réactivation (ProfilePage.editAddress / getAddressBolds à rétablir).
   it.skip('modifie l\'adresse', async () => {
     await AllureReporter.addStep('Modifier l\'adresse via autocomplétion BAN')
-//    await ProfilePage.editAddress(MODIFICATIONS.addressQuery)
+    // await ProfilePage.editAddress('20 avenue de Ségur Paris')
 
-//    const bolds = await ProfilePage.getAddressBolds()
-//    expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
+    // const bolds = await ProfilePage.getAddressBolds()
+    // expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
   })
 
   it('se déconnecte via le menu plus', async () => {
@@ -114,20 +112,13 @@ describe('Profil usager — suppression des modifications au déconnexion', () =
     expect(email).not.toBe(MODIFICATIONS.email)
   })
 
+  // Désactivé en attendant le COJUR. Attendu : pour un compte sans adresse Caf, l'état original est
+  // l'absence d'adresse (à vérifier explicitement, pas seulement l'absence de « Ségur »).
   it.skip('affiche l\'adresse originale (pas la valeur modifiée)', async () => {
     await AllureReporter.addStep('Vérifier que l\'adresse est restaurée')
-//    const bolds = await ProfilePage.getAddressBolds()
-//    if (original.addressBolds.length === 0) {
-      // Compte sans adresse Caf (donnée tierce vide par conception) : l'état original est
-      // l'absence d'adresse — vérifier ce fait explicitement, pas seulement l'absence de "Ségur"
-      // (une assertion sur "Ségur" seul passerait aussi si une autre adresse non vide s'affichait
-      // par erreur).
-//      expect(bolds).toEqual([])
-//    } else {
-//      for (const expected of original.addressBolds) {
-//        expect(bolds).toContain(expected)
-//      }
-//      expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(false)
-//    }
+    // const bolds = await ProfilePage.getAddressBolds()
+    // Compte sans adresse Caf : l'état original est l'absence d'adresse — vérifier ce fait explicitement,
+    // pas seulement l'absence de « Ségur » (qui passerait aussi si une autre adresse s'affichait par erreur).
+    // expect(bolds).toEqual([])
   })
 })

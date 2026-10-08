@@ -10,10 +10,6 @@ import SuiviDemarchesPage from '../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import type {PlusEntry, TabName} from '../../pages/locators/navigation.locators'
 
-/**
- * Navigation principale : barre basse (Accueil, Agenda, Services, Suivi) et menu « Plus ».
- * Lecture seule : aucune donnée du compte n'est modifiée.
- */
 /** Vérification d'arrivée de chaque page « onglet », portée par la page destination. */
 const tabArrival: Record<Exclude<TabName, 'Accueil'>, () => Promise<void>> = {
   Agenda: () => AgendaPage.assertDisplayed(),
@@ -30,6 +26,10 @@ const plusEntryArrival: Record<PlusEntry, () => Promise<void>> = {
   'Accessibilité': async () => { await AideContactPage.legalSections('Accessibilité') },
 }
 
+/**
+ * Navigation principale : barre basse (Accueil, Agenda, Services, Suivi) et menu « Plus ».
+ * Lecture seule : aucune donnée du compte n'est modifiée.
+ */
 describe('Navigation principale', () => {
   before(async function () {
     this.timeout(180000)

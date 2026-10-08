@@ -1,14 +1,16 @@
 import AllureReporter from '@wdio/allure-reporter'
 import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
+import logger from '@wdio/logger'
+
+const log = logger('test')
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le hook after() restaure les valeurs d'origine après chaque passage.
-// l'adresse était remonté de la caf qui implique une limitation légale, on l'écarte des tests en attendant un COJUR sur ce sujet.
+// L'adresse, remontée de la Caf, implique une limitation légale : elle est écartée des tests en attendant un COJUR.
 const MODIFICATIONS = {
   preferredUsername: 'NOMTEST',
   email: 'testdemiseajour@yopmail.com',
-//  addressQuery: '20 avenue de Ségur Paris',
 }
 
 describe('Profil usager — vérification des données (Mon profil)', () => {
@@ -17,7 +19,6 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     identityBolds: string[]
     preferredUsername: string  // extrait du displayName pour la restauration after()
     email: string
-//    addressBolds: string[]
   }
 
   before(async () => {
@@ -40,7 +41,6 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
       identityBolds,
       preferredUsername,
       email: await ProfilePage.getEmailBold(),
-//      addressBolds: await ProfilePage.getAddressBolds(),
     }
   })
 
@@ -48,15 +48,11 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     // Restauration best-effort : chaque étape est indépendante pour éviter
     // qu'un échec partiel laisse le compte dans un état incohérent.
     if (!original) return
-//    const restoreAddressQuery = original.addressBolds.filter(Boolean).join(' ')
-    try { await ProfilePage.navigateToProfileDirect() } catch { /* silencieux */ }
-    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch { /* silencieux */ }
-    try { await ProfilePage.editEmail(original.email) } catch { /* silencieux */ }
+    try { await ProfilePage.navigateToProfileDirect() } catch (err) { log.warn('after : retour au profil impossible', err) }
+    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch (err) { log.warn('after : restauration du nom d\'usage impossible', err) }
+    try { await ProfilePage.editEmail(original.email) } catch (err) { log.warn('after : restauration de l\'email impossible', err) }
     // Adresse originale vide (compte sans adresse Caf) : rien à restaurer — appeler editAddress('')
     // échouerait dans l'autocomplétion BAN (aucun résultat pour une saisie vide).
-//    if (restoreAddressQuery) {
-//      try { await ProfilePage.editAddress(restoreAddressQuery) } catch { /* silencieux */ }
-//    }
   })
 
   it('permet de modifier le nom d\'usage dans le bloc "Mon identité"', async () => {
@@ -68,13 +64,15 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     expect(bolds.some(b => b.includes(MODIFICATIONS.preferredUsername))).toBe(true)
   })
 
+  // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).
+  // Corps conservé tel quel pour la réactivation (ProfilePage.editAddress / getAddressBolds à rétablir).
   it.skip('permet de modifier l\'adresse dans le bloc "Mon adresse"', async () => {
     await AllureReporter.addStep('Cliquer Modifier et saisir la nouvelle adresse via l\'autocomplétion BAN')
-//    await ProfilePage.editAddress(MODIFICATIONS.addressQuery)
+    // await ProfilePage.editAddress('20 avenue de Ségur Paris')
 
     await AllureReporter.addStep('Vérifier que la nouvelle adresse apparaît dans le profil')
-//    const bolds = await ProfilePage.getAddressBolds()
-    //expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
+    // const bolds = await ProfilePage.getAddressBolds()
+    // expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
   })
 
   it('permet de modifier l\'email dans le bloc "Contact"', async () => {

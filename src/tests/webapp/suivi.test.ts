@@ -5,6 +5,9 @@ import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
+import logger from '@wdio/logger'
+
+const log = logger('test')
 
 /**
  * Suivi des démarches en webapp : cycle de vie d'une démarche partenaire, détail et historique,
@@ -38,7 +41,7 @@ describe('Suivi des démarches', () => {
   })
 
   after(async () => {
-    try { await SuiviDemarchesPage.goToHome() } catch { /* session déjà terminée */ }
+    try { await SuiviDemarchesPage.goToHome() } catch (err) { log.warn('after : retour accueil impossible (session déjà terminée ?)', err) }
   })
 
   it('crée une démarche visible dans le suivi (statut new)', async () => {

@@ -14,10 +14,4 @@ export const agendaLocators = {
   preferencesButtonName: 'Préférences',
   zonesHeading: 'Zones scolaires',
   zonesCloseButtonName: 'Fermer',
-  /** Valeur de l'attribut `name` des cases du sélecteur de zones. */
-  zoneCheckboxNames: [
-    'Zone A', 'Zone B', 'Zone C', 'Corse', 'Guadeloupe', 'Guyane', 'Martinique', 'Mayotte',
-    'Nouvelle Calédonie', 'Polynésie', 'Réunion', 'Saint Pierre et Miquelon', 'Wallis et Futuna',
-  ],
-  cityInputName: 'city-input',
 }
