@@ -11,32 +11,7 @@ import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
 
-/** Délai laissé à la salutation après le geste de navigation vers l'accueil, avant de recharger la SPA. */
-const HOME_AFTER_GESTURE_MS = 5000
-
 class HomePage {
-    /**
-     * Guard d'authentification : navigue vers la home puis attend le sentinel.
-     * Le if/else branche sur le contexte courant — ajouter une branche si la home
-     * passe en natif sans remplacer le WebView (app hybride multi-écrans).
-     *
-     * Utilisé dans les before() pour détecter si la session est déjà authentifiée,
-     * quelle que soit la page sur laquelle le test précédent s'est terminé.
-     */
-    async isHomeReachable(timeout = 5000): Promise<boolean> {
-        if (await platform().isWebContextAvailable()) {
-            try {
-                await this.goToHomeFromAnywhere(timeout)
-            } catch (ex) {
-                log.warn('isHomeReachable: navigation vers la home en échec', ex)
-                return false
-            }
-            return true
-        }
-        // TODO en navigation native, fait des back().
-        return false
-    }
-
     /**
      * Attend que le conteneur WebView natif soit visible.
      * L'app AMI est 100% SPA — pas de resource-id natif, on détecte la WebView elle-même.
@@ -106,6 +81,10 @@ class HomePage {
      * de assertHomeVisible(), réutilisé à la fois comme premier essai et comme re-vérification
      * après chaque étape de la cascade.
      */
+    async isHomeDisplayed(timeout: number): Promise<boolean> {
+        return await this.probeWelcomeText(timeout)
+    }
+
     private async probeWelcomeText(timeout: number): Promise<boolean> {
         try {
             return await platform().inWebContext(async () => {
@@ -196,10 +175,10 @@ class HomePage {
      * Stratégie :
      *   1. clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
      *   2. Fallback hash si aucun lien de nav présent (état de départ inconnu, ex. pas de nav basse).
-     *   3. Si la salutation n'apparaît pas après ce geste (page hors SPA : 404 ou lien externe laissés par
-     *      un test précédent, où le hash n'a aucun effet), recharger la SPA depuis l'origine de la page
-     *      courante — même repli que `SuiviDemarchesPage.retourJusquAPageSuivi()`.
-     *   4. Sentinel : `assertHomeVisible()` (salutation « Bonjour »).
+     *   3. Sentinel : `assertHomeVisible()` (salutation « Bonjour »).
+     *
+     * Ne sert qu'à revenir à l'accueil en cours de scénario. Le reset de début de test (session, page hors
+     * SPA, onboarding) est `getAppToStartingState()`.
      */
     async goToHomeFromAnywhere(timeout: number): Promise<void> {
         await platform().inWebContext(async () => {
@@ -225,17 +204,6 @@ class HomePage {
                 })
             }
         })
-        if (!await this.probeWelcomeText(Math.min(timeout, HOME_AFTER_GESTURE_MS))) {
-            await platform().inWebContext(async () => {
-                const origin = await driver.execute(() => location.origin) as string
-                if (!origin || origin === 'null') {
-                    log.warn('goToHomeFromAnywhere: origine de la page courante inconnue, pas de rechargement de la SPA')
-                    return
-                }
-                log.warn(`goToHomeFromAnywhere: accueil absent après le geste de navigation, rechargement de ${origin}/#/ (page hors SPA ?)`)
-                await browser.url(`${origin}/#/`)
-            })
-        }
         // Comme on part de n'importe où, on ne peut pas détecter qu'on a quitté la page précédente.
         // donc on attend l'arrivée sur la page cible — assertHomeVisible() lève elle-même
         // l'erreur (avec describeCurrentPage()) en cas d'échec.

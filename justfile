@@ -236,8 +236,10 @@ start-ios:
         xcrun simctl boot "{{ ios_simulator }}"
         until xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; do sleep 1; done
         echo "✅ Simulateur prêt."
+        # L'app graphique n'est ouverte qu'au démarrage du simulateur : `open` à chaque appel ajoutait une
+        # fenêtre Device Hub par lancement de test.
+        open -b com.apple.dt.Devices 2>/dev/null || open -a Simulator 2>/dev/null || echo "⚠️  App graphique Simulator.app/DeviceHub.app introuvable — simulateur utilisable en headless via simctl, tests non bloqués."
     fi
-    open -b com.apple.dt.Devices 2>/dev/null || open -a Simulator 2>/dev/null || echo "⚠️  App graphique Simulator.app/DeviceHub.app introuvable — simulateur utilisable en headless via simctl, tests non bloqués."
 
 # Arrêter le simulateur iOS (tous les simulateurs démarrés)
 stop-ios:

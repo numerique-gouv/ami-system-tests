@@ -1,4 +1,5 @@
 import { platform } from '../platform'
+import { maskSensitiveUrl } from './session'
 
 /**
  * Décrit l'écran courant pour enrichir les messages d'erreur (ex. échec de navigation) —
@@ -12,6 +13,6 @@ export async function describeCurrentPage(): Promise<string> {
   return await platform().inWebContext(() =>
     driver.execute(() => location.href) as Promise<string>
   )
-    .then(href => `WebView : ${href}`)
+    .then(href => `WebView : ${maskSensitiveUrl(href)}`)
     .catch(() => 'WebView (URL illisible)')
 }
