@@ -405,38 +405,29 @@ doctor target="":
     #!/usr/bin/env bash
     npx wdio session doctor {{ target }} || echo "→ Les ✖ cloud (BrowserStack…) et desktop (mac2, windows) sont sans objet ici ; seuls node, appium, android-sdk et simctl comptent."
 
-# Générer et ouvrir le rapport Allure du dernier run.
-# Si `folder` est un fichier, il doit s'agir d'une archive .zip (ex. artifact CI téléchargé
-# dans temp/) : elle est décompressée dans un sous-dossier dédié avant l'ouverture du rapport.
-# Usage : just open-report                                    → allure-report/
-#         just open-report temp/allure-report-pr1275-run6.zip → décompresse puis ouvre
-open-report folder="allure-report":
+# Liste les tests en échec du dernier run, ou d'un dossier de dumps (ex. l'artefact d'un run de CI téléchargé) :
+# test, plateforme, appareil, étapes, erreur, URL (jetons masqués) et identifiants Sentry de la SPA. Chaque dossier contient aussi
+# screenshot.png, dom.html (web) ou native-source.xml (natif), interactive.txt et context.json.
+# Le résumé passants/cassés (JUnit XML) est dans test-results/junit/.
+# Usage : just failures   |   just failures temp/test-results-pr1275/failures
+failures dir="test-results/failures":
     #!/usr/bin/env bash
     set -euo pipefail
-    TARGET="{{ folder }}"
-    if [ -f "$TARGET" ]; then
-        case "$TARGET" in
-            *.zip) ;;
-            *)
-                echo "❌ Fichier non supporté (attendu : une archive .zip) : $TARGET" >&2
-                exit 1
-                ;;
-        esac
-        DEST="$(dirname "$TARGET")/$(basename "$TARGET" .zip)"
-        echo "📦 Décompression de $TARGET dans ${DEST}."
-        mkdir -p "$DEST"
-        unzip -q "$TARGET" -d "$DEST"
-        TARGET="$DEST"
-    fi
-    npm run open-report "$TARGET"
-
-# Générer le rapport Allure sans l'ouvrir (CI — `allure open` bloquerait en démarrant un serveur)
-generate-report:
-    rm -rf allure-report && npx allure generate allure-results
-
-# Générer puis ouvrir le rapport Allure du dernier run (usage local uniquement).
-report: generate-report
-    npm run open-report
+    [ -d "{{ dir }}" ] || { echo "Aucun dump dans {{ dir }} (aucun échec, ou aucun run)."; exit 0; }
+    node -e '
+      const fs = require("fs"), path = require("path"), root = process.argv[1]
+      const dirs = fs.readdirSync(root).filter(d => fs.existsSync(path.join(root, d, "context.json"))).sort()
+      if (dirs.length === 0) { console.log("Aucun dump dans " + root); process.exit(0) }
+      for (const d of dirs) {
+        const c = JSON.parse(fs.readFileSync(path.join(root, d, "context.json"), "utf8"))
+        console.log("✖ " + c.test + "  [" + c.platform + (c.device && c.device.deviceName ? " · " + c.device.deviceName : "") + "]  " + c.failedAtUtc)
+        if (c.error) console.log("    erreur : " + String(c.error.message).split("\n")[0].slice(0, 200))
+        if (c.url) console.log("    url    : " + c.url)
+        if (c.steps && c.steps.length) console.log("    étapes : " + c.steps.join(" › "))
+        if (c.sentry) console.log("    sentry : trace " + c.sentry.traceId + " · dernier événement " + c.sentry.lastEventId + " · " + c.sentry.environment)
+        console.log("    dossier: " + path.join(root, d))
+      }
+    ' "{{ dir }}"
 
 # Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).

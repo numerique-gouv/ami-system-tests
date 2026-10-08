@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import AideContactPage from '../../pages/aide-contact.page'
 import HomePage from '../../pages/home.page'
 import NavigationPage from '../../pages/navigation.page'
@@ -12,9 +11,6 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 describe('Aide, contact et pages légales', () => {
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Aide et contact')
-    await AllureReporter.addFeature('Aide, contact et pages légales')
-    await AllureReporter.addSeverity('normal')
     await getAppToStartingState()
   })
 

@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import ProfilePage from '@pages/profile.page'
 import {getAppToStartingState} from '@pages/authenticate.process'
 import logger from '@wdio/logger'
@@ -18,9 +17,6 @@ describe('Profil usager', () => {
 
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Profil usager')
-    await AllureReporter.addFeature('Profil usager')
-    await AllureReporter.addSeverity('normal')
     await getAppToStartingState()
     await ProfilePage.navigate()
     const identityBolds = await ProfilePage.getIdentityBolds()

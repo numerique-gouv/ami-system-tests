@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie l'API de demande de notification exposée par AMI API aux partenaires :
@@ -10,8 +9,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe("Publications partenaires — API de demande de notification entrante", () => {
   before(async () => {
-    await AllureReporter.addFeature('Publications partenaires')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - identifiants Basic Auth d'un partenaire de test (NOTIF_USER / NOTIF_PASS)
     //   - Numéro d'identification d'un usager connu d'AMI

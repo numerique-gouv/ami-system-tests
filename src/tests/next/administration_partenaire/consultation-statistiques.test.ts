@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Rôle requis : `Support`.
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Espace Partenaire — consultation et statistiques', () => {
   before(async () => {
-    await AllureReporter.addFeature('Administration partenaire')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - session ProConnect avec uniquement le rôle Support
   })

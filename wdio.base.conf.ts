@@ -1,10 +1,9 @@
 import type { Options } from '@wdio/types'
 import path from 'path'
-import fs from 'fs'
 import dotenv from 'dotenv'
-import AllureReporter from '@wdio/allure-reporter'
 import logger from '@wdio/logger'
-import { platform } from './src/platform'
+import { dumpFailure } from './src/helpers/failure-dump'
+import { resetSteps } from './src/helpers/report'
 
 const log = logger('scenario')
 
@@ -51,11 +50,21 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   reporters: [
     'spec',
-    ['allure', {
-      outputDir: 'allure-results',
-      disableWebdriverStepsReporting: false, // commandes WDIO bas niveau visibles dans le rapport
-      addConsoleLogs: true,                  // inclut console.log/warn/error — utile pour tracer
-                                              // les context switches et les erreurs réseau côté SPA
+    // JUnit XML : résumé passants/cassés (commentaire de PR et artefact de CI). Un fichier par processus, nommé avec la
+    // plateforme pour que les résultats des trois cibles ne s'écrasent pas quand ils sont fusionnés.
+    ['junit', {
+      outputDir: 'test-results/junit',
+      // La console du worker (nos logs : `-> it`, appels de Page Objects, `step`, avertissements) est placée AVANT les lignes
+      // brutes `COMMAND`/`RESULT` dans le `<system-out>` de chaque test : c'est elle qui raconte le scénario.
+      addWorkerLogs: true,
+      // Par défaut le reporter remplace tout caractère non ASCII par un espace (« Préférences » → « Pr f rences »), ce qui
+      // empêche de relier un test à son dump d'échec : on garde les lettres Unicode.
+      suiteNameFormat: /[^\p{L}\p{N}@]+/u,
+      outputFileFormat: (options: {cid: string, capabilities: unknown}): string => {
+        const caps = options.capabilities as Record<string, unknown>
+        const target = String(caps.platformName ?? caps.browserName ?? 'inconnu').toLowerCase()
+        return `results-${target}-${options.cid}.xml`
+      },
     }],
   ],
 
@@ -83,135 +92,14 @@ export const baseConfig: Partial<Options.Testrunner> = {
     log.info(`  -> ${hookName} : ${test.parent ?? test.title}`)
   },
 
-  beforeTest: async (test): Promise<void> => {
+  beforeTest: (test): void => {
     log.info(`  -> it : ${test.title}`)
-    // Distingue les 3 plateformes dans le rapport Allure fusionné (webapp/android/ios) :
-    // addLabel pour le regroupement/filtrage dans l'UI, addArgument pour que le historyId
-    // diverge — sans ça, des tests de même nom sur 2 plateformes seraient vus comme des
-    // retries l'un de l'autre (même historyId) et écraseraient leur historique mutuel.
-    const platformKind = platform().kind
-    AllureReporter.addLabel('platform', platformKind)
-    await AllureReporter.addArgument('platform', platformKind)
-    // run_old_device : uniquement pertinent pour Android (pixel_2 API 30 vs pixel_8 API 36,
-    // cf. .github/actions/e2e-android/action.yml), et seulement en CI où RUN_OLD_DEVICE est
-    // exporté par le workflow appelant.
-    if (process.env.RUN_OLD_DEVICE !== undefined) {
-      AllureReporter.addLabel('run_old_device', String(process.env.RUN_OLD_DEVICE === 'true'))
-    }
+    resetSteps()
   },
 
+  // Dump systématique d'un test en échec (capture, DOM ou arbre natif, identifiants Sentry…) : voir helpers/failure-dump.ts.
   afterTest: async (test, _context, result): Promise<void> => {
     if (result.passed) return
-    try {
-      const png = await browser.takeScreenshot()
-      await AllureReporter.addAttachment('Screenshot (échec)', Buffer.from(png, 'base64'), 'image/png')
-      // Conserve aussi sur disque pour les workflows hors Allure (CI logs)
-      const dir = path.resolve(__dirname, '.wdio-logs/screenshots')
-      fs.mkdirSync(dir, { recursive: true })
-      const name = test.title.replace(/[^a-z0-9]/gi, '_').slice(0, 80)
-      fs.writeFileSync(path.join(dir, `${name}_${Date.now()}.png`), Buffer.from(png, 'base64'))
-    } catch (err) {
-      log.warn('takeScreenshot a échoué (session Appium fermée ?)', err)
-    }
-    // Captures de débogage selon le contexte courant — sans changement de contexte (évite le blocage iOS ~25 s)
-    try {
-      // En webapp, browser.getContext() n'existe pas (commande Appium absente d'une session
-      // navigateur classique) — la session entière EST déjà le contenu web, pas besoin de sonder.
-      const isWebContent = platform().kind === 'webapp' || await (async () => {
-        const ctx = await browser.getContext()
-        const ctxName = typeof ctx === 'string' ? ctx : ((ctx as { id?: string })?.id ?? '')
-        return ctxName.startsWith('WEBVIEW')
-      })()
-      if (isWebContent) {
-        const html = await browser.getPageSource()
-        await AllureReporter.addAttachment('DOM snapshot (WebView)', html, 'text/html')
-
-        // Éléments interactifs WebView — sélecteurs suggérés (primitives spa.ts)
-        const selectors = await browser.execute((): string[] => {
-          const SELECTOR = [
-            'button:not([disabled])', 'a[href]',
-            'input:not([disabled])', 'select:not([disabled])', 'textarea:not([disabled])',
-            '[role="button"]', '[role="link"]', '[role="menuitem"]',
-            '[role="tab"]', '[role="checkbox"]', '[role="radio"]', '[role="switch"]',
-          ].join(', ')
-          const seen = new Set<string>()
-          const result: string[] = []
-          document.querySelectorAll(SELECTOR).forEach((el) => {
-            const tag = el.tagName.toLowerCase()
-            const role = el.getAttribute('role') ?? ''
-            const ariaLabel = el.getAttribute('aria-label') ?? ''
-            const text = ((el as HTMLElement).textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 60)
-            const placeholder = (el as HTMLInputElement).placeholder ?? ''
-            const inputType = (el as HTMLInputElement).type ?? ''
-            const n = ariaLabel || text || placeholder
-            let s = ''
-            if (tag === 'button' || role === 'button') {
-              s = n ? `findRole('button', '${n}')` : "findRole('button')"
-            } else if (tag === 'a' || role === 'link') {
-              s = n ? `findRole('link', '${n}')` : "findRole('link')"
-            } else if (tag === 'input') {
-              if (inputType === 'checkbox' || role === 'checkbox') s = n ? `findRole('checkbox', '${n}')` : "findRole('checkbox')"
-              else if (inputType === 'radio' || role === 'radio') s = n ? `findRole('radio', '${n}')` : "findRole('radio')"
-              else if (placeholder) s = `findLabel('${placeholder}')`
-              else s = n ? `findRole('textbox', '${n}')` : "findRole('textbox')"
-            } else if (tag === 'select') {
-              s = n ? `findRole('combobox', '${n}')` : "findRole('combobox')"
-            } else if (tag === 'textarea') {
-              s = n ? `findRole('textbox', '${n}')` : "findRole('textbox')"
-            } else if (role) {
-              s = n ? `findRole('${role}', '${n}')` : `findRole('${role}')`
-            } else if (n) {
-              s = `findText('${n}')`
-            }
-            if (s && !seen.has(s)) { seen.add(s); result.push(s) }
-          })
-          return result.slice(0, 40)
-        }) as string[]
-        if (selectors.length > 0) {
-          await AllureReporter.addAttachment('Éléments interactifs (WebView)', selectors.join('\n'), 'text/plain')
-        }
-      } else {
-        // Natif : extrait les éléments cliquables/accessibles depuis le XML Appium
-        const xml = await browser.getPageSource()
-        const lines: string[] = []
-        if (browser.isIOS) {
-          const INTERACTIVE = new Set([
-            'XCUIElementTypeButton', 'XCUIElementTypeTextField',
-            'XCUIElementTypeSecureTextField', 'XCUIElementTypeSwitch',
-            'XCUIElementTypeLink', 'XCUIElementTypeCell',
-          ])
-          for (const m of xml.matchAll(/<(\w+)\s([^>]*?)\/?>/g)) {
-            const [, type, attrs] = m
-            if (!INTERACTIVE.has(type)) continue
-            const accId = attrs.match(/\bname="([^"]+)"/)?.[1] ?? ''
-            const label = attrs.match(/\blabel="([^"]+)"/)?.[1] ?? ''
-            const roleHint = type.replace('XCUIElementType', '')
-            const line = accId
-              ? `~'${accId}'${label && label !== accId ? `  ("${label}")` : ''}  [${roleHint}]`
-              : label ? `findText('${label}')  [${roleHint}]` : null
-            if (line) lines.push(line)
-          }
-        } else {
-          for (const m of xml.matchAll(/<\w[^>]*clickable="true"[^>]*>/g)) {
-            const tag = m[0]
-            const desc = tag.match(/content-desc="([^"]+)"/)?.[1] ?? ''
-            const text = tag.match(/\btext="([^"]+)"/)?.[1] ?? ''
-            const resourceId = tag.match(/resource-id="([^"]+)"/)?.[1] ?? ''
-            const display = desc || text
-            const idSuffix = resourceId.split('/').pop() ?? ''
-            const line = display
-              ? `~'${display}'${idSuffix ? `  (id: ${idSuffix})` : ''}`
-              : resourceId ? `id('${resourceId}')` : null
-            if (line) lines.push(line)
-          }
-        }
-        const unique = [...new Set(lines)].slice(0, 40)
-        if (unique.length > 0) {
-          await AllureReporter.addAttachment('Éléments interactifs (natif)', unique.join('\n'), 'text/plain')
-        }
-      }
-    } catch (err) {
-      log.warn('capture de débogage impossible (contexte perdu ou session fermée ?)', err)
-    }
+    await dumpFailure(test, result.error)
   },
 }

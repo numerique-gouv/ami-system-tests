@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import ErrorPage from '../../pages/error.page'
 import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
@@ -7,9 +6,6 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 describe('Pages d\'erreur', () => {
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Erreurs')
-    await AllureReporter.addFeature("Pages d'erreur")
-    await AllureReporter.addSeverity('minor')
     await getAppToStartingState()
   })
 

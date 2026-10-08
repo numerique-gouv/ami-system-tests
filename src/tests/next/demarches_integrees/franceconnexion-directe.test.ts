@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie le comportement côté partenaire selon qu'il implémente ou non
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Démarches intégrées — FranceConnexion directe chez le partenaire', () => {
   before(async () => {
-    await AllureReporter.addFeature('Démarches intégrées')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - démarche partenaire « avec FC directe » identifiée
     //   - démarche partenaire « sans FC directe » identifiée

@@ -15,9 +15,7 @@ node_modules/
 dist/
 .wdio-logs/
 logs/
-allure-results/
-allure-report/
-.allure/
+test-results/
 *.log
 apps/
 .playwright-mcp/

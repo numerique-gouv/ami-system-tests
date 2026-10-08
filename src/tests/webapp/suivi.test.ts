@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
@@ -6,6 +5,7 @@ import {getBackendUrl, publishNotification} from '../../helpers/notifications-ap
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
+import {step} from '@helpers/report'
 
 const log = logger('test')
 
@@ -28,10 +28,6 @@ describe('Suivi des démarches', () => {
 
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Démarches')
-    await AllureReporter.addFeature('Suivi des démarches')
-    await AllureReporter.addSeverity('critical')
-    await AllureReporter.addTag('api-notifications')
     const domainUrl = getBackendUrl()
     itemId = `E2E-${new Date().toISOString()}`
     title = `Demarche E2E ${itemId}` // sans accent : la recherche par innerText les gère mal
@@ -46,7 +42,7 @@ describe('Suivi des démarches', () => {
 
   it('crée une démarche visible dans le suivi (statut new)', async () => {
     const titleNew = `${title} 0`
-    await AllureReporter.addStep('1. Ouvrir le suivi puis publier la notification avec tous les champs')
+    step('1. Ouvrir le suivi puis publier la notification avec tous les champs')
     await HomePage.ouvreSuivi()
     await publishNotification({
       title: titleNew, body: 'Corps de la notification E2E', recipientFcHash: user.fcHash,
@@ -54,7 +50,7 @@ describe('Suivi des démarches', () => {
       itemType: 'OTV', itemId, itemStatusLabel: 'Brouillon', itemGenericStatus: 'new', itemCanal: 'AMI',
     })
 
-    await AllureReporter.addStep('2. Attendre la démarche, vérifier son statut puis son lien externe V1')
+    step('2. Attendre la démarche, vérifier son statut puis son lien externe V1')
     await SuiviDemarchesPage.waitForDemarche(titleNew)
     await SuiviDemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
     await SuiviDemarchesPage.ouvreDemarche(titleNew)
@@ -64,13 +60,13 @@ describe('Suivi des démarches', () => {
 
   it("met à jour l'URL externe de la démarche (statut wip)", async () => {
     const titleUpdate = `${title} 1`
-    await AllureReporter.addStep('1. Publier la notification avec la nouvelle URL')
+    step('1. Publier la notification avec la nouvelle URL')
     await publishNotification({
       title: titleUpdate, body: 'Mise à jour E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
       itemType: 'OTV', itemId, itemStatusLabel: 'En cours', itemGenericStatus: 'wip', itemCanal: 'AMI',
     })
 
-    await AllureReporter.addStep('2. Attendre la démarche, vérifier son statut puis son lien externe V2')
+    step('2. Attendre la démarche, vérifier son statut puis son lien externe V2')
     await SuiviDemarchesPage.waitForDemarche(titleUpdate)
     await SuiviDemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
     await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
@@ -80,17 +76,17 @@ describe('Suivi des démarches', () => {
 
   it('clôture la démarche (statut closed) et affiche son historique dans le détail', async () => {
     const titleClosing = `${title} 2`
-    await AllureReporter.addStep('1. Publier la notification de clôture')
+    step('1. Publier la notification de clôture')
     await publishNotification({
       title: titleClosing, body: 'Clôture E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
       itemType: 'OTV', itemId, itemStatusLabel: 'Terminé', itemGenericStatus: 'closed', itemCanal: 'AMI',
     })
 
-    await AllureReporter.addStep('2. Attendre la démarche et vérifier son statut')
+    step('2. Attendre la démarche et vérifier son statut')
     await SuiviDemarchesPage.waitForDemarche(titleClosing)
     await SuiviDemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
 
-    await AllureReporter.addStep("3. Ouvrir le détail : statut, référence et historique des 3 mises à jour")
+    step("3. Ouvrir le détail : statut, référence et historique des 3 mises à jour")
     await SuiviDemarchesPage.ouvreDemarche(titleClosing)
     await DemarcheDetailPage.assertDetail({
       title: titleClosing, statusLabel: 'Terminé', reference: itemId,

@@ -1,9 +1,9 @@
-import AllureReporter from '@wdio/allure-reporter'
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '@pages/authenticate.process'
 import logger from '@wdio/logger'
+import {step} from '@helpers/report'
 
 const log = logger('test')
 
@@ -16,10 +16,6 @@ describe('Déconnexion', () => {
 
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Authentification')
-    await AllureReporter.addFeature('Déconnexion')
-    await AllureReporter.addSeverity('critical')
-    await AllureReporter.addTag('franceconnect')
     await getAppToStartingState()
     await ProfilePage.navigate()
     const identityBolds = await ProfilePage.getIdentityBolds()
@@ -38,21 +34,21 @@ describe('Déconnexion', () => {
 
   it('se déconnecte après confirmation, puis se reconnecte avec les données d\'origine', async function () {
     this.timeout(240000)
-    await AllureReporter.addStep("1. Modifier le nom d'usage")
+    step("1. Modifier le nom d'usage")
     await ProfilePage.editPreferredUsername(MODIFIED_PREFERRED_USERNAME)
     expect((await ProfilePage.getIdentityBolds()).some(b => b.includes(MODIFIED_PREFERRED_USERNAME))).toBe(true)
 
-    await AllureReporter.addStep('2. Se déconnecter via le menu Plus et confirmer la suppression des données')
+    step('2. Se déconnecter via le menu Plus et confirmer la suppression des données')
     await HomePage.goToHomeFromAnywhere(15000)
     await ProfilePage.logout()
 
-    await AllureReporter.addStep("3. L'écran de connexion FranceConnect est de nouveau proposé")
+    step("3. L'écran de connexion FranceConnect est de nouveau proposé")
     await FranceConnectMirePage.waitForLoginScreen()
 
-    await AllureReporter.addStep('4. Se reconnecter avec le même compte')
+    step('4. Se reconnecter avec le même compte')
     await getAppToStartingState({grantConsent: false})
 
-    await AllureReporter.addStep("5. Le nom d'usage modifié a été supprimé")
+    step("5. Le nom d'usage modifié a été supprimé")
     await ProfilePage.navigate()
     const bolds = await ProfilePage.getIdentityBolds()
     for (const expected of original.identityBolds) expect(bolds).toContain(expected)

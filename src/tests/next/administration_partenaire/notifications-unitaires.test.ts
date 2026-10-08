@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Rôle requis : `Notification`.
@@ -8,8 +7,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe("Espace Partenaire — notifications unitaires", () => {
   before(async () => {
-    await AllureReporter.addFeature('Administration partenaire')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - session ProConnect avec rôle Notification
     //   - usager connu de l'app AMI (identité FranceConnect sandbox déjà liée)

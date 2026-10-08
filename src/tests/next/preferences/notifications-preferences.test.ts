@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Écart de couverture identifié lors de la reconstruction du modèle applicatif du 2026-09-08
@@ -8,8 +7,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Préférences — réglages des notifications', () => {
   before(async () => {
-    await AllureReporter.addFeature('Préférences')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - usager FranceConnect connecté (getAppToStartingState())
     //   - contenu exact de l'écran à inspecter via `just explore` + `snapshot -i` avant d'écrire les assertions (non observé en détail)

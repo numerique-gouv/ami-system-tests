@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Reprend l'item "Paramétrer les zones scolaires et constater l'ajout et suppression
@@ -11,8 +10,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Préférences — zones scolaires et impact sur l\'agenda', () => {
   before(async () => {
-    await AllureReporter.addFeature('Préférences')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - usager FranceConnect connecté (getAppToStartingState())
     //   - capturer l'état initial des zones scolaires sélectionnées (restauration obligatoire en after(),

@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import NavigationPage from '../../pages/navigation.page'
 import HomePage from '../../pages/home.page'
 import AgendaPage from '../../pages/agenda.page'
@@ -9,6 +8,7 @@ import ServicesPage from '../../pages/services.page'
 import SuiviDemarchesPage from '../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import type {PlusEntry, TabName} from '../../pages/locators/navigation.locators'
+import {step} from '@helpers/report'
 
 /** Vérification d'arrivée de chaque page « onglet », portée par la page destination. */
 const tabArrival: Record<Exclude<TabName, 'Accueil'>, () => Promise<void>> = {
@@ -33,9 +33,6 @@ const plusEntryArrival: Record<PlusEntry, () => Promise<void>> = {
 describe('Navigation principale', () => {
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Navigation')
-    await AllureReporter.addFeature('Navigation principale')
-    await AllureReporter.addSeverity('critical')
     await getAppToStartingState()
   })
 
@@ -46,12 +43,12 @@ describe('Navigation principale', () => {
   const tabs: Array<Exclude<TabName, 'Accueil'>> = ['Agenda', 'Services', 'Suivi']
   for (const tab of tabs) {
     it(`la barre basse ouvre « ${tab} » puis revient à l'accueil`, async () => {
-      await AllureReporter.addStep(`1. Cliquer l'onglet ${tab}`)
+      step(`1. Cliquer l'onglet ${tab}`)
       await NavigationPage.goToTab(tab)
       await tabArrival[tab]()
       await NavigationPage.assertBottomBarVisible()
 
-      await AllureReporter.addStep("2. Revenir à l'accueil")
+      step("2. Revenir à l'accueil")
       await NavigationPage.goToTab('Accueil')
       await HomePage.assertHomeVisible()
     })

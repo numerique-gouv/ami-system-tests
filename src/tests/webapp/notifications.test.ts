@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import NotificationsInboxPage from '../../pages/notifications.page'
 import HomePage from '../../pages/home.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
@@ -6,6 +5,7 @@ import PreferencesPage from '../../pages/preferences.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
+import {step} from '@helpers/report'
 
 /**
  * Notifications in-app en webapp : réception dans l'inbox, ouverture d'une notification liée à une
@@ -17,10 +17,6 @@ describe('Notifications', () => {
 
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Notifications')
-    await AllureReporter.addFeature('Notifications')
-    await AllureReporter.addSeverity('critical')
-    await AllureReporter.addTag('api-notifications')
     await getAppToStartingState()
   })
 
@@ -33,11 +29,11 @@ describe('Notifications', () => {
 
   it("reçoit une notification publiée dans l'inbox in-app", async () => {
     const title = `AMI-vanilla-${Date.now()}`
-    await AllureReporter.addStep("1. Publier la notification via l'API partenaire")
+    step("1. Publier la notification via l'API partenaire")
     await publishNotification({
       title, body: "Test vanilla — doit apparaître dans l'inbox", recipientFcHash: user.fcHash,
     })
-    await AllureReporter.addStep("2. Vérifier la réception, puis l'ouvrir")
+    step("2. Vérifier la réception, puis l'ouvrir")
     await NotificationsInboxPage.assertNotificationReceived(title)
     await NotificationsInboxPage.clickNotification(title)
   })

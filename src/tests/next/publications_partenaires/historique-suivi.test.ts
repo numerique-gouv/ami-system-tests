@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie l'alimentation de l'historique des événements de l'usager par les
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Publications partenaires — historique et suivi de démarches', () => {
   before(async () => {
-    await AllureReporter.addFeature('Publications partenaires')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - usager FranceConnect sandbox connecté
     //   - helper publishNotification utilisable pour produire plusieurs notifications

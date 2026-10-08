@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Rôle requis : `Administrateur·ice`.
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Espace Partenaire — administration des rôles', () => {
   before(async () => {
-    await AllureReporter.addFeature('Administration partenaire')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - session ProConnect avec rôle Administrateur·ice
     //   - compte cible vierge (sans rôle) pour les actions d'attribution

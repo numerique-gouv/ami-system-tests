@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Rôle requis : `Administrateur·ice`.
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Espace Partenaire — RGPD : suppression de données usager', () => {
   before(async () => {
-    await AllureReporter.addFeature('Administration partenaire')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - session ProConnect avec rôle Administrateur·ice
     //   - usager de test avec données (notifications, démarches) à supprimer

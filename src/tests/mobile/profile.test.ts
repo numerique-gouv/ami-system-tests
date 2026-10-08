@@ -1,7 +1,7 @@
-import AllureReporter from '@wdio/allure-reporter'
 import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
 import logger from '@wdio/logger'
+import {step} from '@helpers/report'
 
 const log = logger('test')
 
@@ -22,17 +22,13 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
   }
 
   before(async () => {
-    await AllureReporter.addEpic('Profil usager')
-    await AllureReporter.addFeature('Profil usager')
-    await AllureReporter.addStory('Modification des données de profil (Mon profil)')
-    await AllureReporter.addSeverity('normal')
 
     await getAppToStartingState()
 
-    await AllureReporter.addStep('Naviguer vers Mon profil depuis le menu avatar')
+    step('Naviguer vers Mon profil depuis le menu avatar')
     await ProfilePage.navigate()
 
-    await AllureReporter.addStep('Capturer les données initiales du profil')
+    step('Capturer les données initiales du profil')
     const identityBolds = await ProfilePage.getIdentityBolds()
     // Format attendu du premier bold : "Prénom NOM_USAGE," → extraire NOM_USAGE
     const displayName = identityBolds[0] ?? ''
@@ -56,10 +52,10 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
   })
 
   it('permet de modifier le nom d\'usage dans le bloc "Mon identité"', async () => {
-    await AllureReporter.addStep('Cliquer Modifier et saisir le nouveau nom d\'usage')
+    step('Cliquer Modifier et saisir le nouveau nom d\'usage')
     await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
 
-    await AllureReporter.addStep('Vérifier que le nouveau nom d\'usage est affiché dans le profil')
+    step('Vérifier que le nouveau nom d\'usage est affiché dans le profil')
     const bolds = await ProfilePage.getIdentityBolds()
     expect(bolds.some(b => b.includes(MODIFICATIONS.preferredUsername))).toBe(true)
   })
@@ -67,19 +63,19 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
   // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).
   // Corps conservé tel quel pour la réactivation (ProfilePage.editAddress / getAddressBolds à rétablir).
   it.skip('permet de modifier l\'adresse dans le bloc "Mon adresse"', async () => {
-    await AllureReporter.addStep('Cliquer Modifier et saisir la nouvelle adresse via l\'autocomplétion BAN')
+    step('Cliquer Modifier et saisir la nouvelle adresse via l\'autocomplétion BAN')
     // await ProfilePage.editAddress('20 avenue de Ségur Paris')
 
-    await AllureReporter.addStep('Vérifier que la nouvelle adresse apparaît dans le profil')
+    step('Vérifier que la nouvelle adresse apparaît dans le profil')
     // const bolds = await ProfilePage.getAddressBolds()
     // expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
   })
 
   it('permet de modifier l\'email dans le bloc "Contact"', async () => {
-    await AllureReporter.addStep('Cliquer Modifier et saisir le nouvel email')
+    step('Cliquer Modifier et saisir le nouvel email')
     await ProfilePage.editEmail(MODIFICATIONS.email)
 
-    await AllureReporter.addStep('Vérifier que le nouvel email est affiché dans le profil')
+    step('Vérifier que le nouvel email est affiché dans le profil')
     const email = await ProfilePage.getEmailBold()
     expect(email).toBe(MODIFICATIONS.email)
   })

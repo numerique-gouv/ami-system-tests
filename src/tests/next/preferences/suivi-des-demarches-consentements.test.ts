@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Écart de couverture identifié lors de la reconstruction du modèle applicatif du 2026-09-08
@@ -10,8 +9,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Préférences — consentements de suivi par partenaire', () => {
   before(async () => {
-    await AllureReporter.addFeature('Préférences')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - usager FranceConnect connecté (getAppToStartingState())
     //   - état initial des 4 toggles capturé dynamiquement (ne pas coder en dur un état constaté un jour donné)

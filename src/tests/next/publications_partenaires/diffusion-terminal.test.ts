@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie la diffusion d'une notification reçue par AMI vers le terminal usager :
@@ -8,8 +7,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe("Publications partenaires — diffusion vers le terminal usager", () => {
   before(async () => {
-    await AllureReporter.addFeature('Publications partenaires')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - usager FranceConnect sandbox connecté
     //   - helper publishNotification disponible (src/helpers/notifications-api.ts)

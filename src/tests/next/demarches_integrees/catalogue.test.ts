@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie l'affichage des contenus et catalogues partenaires (Service Public, DN)
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Démarches intégrées — catalogue et contenus partenaires', () => {
   before(async () => {
-    await AllureReporter.addFeature('Démarches intégrées')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - usager FranceConnect sandbox connecté
     //   - mire d'onboarding passée

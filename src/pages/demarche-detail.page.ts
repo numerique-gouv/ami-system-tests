@@ -14,7 +14,7 @@ function decodeURIComponentSafe(value: string): string {
   try { return decodeURIComponent(value) } catch { return value }
 }
 
-/** L'URL du lien externe peut porter un `id_token` (SSO) : jamais dans les logs ni dans Allure. */
+/** L'URL du lien externe peut porter un `id_token` (SSO) : jamais dans les logs ni dans les dumps d'échec. */
 function maskIdToken(url: string | null): string | null {
   return url?.replace(/(id_token=)[^&#]*/g, '$1***') ?? url
 }

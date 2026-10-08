@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie les flux sortants légers vers un tiers pour la recherche de démarche
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Démarches intégrées — recherche de démarche générique', () => {
   before(async () => {
-    await AllureReporter.addFeature('Démarches intégrées')
-    await AllureReporter.addSeverity('minor')
     // TODO pré-requis :
     //   - périmètre des critères de recherche stabilisé (DAT 3.5 — encore à préciser)
     //   - tiers de recherche cible disponible en environnement de test

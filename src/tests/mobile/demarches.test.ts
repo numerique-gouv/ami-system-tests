@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
@@ -6,6 +5,7 @@ import {getBackendUrl, publishNotification} from '../../helpers/notifications-ap
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
+import {step} from '@helpers/report'
 
 const log = logger('test')
 
@@ -39,11 +39,6 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     before(async function () {
         this.timeout(180000)
-        await AllureReporter.addEpic('Démarches')
-        await AllureReporter.addFeature('Démarches')
-        await AllureReporter.addStory("Cycle de vie d'une démarche via l'API partenaire")
-        await AllureReporter.addSeverity('critical')
-        await AllureReporter.addTag('api-notifications')
         const domainUrl = getBackendUrl()
         itemId = `E2E-${new Date().toISOString()}`
         title = `Demarche E2E ${itemId}` // Démarche avec l'accent plante la recherche par innerText (document.body.innerText.includes(t))
@@ -55,10 +50,10 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     it("crée une démarche visible dans le suivi (statut new)", async () => {
         let titleNew = `${title} 0`;
-        await AllureReporter.addStep('1. Ouvrir la page de suivi des démarches')
+        step('1. Ouvrir la page de suivi des démarches')
         await HomePage.ouvreSuivi()
 
-        await AllureReporter.addStep('2. Publier la notification avec tous les champs')
+        step('2. Publier la notification avec tous les champs')
         await publishNotification({
             title: titleNew,
             body: 'Corps de la notification E2E',
@@ -73,13 +68,13 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             itemCanal: 'AMI',
         })
 
-        await AllureReporter.addStep('3. Attendre que la démarche apparaisse sur le Suivi')
+        step('3. Attendre que la démarche apparaisse sur le Suivi')
         await SuiviDemarchesPage.waitForDemarche(titleNew)
 
-        await AllureReporter.addStep('4. Vérifier statut sur la liste')
+        step('4. Vérifier statut sur la liste')
         await SuiviDemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
 
-        await AllureReporter.addStep('5. Ouvrir la démarche et vérifier le lien externe V1')
+        step('5. Ouvrir la démarche et vérifier le lien externe V1')
         await SuiviDemarchesPage.ouvreDemarche(titleNew)
         await DemarcheDetailPage.assertLienExterne(urlV1)
         await SuiviDemarchesPage.retourJusquAPageSuivi()
@@ -89,7 +84,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         let titleUpdate = `${title} 1`
         // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
         // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
-        await AllureReporter.addStep('1. Publier la notification avec la nouvelle URL')
+        step('1. Publier la notification avec la nouvelle URL')
 
         await publishNotification({
             title: titleUpdate,
@@ -103,13 +98,13 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             itemCanal: 'AMI',
         })
 
-        await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur le Suivi')
+        step('2. Attendre que la démarche apparaisse sur le Suivi')
         await SuiviDemarchesPage.waitForDemarche(titleUpdate)
 
-        await AllureReporter.addStep('3. Vérifier statut sur la liste')
+        step('3. Vérifier statut sur la liste')
         await SuiviDemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
 
-        await AllureReporter.addStep('4. Ouvrir la démarche et vérifier le lien externe V2')
+        step('4. Ouvrir la démarche et vérifier le lien externe V2')
         await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
         await DemarcheDetailPage.assertLienExterne(urlV2)
         await SuiviDemarchesPage.retourJusquAPageSuivi()
@@ -119,7 +114,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         let titleClosing = `${title} 2`
         // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
         // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
-        await AllureReporter.addStep('1. Publier la notification de clôture')
+        step('1. Publier la notification de clôture')
         await publishNotification({
             title: titleClosing,
             body: 'Clôture E2E',
@@ -131,13 +126,13 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             itemGenericStatus: 'closed',
             itemCanal: 'AMI',
         })
-        await AllureReporter.addStep('2. Attendre que la démarche apparaisse sur le Suivi')
+        step('2. Attendre que la démarche apparaisse sur le Suivi')
         await SuiviDemarchesPage.waitForDemarche(titleClosing)
 
-        await AllureReporter.addStep('3. Vérifier statut sur la liste')
+        step('3. Vérifier statut sur la liste')
         await SuiviDemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
 
-        await AllureReporter.addStep('4. Ouvrir la démarche et vérifier le lien externe V2')
+        step('4. Ouvrir la démarche et vérifier le lien externe V2')
         await SuiviDemarchesPage.ouvreDemarche(titleClosing)
         await DemarcheDetailPage.assertLienExterne(urlV2)
         await SuiviDemarchesPage.retourJusquAPageSuivi()

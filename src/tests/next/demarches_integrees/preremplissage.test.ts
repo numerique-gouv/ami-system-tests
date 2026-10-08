@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie les modalités de préremplissage d'une démarche partenaire :
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Démarches intégrées — préremplissage', () => {
   before(async () => {
-    await AllureReporter.addFeature('Démarches intégrées')
-    await AllureReporter.addSeverity('normal')
     // TODO pré-requis :
     //   - partenaire « préremplissage JWT » configuré (clé publique installée côté AMI, clé privée côté partenaire)
     //   - partenaire « préremplissage URL HTTPS » configuré

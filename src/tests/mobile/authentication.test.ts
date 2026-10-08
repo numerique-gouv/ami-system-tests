@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import EnvironmentPickerPage from '../../pages/franceconnect/environment-picker.page'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
@@ -8,6 +7,7 @@ import OnboardingZonesPage from '../../pages/onboarding-zones.page'
 import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/test-users'
+import {step} from '@helpers/report'
 
 /**
  * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
@@ -17,20 +17,15 @@ import {getUser} from '../../helpers/test-users'
 describe('Authentification', () => {
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Authentification')
-    await AllureReporter.addFeature('Authentification')
-    await AllureReporter.addStory('Connexion via FranceConnect')
-    await AllureReporter.addSeverity('critical')
-    await AllureReporter.addTag('franceconnect')
   })
   
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
     const user = getUser('avec_nom_dusage')
 
-    await AllureReporter.addStep('1. Sélectionner l\'environnement de review')
+    step('1. Sélectionner l\'environnement de review')
     await EnvironmentPickerPage.reviewEnvironmentPicker()
 
-    await AllureReporter.addStep('2. Démarrer le flow FranceConnect (eIDAS faible)')
+    step('2. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)
     // Une session FranceConnect encore ouverte dans le simulateur/émulateur (run précédent, SSO) renvoie
     // directement vers l'app sans afficher la mire eIDAS : observé 2026-10-06 sur iOS, la capture de l'échec
@@ -39,16 +34,16 @@ describe('Authentification', () => {
       await FranceConnectEidasPage.selectEidasFaible()
       await FranceConnectCredentialsPage.fillCredentials(user)
     } else {
-      await AllureReporter.addStep('(session FranceConnect déjà ouverte : eIDAS et identifiants non demandés)')
+      step('(session FranceConnect déjà ouverte : eIDAS et identifiants non demandés)')
     }
 
-    await AllureReporter.addStep('3. Passer la proposition de clé d\'accès, le choix des zones puis l\'onboarding des notifications')
+    step('3. Passer la proposition de clé d\'accès, le choix des zones puis l\'onboarding des notifications')
     await OnboardingPasskeyPage.dismiss()
     await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
     await FranceConnectMirePage.tapFranceConnect(true )
 
-    await AllureReporter.addStep('4. Vérifier l\'arrivée sur la page d\'accueil')
+    step('4. Vérifier l\'arrivée sur la page d\'accueil')
     await HomePage.assertHomeVisible(30000)
   })
 

@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import PreferencesPage from '../../pages/preferences.page'
 import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
@@ -11,9 +10,6 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 describe('Préférences', () => {
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Préférences')
-    await AllureReporter.addFeature('Préférences')
-    await AllureReporter.addSeverity('normal')
     // grantConsent par défaut : le consentement AMI est la précondition du test « consentements ».
     await getAppToStartingState()
   })

@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Vérifie le retour d'information de fin de démarche vers AMI :
@@ -7,8 +6,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Démarches intégrées — retour de démarche vers AMI', () => {
   before(async () => {
-    await AllureReporter.addFeature('Démarches intégrées')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - démarche partenaire qui émet un retour de fin
     //   - un mécanisme de simulation côté partenaire (sandbox ou stub) pour les cas d'abandon / message non conforme

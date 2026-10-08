@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Cinématique de lancement d'une démarche partenaire depuis l'app AMI :
@@ -8,8 +7,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Démarches intégrées — lancement en webview', () => {
   before(async () => {
-    await AllureReporter.addFeature('Démarches intégrées')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis :
     //   - usager FranceConnect sandbox déjà connecté (FranceConnexion longue active)
     //   - liste blanche d'URL configurée avec au moins une URL OK et une URL hors liste

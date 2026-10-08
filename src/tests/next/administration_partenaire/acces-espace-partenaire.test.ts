@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 
 /**
  * Cible : l'Espace Partenaire, une webapp Django (cf. DAT 3.2).
@@ -8,8 +7,6 @@ import AllureReporter from '@wdio/allure-reporter'
  */
 describe('Espace Partenaire — accès et authentification', () => {
   before(async () => {
-    await AllureReporter.addFeature('Administration partenaire')
-    await AllureReporter.addSeverity('critical')
     // TODO pré-requis communs à la suite :
     //   - URL Espace Partenaire (recette) configurée
     //   - comptes ProConnect de test : sans rôle, avec rôle Support, avec rôle Administrateur·ice

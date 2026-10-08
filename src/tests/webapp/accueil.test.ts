@@ -1,4 +1,3 @@
-import AllureReporter from '@wdio/allure-reporter'
 import HomePage from '../../pages/home.page'
 import AgendaPage from '../../pages/agenda.page'
 import NotificationsInboxPage from '../../pages/notifications.page'
@@ -14,9 +13,6 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 describe('Accueil', () => {
   before(async function () {
     this.timeout(180000)
-    await AllureReporter.addEpic('Accueil')
-    await AllureReporter.addFeature('Accueil')
-    await AllureReporter.addSeverity('critical')
     await getAppToStartingState()
   })
 
