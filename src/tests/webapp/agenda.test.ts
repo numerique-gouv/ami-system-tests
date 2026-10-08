@@ -1,9 +1,11 @@
 import AgendaPage from '../../pages/agenda.page'
+import ZonesPage from '../../pages/zones.page'
 import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
+import {zonesLocators} from '../../pages/locators/zones.locators'
 
 /**
- * Agenda : évènements à venir (vacances scolaires, jours fériés) et sélecteur de zones scolaires.
+ * Agenda : évènements à venir (vacances scolaires, jours fériés) et accès à la page des zones scolaires.
  * Lecture seule : « Supprimer » est vérifié mais jamais cliqué, les zones ne sont pas modifiées.
  */
 describe('Agenda', () => {
@@ -28,10 +30,11 @@ describe('Agenda', () => {
     await AgendaPage.closeEventDialog()
   })
 
-  it('« Préférences » ouvre le sélecteur des 13 zones scolaires, puis se ferme', async () => {
+  it('« Préférences » ouvre la page des 13 zones scolaires, puis « Retour » revient à l\'agenda', async () => {
     await AgendaPage.openZonePreferences()
-    const zones = Object.keys(await AgendaPage.zoneStates())
-    expect(zones).toEqual(expect.arrayContaining(['Zone A', 'Zone B', 'Zone C', 'Corse', 'Réunion', 'Wallis et Futuna']))
-    await AgendaPage.closeZonePreferences()
+    await ZonesPage.assertDisplayed()
+    expect(Object.keys(await ZonesPage.zoneStates())).toEqual(zonesLocators.zoneNames)
+    await ZonesPage.back()
+    await AgendaPage.assertDisplayed()
   })
 })

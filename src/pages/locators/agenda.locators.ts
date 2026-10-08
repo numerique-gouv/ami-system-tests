@@ -1,5 +1,5 @@
 /**
- * Sélecteurs de l'Agenda (`/#/agenda`) et du sélecteur de zones scolaires.
+ * Sélecteurs de l'Agenda (`/#/agenda`). La page des zones scolaires a ses propres sélecteurs (zones.locators.ts).
  * WebView/webapp, DOM identique — ciblage par nom accessible (vérifié en live le 2026-10-02).
  */
 export const agendaLocators = {
@@ -12,6 +12,4 @@ export const agendaLocators = {
   deleteActionName: /Cacher l.élément de l.agenda/,
   eventDialogCloseName: 'Fermer la modale',
   preferencesButtonName: 'Préférences',
-  zonesHeading: 'Zones scolaires',
-  zonesCloseButtonName: 'Fermer',
 }

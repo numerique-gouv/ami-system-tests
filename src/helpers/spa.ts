@@ -108,19 +108,6 @@ export async function waitForButtons(names: Array<string | RegExp>, timeout = 15
   })
 }
 
-/**
- * Clique un bouton situé dans le dialogue dont le nom accessible est `dialogName` — lève l'ambiguïté
- * quand plusieurs dialogues portent le même bouton (ex. « Fermer »). La portée « dans ce dialogue » est
- * résolue dans la même exécution que la recherche du bouton (option `in`).
- */
-export async function clickButtonInDialog(dialogName: string | RegExp, buttonName: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
-  await platform().inWebContext(async () => {
-    const button = await findRole('button', buttonName, {timeout, in: {role: 'dialog', name: dialogName}})
-    await button.waitForClickable({timeout: 5000})
-    await button.click()
-  })
-}
-
 /** Attend un titre (heading) visible. */
 export async function waitForHeading(name: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await waitForRole('heading', name, {timeout})

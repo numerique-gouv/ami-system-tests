@@ -75,7 +75,7 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 | `src/helpers/notifications-api.ts` | Client HTTP API partenaire (`checkConsent`, `grantConsent`, `publishNotification` avec retry sur 5xx). **Timeout de requête ajouté le 2026-09-08** (`REQUEST_TIMEOUT_MS = 15000`, via `AbortSignal.timeout()`) suite à une investigation de flakiness liée à une coupure réseau — avant ce fix, un `fetch()` bloqué remontait jusqu'au timeout Mocha du hook englobant (120-180s), causant des cascades de hooks en échec. |
 | `src/helpers/environment.ts` | `resolveEnvironment()` — dérive `webappUrl`/`apiUrl` depuis `AMI_ENV` (numérique → review app PR, sinon staging) |
 | `src/helpers/access-code.ts` | gestion du code d'accès webapp (`WEB_APP_ACCESS_KEYS`, gate `window.prompt` côté staging) |
-| `src/helpers/spa.ts` | primitives communes aux Page Objects de la SPA : `clickButton`, `waitForHeading`, `waitForButtons`, `clickButtonInDialog`, `visibleButtonTexts`, `pageText`, `checkboxStates` (toutes par nom accessible / DOM visible) |
+| `src/helpers/spa.ts` | primitives communes aux Page Objects de la SPA : `clickButton`, `waitForHeading`, `waitForButtons`, `visibleButtonTexts`, `pageText`, `checkboxStates` (toutes par nom accessible / DOM visible) |
 | `src/pages/navigation.page.ts` | barre basse, menu Plus (`openPlusEntry`), navigation par route (`goToRoute`) — partagé par tous les Page Objects « onglet » |
 | `src/pages/onboarding-{passkey,zones,notifications}.page.ts` | écrans d'onboarding : clé d'accès, zones scolaires (`/welcome/zones`), notifications (natif sur mobile, `/welcome/notifications` en webapp) |
 | `src/helpers/traced.ts` | wrapper des singletons Page Object (`traced(new XxxPage(), 'XxxPage')`) |

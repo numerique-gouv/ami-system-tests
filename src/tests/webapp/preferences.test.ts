@@ -1,5 +1,7 @@
 import PreferencesPage from '../../pages/preferences.page'
 import HomePage from '../../pages/home.page'
+import ZonesPage from '../../pages/zones.page'
+import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
 /**
@@ -30,6 +32,14 @@ describe('Préférences', () => {
     expect(Object.keys(states)).toEqual(['dinum-ami', 'dinum-dn', 'dinum-rdvsp', 'psl', 'Test', 'test-test'])
     expect(states['dinum-ami']).toBe(true)
     expect(await PreferencesPage.consentLabels()).toEqual(expect.arrayContaining(['AMI', 'Démarche Numérique', 'Service Public']))
+  })
+
+  it('« Zones scolaires » ouvre la page des 13 zones, puis « Fermer » revient aux préférences', async () => {
+    await PreferencesPage.openZones()
+    await ZonesPage.assertDisplayed()
+    expect(Object.keys(await ZonesPage.zoneStates())).toEqual(zonesLocators.zoneNames)
+    await ZonesPage.close()
+    await PreferencesPage.assertDisplayed()
   })
 
   it('« Notifications » affiche la case de réception sur l\'appareil', async () => {

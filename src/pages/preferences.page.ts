@@ -28,6 +28,11 @@ class PreferencesPage {
         await clickButton(preferencesLocators.entries[1])
     }
 
+    /** Clique l'entrée « Zones scolaires », qui ouvre la page `/#/preferences/zones` (vérifiée par `ZonesPage.assertDisplayed()`). */
+    async openZones(): Promise<void> {
+        await clickButton(preferencesLocators.entries[2])
+    }
+
     /** Vérifie l'arrivée sur la page des préférences de notifications (titre). */
     async assertNotificationsDisplayed(): Promise<void> {
         await waitForHeading(preferencesLocators.notificationsTitle)

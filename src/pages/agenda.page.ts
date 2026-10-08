@@ -1,10 +1,10 @@
 import {agendaLocators} from './locators/agenda.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import {checkboxStates, clickButton, clickButtonInDialog, waitForHeading, findRole, findRoles, queryRole} from '../helpers/spa'
+import {clickButton, waitForHeading, findRole, findRoles, queryRole} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 
-/** Page Object de l'Agenda (`/#/agenda`) : liste des évènements et sélecteur de zones scolaires. */
+/** Page Object de l'Agenda (`/#/agenda`) : liste des évènements et accès aux zones scolaires (page `ZonesPage`). */
 class AgendaPage {
     async open(): Promise<void> {
         await NavigationPage.goToTab('Agenda')
@@ -54,19 +54,12 @@ class AgendaPage {
         )
     }
 
-    /** Ouvre le sélecteur de zones scolaires via le bouton « Préférences » de l'agenda. */
+    /**
+     * Clique le bouton « Préférences » de l'agenda, qui ouvre la page des zones scolaires (`/#/preferences/zones`, plus un dialogue
+     * depuis le 2026-10-08). L'arrivée est vérifiée par `ZonesPage.assertDisplayed()`, pas ici.
+     */
     async openZonePreferences(): Promise<void> {
         await clickButton(agendaLocators.preferencesButtonName)
-        await waitForHeading(agendaLocators.zonesHeading)
-    }
-
-    /** États des cases de zones (clé = nom de la zone). Sans les modifier. */
-    async zoneStates(): Promise<Record<string, boolean>> {
-        return await checkboxStates()
-    }
-
-    async closeZonePreferences(): Promise<void> {
-        await clickButtonInDialog(agendaLocators.zonesHeading, agendaLocators.zonesCloseButtonName)
     }
 }
 
