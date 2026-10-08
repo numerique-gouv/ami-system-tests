@@ -212,20 +212,30 @@ const TRANSIENT_NAVIGATION_ERROR =
 async function locate(query: PageQuery, label: string, opts: FindOptions): Promise<{token: string, names: string[]}> {
   const {timeout = DEFAULT_TIMEOUT, interval = DEFAULT_INTERVAL} = opts
   const token = newToken()
-  const deadline = Date.now() + timeout
   let last: PageResult = {count: 0, seen: [], names: []}
   let lastTransient = ''
-  for (;;) {
+  let result = null as {token: string, names: string[]} | null
+  let fatal: unknown = null
+  // `waitUntil` porte l'intervalle ; il avale les erreurs de sa condition, donc une erreur non transitoire est
+  // mémorisée (la condition rend alors `true` pour s'arrêter) puis relancée ci-dessous.
+  await browser.waitUntil(async () => {
     try {
       last = await attempt(query, token)
-      if (last.count > 0) return {token, names: last.names}
+      if (last.count > 0) {
+        result = {token, names: last.names}
+        return true
+      }
     } catch (err) {
-      if (!TRANSIENT_NAVIGATION_ERROR.test(String(err))) throw err
+      if (!TRANSIENT_NAVIGATION_ERROR.test(String(err))) {
+        fatal = err
+        return true
+      }
       lastTransient = String(err).split('\n')[0].slice(0, 160)
     }
-    if (Date.now() >= deadline) break
-    await browser.pause(interval)
-  }
+    return false
+  }, {timeout, interval}).catch(() => undefined)
+  if (fatal) throw fatal
+  if (result) return result
   const seen = last.seen.length ? ` Candidats vus : ${JSON.stringify(last.seen)}.` : ''
   const transient = lastTransient ? ` Dernière erreur transitoire : ${lastTransient}.` : ''
   throw new AssertionError({message: `${label} introuvable après ${timeout}ms.${seen}${transient}`})

@@ -2,6 +2,7 @@ import {getEnvironmentPickerLocators} from '../locators/franceconnect/environmen
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
 import {setBackendUrl} from '../../helpers/notifications-api'
+import {rethrowStrictViolation} from '../../helpers/strict'
 import logger from '@wdio/logger'
 
 const log = logger('page-object')
@@ -16,7 +17,10 @@ class EnvironmentPickerPage {
         if (platform().kind === 'webapp') return false
         const loc = getEnvironmentPickerLocators()
         // "Staging" est toujours le premier item — sa présence confirme que le picker est affiché.
-        return await $(loc.pickerSentinel).waitForDisplayed({timeout}).catch(() => false)
+        return await $(loc.pickerSentinel).waitForDisplayed({timeout}).catch((err: unknown) => {
+            rethrowStrictViolation(err)
+            return false
+        })
     }
 
     /**

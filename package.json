@@ -32,8 +32,11 @@
     "allure": "^3.16.0",
     "appium": "^3.7.0",
     "eslint": "^10.9.1",
+    "eslint-plugin-wdio": "^10.0.1",
+    "globals": "^17.13.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
     "webdriverio": "^10.0.0"
   },
   "engines": {

@@ -45,7 +45,7 @@ class OnboardingNotificationsPage {
         if (platform().kind === 'webapp') return await this.isWebRouteVisible(timeout)
         if (driver.isAndroid && await this.isWebRouteVisible(timeout)) return true
         const loc = getOnboardingNotifLocators()
-        const nativeShown = await $(loc.dismiss).waitForExist({timeout: driver.isAndroid ? 1000 : timeout}).catch(() => false)
+        const nativeShown = await this.firstNative(loc.dismiss, driver.isAndroid ? 1000 : timeout) !== null
         // Android : le chemin nominal est la route SPA (observée sur l'émulateur moderne). L'écran natif
         // (OnboardingNotificationScreen.kt) est un ÉCART, à voir dans les logs ; on le traite pour que le test continue.
         if (nativeShown && driver.isAndroid) {
@@ -80,8 +80,30 @@ class OnboardingNotificationsPage {
             return
         }
         const loc = getOnboardingNotifLocators()
-        await $(loc.dismiss).click()
-        await $(loc.title).waitForDisplayed({timeout: 5000, reverse: true})
+        const dismissButton = await this.firstNative(loc.dismiss, 5000)
+        if (!dismissButton) throw new Error('Bouton « Peut-être plus tard » introuvable')
+        await dismissButton.click()
+        await browser.waitUntil(async () => (await $$(loc.title)).length === 0, {
+            timeout: 5000, interval: 300, timeoutMsg: 'Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »',
+        })
+    }
+
+    /**
+     * Premier élément natif qui correspond à `selector` (attend jusqu'à `timeout`), ou `null`. WDIO 10 refuse `$()`
+     * quand plusieurs éléments correspondent ; sur iOS la feuille native et la page de la SPA derrière elle exposent
+     * le même bouton (cf. locators) : on prend le premier et on le signale, sans critère natif/WebView ni position.
+     */
+    private async firstNative(selector: string, timeout: number): Promise<WebdriverIO.Element | null> {
+        let found: WebdriverIO.Element[] = []
+        await browser.waitUntil(async () => {
+            found = Array.from(await $$(selector))
+            return found.length > 0
+        }, {timeout, interval: 300}).catch(() => undefined)
+        if (found.length > 1) {
+            log.warn(`ANOMALIE : ${found.length} éléments natifs correspondent à « ${selector} » (feuille native et page de la SPA ` +
+                'superposées, même libellé) ; on prend le premier. Aucun identifiant ne les distingue (constaté sur iOS, 2026-10-08).')
+        }
+        return found[0] ?? null
     }
 }
 

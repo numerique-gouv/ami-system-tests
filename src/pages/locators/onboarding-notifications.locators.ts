@@ -22,9 +22,15 @@ export const androidOnboardingNotifLocators: OnboardingNotifLocators = {
   dismiss: 'android=new UiSelector().text("Peut-être plus tard")',
 }
 
+// iOS : l'écran existe DEUX fois dans l'arbre natif (constaté le 2026-10-08) : la feuille SwiftUI et la page de la SPA
+// `/#/welcome/notifications` rendue derrière, que l'arbre d'accessibilité expose aussi. Les deux boutons portent le même
+// libellé, sans identifiant (ni `accessibilityIdentifier` dans l'app, ni `data-testid` visible nativement) : rien de
+// stable ne les distingue, et ni « natif ou WebView » ni la position ne tiendront quand les pages passeront en natif.
+// Décision : on prend le PREMIER (ce que faisait WDIO 9) et la page signale l'écart (`firstNative`). Les apps et la SPA
+// ne sont pas modifiées. Quand le doublon disparaît, il ne reste qu'un élément et l'avertissement cesse.
 export const iosOnboardingNotifLocators: OnboardingNotifLocators = {
-  title:   '-ios predicate string:label CONTAINS[c] "notifications pour suivre"',
-  dismiss: '-ios predicate string:label CONTAINS[c] "plus tard"',
+  title:   '-ios predicate string:type == "XCUIElementTypeStaticText" AND label CONTAINS[c] "notifications pour suivre"',
+  dismiss: '-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "plus tard"',
 }
 
 /**

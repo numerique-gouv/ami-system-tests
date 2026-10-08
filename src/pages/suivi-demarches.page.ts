@@ -12,6 +12,9 @@ const log = logger('page-object')
 
 const DEMARCHES_TIMEOUT_MS = 20000
 
+// Durée maximale d'attente de la démarche : traitement serveur de la notification, puis rafraîchissements (≈ 2 s d'intervalle).
+const SUIVI_WAIT_MS = 30000
+
 class SuiviDemarchesPage {
     /**
      * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
@@ -26,52 +29,55 @@ class SuiviDemarchesPage {
      */
     async waitForDemarche(title: string): Promise<void> {
         const startedAt = Date.now()
-        const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
-        let elapsed = 0
-        // Dernière erreur WebDriver/rendu de l'avant-dernière tentative non rendue : si la page n'a jamais
-        // pu être lue, l'échec ne dit rien du traitement serveur (pas de renvoi vers les logs Scalingo).
+        let attempts = 0
+        // Dernière erreur WebDriver/rendu d'une tentative non rendue : si la page n'a jamais pu être lue,
+        // l'échec ne dit rien du traitement serveur (pas de renvoi vers les logs Scalingo).
         let lastRenderError: string | null = null
         let lastAttemptRendered = false
-        for (const delay of backoffMs) {
-            await browser.pause(delay) // hors inWebContext : laisse la page respirer entre deux rafraîchissements
-            elapsed += delay
-            // Un reload lent (cold-start backend, etc.) ne doit pas interrompre le backoff : on le
-            // traite comme "pas encore trouvé" et on retente, au lieu de laisser l'AssertionError
-            // du waitUntil interne remonter et court-circuiter les tentatives restantes.
-            const rendered = await platform().inWebContext(async () => {
-                await driver.execute(() => window.location.reload())
-                // `readyState === 'complete'` ne signale que la fin du chargement du bundle JS,
-                // pas le montage Svelte ni la résolution du fetch de la liste — juste après reload,
-                // document.body.innerText est encore vide la quasi-totalité du temps (constaté en
-                // debug). On attend un contenu textuel réel (liste ou état vide rendu) avant de
-                // lire la page, sans quoi chaque tentative lit un DOM non peint et échoue à tort.
-                return await browser.waitUntil(
-                    () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
-                    {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
-                ).then(() => true).catch((err: Error) => {
-                    lastRenderError = err.message
-                    return false
+        let fatal: unknown = null
+        // `waitUntil` porte l'intervalle entre deux rafraîchissements (il remplace l'ancien backoff par `browser.pause`) et
+        // avale les erreurs de sa condition : une erreur inattendue est mémorisée puis relancée ci-dessous.
+        const found = await browser.waitUntil(async () => {
+            attempts++
+            try {
+                // Un reload lent (cold-start backend, etc.) ne doit pas interrompre les tentatives : on le
+                // traite comme "pas encore trouvé" et on retente.
+                const rendered = await platform().inWebContext(async () => {
+                    await driver.execute(() => window.location.reload())
+                    // `readyState === 'complete'` ne signale que la fin du chargement du bundle JS,
+                    // pas le montage Svelte ni la résolution du fetch de la liste — juste après reload,
+                    // document.body.innerText est encore vide la quasi-totalité du temps (constaté en
+                    // debug). On attend un contenu textuel réel (liste ou état vide rendu) avant de
+                    // lire la page, sans quoi chaque tentative lit un DOM non peint et échoue à tort.
+                    return await browser.waitUntil(
+                        () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
+                        {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
+                    ).then(() => true).catch((err: Error) => {
+                        lastRenderError = err.message
+                        return false
+                    })
                 })
-            })
-            lastAttemptRendered = rendered
-            if (!rendered) {
-                log.log(`[suivi] reload non rendu, on retente (≤ ${elapsed}ms)`)
-                continue
+                lastAttemptRendered = rendered
+                if (!rendered) {
+                    log.log(`[suivi] reload non rendu, on retente (tentative ${attempts}, ${Date.now() - startedAt}ms)`)
+                    return false
+                }
+                const present = await platform().inWebContext(async () => {
+                    // Le reload qui précède peut laisser un arbre d'accessibilité WKWebView périmé sur
+                    // iOS (cf. refreshAxTree()) — no-op sur Android.
+                    await platform().refreshAxTree()
+                    return driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
+                })
+                log.log(`[suivi] démarche "${title}" ${present ? 'visible' : 'toujours pas visible'} (tentative ${attempts}, ${Date.now() - startedAt}ms)`)
+                return present
+            } catch (err) {
+                fatal = err
+                return true
             }
-
-            const found = await platform().inWebContext(async () => {
-                // Le reload qui précède peut laisser un arbre d'accessibilité WKWebView périmé sur
-                // iOS (cf. refreshAxTree()) — no-op sur Android.
-                await platform().refreshAxTree()
-                return driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
-            })
-
-            if (found) {
-                log.log(`[suivi] démarche "${title}" visible (≤ ${elapsed}ms)`)
-                return
-            }
-            log.log(`[suivi] démarche "${title}" toujours pas visible (≤ ${elapsed}ms)`)
-        }
+        }, {timeout: SUIVI_WAIT_MS, interval: 2000}).then(() => true).catch(() => false)
+        if (fatal) throw fatal
+        if (found) return
+        const elapsed = Date.now() - startedAt
         if (!lastAttemptRendered)
             throw new AssertionError({ message: `Page Suivi illisible après ${elapsed}ms (dernière erreur : ${lastRenderError}) — la présence de la démarche "${title}" n'a pas pu être vérifiée.` })
         throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms. ${scalingoLogsHint(startedAt)}` })

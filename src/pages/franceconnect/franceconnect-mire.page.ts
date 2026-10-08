@@ -4,6 +4,7 @@ import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
 import {findRole} from '../../helpers/spa'
+import {rethrowStrictViolation} from '../../helpers/strict'
 
 const log = logger('page-object')
 
@@ -33,7 +34,10 @@ class FranceConnectMirePage {
      */
     private async isNativeFcButtonDisplayed(): Promise<boolean> {
         const loc = getFranceConnectMireLocators()
-        return await $(loc.fcButton).isDisplayed().catch(() => false)
+        return await $(loc.fcButton).isDisplayed().catch((err: unknown) => {
+            rethrowStrictViolation(err)
+            return false
+        })
     }
 
     /**
