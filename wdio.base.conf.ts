@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import logger from '@wdio/logger'
 import { dumpFailure } from './src/helpers/failure-dump'
 import { resetSteps } from './src/helpers/report'
+import { stripRawCommandLogs } from './src/helpers/junit-clean'
 
 const log = logger('scenario')
 
@@ -82,6 +83,11 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // Hooks globaux
   beforeSuite: (suite): void => {
     log.info(`-> describe : ${suite.title}`)
+  },
+
+  // Une fois tous les fichiers JUnit écrits : retire les lignes brutes COMMAND/RESULT (cf. helpers/junit-clean.ts).
+  onComplete: (): void => {
+    stripRawCommandLogs(path.resolve(__dirname, 'test-results/junit'))
   },
 
   // Un seul callback pour les 4 hooks Mocha (before/beforeEach/after/afterEach) — hookName les
