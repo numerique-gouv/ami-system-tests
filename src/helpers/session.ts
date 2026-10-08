@@ -34,7 +34,7 @@ export async function hasSessionToken(): Promise<boolean> {
         log.info(`hasSessionToken: page hors du backend (${origin}), cookie de session illisible`)
         return false
       }
-      return (await browser.getCookies([SESSION_COOKIE_NAME])).length > 0
+      return (await browser.getCookies({name: SESSION_COOKIE_NAME})).length > 0
     })
   } catch (err) {
     log.warn('hasSessionToken: lecture du cookie de session impossible', err)

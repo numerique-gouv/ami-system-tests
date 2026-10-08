@@ -19,25 +19,25 @@
     "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report"
   },
   "devDependencies": {
-    "@types/node": "^26.4.0",
+    "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
-    "@wdio/allure-reporter": "^9.31.4",
-    "@wdio/appium-service": "^9.31.5",
-    "@wdio/cli": "^9.31.5",
-    "@wdio/local-runner": "^9.31.5",
-    "@wdio/mocha-framework": "^9.31.5",
-    "@wdio/spec-reporter": "^9.31.2",
-    "@wdio/types": "^9.31.2",
+    "@wdio/allure-reporter": "^10.0.0",
+    "@wdio/appium-service": "^10.0.0",
+    "@wdio/cli": "^10.0.0",
+    "@wdio/local-runner": "^10.0.0",
+    "@wdio/mocha-framework": "^10.0.0",
+    "@wdio/spec-reporter": "^10.0.0",
+    "@wdio/types": "^10.0.0",
     "allure": "^3.16.0",
     "appium": "^3.7.0",
     "eslint": "^10.9.1",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "webdriverio": "^9.31.5"
+    "webdriverio": "^10.0.0"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.19.0"
   },
   "allowScripts": {
     "sharp@0.34.5": true,
