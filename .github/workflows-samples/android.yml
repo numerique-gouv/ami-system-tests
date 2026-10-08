@@ -1,3 +1,5 @@
+# OBSOLÈTE depuis le retrait d'Allure (2026-10-08) : prototype conservé à titre d'archive, non maintenu. Le workflow de
+# référence est .github/workflows/workflow-e2e-main.yml (résultats JUnit + dumps d'échec en artefact).
 name: Notification API — Android
 
 # se lance en local depuis la racine du projet avec:

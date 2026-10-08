@@ -1,11 +1,14 @@
-name: Allure cleanup
+name: Allure cleanup (artefacts de tests)
 
 # Appelé par les dépôts frères (notification-api / ios / android) sur la fermeture de leur PR
-# (pull_request: types: [closed]) — supprime les artifacts Allure associés (résultats
-# d'historique et rapports HTML publiés par workflow-e2e-main.yml) pour ne pas les laisser
+# (pull_request: types: [closed]) — supprime les artifacts de tests associés (résultats JUnit et
+# dumps d'échec publiés par workflow-e2e-main.yml, plus les anciens artifacts Allure
+# `allure-history-*` et `allure-report-*` qui peuvent subsister) pour ne pas les laisser
 # s'accumuler indéfiniment une fois la PR fermée. `retention-days` reste un filet de sécurité
 # si ce dispatch échoue ou n'est jamais câblé côté dépôt frère (cf.
 # docs/adr/2026-08-04-Integration-continue-Github-Actions.md).
+# Le nom du fichier (allure-cleanup.yml) est conservé : les dépôts frères le déclenchent par ce nom. À renommer
+# (test-results-cleanup.yml) en coordination avec eux.
 on:
   workflow_dispatch:
     inputs:
@@ -26,7 +29,7 @@ permissions:
 
 jobs:
   cleanup:
-    name: Supprimer les artifacts Allure de la PR
+    name: Supprimer les artifacts de tests de la PR
     runs-on: ubuntu-latest
     steps:
       # Même calcul que dans workflow-e2e-main.yml — les deux doivent rester identiques pour
@@ -40,16 +43,16 @@ jobs:
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
           echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
-      - name: Supprimer les artifacts allure-history-<slug> et allure-report-<slug>-*
+      - name: Supprimer les artifacts test-results-<slug>-* (et les anciens allure-*)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLUG: ${{ steps.slug.outputs.slug }}
         run: |
           IDS=$(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" --paginate | \
             jq -r --arg slug "$SLUG" \
-              '.artifacts[] | select(.name == ("allure-history-" + $slug) or (.name | startswith("allure-report-" + $slug + "-"))) | .id')
+              '.artifacts[] | select(.name == ("allure-history-" + $slug) or (.name | startswith("allure-report-" + $slug + "-")) or (.name | startswith("test-results-" + $slug + "-"))) | .id')
           if [ -z "$IDS" ]; then
-            echo "Aucun artifact Allure trouvé pour $SLUG."
+            echo "Aucun artifact de tests trouvé pour $SLUG."
             exit 0
           fi
           for id in $IDS; do

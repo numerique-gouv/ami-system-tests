@@ -32,15 +32,14 @@ on:
         type: string
         required: true
     outputs:
-      allure_report:
-        description: "nom de l'artefact allure-results publié par le job e2e, à télécharger par le workflow appelant"
-        value: ${{ jobs.e2e.outputs.allure_report }}
+      test_results:
+        description: "nom de l'artefact des résultats de tests (JUnit XML dans junit/, dumps des échecs dans failures/), à télécharger par le workflow appelant pour commenter la PR"
+        value: ${{ jobs.e2e.outputs.test_results }}
 
-# Un groupe par PR (source_repo + pr_number : sérialise les runs d'une même PR, la
-# restauration/publication de l'historique Allure étant un cycle lecture-modification-écriture
-# non concurrent-safe. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
+# Un groupe par PR (source_repo + pr_number) : sérialise les runs d'une même PR, qui partagent le même
+# environnement Scalingo de review. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
 concurrency:
-  group: allure-${{ inputs.source_repo }}-${{ inputs.pr_number }}
+  group: e2e-${{ inputs.source_repo }}-${{ inputs.pr_number }}
   cancel-in-progress: false
 
 jobs:
@@ -54,8 +53,8 @@ jobs:
       suite: ${{ inputs.run_ios }}
     secrets: inherit
 
-  # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même allure-report)
-  # iOS a besoin d'un MacOs (10x plus cher qu'Ubuntu), donc d'une autre VM, donc d'un autre job avec transimission de rapport Aluure par upload et download d'artefacts.
+  # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même dossier test-results)
+  # iOS a besoin d'un MacOs (10x plus cher qu'Ubuntu), donc d'une autre VM, donc d'un autre job avec transmission des résultats par upload et download d'artefacts.
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
@@ -66,7 +65,7 @@ jobs:
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
       WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
     outputs:
-      allure_report: ${{ steps.publish-allure.outputs.allure_report }}
+      test_results: ${{ steps.publish-results.outputs.test_results }}
     steps:
       # checkout_ref porte le nom de branche de source_repo (ex. notifications-api),
       # On tente d'abord la ref demandée ; si elle n'existe pas, actions/checkout 
@@ -111,91 +110,46 @@ jobs:
           run_old_device: ${{ inputs.run_old_device }}
 
       - if: ${{ inputs.run_ios != '' }}
-        name: download iOS allure results
-        run: echo TODO download allure artefact
+        name: download iOS test results
+        run: echo TODO télécharger l'artefact de résultats iOS (JUnit et dumps) dans ami-system-tests/test-results
 
       # source_repo (contient "/") + pr_number → identifiant utilisable comme nom d'artifact
       - name: calculer la clé d'isolation (slug)
         id: slug
+        if: ${{ always() }}
         run: |
           RAW="${{ inputs.source_repo }}-pr${{ inputs.pr_number }}"
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
           echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
-      - name: chercher l'historique Allure de la PR
-        id: history
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ARTIFACT=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=allure-history-${{ steps.slug.outputs.slug }}&per_page=100" \
-            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last')
-          if [ -z "$ARTIFACT" ] || [ "$ARTIFACT" = "null" ]; then
-            echo "Aucun historique existant — premier run de cette PR, ou artifact renommé/expiré."
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "artifact_id=$(echo "$ARTIFACT" | jq -r '.id')" >> "$GITHUB_OUTPUT"
-          fi
-
-      # continue-on-error : l'artifact repéré ci-dessus peut avoir expiré/être supprimé entre les
-      # deux steps (course bénigne) — un historique manquant ne doit jamais faire échouer le run,
-      # seulement repartir sans tendances pour ce run.
-      - name: restaurer l'historique Allure de la PR
-        if: steps.history.outputs.found == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@v4
+      # Résumé passants/cassés dans la page du run. `annotate_only` : pas de check run (donc pas de `checks: write`) et
+      # `job_summary` pour le tableau. Le commentaire sur la PR d'origine est posté par le workflow APPELANT (cf.
+      # workflow-e2e-main.yml appelé depuis ami-notifications-api) : ce token n'a pas de droit sur l'autre dépôt.
+      # Action tierce épinglée par SHA de commit (mikepenz/action-junit-report v6.6.0, Apache-2.0) : ne jamais la
+      # référencer par tag. Non vérifiée en CI réelle depuis la migration (testée seulement en lecture de sa doc).
+      - name: résumé des tests (JUnit)
+        if: ${{ always() }}
+        uses: mikepenz/action-junit-report@b7b80d7ac5b1da46d6aaff9fb57ad50d8453bcb3 # v6.6.0
         with:
-          artifact-ids: ${{ steps.history.outputs.artifact_id }}
-          path: ami-system-tests/.allure
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          report_paths: ami-system-tests/test-results/junit/*.xml
+          annotate_only: true
+          job_summary: true
+          detailed_summary: true
+          fail_on_failure: false
+          require_tests: false
 
-      # Legacy mais toujours lu par Allure 3 (cf. how-it-works-executor-file) : sans lui, les
-      # points de la courbe de tendance ne sont pas identifiables (build, lien vers le run).
-      - name: écrire executor.json
-        working-directory: ami-system-tests
-        run: |
-          mkdir -p allure-results
-          cat > allure-results/executor.json <<EOF
-          {
-            "name": "GitHub Actions",
-            "type": "github",
-            "buildName": "PR #${{ inputs.pr_number }} — run ${{ github.run_number }}",
-            "buildOrder": ${{ github.run_number }},
-            "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }
-          EOF
-
-      - name: build allure report
-        shell: bash
-        working-directory: ami-system-tests
-        run: just generate-report
-
-      - name: publier le rapport Allure (artefact complet)
+      # JUnit XML (résumé) et dumps des échecs (capture, DOM ou arbre natif, identifiants Sentry) : un seul artefact.
+      - name: publier les résultats de tests
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
-          path: ami-system-tests/allure-report
+          name: test-results-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
+          path: ami-system-tests/test-results
           retention-days: 14
           if-no-files-found: warn
 
-      # Consommé par le step "restaurer l'historique" ci-dessus au run suivant de cette PR —
-      # seul .allure/history.jsonl (quelques Ko) est conservé, pas le rapport HTML complet
-      # (captures d'écran d'échec, ~20 Mo). Rétention longue : doit survivre toute la durée
-      # de vie réaliste d'une PR, sinon une PR ouverte plus de 14 jours perdrait sa tendance.
-      - name: publier l'historique Allure
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-history-${{ steps.slug.outputs.slug }}
-          path: ami-system-tests/.allure/history.jsonl
-          retention-days: 90
-          if-no-files-found: warn
-
-      # Nom de l'artefact "rapport complet" (pas les allure-results bruts) exposé en output
-      # `allure_report` — à télécharger côté appelant (ex. job e2e-report de
-      # workflow-e2e-webapp-shared.yml dans ami-notifications-api), qui appelle lui-même
-      # allure-framework/allure-action sur ami-system-tests/allure-report/summary.json (plugin
-      # `awesome` d'Allure 3, format désormais compatible avec ce que lit l'action).
-      - name: set artifact name
-        id: publish-allure
-        run: echo "allure_report=allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+      # Nom de l'artefact exposé en output `test_results` — à télécharger côté appelant, qui commente la PR d'origine.
+      - name: nom de l'artefact des résultats
+        id: publish-results
+        if: ${{ always() }}
+        run: echo "test_results=test-results-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}" >> "$GITHUB_OUTPUT"
