@@ -40,7 +40,7 @@ flowchart LR
   subgraph S3["③ Onglet Agenda"]
     AGENDA["Agenda /agenda"]:::full
     AGDLG["Dialogue évènement<br/>(Supprimer)"]:::full
-    ZDLG["Dialogue Zones scolaires"]:::part
+    ZONESP["/preferences/zones<br/>Zones scolaires (page)"]:::full
   end
 
   %% ============ 4. Onglet Services ============
@@ -130,7 +130,8 @@ flowchart LR
 
   %% --- ③ Agenda
   AGENDA -->|"✔ évènement"| AGDLG
-  AGENDA -->|"✔ Préférences"| ZDLG
+  AGENDA -->|"✔ Préférences"| ZONESP
+  ZONESP -->|"✔ Retour"| AGENDA
 
   %% --- ④ Services
   SERVICES -->|"✔ checklist (onglet Aide)"| CHECK
@@ -168,7 +169,8 @@ flowchart LR
   %% --- ⑧ Préférences
   PREFS -->|"✔ Suivi des démarches"| CONSENTS
   PREFS -->|"✔ Notifications"| PREFNOTIF
-  PREFS -.->|"○ Zones scolaires"| ZDLG
+  PREFS -->|"✔ Zones scolaires"| ZONESP
+  ZONESP -->|"✔ Fermer"| PREFS
 
   %% --- ⑨ Aide et contact
   HELP -->|"✔ Je rencontre un problème<br/>sur l'application"| CONTACT

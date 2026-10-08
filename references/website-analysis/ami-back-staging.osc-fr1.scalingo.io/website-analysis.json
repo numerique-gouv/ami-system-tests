@@ -1,12 +1,15 @@
 {
-  "updatedAt": "2026-10-02",
+  "updatedAt": "2026-10-08",
   "target": "ami-back-staging.osc-fr1.scalingo.io",
   "evidence": [
     "live-headless-wdio-2026-10-02 (compte avec_nom_dusage)",
     "code:../ami-notifications-api/public/mobile-app@2ac75804",
     "code:src/pages/*.page.ts",
     "code:src/tests/mobile/*.test.ts",
-    "native: observé le 2026-09-08, non ré-observé"
+    "native: observé le 2026-09-08, non ré-observé",
+    "live-headless-wdio-2026-10-08 (27 routes, zones scolaires, snapshot d'un test en pause)",
+    "native-partial: observé le 2026-10-08 (tuile du picker, feuille iOS superposée, fin de session FranceConnect)",
+    "code SPA locale en retard sur staging (2ac75804, 2026-09-24) : non relue le 2026-10-08"
   ],
   "nativeScreens": {
     "android": {
@@ -210,6 +213,12 @@
       "id": "prototype",
       "route": "/step | /step-form | /procedure-17cyber",
       "evidence": "live (liens 404) — non confirmé"
+    },
+    {
+      "id": "preferences-zones",
+      "route": "/preferences/zones",
+      "evidence": "live (2026-10-08)",
+      "note": "page (plus un dialogue) ; accès depuis /agenda et /preferences"
     }
   ],
   "sequences": [
@@ -412,6 +421,16 @@
   ],
   "diff": [
     {
+      "impact": "significant",
+      "change": "Agenda > Préférences et Préférences > Zones scolaires ouvrent la page /preferences/zones (plus un dialogue) : casse AgendaPage.openZonePreferences/closeZonePreferences et le test webapp Agenda > Préférences (3/3 en échec le 2026-10-08)",
+      "evidence": "live 2026-10-08"
+    },
+    {
+      "impact": "minor",
+      "change": "route inexistante : titre « Petit problème de notre côté... » + « Erreur 404 - Not Found » ; /procedure-17cyber rendu dans un iframe (17Cyber)",
+      "evidence": "live 2026-10-08"
+    },
+    {
       "impact": "breaking",
       "change": "salutation 'Bonjour {prénom}' passée de <p> à <h1> : sentinelles HomePage.probeWelcomeText/probeFranceConnectWebScreen (querySelectorAll('p')) aveugles, getAppToStartingState échoue à chaque run — corrigé le 2026-10-02 (h1, p)"
     },
@@ -444,6 +463,9 @@
     "/step et /step-form : prototypes ? (liens 404)",
     "lien entre consentement API (grantConsent) et case 'AMI' de preferences/consents",
     "fréquence de /welcome/zones (user_first_login=true) : 1 occurrence observée, cause non vérifiée",
-    "zones d'ombre natives Android/iOS (cf. sections natives du .md)"
+    "zones d'ombre natives Android/iOS (cf. sections natives du .md)",
+    "comportement de Fermer sur /preferences/zones depuis l'Agenda",
+    "date du déploiement staging qui a remplacé le dialogue par une page",
+    "code de la SPA déployée non relu (dépôt frère local en retard)"
   ]
 }

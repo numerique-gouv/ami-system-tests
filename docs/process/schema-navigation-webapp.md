@@ -1,6 +1,7 @@
 # Schéma de navigation de la webapp et couverture par les scénarios
 
-Fondé uniquement sur des preuves : routes et boutons observés en live sur staging le 2026-10-02
+Fondé uniquement sur des preuves : routes et boutons observés en live sur staging le 2026-10-02 (mise à jour du
+2026-10-08 : la page `/preferences/zones` remplace l'ancien dialogue « Zones scolaires »)
 (`references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.md`) et contenu réel des
 specs de `src/tests/webapp/`. Ce qui n'a pas été observé est marqué `?` (non confirmé).
 
@@ -54,7 +55,7 @@ flowchart TD
   end
 
   AGDLG["Dialogue évènement<br/>(Supprimer)"]:::full
-  ZDLG["Dialogue Zones scolaires"]:::part
+  ZONESP["/preferences/zones<br/>Zones scolaires (page)"]:::full
   PROTO["/step · /step-form<br/>/procedure-17cyber<br/>prototype ? "]:::none
 
   EXT["Sites externes<br/>service-public.gouv.fr<br/>demarche.numerique.gouv.fr<br/>rdv.anct.gouv.fr · annuaire<br/>partenaire de la démarche"]:::ext
@@ -90,8 +91,10 @@ flowchart TD
 
   %% --- Agenda
   AGENDA -->|"✔ évènement"| AGDLG
-  AGENDA -->|"✔ Préférences"| ZDLG
-  PREFS -.->|"○ Zones scolaires"| ZDLG
+  AGENDA -->|"✔ Préférences"| ZONESP
+  ZONESP -->|"✔ Retour"| AGENDA
+  PREFS -->|"✔ Zones scolaires"| ZONESP
+  ZONESP -->|"✔ Fermer"| PREFS
 
   %% --- Services
   SERVICES -->|"✔ checklist (onglet Aide)"| CHECK
@@ -143,12 +146,12 @@ trait pointillé = lien partiel ou incertain.
 | `authentication.test.ts` | Connexion → FranceConnect → clé d'accès → zones → notifications → Accueil |
 | `navigation.test.ts` | Barre basse (Agenda, Services, Suivi, retour Accueil) ; menu Plus : 6 entrées listées, 5 ouvertes |
 | `accueil.test.ts` | Accueil → cloche, évènements, démarches, carte OTV, carte adresse (sans enregistrer) |
-| `agenda.test.ts` | Agenda → dialogue évènement (Supprimer proposé, non cliqué) ; Préférences → zones |
+| `agenda.test.ts` | Agenda → dialogue évènement (Supprimer proposé, non cliqué) ; Préférences → page des zones → Retour |
 | `services.test.ts` | Services (2 onglets, entrées présentes) → checklist → section (cases décochées) ; fiche OTV par sa route |
 | `suivi.test.ts` | Cycle new/wip/closed ; Suivi → détail (historique) → lien partenaire ; archivées **par route** |
 | `notifications.test.ts` | Réception inbox ; notification de démarche → détail ; Gérer → préférences de notifications |
 | `profil.test.ts` | Profil → 3 formulaires (Annuler) ; modification nom d'usage et email puis restauration |
-| `preferences.test.ts` | Préférences → consentements (partenaires, AMI coché) ; notifications (case présente) |
+| `preferences.test.ts` | Préférences → consentements (partenaires, AMI coché) ; notifications (case présente) ; Zones scolaires → page des zones → Fermer |
 | `aide-contact.test.ts` | Aide → Contact → dialogue ; pages légales : sections listées (non ouvertes) |
 | `deconnexion.test.ts` | Plus → Me déconnecter → confirmation → connexion → reconnexion, données d'origine |
 | `erreurs.test.ts` | Les 3 pages d'erreur, par leur route |
@@ -158,7 +161,7 @@ trait pointillé = lien partiel ou incertain.
 - Clic sur les entrées SOS, l'annuaire et les cartes partenaires de Services (leur présence est testée, pas leur destination) ;
 - « Bénéficier de ce service », « Accéder à l'annuaire », « Faire une demande en ligne », « Envoyer un mail » ;
 - cases d'une checklist (cocher/décocher) et ouverture d'une section de page légale ;
-- « Zones scolaires » depuis Préférences (testé seulement depuis l'Agenda), changement réel de zones ;
+- changement réel de zones, « Fermer » depuis l'accès Agenda (non confirmé) ;
 - actions « Supprimer » (agenda) et « Archiver » (suivi), « Tout suivre », activation des notifications ;
 - chemin par bouton vers `/followup/archived`, rôle du bouton « Sous-menu » ;
 - enregistrement d'une adresse (`/edit-address`, volontairement écarté comme dans la suite mobile) ;

@@ -1,4 +1,15 @@
-# Diff — webapp AMI staging (baseline 2026-09-08 → courant 2026-10-02)
+# Diff — webapp AMI staging
+
+## 0. Mise à jour du 2026-10-08 (baseline 2026-10-02 → courant 2026-10-08)
+
+- **significant** — Agenda › « Préférences » et Préférences › « Zones scolaires » mènent à la **page** `/preferences/zones` (plus un dialogue). « Retour à la page précédente » → `/agenda` ; « Fermer » (depuis Préférences) → `/preferences`. Casse `AgendaPage.openZonePreferences()` / `closeZonePreferences()` et le test « Agenda › Préférences ouvre le sélecteur des 13 zones scolaires » (3/3 en échec). Preuve : capture live, URL `#/preferences/zones`, 0 dialogue.
+- **minor** — route inexistante : titre « Petit problème de notre côté... » + « Erreur 404 - Not Found » ; `/procedure-17cyber` rendu dans un iframe (17Cyber).
+- **inchangé** — les 27 routes relevées ont les mêmes titres et boutons ; menu Plus à 6 entrées.
+- Limite : seules les routes déjà connues sont comparées ; le code de la SPA locale est en retard sur staging.
+
+---
+
+# Diff — webapp AMI staging (baseline 2026-09-08 → courant 2026-10-02) — historique
 
 ## 1. Résumé
 Baseline : `website-analysis.md` du 2026-09-08. Courant : reconstruction live du 2026-10-02 (compte `avec_nom_dusage`, headless) + lecture de `../ami-notifications-api/public/mobile-app` (HEAD `2ac75804`, 38 commits sur `src/routes` depuis la baseline). Les écrans natifs Android/iOS n'ont pas été ré-observés : aucun diff n'est établi pour eux.
