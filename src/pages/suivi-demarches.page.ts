@@ -19,15 +19,19 @@ class SuiviDemarchesPage {
      *
      * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
      * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
-     * stratégie que `NotificationsInboxPage.waitForNotification`. `findText()` avec
-     * timeout court : le titre d'une carte est un seul nœud de texte (contrairement à
-     * `assertVisibleDemarcheWith`, qui a besoin de lire le badge/lien voisins via `$$()`) —
-     * une correspondance exacte par texte visible convient, pas besoin de sous-chaîne manuelle.
+     * stratégie que `NotificationsInboxPage.assertNotificationReceived`. La présence du titre est lue
+     * par `driver.execute` (texte visible de la page) après chaque rechargement : un seul aller-retour
+     * synchrone, sans handle d'élément susceptible de devenir périmé pendant le rendu. Contrairement à
+     * `assertVisibleDemarcheWith`, aucun badge ni lien voisin n'est lu ici.
      */
     async waitForDemarche(title: string): Promise<void> {
         const startedAt = Date.now()
         const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
         let elapsed = 0
+        // Dernière erreur WebDriver/rendu de l'avant-dernière tentative non rendue : si la page n'a jamais
+        // pu être lue, l'échec ne dit rien du traitement serveur (pas de renvoi vers les logs Scalingo).
+        let lastRenderError: string | null = null
+        let lastAttemptRendered = false
         for (const delay of backoffMs) {
             await browser.pause(delay) // hors inWebContext : laisse la page respirer entre deux rafraîchissements
             elapsed += delay
@@ -44,8 +48,12 @@ class SuiviDemarchesPage {
                 return await browser.waitUntil(
                     () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
                     {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
-                ).then(() => true).catch(() => false)
+                ).then(() => true).catch((err: Error) => {
+                    lastRenderError = err.message
+                    return false
+                })
             })
+            lastAttemptRendered = rendered
             if (!rendered) {
                 log.log(`[suivi] reload non rendu, on retente (≤ ${elapsed}ms)`)
                 continue
@@ -64,6 +72,8 @@ class SuiviDemarchesPage {
             }
             log.log(`[suivi] démarche "${title}" toujours pas visible (≤ ${elapsed}ms)`)
         }
+        if (!lastAttemptRendered)
+            throw new AssertionError({ message: `Page Suivi illisible après ${elapsed}ms (dernière erreur : ${lastRenderError}) — la présence de la démarche "${title}" n'a pas pu être vérifiée.` })
         throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms. ${scalingoLogsHint(startedAt)}` })
     }
 
@@ -90,18 +100,26 @@ class SuiviDemarchesPage {
     await platform().inWebContext(async () => {
       let failReason: 'card-not-found' | 'status-not-found' = 'card-not-found'
       let lastStatus: string | null = null
+      // Erreur WebDriver de la dernière tentative (contexte perdu, élément périmé…) : distincte de
+      // « carte absente », elle ne doit pas renvoyer vers les logs Scalingo.
+      let lastError: string | null = null
       const statusLabelLower = statusLabel.toLowerCase()
       try {
         await browser.waitUntil(
           async () => {
             failReason = 'card-not-found'
             lastStatus = null
-            for await (const card of $$(loc.cardContent)) {
-              const titleText = await card.$(loc.cardTitle).getText().catch(() => '')
-              if (!titleText.includes(title)) continue
-              failReason = 'status-not-found'
-              lastStatus = (await card.$(loc.cardBadge).getText().catch(() => '')).trim().toLowerCase()
-              return lastStatus.includes(statusLabelLower)
+            lastError = null
+            try {
+              for await (const card of $$(loc.cardContent)) {
+                const titleText = await card.$(loc.cardTitle).getText()
+                if (!titleText.includes(title)) continue
+                failReason = 'status-not-found'
+                lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
+                return lastStatus.includes(statusLabelLower)
+              }
+            } catch (err) {
+              lastError = (err as Error).message
             }
             return false
           },
@@ -111,7 +129,10 @@ class SuiviDemarchesPage {
             timeoutMsg: `Démarche "${title}" (statut "${statusLabel}") non trouvée après ${timeoutMs}ms`
           }
         )
-      } catch {
+      } catch (err) {
+        log.warn('Suivi : démarche/statut non trouvé', err)
+        if (lastError)
+          throw new AssertionError({ message: `Liste du Suivi illisible après ${timeoutMs}ms (dernière erreur : ${lastError}) — la démarche "${title}" n'a pas pu être vérifiée.` })
         if (failReason === 'card-not-found')
           throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)}` })
         throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus})` })
@@ -121,11 +142,12 @@ class SuiviDemarchesPage {
 
   /**
    * Depuis la page Suivi, ouvre la page de détail de la démarche `title` en cliquant sa tuile.
-   * Ne vérifie pas l'arrivée sur la page de détail : cette sentinelle appartient à la méthode
-   * qui utilise réellement un élément de cette page (`DemarcheDetailPage.assertLienExterne`).
-   * Le scénario appelant doit donc enchaîner :
-   * - demarchesPage.ouvreDemarche(...)
-   * - demarcheDetailPage.assertLienExterne(...)
+   * Ne vérifie pas l'arrivée sur la page de détail : cette sentinelle appartient à la page cible
+   * (`DemarcheDetailPage.assertDisplayed(title)`, ou la méthode qui utilise réellement un élément de
+   * cette page, ex. `DemarcheDetailPage.assertLienExterne`).
+   * Le scénario appelant enchaîne donc, par exemple :
+   * - suiviDemarchesPage.ouvreDemarche(...)
+   * - demarcheDetailPage.assertDisplayed(...)
    */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
     await platform().inWebContext(async () => {
@@ -137,7 +159,8 @@ class SuiviDemarchesPage {
       try {
         const link = await findRole('button', title, { timeout: timeoutMs })
         await link.click()
-      } catch {
+      } catch (err) {
+        log.warn('Suivi : ouverture de la démarche impossible', err)
         throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" à ouvrir` })
       }
     })
@@ -187,17 +210,25 @@ class SuiviDemarchesPage {
         const demarchesLocators = getSuiviDemarchesLocators()
         const isSuiviVisible = (): Promise<boolean> => queryRole('heading', demarchesLocators.pageTitle)
             .then((el) => el !== null)
-            .catch(() => false)
+            .catch((ex) => {
+                log.warn('retourJusquAPageSuivi: sonde du titre de la page Suivi en échec', ex)
+                return false
+            })
 
         await platform().inWebContext(async () => {
             if (await isSuiviVisible()) return
             await browser.back()
-            const backOk = await browser.waitUntil(isSuiviVisible, {timeout: 4000, interval: 500})
-                .then(() => true).catch(() => false)
+            const backOk = await browser.waitUntil(isSuiviVisible, {
+                timeout: 4000, interval: 500,
+                timeoutMsg: `Page Suivi (titre "${demarchesLocators.pageTitle}") non revenue après browser.back()`,
+            }).then(() => true).catch((ex) => {
+                log.debug('retourJusquAPageSuivi: page Suivi non revenue après browser.back()', ex)
+                return false
+            })
             if (backOk) return
 
             const origin = await driver.execute(() => location.origin) as string
-            log.warn(`retourJusquAPageSuivi: retour arrière sans effet, rechargement de ${origin}/#/followup`)
+            log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
             await browser.url(`${origin}/#/followup`)
             await browser.waitUntil(isSuiviVisible, {
                 timeout: 20000, interval: 500,

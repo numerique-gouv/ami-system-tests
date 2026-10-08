@@ -2,15 +2,16 @@
  * Client HTTP pour l'API partenaire AMI — publication de notifications push.
  *
  * Variables (.env / .env.local) :
- *   AMI_ENV              — fragment du label picker (titre ou numéro de PR).
+ *   AMI_ENV              — environnement cible (titre ou numéro de PR) ; en webapp, l'URL en est
+ *                          dérivée par resolveEnvironment() (environment.ts).
  *   NOTIF_PARTNER_ID     — identifiant partenaire
  *   NOTIF_PARTNER_SECRET — secret partenaire (HTTP Basic auth)
  *
- * L'URL backend est définie via setBackendUrl(), appelé par EnvironmentPickerPage.reviewEnvironmentPicker()
- * depuis le titre de l'item cliqué dans le picker — jamais par variable d'environnement.
+ * L'URL backend est définie via setBackendUrl() : en mobile, par EnvironmentPickerPage.reviewEnvironmentPicker()
+ * depuis le titre de l'item cliqué dans le picker ; en webapp, depuis resolveEnvironment() (AMI_ENV).
  */
-import {AssertionError} from "node:assert";
-import logger from "@wdio/logger";
+import {AssertionError} from 'node:assert'
+import logger from '@wdio/logger'
 
 const log = logger('api')
 
@@ -145,8 +146,9 @@ export async function publishNotification({
         ...(itemCanal !== undefined && {item_canal: itemCanal}),
         ...(itemMilestoneStartDate !== undefined && {item_milestone_start_date: itemMilestoneStartDate}),
         ...(itemMilestoneEndDate !== undefined && {item_milestone_end_date: itemMilestoneEndDate}),
-        // event_date unique à chaque appel : contourne l'idempotence backend (get_or_create sur le payload entier)
-        ...(eventDate !== undefined && {event_date: eventDate} || { event_date: new Date().toISOString()}),
+        // event_date unique à chaque appel par défaut : contourne l'idempotence backend
+        // (get_or_create sur le payload entier) ; une valeur fournie est utilisée telle quelle.
+        event_date: eventDate ?? new Date().toISOString(),
         ...(validUntil !== undefined && {valid_until: validUntil}),
         ...(tryPush !== undefined && {try_push: tryPush}),
     }
@@ -195,7 +197,8 @@ let _backendUrl: string = STAGING_BASE_URL
 
 /**
  * Définit l'URL backend pour toute la session de test.
- * Appelé par EnvironmentPickerPage.reviewEnvironmentPicker() dès que l'environnement est sélectionné.
+ * Appelé par EnvironmentPickerPage.reviewEnvironmentPicker() (mobile) dès que l'environnement est
+ * sélectionné ; en webapp, l'URL vient de resolveEnvironment() (environment.ts).
  */
 export function setBackendUrl(url: string): void {
     _backendUrl = url

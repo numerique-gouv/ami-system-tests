@@ -11,6 +11,9 @@ import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
 
+/** Délai laissé à la salutation après le geste de navigation vers l'accueil, avant de recharger la SPA. */
+const HOME_AFTER_GESTURE_MS = 5000
+
 class HomePage {
     /**
      * Guard d'authentification : navigue vers la home puis attend le sentinel.
@@ -58,8 +61,9 @@ class HomePage {
      * "Plus" restée ouverte après un logout, cf. closeOpenNavPlusMenu).
      *
      * Sentinel principal : texte de salutation "Bonjour <prénom>" en haut à gauche du header —
-     * seul le header de la home l'affiche (titre <h1> « Bonjour <prénom> ») ; les 3 boutons de nav (Accueil, Agenda, Suivi) sont
-     * affichés ensemble sur tous les écrans, donc ne discriminent pas Home à eux seuls.
+     * seul le header de la home l'affiche (titre <h1> « Bonjour <prénom> ») ; les 5 boutons de la barre de nav
+     * (Accueil, Agenda, Services, Suivi, Plus) sont affichés ensemble sur tous les écrans, donc ne discriminent
+     * pas Home à eux seuls.
      * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
      *
      * Échec dur (throw) plutôt que booléen : centralise le diagnostic (describeCurrentPage())
@@ -67,7 +71,7 @@ class HomePage {
      * au lieu de le dupliquer à chaque site d'appel.
      */
     async assertHomeVisible(timeout = 30000): Promise<void> {
-        // La page d'accueil est une webview'
+        // La page d'accueil est une webview
         if (await platform().isWebContextAvailable()) {
             // Première connexion du compte : la SPA affiche d'abord /welcome/zones (puis l'onboarding des
             // notifications, traité juste après) avant la home.
@@ -75,13 +79,13 @@ class HomePage {
                 await OnboardingZonesPage.dismiss()
             }
 
-            // L'écran d'onboarding peut apparaitre, et doit être refusé (ca évite les pop-in native de notification qui pourraient intercépter les clicks).
+            // L'écran d'onboarding peut apparaître, et doit être refusé (ça évite les pop-in natives de notification qui pourraient intercepter les clics).
             if (await OnboardingNotificationsPage.isOnboardingVisible()) {
                 await OnboardingNotificationsPage.dismiss()
                 if (await this.probeWelcomeText(5000)) return
             }
 
-            // Le menu plus reste parfois ouvert même après un reconnexion, au cas où, on le referme
+            // Le menu plus reste parfois ouvert même après une reconnexion, au cas où, on le referme
             if (await this.isMenuPlusVisible()) {
                 await platform().inWebContext(() => this.closeOpenNavPlusMenu())
                 if (await this.probeWelcomeText(5000)) return
@@ -120,7 +124,10 @@ class HomePage {
                 )
                 return true
             })
-        } catch {
+        } catch (ex) {
+            // Cas attendu : la salutation n'apparaît pas dans le délai (timeout du waitUntil) — l'appelant
+            // poursuit sa cascade de récupération. Un autre type d'erreur reste visible dans ce log.
+            log.warn(`probeWelcomeText: salutation non trouvée sous ${timeout}ms`, ex)
             return false
         }
     }
@@ -148,7 +155,10 @@ class HomePage {
             driver.execute(() =>
                 !!document.querySelector('dialog[id^="modal-main-nav-plus"].fr-modal--opened')
             ) as Promise<boolean>
-        ).catch(() => false)
+        ).catch((ex) => {
+            log.warn('isMenuPlusVisible: sonde du menu « Plus » en échec, considéré comme fermé', ex)
+            return false
+        })
     }
 
     /**
@@ -186,7 +196,10 @@ class HomePage {
      * Stratégie :
      *   1. clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
      *   2. Fallback hash si aucun lien de nav présent (état de départ inconnu, ex. pas de nav basse).
-     *   3. Sentinel : lien "Suivi" visible → DOM home stable.
+     *   3. Si la salutation n'apparaît pas après ce geste (page hors SPA : 404 ou lien externe laissés par
+     *      un test précédent, où le hash n'a aucun effet), recharger la SPA depuis l'origine de la page
+     *      courante — même repli que `SuiviDemarchesPage.retourJusquAPageSuivi()`.
+     *   4. Sentinel : `assertHomeVisible()` (salutation « Bonjour »).
      */
     async goToHomeFromAnywhere(timeout: number): Promise<void> {
         await platform().inWebContext(async () => {
@@ -199,15 +212,31 @@ class HomePage {
             if (platform().kind === 'webapp') {
                 // Le menu « Plus » peut rester ouvert et intercepter le clic (cf. closeOpenNavPlusMenu()).
                 await this.closeOpenNavPlusMenu()
-                clicked = await this.clickBottomBarButton('Accueil').catch(() => false)
+                clicked = await this.clickBottomBarButton('Accueil').catch((ex) => {
+                    log.warn('goToHomeFromAnywhere: clic sur « Accueil » en échec, repli sur le hash', ex)
+                    return false
+                })
             }
             if (!clicked) {
+                // driver.execute : aucun bouton ne mène à la home depuis une page sans barre basse (ou sur
+                // mobile) — les primitives de spa.ts ne suffisent pas, navigation directe par hash.
                 await driver.execute(() => {
                     window.location.hash = '/'
                 })
             }
         })
-        // Comme on part de n'importe où, on ne peut pas détécter qu'on a quitté la page précédente.
+        if (!await this.probeWelcomeText(Math.min(timeout, HOME_AFTER_GESTURE_MS))) {
+            await platform().inWebContext(async () => {
+                const origin = await driver.execute(() => location.origin) as string
+                if (!origin || origin === 'null') {
+                    log.warn('goToHomeFromAnywhere: origine de la page courante inconnue, pas de rechargement de la SPA')
+                    return
+                }
+                log.warn(`goToHomeFromAnywhere: accueil absent après le geste de navigation, rechargement de ${origin}/#/ (page hors SPA ?)`)
+                await browser.url(`${origin}/#/`)
+            })
+        }
+        // Comme on part de n'importe où, on ne peut pas détecter qu'on a quitté la page précédente.
         // donc on attend l'arrivée sur la page cible — assertHomeVisible() lève elle-même
         // l'erreur (avec describeCurrentPage()) en cas d'échec.
         await this.assertHomeVisible(timeout)
@@ -268,8 +297,11 @@ class HomePage {
                 await next.click()
                 await browser.waitUntil(
                     async () => !!await queryRole('button', homeContentLocators.otvCardName),
-                    {timeout: 2500, interval: 250}
-                ).catch(() => undefined) // animation du carrousel : on retente au tour suivant
+                    {timeout: 2500, interval: 250, timeoutMsg: `Carte "${homeContentLocators.otvCardName}" pas encore atteignable après « Diapositive suivante »`}
+                ).catch((ex) => {
+                    // animation du carrousel : on retente au tour suivant
+                    log.debug(`openOtvCard: carte pas encore atteignable (diapositive ${slide + 1}), on retente`, ex)
+                })
             }
             throw new AssertionError({message: `Carte "${homeContentLocators.otvCardName}" jamais atteignable dans le carrousel`})
         })
@@ -289,7 +321,10 @@ class HomePage {
      * Retourne false si la barre est absente (page enfant sans nav basse) : l'appelant choisit le repli.
      */
     private async clickBottomBarButton(name: string): Promise<boolean> {
-        const button = await queryRole('button', name, {in: {role: 'navigation', name: navigationLocators.bottomBarName}}).catch(() => null)
+        const button = await queryRole('button', name, {in: {role: 'navigation', name: navigationLocators.bottomBarName}}).catch((ex) => {
+            log.warn(`clickBottomBarButton: recherche du bouton « ${name} » en échec`, ex)
+            return null
+        })
         if (!button) return false
         await button.click()
         return true

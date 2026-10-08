@@ -38,7 +38,7 @@ class NotificationsInboxPage {
      */
     async openFromHome(): Promise<void> {
         await platform().inWebContext(async () => {
-            // Rôle ARIA + nom accessible : plus robuste que le sélecteur CSS structurel '#notification-icon button'.
+            // Rôle ARIA + nom accessible de la cloche.
             const bell = await findRole('button', /notifications/i, {timeout: 15000})
             await bell.click()
         })
@@ -76,7 +76,10 @@ class NotificationsInboxPage {
                     title
                 ) as unknown as boolean,
                 {timeout: timeoutMs, interval: 2000, timeoutMsg: `Notification not received:${title}.`}
-            ).catch(() => false)
+            ).catch((ex) => {
+                log.warn(`assertNotificationReceived: "${title}" non reçue sous ${timeoutMs}ms`, ex)
+                return false
+            })
             if (found) {
                 log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
                 return found
@@ -93,18 +96,20 @@ class NotificationsInboxPage {
                 throw new AssertionError({ message: `Notification not received:${title}.` })
             }
 
+            log.warn('ANOMALIE (iOS) : notification non reçue par le WebSocket, rechargement de la page — ' +
+                'socket probablement zombie, non confirmé.')
             await driver.execute(() => window.location.reload())
             await browser.waitUntil(
                 () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
-                {timeout: 8000, interval: 200}
-            ).catch(() => {})
+                {timeout: 8000, interval: 200, timeoutMsg: 'Page des notifications non rendue après reload (contenu toujours vide)'}
+            ).catch((ex) => log.warn('assertNotificationReceived: page non rendue après reload', ex))
             const foundAfterReload = await driver.execute(
                 (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
                     .some(el => el.children.length === 0 && el.textContent?.trim() === text),
                 title
             ) as unknown as boolean
             if (foundAfterReload) {
-                log.log(`[notifications] reçue après reload (iOS, socket zombie contourné, ≤ ${timeoutMs}ms)`)
+                log.warn('ANOMALIE (iOS) : notification reçue seulement après reload, WebSocket probablement zombie — non confirmé.')
                 return true
             }
             throw new AssertionError({ message: `Notification not received:${title}. (iOS, même après reload)` })
@@ -113,8 +118,8 @@ class NotificationsInboxPage {
 
     /**
      * Clique sur la notification dont le texte visible correspond exactement à `title`,
-     * puis attend que le routeur Svelte navigue vers la page de détail (changement de hash).
-     * Pré-condition : la notification est déjà visible dans l'inbox (utiliser waitForNotification avant).
+     * Ne vérifie pas la page de destination : l'arrivée est vérifiée par la page cible.
+     * Pré-condition : la notification est déjà visible dans l'inbox (utiliser assertNotificationReceived avant).
      *
      * driver.execute : trouve et clique l'élément en un seul aller-retour synchrone — le reload forcé par
      * assertNotificationReceived laisse souvent la page encore en cours de (re)construction à ce stade
@@ -140,19 +145,19 @@ class NotificationsInboxPage {
     /**
      * Retourne le texte du premier heading visible sur la page de détail d'une notification.
      * Utilise driver.execute plutôt que $$()/.getText() : la page notifications reçoit des
-     * mises à jour WebSocket en continu (cf. waitForNotification) — un $$() suivi de .getText()
+     * mises à jour WebSocket en continu (cf. assertNotificationReceived) — un $$() suivi de .getText()
      * par élément laisse une fenêtre entre la capture de la liste et sa lecture, pendant laquelle
      * le DOM peut se re-rendre et invalider les handles ("stale element", cf. CONTRIBUTING.md §2
      * pour le cas général où driver.execute reste préférable).
      * driver.execute lit tout dans le même instantané JS synchrone, pas de fenêtre de staleness.
-     * Utilise driver.execute plutôt que findRole(…, {level: 1}) également car la SPA AMI utilise
-     * <h2> / <h3> (composants DSFR fr-tile) et non systématiquement <h1>.
+     * Utilise driver.execute plutôt que findRole(…, {level: 1}) également car le titre d'une
+     * notification n'est pas un heading de niveau fixe : c'est un lien (composant DSFR fr-tile).
      */
     async getTopNotificationTitle(): Promise<string> {
         return platform().inWebContext(async () => {
             const text = await driver.execute(() => {
                 // Le titre de la notification est rendu comme un <a> (composant fr-tile DSFR), pas un heading.
-                // On exclut les liens de navigation pour ne garder que le titre métier. 
+                // On exclut les liens de navigation pour ne garder que le titre métier.
                 const EXCLUDED = new Set(['Retour à la page précédente', 'Gérer', 'Notifications', ''])
                 const el = Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"], a[href]')).find(
                     (e) => !EXCLUDED.has((e.textContent ?? '').replace(/\s+/g, ' ').trim())

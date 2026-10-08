@@ -25,7 +25,7 @@ type WebInteractiveElement = {
   ariaLabel: string
   href: string
   id: string
-  testingLibraryQuery: string
+  spaQuery: string
 }
 
 /**
@@ -101,12 +101,12 @@ async function listWebViewElements(
         const href = (el as HTMLAnchorElement).href ?? ''
         const id = el.id
 
-        let testingLibraryQuery = ''
-        if (ariaLabel) testingLibraryQuery = `findRole('${role}', /${ariaLabel}/i)`
-        else if (text) testingLibraryQuery = `findRole('${role}', /${text.slice(0, 30)}/i)`
-        else testingLibraryQuery = `findRole('${role}')`
+        let spaQuery = ''
+        if (ariaLabel) spaQuery = `findRole('${role}', /${ariaLabel}/i)`
+        else if (text) spaQuery = `findRole('${role}', /${text.slice(0, 30)}/i)`
+        else spaQuery = `findRole('${role}')`
 
-        results.push({ tag, role, text, ariaLabel, href, id, testingLibraryQuery })
+        results.push({ tag, role, text, ariaLabel, href, id, spaQuery })
       }
     }
 
@@ -119,7 +119,7 @@ async function listWebViewElements(
     platform,
     role: el.role,
     label: el.ariaLabel || el.text || '(vide)',
-    selectorHint: el.testingLibraryQuery,
+    selectorHint: el.spaQuery,
   }))
 }
 

@@ -2,8 +2,8 @@
  * Résolution de l'environnement cible pour la webapp — pas de picker natif pour
  * sélectionner l'environnement (contrairement au mobile, cf. EnvironmentPickerPage.reviewEnvironmentPicker),
  * donc l'URL est dérivée directement de AMI_ENV. Même logique de dérivation que
- * push-notification.ts:resolveBackendUrl(), dupliquée ici volontairement plutôt que d'être
- * factorisée avec le mobile — cf. plan §3, la source d'alimentation se dédouble sans que
+ * resolveBackendUrl() dans src/scripts/push-notification.ts, dupliquée ici volontairement plutôt
+ * que factorisée avec le mobile : la source d'alimentation se dédouble sans que
  * setBackendUrl()/getBackendUrl() changent.
  */
 
@@ -26,5 +26,5 @@ export function resolveEnvironment(): Environment {
   const url = prMatch
     ? `https://ami-back-staging-pr${prMatch[1]}.osc-fr1.scalingo.io`
     : STAGING_URL
-  return { webappUrl: url, apiUrl: url }
+  return {webappUrl: url, apiUrl: url}
 }

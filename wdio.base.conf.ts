@@ -27,7 +27,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // Passer à 'info' ou 'debug' ponctuellement pour diagnostiquer un test flaky.
   logLevel: 'warn',
 
-  // Chaque logger nommé (voir CONTRIBUTING.md §1 Niveau 2 et §10) reste à 'info'
+  // Chaque logger nommé (voir CONTRIBUTING.md §1bis) reste à 'info'
   // même si le niveau global est 'warn', pour tracer page objects/tests/api/config
   // sans réactiver le bruit Appium (niveau info du logger par défaut).
   logLevels: {
@@ -69,8 +69,8 @@ export const baseConfig: Partial<Options.Testrunner> = {
   mochaOpts: {
     ui: 'bdd',
     // WDIO_DEBUG=1 : timeout Mocha étendu à 24 h pour browser.debug() (session REPL).
-    //`timeout: 0` arrête le test.
-    // borwser.debug(timeout) ne modifie pas le timeout Mocha.
+    // browser.debug(timeout) ne modifie pas le timeout Mocha.
+    // Constaté (avant relecture) : `timeout: 0` arrête le test au lieu de le laisser sans limite.
     timeout: process.env.WDIO_DEBUG ? 24 * 60 * 60 * 1000 : 120000,
   },
 
@@ -140,7 +140,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
         const html = await browser.getPageSource()
         await AllureReporter.addAttachment('DOM snapshot (WebView)', html, 'text/html')
 
-        // Éléments interactifs WebView — sélecteurs Testing Library suggérés
+        // Éléments interactifs WebView — sélecteurs suggérés (primitives spa.ts)
         const selectors = await browser.execute((): string[] => {
           const SELECTOR = [
             'button:not([disabled])', 'a[href]',
@@ -160,22 +160,22 @@ export const baseConfig: Partial<Options.Testrunner> = {
             const n = ariaLabel || text || placeholder
             let s = ''
             if (tag === 'button' || role === 'button') {
-              s = n ? `getByRole('button', { name: '${n}' })` : "getByRole('button')"
+              s = n ? `findRole('button', '${n}')` : "findRole('button')"
             } else if (tag === 'a' || role === 'link') {
-              s = n ? `getByRole('link', { name: '${n}' })` : "getByRole('link')"
+              s = n ? `findRole('link', '${n}')` : "findRole('link')"
             } else if (tag === 'input') {
-              if (inputType === 'checkbox' || role === 'checkbox') s = n ? `getByRole('checkbox', { name: '${n}' })` : "getByRole('checkbox')"
-              else if (inputType === 'radio' || role === 'radio') s = n ? `getByRole('radio', { name: '${n}' })` : "getByRole('radio')"
-              else if (placeholder) s = `getByPlaceholderText('${placeholder}')`
-              else s = n ? `getByRole('textbox', { name: '${n}' })` : "getByRole('textbox')"
+              if (inputType === 'checkbox' || role === 'checkbox') s = n ? `findRole('checkbox', '${n}')` : "findRole('checkbox')"
+              else if (inputType === 'radio' || role === 'radio') s = n ? `findRole('radio', '${n}')` : "findRole('radio')"
+              else if (placeholder) s = `findLabel('${placeholder}')`
+              else s = n ? `findRole('textbox', '${n}')` : "findRole('textbox')"
             } else if (tag === 'select') {
-              s = n ? `getByRole('combobox', { name: '${n}' })` : "getByRole('combobox')"
+              s = n ? `findRole('combobox', '${n}')` : "findRole('combobox')"
             } else if (tag === 'textarea') {
-              s = n ? `getByRole('textbox', { name: '${n}' })` : "getByRole('textbox')"
+              s = n ? `findRole('textbox', '${n}')` : "findRole('textbox')"
             } else if (role) {
-              s = n ? `getByRole('${role}', { name: '${n}' })` : `getByRole('${role}')`
+              s = n ? `findRole('${role}', '${n}')` : `findRole('${role}')`
             } else if (n) {
-              s = `getByText('${n}')`
+              s = `findText('${n}')`
             }
             if (s && !seen.has(s)) { seen.add(s); result.push(s) }
           })
@@ -202,7 +202,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
             const roleHint = type.replace('XCUIElementType', '')
             const line = accId
               ? `~'${accId}'${label && label !== accId ? `  ("${label}")` : ''}  [${roleHint}]`
-              : label ? `getByText('${label}')  [${roleHint}]` : null
+              : label ? `findText('${label}')  [${roleHint}]` : null
             if (line) lines.push(line)
           }
         } else {

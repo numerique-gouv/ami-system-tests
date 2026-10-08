@@ -4,6 +4,10 @@ import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
 import {pageText, waitForPageText, findRole} from '@helpers/spa'
 
+import logger from '@wdio/logger'
+
+const log = logger('page-object')
+
 const DEMARCHE_DETAIL_TIMEOUT_MS = 20000
 
 function decodeURIComponentSafe(value: string): string {
@@ -48,23 +52,16 @@ class DemarcheDetailPage {
   }
 
   /**
-   * Depuis la page de détail (atteinte via `DemarchesPage.ouvreDemarche()`), clique "Accéder à
-   * ma démarche" et vérifie que la WebView navigue vers `expectedUrl` (navigation JS qui
-   * remplace l'URL courante, pas de nouvelle fenêtre). Revient ensuite sur la liste via la
-   * navigation native de l'app (bouton "Retour à la page précédente" de la page de détail, PUIS
-   * bouton "Retour" de la nav) pour laisser l'app dans un état propre entre les tests.
+   * Depuis la page de détail (atteinte via `SuiviDemarchesPage.ouvreDemarche()`), clique « Accéder à
+   * ma démarche » et vérifie que la WebView navigue vers `expectedUrl` (navigation JS qui
+   * remplace l'URL courante, pas de nouvelle fenêtre).
    *
    * `findRole` attend le bouton : le clic de `ouvreDemarche()` vient de déclencher une navigation SPA,
    * il n'existe pas forcément déjà dans le DOM au moment de l'appel. C'est cette méthode qui utilise
    * le bouton, c'est donc elle qui vérifie son arrivée sur la page de détail.
    *
-   * `browser.back()` (une seule fois) ramène de `chrome-error://chromewebdata` (le domaine
-   * partenaire `.example`, RFC 2606, ne résout jamais) à la page de détail de l'app. Le retour
-   * liste se fait ensuite via le bouton de retour propre à la page de détail — la nav basse
-   * (onglets Accueil/Agenda/Services/Suivi) n'existe PAS sur cet écran (confirmé en live :
-   * seul un `<nav>` avec le bouton retour y est présent), contrairement à la home.
-   *
-   * Un seul `platform().inWebContext()` pour tout le cycle sentinelle → clic → vérif URL → retour.
+   * Le retour sur la liste n'est pas fait ici : voir `SuiviDemarchesPage.retourJusquAPageSuivi()`.
+   * Un seul `platform().inWebContext()` couvre le clic et la vérification de l'URL.
    *
    * LIMITATION CONNUE (iOS) : Android confirmé vert (3/3). Sur iOS, le clic ouvre bien une
    * seconde fenêtre WKWebView (confirmé via `browser.getWindowHandles()`), mais celle-ci reste
@@ -81,7 +78,8 @@ class DemarcheDetailPage {
       try {
         let externalButton = await findRole('button', loc.detailExternalButtonName, { timeout: timeoutMs })
         await externalButton.click()
-      } catch {
+      } catch (err) {
+        log.warn('Détail démarche : clic sur le bouton externe impossible', err)
         throw new AssertionError({ message: `Bouton "${loc.detailExternalButtonName}" absent après ${timeoutMs}ms` })
       }
 
@@ -90,9 +88,15 @@ class DemarcheDetailPage {
         await browser.waitUntil(
           async () => {
             lastUrl = await browser.getUrl()
-            // iOS (observé 2026-10-06) : le lien passe par la racine de l'app, la cible étant encodée dans
-            // `?login_redirect_url=…` (Android atterrit directement sur l'URL en clair).
-            return lastUrl.includes(expectedUrl) || decodeURIComponentSafe(lastUrl).includes(expectedUrl)
+            if (lastUrl.includes(expectedUrl)) return true
+            // Constaté (iOS, 2026-10-06) : le lien passe par la racine de l'app, la cible étant encodée dans
+            // `?login_redirect_url=…`, alors qu'Android atterrit directement sur l'URL en clair.
+            // Hypothèse (non confirmée) : redirection de connexion propre à l'iOS testé.
+            if (decodeURIComponentSafe(lastUrl).includes(expectedUrl)) {
+              log.warn('ANOMALIE : lien externe atteint seulement via une URL encodée (`login_redirect_url`) au lieu de l\'URL en clair (constaté sur iOS, cause non confirmée).')
+              return true
+            }
+            return false
           },
           {
             timeout: timeoutMs,
@@ -100,7 +104,8 @@ class DemarcheDetailPage {
             timeoutMsg: `URL externe "${expectedUrl}" non atteinte après ${timeoutMs}ms`
           }
         )
-      } catch {
+      } catch (err) {
+        log.warn('Détail démarche : attente de l\'URL externe en échec', err)
         throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${loc.detailExternalButtonName}" (dernière URL observée : ${maskIdToken(lastUrl)})` })
       }
     })

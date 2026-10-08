@@ -3,6 +3,7 @@ import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
 
 describe('Profil usager — déconnexion suivie d\'une reconnexion', () => {
+  // Test désactivé : motif et ticket à renseigner (skipped-test-manager).
   it.skip('log out suivi d un log in', async () => {
     await AllureReporter.addFeature('login, logout, login sans fausse route')
     await AllureReporter.addSeverity('critical')

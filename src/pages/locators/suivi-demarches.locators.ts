@@ -12,8 +12,6 @@ export interface SuiviDemarchesLocators {
   cardTitle: string
   /** Badge de statut dans une carte */
   cardBadge: string
-  /** Sélecteur des onglets (role="tab" explicite dans le DOM) */
-  tabSelector: string
 }
 
 export const demarchesLocators: SuiviDemarchesLocators = {
@@ -21,7 +19,6 @@ export const demarchesLocators: SuiviDemarchesLocators = {
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',
-  tabSelector:               '[role="tab"]',
 }
 
 /** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */

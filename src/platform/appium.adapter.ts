@@ -1,4 +1,7 @@
+import logger from '@wdio/logger'
 import type { PlatformAdapter } from './types'
+
+const log = logger('page-object')
 
 /**
  * Implémentation mobile (Android/iOS) de PlatformAdapter — logique historiquement
@@ -16,12 +19,15 @@ const WEBVIEW_POLL_MS = 500
  * Attend qu'au moins un contexte WEBVIEW_* soit disponible, avec timeout.
  */
 async function waitForWebViewContext(): Promise<string[]> {
-  const deadline = Date.now() + WEBVIEW_WAIT_MS
-  while (Date.now() < deadline) {
-    const contexts = await driver.getContexts() as string[]
-    if (contexts.some((c) => c.startsWith('WEBVIEW_'))) return contexts
-    await browser.pause(WEBVIEW_POLL_MS)
-  }
+  await browser.waitUntil(
+    async () => (await driver.getContexts() as string[]).some((c) => c.startsWith('WEBVIEW_')),
+    {
+      timeout: WEBVIEW_WAIT_MS,
+      interval: WEBVIEW_POLL_MS,
+      timeoutMsg: `Aucun contexte WEBVIEW_* après ${WEBVIEW_WAIT_MS}ms`,
+    }
+  ).catch((err: unknown) => log.warn('waitForWebViewContext : aucun contexte WEBVIEW_* détecté dans le délai', err))
+  // Relecture finale : fournit la liste des contextes pour le message d'erreur technique de inWebContext().
   return await driver.getContexts() as string[]
 }
 
@@ -49,7 +55,7 @@ async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
   // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
   // Android/Chromedriver : le défaut est 30 000 ms.
   // Plafond des scripts exécutés dans la page (`execute` / `executeAsync`) : 60 s sur les deux plateformes.
-  await browser.setTimeout({ script: 60000 }).catch(() => {})
+  await browser.setTimeout({ script: 60000 }).catch((err: unknown) => log.warn('inWebContext : setTimeout({script}) a échoué', err))
   // Après le switch, re-sélectionner le dernier window handle disponible.
   // Pendant le flow OIDC, le tab callback se ferme juste après le redirect ;
   // sans ce step, Chromedriver pointe sur un handle stale ("no such window").
@@ -57,10 +63,21 @@ async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
   if (handles.length > 0) {
     await browser.switchToWindow(handles[handles.length - 1])
   }
+  let callbackFailed = false
   try {
     return await callback()
+  } catch (err) {
+    callbackFailed = true
+    throw err
   } finally {
-    await driver.switchContext('NATIVE_APP')
+    try {
+      await driver.switchContext('NATIVE_APP')
+    } catch (err) {
+      // Le contexte reste alors WEBVIEW_* : les requêtes natives suivantes échoueront (« Unsupported locator
+      // strategy: -ios predicate string »). On le trace, et on ne masque jamais l'erreur d'origine du callback.
+      log.error('inWebContext : retour au contexte NATIVE_APP impossible, la session reste en WebView', err)
+      if (!callbackFailed) throw err
+    }
   }
 }
 
@@ -81,7 +98,12 @@ async function refreshAxTree(): Promise<void> {
   // getPageSource() sérialise le DOM courant via WKRDP et invalide le snapshot AX périmé.
   // driver.execute(() => 0) seul est insuffisant — il fait un round-trip WKRDP sans forcer
   // la re-sérialisation de l'arbre d'accessibilité après un redirect de page.
-  try { await driver.getPageSource() } catch { /* best-effort */ }
+  try {
+    await driver.getPageSource()
+  } catch (err) {
+    // Best-effort : l'échec du rafraîchissement n'est pas bloquant, mais il est tracé.
+    log.warn('refreshAxTree : getPageSource a échoué', err)
+  }
 }
 
 /**

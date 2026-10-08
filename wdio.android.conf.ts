@@ -1,9 +1,12 @@
 import { execFileSync } from 'child_process'
 import path from 'path'
 import type { Options } from '@wdio/types'
+import logger from '@wdio/logger'
 import { baseConfig } from './wdio.base.conf'
 import { androidCapabilities } from './src/driver/capabilities'
 import { resolveSpecs } from './test-suites'
+
+const log = logger('config')
 
 export const config: Options.Testrunner = {
   ...baseConfig,
@@ -50,8 +53,8 @@ export const config: Options.Testrunner = {
     ]) {
       try {
         execFileSync(adb, ['shell', 'am', 'force-stop', pkg], { stdio: 'ignore' })
-      } catch {
-        // Pas de device connecté ou package absent — ignoré
+      } catch (err) {
+        log.warn(`adb force-stop ${pkg} impossible (device absent ou package non installé ?)`, err)
       }
     }
   },

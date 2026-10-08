@@ -33,7 +33,7 @@ export const config: Options.Testrunner = {
   port: 4724,
 
   // Réinitialise la session FranceConnect et le conteneur data de l'app avant chaque run.
-  // Équivalent de _reset-ios-fc-session dans le justfile, exécuté une seule fois avant tout worker.
+  // Logique portée uniquement ici, exécutée une seule fois avant tout worker.
   // Un effacement partiel (WebKit/cookies seuls) laisse l'app dans un état incohérent
   // où la WKWebView se reconnecte sans afficher la mire FC.
   onPrepare(): void {
@@ -43,7 +43,13 @@ export const config: Options.Testrunner = {
       log.warn('onPrepare : aucun simulateur iOS démarré — reset FC ignoré.')
       return
     }
-    const sim = (args: string[]): void => { try { execFileSync('xcrun', ['simctl', ...args], { stdio: 'ignore' }) } catch {} }
+    const sim = (args: string[]): void => {
+      try {
+        execFileSync('xcrun', ['simctl', ...args], { stdio: 'ignore' })
+      } catch (err) {
+        log.warn(`simctl ${args.join(' ')} a échoué (ignoré)`, err)
+      }
+    }
     sim(['privacy', udid, 'reset', 'notifications', APP_ID])
     sim(['spawn', udid, 'defaults', 'delete', 'com.apple.SafariViewService'])
     sim(['spawn', udid, 'rm', '-rf', '/Library/Caches/com.apple.SafariViewService'])
@@ -51,6 +57,8 @@ export const config: Options.Testrunner = {
     try {
       const container = execFileSync('xcrun', ['simctl', 'get_app_container', udid, APP_ID, 'data'], { encoding: 'utf-8' }).trim()
       if (container) execFileSync('rm', ['-rf', `${container}/`], { stdio: 'ignore' })
-    } catch {}
+    } catch (err) {
+      log.warn('reset du conteneur de données iOS impossible (ignoré)', err)
+    }
   },
 } as Options.Testrunner

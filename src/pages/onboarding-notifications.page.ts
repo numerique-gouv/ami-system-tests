@@ -7,7 +7,6 @@ import {findRole} from '../helpers/spa'
 /**
  * Page Object pour l'écran d'onboarding des notifications.
  *
- * Distinct de OnboardingPage (onboarding.page.ts) qui couvre l'onboarding d'accueil.
  * Cet écran apparaît après le premier login FC — il propose d'activer les notifications OS.
  *
  * Android : écran natif (OnboardingNotificationScreen.kt) — boutons sans resource-id stable.
@@ -18,23 +17,6 @@ import {findRole} from '../helpers/spa'
 const log = logger('page-object')
 
 class OnboardingNotificationsPage {
-    /**
-     * Ferme l'onboarding en tapant "Peut-être plus tard" (no-op si absent sous 5s).
-     * L'écran apparaît 2-4 secondes après le login OIDC — un check instantané le raterait.
-     * Après cette méthode, l'OS n'a pas accordé la permission push.
-     *
-     * Sur iOS, le dialog système de permission push peut apparaître avant l'écran custom
-     * (selon la version iOS et l'état du simulateur) : on le refuse via dismissAlert() en
-     * amont pour ne pas bloquer la détection de l'écran custom de l'app.
-     *
-     * waitForExist() est préféré à waitForDisplayed() pour la détection initiale :
-     * sur iOS, un élément SwiftUI présent dans l'arbre XCUITest peut avoir
-     * isDisplayed=false pendant l'animation d'entrée de la sheet.
-     */
-    /**
-     * Sonde dédiée, réutilisée par HomePage.assertHomeVisible() (détection d'écran) et par
-     * dismiss() elle-même (même sentinelle, un seul appel).
-     */
     /**
      * Route SPA `/#/welcome/notifications` affichée ? Sonde dédiée au contexte WebView/DOM
      * (quasi-identité en webapp, cf. platform().inWebContext()).
@@ -50,6 +32,9 @@ class OnboardingNotificationsPage {
     }
 
     /**
+     * Sonde dédiée, réutilisée par HomePage.assertHomeVisible() (détection d'écran) et par
+     * dismiss() elle-même (même sentinelle, un seul appel).
+     *
      * Depuis la SPA d'octobre 2026, l'écran est rendu par la WebView sur Android aussi (observé
      * 2026-10-06 : au moment où il est affiché, l'arbre natif ne contient aucun texte alors que
      * l'URL de la WebView est `#/welcome/notifications`). Android passe donc par la route SPA comme
@@ -70,6 +55,15 @@ class OnboardingNotificationsPage {
         return nativeShown
     }
 
+    /**
+     * Ferme l'onboarding en tapant « Peut-être plus tard » (no-op si l'écran est absent sous 5 s).
+     * L'écran apparaît 2-4 secondes après le login OIDC — un check instantané le raterait.
+     * Après cette méthode, l'OS n'a pas accordé la permission push.
+     *
+     * waitForExist() est préféré à waitForDisplayed() pour la détection initiale de l'écran natif :
+     * sur iOS, un élément SwiftUI présent dans l'arbre XCUITest peut avoir
+     * isDisplayed=false pendant l'animation d'entrée de la sheet.
+     */
     async dismiss(): Promise<void> {
         if (!await this.isOnboardingVisible()) return
         if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebRouteVisible(1000))) {
