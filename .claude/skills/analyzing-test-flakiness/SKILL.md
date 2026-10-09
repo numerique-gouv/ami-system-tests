@@ -28,7 +28,7 @@ JUnit reporter and the **failure dumps** written by `src/helpers/failure-dump.ts
 ## When Not to Use
 
 - A single test is failing and you want to understand why right now → `investigate-failing-tests`,
-  or `just debug <cible> <spec>` then `just s debug-0-0 snapshot -i`.
+  or `just debug-<cible> <spec>` then `just s debug-0-0 snapshot -i`.
 - You already have `flaky-runs/` archives from a prior campaign and only want to re-run the
   analysis → skip straight to the script invocation in step 3, no new campaign needed.
 - You need the app model (routes, page objects, coverage gaps), not a stability measurement →

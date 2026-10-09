@@ -357,7 +357,7 @@ La configuration des reporters est commentée dans `wdio.base.conf.ts`.
 
 ## 10. Règles de débogage
 
-- **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just explore <cible>` puis `just s <cible> snapshot -i`) plutôt que deviner un sélecteur « qui devrait marcher ».
+- **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just explore-webapp|android|ios` puis `just s <cible> snapshot -i`) plutôt que deviner un sélecteur « qui devrait marcher ».
 - **Ne jamais commiter un locator ou un workaround qui n'a pas été validé** en exécution réelle. Un commit de workaround hypothétique casse silencieusement un autre cas. Tester d'abord, puis commiter avec un message qui décrit le **pourquoi** (bug WKRDP, AX tree périmé, etc.), pas seulement le *quoi*.
 - **Toggles de debug** (`logLevel: 'info'`, `specFileRetries: 0`) : tolérés commités tant que la suite est en développement actif, pour faciliter le diagnostic quotidien. `wdio.base.conf.ts` est aujourd'hui à
   `logLevel: 'warn'` / `specFileRetries: 0`.

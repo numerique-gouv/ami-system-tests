@@ -16,7 +16,7 @@ Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — 
 - `analyze-website` — webapp model (routes, components, importance). Delegate the entire webapp exploration to it, do not re-implement it here.
 - `managing-project-customizations` — refresh `.webdriverio-skills/project-context.*`/`custom-rules.md` when stale, and read them as the baseline before starting.
 - `creating-test-structure` — scaffold new coverage gaps into `src/tests/next/<domain>/`.
-- `writing-webdriverio-code` — only once a locator has been validated live (`just explore <target>` + `just s <target> snapshot -i` / `just webview <target>`, or the disposable script below) — never write implementation code from the model alone.
+- `writing-webdriverio-code` — only once a locator has been validated live (`just explore-<target>` + `just s <target> snapshot -i` / `just webview <target>`, or the disposable script below) — never write implementation code from the model alone.
 - `running-webdriverio-tests` — execution, translated through the Project Command Mapping below (the `just` targets are the documented entry points; direct calls work too, see CLAUDE.md).
 - Does **not** delegate: capturing native (non-WebView) screens. No skill in the pack does this — the disposable-script method below is this skill's own value-add.
 
@@ -84,7 +84,7 @@ This section is self-contained (works even if `.webdriverio-skills/project-conte
 | `wdio.conf.js` | `wdio.base.conf.ts` (shared) + `wdio.{android,ios,webapp}.conf.ts` (per platform) |
 | generic lint/typecheck | `just check-code` |
 | report generation | `just open-report` (or `just report` to regenerate) |
-| DOM/native tree inspection | `just explore <target>` then `just s <target> snapshot -i` · `just webview <target>` |
+| DOM/native tree inspection | `just explore-<target>` then `just s <target> snapshot -i` · `just webview <target>` |
 
 The `just` targets are the documented entry points for humans (CLAUDE.md); the underlying tools may also be called directly.
 

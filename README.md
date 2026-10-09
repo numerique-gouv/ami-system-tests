@@ -130,7 +130,7 @@ dans `.env.local` à la racine — non commité. Voir `.env` pour les noms des v
 
 ### Ajouter un test
 
-1. Explorer l'écran avec `just explore <cible>` (puis `just s <cible> snapshot -i`, `just webview <cible>`)
+1. Explorer l'écran avec `just explore-webapp|android|ios` (puis `just s <cible> snapshot -i`, `just webview <cible>`)
 2. Créer ou compléter les locators dans `src/pages/locators/`
 3. Créer ou compléter le Page Object dans `src/pages/`
 4. Écrire le scénario dans `src/tests/mobile/` ou `src/tests/webapp/` selon la cible
@@ -166,19 +166,19 @@ réelle. Les règles de fond (ne jamais commiter un locator non validé, etc.) s
 
 | Je veux… | Commande |
 |---|---|
-| Ouvrir une session sur la webapp, Android ou iOS | `just explore webapp "/#/agenda"` · `just explore android` · `just explore ios` (l'appareil doit déjà tourner : `just start-android` / `just start-ios`) |
+| Ouvrir une session sur la webapp, Android ou iOS | `just explore-webapp "/#/agenda"` · `just explore-android` · `just explore-ios` (l'appareil doit déjà tourner : `just start-android` / `just start-ios`) |
 | Lire la page : éléments interactifs, avec refs | `just s <cible> snapshot -i` · `just s <cible> find "texte"` |
 | Agir sur une ref, et voir ce que l'action a changé | `just s <cible> click e3` · `just s <cible> fill e4 "valeur"` |
 | Lister le DOM de la WebView (mobile) | `just webview <cible>` — en Android hybride, `snapshot` lit l'arbre natif et plante après `contexts switch` (WDIO 10.0.1) |
 | Voir les contextes, basculer | `just s <cible> contexts` · `just s <cible> contexts switch WEBVIEW_…` |
 | Lire les erreurs console ou les appels réseau (web) | `just s <cible> logs --errors` · `just s <cible> requests` |
 | Transformer les étapes en test | `just explore-export <nom> <cible>` → `exports/<nom>.e2e.ts` (à ranger dans un Page Object) |
-| Figer un test à son échec et l'inspecter | `just debug <cible> <spec>` puis `just s debug-0-0 snapshot -i`, `screenshot`, `resume` |
+| Figer un test à son échec et l'inspecter | `just debug-webapp|android|ios <spec>` puis `just s debug-0-0 snapshot -i`, `screenshot`, `resume` |
 | Diagnostiquer la machine | `just doctor` (les ✖ cloud et desktop sont sans objet) |
 | Fermer | `just explore-close <cible>` |
 
 Points à connaître :
-- **Natif d'abord.** Après `just explore android|ios`, l'app est sur le sélecteur d'environnement
+- **Natif d'abord.** Après `just explore-android` ou `just explore-ios`, l'app est sur le sélecteur d'environnement
   (écran natif, sans WebView). Il faut choisir une tuile (`just s <cible> snapshot`, puis un clic)
   pour charger la SPA ; `contexts` échoue tant qu'il n'existe aucune WebView.
 - **`just debug`** se met en pause au premier échec d'un *test* ; un échec de *hook* (`before all`)

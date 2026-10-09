@@ -16,8 +16,8 @@ just test-webapp                                    # tests webapp, Chrome visib
 just test-webci                                     # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*" # un ou plusieurs fichiers (glob)
 just test-android-suite CI                          # suite nommée (test-suites.ts), idem test-ios-suite / test-webapp-suite / test-webci-suite
-just explore webapp "/#/agenda"                     # session d'exploration (webapp | android | ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
-just debug webapp src/tests/webapp/agenda.test.ts   # test figé à son premier échec (session debug-0-0), puis `just s debug-0-0 snapshot -i`
+just explore-webapp "/#/agenda"                     # session d'exploration (idem explore-android, explore-ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
+just debug-webapp src/tests/webapp/agenda.test.ts   # test figé à son premier échec (idem debug-android, debug-ios ; session debug-0-0), puis `just s debug-0-0 snapshot -i`
 just doctor                                         # diagnostic de l'environnement (Node, Appium, SDK, simulateurs)
 just failures                                       # liste les tests en échec du dernier run (dumps : capture, DOM, étapes, identifiants Sentry)
 ```

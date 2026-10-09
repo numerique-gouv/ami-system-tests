@@ -1,6 +1,13 @@
 # justfile — AMI E2E tests
 # Pré-requis : just, Android SDK (adb, gradle), Xcode, Node.js >= 20
 
+# Convention des arguments (pas de complétion shell sur mesure : `just <Tab>` complète les NOMS de recettes, avec leur commentaire) :
+# - 1 ou 2 arguments obligatoires, ou un argument variadique : positionnels ;
+# - la cible (webapp | android | ios) est dans le NOM de la recette (test-android, explore-ios, debug-webapp…), comme pour les tests ;
+# - 3 arguments ou plus : nommés avec `[arg("x", long="x")]` ; un drapeau booléen est toujours nommé (`--debug`) ;
+# - 2 ou 3 optionnels : on nomme dès qu'il faudrait donner un argument juste pour atteindre le suivant.
+# La DERNIÈRE ligne de commentaire d'une recette est celle qu'affichent `just --list` et la complétion : la description y va en dernier.
+
 set dotenv-path := ".env.local"
 # `just` interdit les settings booléens calculés (voir doc `set`), donc ce flag ne peut pas
 # être conditionné sur CI/GITHUB_ACTIONS ici. Le caractère obligatoire de .env.local en dev
@@ -293,6 +300,18 @@ test-webapp-suite suite: _require-dotenv
 # de petites commandes. Cycle : explore → snapshot → actions → explore-export → test. Voir
 # `.claude/skills/wdio-session/SKILL.md` et `docs/process/migration-wdio-10.md` §4.
 
+# Usage : just explore-webapp   |   just explore-webapp "/#/agenda"
+# Ouvre une session d'exploration sur la webapp (Chrome headless) et navigue vers une route (hash de la SPA, entre guillemets).
+explore-webapp route="/": (_explore "webapp" route)
+
+# Usage : just explore-android
+# Ouvre une session d'exploration sur l'app Android (émulateur déjà démarré : just start-android), sans réinitialiser l'app.
+explore-android: (_explore "android" "/")
+
+# Usage : just explore-ios
+# Ouvre une session d'exploration sur l'app iOS (simulateur déjà démarré : just start-ios), sans réinitialiser l'app.
+explore-ios: (_explore "ios" "/")
+
 # Ouvre une session d'exploration sur une cible : webapp (Chrome), android ou ios.
 # - webapp : pose le cookie `access_key` comme wdio.webapp.conf.ts (valeur de WEB_APP_ACCESS_KEYS, jamais
 #   affichée) puis ouvre la route demandée de la SPA de l'environnement AMI_ENV.
@@ -301,8 +320,8 @@ test-webapp-suite suite: _require-dotenv
 #   le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView
 #   (`just s <cible> contexts`, puis `exec`). En Android hybride, `snapshot` lit l'arbre natif.
 # La SPA route par hash : la route d'une page est `/#/agenda` (à entourer de guillemets).
-# Usage : just explore webapp   |   just explore webapp "/#/agenda"   |   just explore ios
-explore target="webapp" route="/": _require-dotenv
+# (Recette privée : on lance explore-webapp, explore-android ou explore-ios.)
+_explore target route: _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
     S="npx wdio session -s {{ target }}"
@@ -394,9 +413,21 @@ webview target="webapp":
 # Lance un test et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook
 # (`before all`) ne déclenche pas la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i,
 # just s debug-0-0 screenshot, just s debug-0-0 resume.
-# Usage : just debug webapp src/tests/webapp/agenda.test.ts   |   just debug ios src/tests/mobile/profile.test.ts
-debug target spec: _require-dotenv
+# (Recette privée : on lance debug-webapp, debug-android ou debug-ios.)
+_debug target spec: _require-dotenv
     npx wdio run wdio.{{ target }}.conf.ts --spec {{ spec }} --debug=agent
+
+# Usage : just debug-webapp src/tests/webapp/agenda.test.ts
+# Lance un test webapp et le met en pause à son premier échec (session debug-0-0).
+debug-webapp spec: (_debug "webapp" spec)
+
+# Usage : just debug-android src/tests/mobile/profile.test.ts
+# Lance un test Android et le met en pause à son premier échec (session debug-0-0).
+debug-android spec: (_debug "android" spec)
+
+# Usage : just debug-ios src/tests/mobile/profile.test.ts
+# Lance un test iOS et le met en pause à son premier échec (session debug-0-0).
+debug-ios spec: (_debug "ios" spec)
 
 # Diagnostic de l'environnement : Node, navigateurs, Appium et drivers, SDK Android, simulateurs.
 # Les croix « cloud » (BrowserStack…) et « desktop » (windows, mac2) ne nous concernent pas.
@@ -435,26 +466,6 @@ failures dir="test-results/failures":
 #         just push-notification avec_nom_dusage "Mon titre personnalisé"
 push-notification login title="": _require-dotenv
     npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
-
-# ─── Présentation ───────────────────────────────────────────────────────────
-
-# Compiler une présentation en PDF (nécessite typst : brew install typst)
-# Usage : just build-pdf                  → slides.pdf
-#         just build-pdf slides-equipe    → slides-equipe.pdf
-build-pdf name="slides":
-    @mkdir -p presentation/build
-    typst compile presentation/{{name}}.typ presentation/build/{{name}}.pdf
-    @echo "✅ PDF généré : presentation/build/{{name}}.pdf"
-
-# Générer le PPTX depuis le PDF (1 slide = 1 PNG embarqué, 16:9)
-# Nécessite : pdftoppm (brew install poppler) + python3-pptx (pip install python-pptx)
-build-pptx name="slides": (build-pdf name)
-    @mkdir -p presentation/build/png-{{name}}
-    pdftoppm -png -r 200 presentation/build/{{name}}.pdf presentation/build/png-{{name}}/slide
-    python3 presentation/make-pptx.py \
-        presentation/build/png-{{name}} \
-        presentation/build/{{name}}.pptx
-    @echo "✅ PPTX généré : presentation/build/{{name}}.pptx"
 
 # ─── Aide ───────────────────────────────────────────────────────────────────
 
