@@ -53,9 +53,9 @@ check:
     @(command -v appium > /dev/null || [ -f node_modules/.bin/appium ]) && echo "✅ appium" || echo "❌ appium manquant (npm install)"
     @command -v just      > /dev/null && echo "✅ just"      || echo "❌ just manquant"
 
-# Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus) — passer
-# par cette recette (plutôt que `npm run appium:install` en direct) garantit que l'install et le
+# Passer par cette recette (plutôt que `npm run appium:install` en direct) garantit que l'install et le
 # `just test-android`/`test-ios` qui suivra utilisent le même APPIUM_HOME.
+# Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus).
 install-appium-drivers:
     @echo "📥 Installation des drivers Appium…"
     npm run appium:install || true
@@ -81,14 +81,10 @@ clean-install:
 check-deps:
     npx npm-check-updates
 
-# Mettre à jour package.json vers les dernières versions puis réinstaller
-# généralement, le cocktail de mise à jour crée une jeu de version incompatibles entree elles
-# ce script est souvent a terminer manuellement
-# npm doit être configuré avec cooldown de 14 jours
-# cat $HOME/.npmrc
-# min-release-age=14
-# appium ne connait pas ce concept et on peut les mettre à jours en annulant le cooldown configuré:
-# npm_config_min_release_age=0 npm run appium:update
+# Généralement, le cocktail de mise à jour crée un jeu de versions incompatibles entre elles : ce script est souvent à terminer à la main.
+# npm doit être configuré avec un cooldown de 14 jours (cat $HOME/.npmrc : min-release-age=14).
+# Appium ne connaît pas ce concept : on peut le mettre à jour en annulant le cooldown : npm_config_min_release_age=0 npm run appium:update
+# Mettre à jour package.json vers les dernières versions puis réinstaller.
 upgrade:
     npx npm-check-updates --upgrade
     @just setup
@@ -123,9 +119,9 @@ build-ios:
 
 # ─── Émulateurs / Simulateurs ───────────────────────────────────────────────
 
-# Démarrer l'émulateur Android si aucun appareil n'est déjà connecté via adb.
 # Si un émulateur est déjà actif (quelle que soit sa provenance), on le réutilise.
 # Attend que UiAutomation soit disponible (sys.boot_completed + package manager prêt).
+# Démarrer l'émulateur Android si aucun appareil n'est déjà connecté via adb.
 start-android:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -205,8 +201,8 @@ _require-dotenv:
         exit 1
     fi
 
+# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
 # Lancer les tests E2E Android — démarre l'émulateur, lance les tests sur les fichiers fournis
-# Usage : just test-android [glob…]   — un ou plusieurs globs de fichiers (optionnels)
 test-android *globs="": _require-dotenv start-android
     #!/usr/bin/env bash
     set -euo pipefail
@@ -221,8 +217,8 @@ test-android *globs="": _require-dotenv start-android
         npm run test:android
     fi
 
+# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
 # Lancer les tests E2E iOS — démarre le simulateur, lance les tests sur les fichiers fournis
-# Usage : just test-ios [glob…]       — un ou plusieurs globs de fichiers (optionnels)
 test-ios *globs="": _require-dotenv start-ios
     #!/usr/bin/env bash
     set -euo pipefail
@@ -237,18 +233,18 @@ test-ios *globs="": _require-dotenv start-ios
         npm run test:ios
     fi
 
+# Exemple : just test-android-suite all
 # Lancer les tests E2E Android avec une suite nommée (session partagée — auth une seule fois)
-# Usage : just test-android-suite <suite>   ex: just test-android-suite all
 test-android-suite suite: _require-dotenv start-android
     WDIO_SUITE={{suite}} npm run test:android
 
+# Exemple : just test-ios-suite CI
 # Lancer les tests E2E iOS avec une suite nommée (session partagée — auth une seule fois)
-# Usage : just test-ios-suite <suite>   ex: just test-ios-suite CI
 test-ios-suite suite: _require-dotenv start-ios
     WDIO_SUITE={{suite}} npm run test:ios
 
+# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
 # Lancer les tests E2E webapp (CI) — Chrome headless, pas d'émulateur/simulateur à démarrer
-# Usage : just test-webci [glob…]   — un ou plusieurs globs de fichiers (optionnels)
 test-webci *globs="": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
@@ -263,19 +259,18 @@ test-webci *globs="": _require-dotenv
         npm run test:webapp
     fi
 
+# Exemple : just test-webci-suite all
 # Lancer les tests E2E webapp (CI) avec une suite nommée (session partagée — auth une seule fois)
-# Usage : just test-webci-suite <suite>   ex: just test-webci-suite all
 test-webci-suite suite: _require-dotenv
     WDIO_SUITE={{suite}} npm run test:webapp
 
-# Lancer les tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver
-#
 # ATTENTION : ne pas ouvrir le panneau DevTools (F12 / Cmd+Opt+I) sur l'onglet de l'app pendant
 # le run — si un breakpoint est actif ou "Pause on exceptions" activé, le débogueur JS suspend
 # réellement l'exécution de la page, ce qui bloque toute commande WebDriver (échoue au bout de
 # 20s avec un message explicite plutôt qu'un hang silencieux, cf. ENSURE_APP_WINDOW_TIMEOUT_MS
 # dans src/platform/browser.adapter.ts).
-# Usage : just test-webapp [glob…]   — un ou plusieurs globs de fichiers (optionnels)
+# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
+# Lancer les tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver
 test-webapp *globs="": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
@@ -290,8 +285,8 @@ test-webapp *globs="": _require-dotenv
         WEBAPP_HEADLESS=false npm run test:webapp
     fi
 
+# Exemple : just test-webapp-suite all
 # Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (session partagée — auth une seule fois)
-# Usage : just test-webapp-suite <suite>   ex: just test-webapp-suite all
 test-webapp-suite suite: _require-dotenv
     WEBAPP_HEADLESS=false WDIO_SUITE={{suite}} npm run test:webapp
 
@@ -354,8 +349,8 @@ _explore target route: _require-dotenv
     echo "  just explore-export <nom> {{ target }}   transformer les étapes en test (exports/<nom>.e2e.ts)"
     echo "  just explore-close {{ target }}          fermer la session"
 
+# Exemples : just s webapp click e3   |   just s webapp fill e4 "Passeport biométrique"   |   just s debug-0-0 snapshot -i
 # Lance une action `wdio session` sur la session d'une cible, ou sur un test en pause (debug-0-0).
-# Usage : just s webapp click e3   |   just s webapp fill e4 "Passeport biométrique"   |   just s debug-0-0 snapshot -i
 [positional-arguments]
 s target *args:
     #!/usr/bin/env bash
@@ -367,9 +362,9 @@ s target *args:
 sessions:
     npx wdio session list
 
-# Écrit les étapes de la session en spec Mocha (code WDIO réellement exécuté, sélecteurs stables).
 # À relire puis ranger dans un Page Object et src/tests/<domaine>/ (cf. CONTRIBUTING.md).
-# Usage : just explore-export agenda-evenements webapp   →   exports/agenda-evenements.e2e.ts
+# Exemple : just explore-export agenda-evenements webapp   →   exports/agenda-evenements.e2e.ts
+# Écrit les étapes de la session en spec Mocha (code WDIO réellement exécuté, sélecteurs stables).
 explore-export name target="webapp":
     mkdir -p exports
     npx wdio session -s {{ target }} export --out exports/{{ name }}.e2e.ts --title "{{ name }}"
@@ -379,11 +374,10 @@ explore-export name target="webapp":
 explore-close target="webapp":
     npx wdio session -s {{ target }} close
 
-# Liste les éléments interactifs du DOM de la WebView d'une session ouverte avec `just explore`.
 # Sert surtout sur mobile : en Android hybride, `snapshot` lit l'arbre natif et plante après `contexts switch`
 # (constaté le 2026-10-08, WDIO 10.0.1), alors que `exec` lit bien le DOM. Bascule seule sur la WebView, puis
 # revient en natif. Sans WebView (sélecteur d'environnement, écran natif), utiliser `just s <cible> snapshot -i`.
-# Usage : just webview android   |   just webview ios   |   just webview webapp
+# Liste les éléments interactifs du DOM de la WebView d'une session ouverte avec `just explore-<cible>`.
 webview target="webapp":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -429,18 +423,18 @@ debug-android spec: (_debug "android" spec)
 # Lance un test iOS et le met en pause à son premier échec (session debug-0-0).
 debug-ios spec: (_debug "ios" spec)
 
-# Diagnostic de l'environnement : Node, navigateurs, Appium et drivers, SDK Android, simulateurs.
 # Les croix « cloud » (BrowserStack…) et « desktop » (windows, mac2) ne nous concernent pas.
-# Usage : just doctor   |   just doctor android
+# Exemples : just doctor   |   just doctor android
+# Diagnostic de l'environnement : Node, navigateurs, Appium et drivers, SDK Android, simulateurs.
 doctor target="":
     #!/usr/bin/env bash
     npx wdio session doctor {{ target }} || echo "→ Les ✖ cloud (BrowserStack…) et desktop (mac2, windows) sont sans objet ici ; seuls node, appium, android-sdk et simctl comptent."
 
-# Liste les tests en échec du dernier run, ou d'un dossier de dumps (ex. l'artefact d'un run de CI téléchargé) :
-# test, plateforme, appareil, étapes, erreur, URL (jetons masqués) et identifiants Sentry de la SPA. Chaque dossier contient aussi
-# screenshot.png, dom.html (web) ou native-source.xml (natif), interactive.txt et context.json.
+# Pour chaque test : plateforme, appareil, étapes, erreur, URL (jetons masqués) et identifiants Sentry de la SPA. Chaque dossier
+# contient aussi screenshot.png, dom.html (web) ou native-source.xml (natif), interactive.txt et context.json.
 # Le résumé passants/cassés (JUnit XML) est dans test-results/junit/.
-# Usage : just failures   |   just failures temp/test-results-pr1275/failures
+# Exemple d'un artefact de CI téléchargé : just failures temp/test-results-pr1275/failures
+# Liste les tests en échec du dernier run, ou d'un dossier de dumps (ex. l'artefact d'un run de CI téléchargé).
 failures dir="test-results/failures":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -460,10 +454,9 @@ failures dir="test-results/failures":
       }
     ' "{{ dir }}"
 
-# Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
-# Usage : just push-notification avec_nom_dusage
-#         just push-notification avec_nom_dusage "Mon titre personnalisé"
+# Exemples : just push-notification avec_nom_dusage   |   just push-notification avec_nom_dusage "Mon titre personnalisé"
+# Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 push-notification login title="": _require-dotenv
     npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
 
