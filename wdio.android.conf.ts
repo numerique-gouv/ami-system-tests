@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process'
 import path from 'path'
 import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
-import { baseConfig } from './wdio.base.conf'
+import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { androidCapabilities } from './src/driver/capabilities'
 import { resolveSpecs } from './test-suites'
 
@@ -10,6 +10,8 @@ const log = logger('config')
 
 export const config: Options.Testrunner = {
   ...baseConfig,
+
+  rootDir: traceRootDir('android'),
 
   specs: resolveSpecs(path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')),
 
@@ -33,6 +35,7 @@ export const config: Options.Testrunner = {
         },
       },
     ],
+    ...traceServices,
   ],
 
   port: 4723,

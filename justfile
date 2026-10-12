@@ -128,34 +128,57 @@ build-ios:
 # Si un émulateur est déjà actif (quelle que soit sa provenance), on le réutilise.
 # Attend que UiAutomation soit disponible (sys.boot_completed + package manager prêt).
 # Exemple : just start-android   |   just start-android --device pixel_2_api30
+# Affiche le numéro de série (adb) de l'appareil Android visé, vide s'il n'est pas connecté : celui dont l'AVD, le
+# modèle ou le numéro de série vaut l'argument, ou le premier appareil connecté si l'argument est vide.
+_android-udid device="":
+    #!/usr/bin/env bash
+    set -uo pipefail
+    ADB="{{ android_sdk }}/platform-tools/adb"
+    [ -x "$ADB" ] || ADB="$(command -v adb || true)"
+    [ -n "$ADB" ] || exit 0
+    for serial in $("$ADB" devices 2>/dev/null | awk '/\tdevice$/{print $1}'); do
+        case "$serial" in
+          emulator-*) name="$("$ADB" -s "$serial" emu avd name 2>/dev/null | head -1 | tr -d '\r')" ;;
+          *) name="$("$ADB" -s "$serial" shell getprop ro.product.model 2>/dev/null | tr -d '\r')" ;;
+        esac
+        if [ -z "{{ device }}" ] || [ "$name" = "{{ device }}" ] || [ "$serial" = "{{ device }}" ]; then
+            echo "$serial"
+            exit 0
+        fi
+    done
+
 [doc("Démarrer l'émulateur Android · [--device AVD]")]
-[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
+[arg("device", long="device", help="AVD, modèle ou numéro de série visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
 start-android device="":
     #!/usr/bin/env bash
     set -euo pipefail
     ADB="{{ android_sdk }}/platform-tools/adb"
     EMU="{{ android_sdk }}/emulator/emulator"
-    # Vérifie si un appareil est déjà connecté et booté
-    BOOTED=$("$ADB" devices | awk '/\tdevice$/{print $1}' | head -1)
-    if [ -n "$BOOTED" ]; then
-        echo "✅ Appareil déjà connecté : $BOOTED — réutilisé."
+    # L'appareil visé est-il déjà connecté et booté ? (--device : seulement celui-là, un autre appareil branché
+    # n'est PAS pris à sa place ; sans --device : le premier appareil connecté.)
+    UDID="$(just --quiet _android-udid "{{ device }}")"
+    if [ -n "$UDID" ]; then
+        echo "✅ Appareil déjà connecté : $UDID — réutilisé."
         exit 0
     fi
     AVD="{{ if device == "" { android_default_device } else { device } }}"
     [ -n "$AVD" ] || { echo "❌ Aucun appareil Android connecté : donner --device <avd> ou définir ANDROID_DEVICE_NAME_DEFAULT dans .env.local." >&2; exit 1; }
-    echo "🤖 Démarrage de l'émulateur $AVD…"
+    "$EMU" -list-avds 2>/dev/null | grep -qx "$AVD" || { echo "❌ Appareil « $AVD » introuvable : ni connecté (adb), ni AVD (voir : just devices)." >&2; exit 1; }
+    echo "🤖 Démarrage de l'émulateur ${AVD}…"
     "$EMU" -avd "$AVD" -no-snapshot-save &
-    "$ADB" wait-for-device
-    until "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
+    # Un autre appareil peut être branché : on repère le nôtre par son AVD et on le vise avec -s partout.
+    until UDID="$(just --quiet _android-udid "$AVD")"; [ -n "$UDID" ]; do sleep 2; done
+    "$ADB" -s "$UDID" wait-for-device
+    until "$ADB" -s "$UDID" shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
     # Attendre que le package manager soit opérationnel (requis par UiAutomator2)
-    until "$ADB" shell pm list packages > /dev/null 2>&1; do sleep 1; done
+    until "$ADB" -s "$UDID" shell pm list packages > /dev/null 2>&1; do sleep 1; done
     # Déverrouiller l'écran — UiAutomation exige l'écran allumé et déverrouillé.
     # Le snapshot default_boot peut charger avec l'écran verrouillé.
-    "$ADB" shell input keyevent 82   # KEYCODE_MENU : réveille l'écran
-    "$ADB" shell input keyevent 4    # KEYCODE_BACK  : ferme tout dialog éventuel
-    "$ADB" shell input keyevent 3    # KEYCODE_HOME : accueil launcher (pas d'app ouverte)
+    "$ADB" -s "$UDID" shell input keyevent 82   # KEYCODE_MENU : réveille l'écran
+    "$ADB" -s "$UDID" shell input keyevent 4    # KEYCODE_BACK  : ferme tout dialog éventuel
+    "$ADB" -s "$UDID" shell input keyevent 3    # KEYCODE_HOME : accueil launcher (pas d'app ouverte)
     sleep 2
-    echo "✅ Émulateur prêt."
+    echo "✅ Émulateur prêt ($UDID)."
 
 # Arrêter l'émulateur Android
 stop-android:
@@ -171,6 +194,20 @@ _ios-device device="":
     name="${booted:-{{ ios_default_device }}}"
     [ -n "$name" ] || { echo "❌ Aucun simulateur iOS démarré : donner --device <nom> ou définir IOS_DEVICE_NAME_DEFAULT dans .env.local." >&2; exit 1; }
     echo "$name"
+
+# Affiche l'identifiant (UDID) du simulateur iOS de ce nom, vide s'il n'existe pas ; le simulateur démarré l'emporte si plusieurs
+# runtimes portent le même nom. Viser l'UDID évite qu'Appium, sans version d'iOS, crée un simulateur temporaire (appiumTest-…).
+_ios-udid name:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    xcrun simctl list devices 2>/dev/null | awk -v name="{{ name }}" '
+        match($0, /\([0-9A-Fa-f-]{36}\)/) {
+            label = substr($0, 1, RSTART - 1); sub(/^ +/, "", label); sub(/ +$/, "", label)
+            if (label != name) next
+            uuid = substr($0, RSTART + 1, RLENGTH - 2)
+            if ($0 ~ /\(Booted\)/) { booted = uuid } else if (first == "") { first = uuid }
+        }
+        END { print (booted != "" ? booted : first) }'
 
 # Exemple : just start-ios   |   just start-ios --device "iPhone 17 Pro"
 [doc("Démarrer le simulateur iOS · [--device NOM]")]
@@ -285,6 +322,7 @@ test-android device="" *globs="": _require-dotenv (start-android device)
     #!/usr/bin/env bash
     set -euo pipefail
     [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
+    export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")"
     echo "🤖 Tests E2E Android…"
     if [ -n "{{globs}}" ]; then
         SPEC_ARGS=""
@@ -304,6 +342,7 @@ test-ios device="" *globs="": _require-dotenv (start-ios device)
     #!/usr/bin/env bash
     set -euo pipefail
     export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
+    export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")"
     echo "🍎 Tests E2E iOS…"
     if [ -n "{{globs}}" ]; then
         SPEC_ARGS=""
@@ -322,6 +361,7 @@ test-android-suite suite device="": _require-dotenv (start-android device)
     #!/usr/bin/env bash
     set -euo pipefail
     [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
+    export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")"
     WDIO_SUITE={{suite}} npm run test:android
 
 # Exemple : just test-ios-suite CI   |   just test-ios-suite CI --device "iPhone 17 Pro"
@@ -331,6 +371,7 @@ test-ios-suite suite device="": _require-dotenv (start-ios device)
     #!/usr/bin/env bash
     set -euo pipefail
     export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
+    export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")"
     WDIO_SUITE={{suite}} npm run test:ios
 
 # Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
@@ -427,7 +468,7 @@ _explore target route device="": _require-dotenv
         $S open android --app "$(cd .. && pwd)/ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk" --package {{ app_id }} --udid "$udid" --no-reset --replace --launch-timeout 240000 < /dev/null 2>&1
         ;;
       ios)
-        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/AMI-Production.app" --bundle-id {{ app_id }} --device "$(just --quiet _ios-device "{{ device }}")" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
+        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/AMI-Production.app" --bundle-id {{ app_id }} --udid "$(just --quiet _ios-udid "$(just --quiet _ios-device "{{ device }}")")" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
         ;;
       *) echo "cible inconnue « {{ target }} » (webapp | android | ios)"; exit 2 ;;
     esac
@@ -503,8 +544,8 @@ _debug target spec device="": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{ target }}" in
-      android) [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}" ;;
-      ios) export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")" ;;
+      android) [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"; export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")" ;;
+      ios) export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"; export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")" ;;
     esac
     npx wdio run wdio.{{ target }}.conf.ts --spec {{ spec }} --debug=agent
 
@@ -529,29 +570,70 @@ doctor target="":
     #!/usr/bin/env bash
     npx wdio session doctor {{ target }} || echo "→ Les ✖ cloud (BrowserStack…) et desktop (mac2, windows) sont sans objet ici ; seuls node, appium, android-sdk et simctl comptent."
 
-# Pour chaque test : plateforme, appareil, étapes, erreur, URL (jetons masqués) et identifiants Sentry de la SPA. Chaque dossier
-# contient aussi screenshot.png, dom.html (web) ou native-source.xml (natif), interactive.txt et context.json.
-# Le résumé passants/cassés (JUnit XML) est dans test-results/junit/.
-# Exemple d'un artefact de CI téléchargé : just failures temp/test-results-pr1275/failures
-# Liste les tests en échec du dernier run, ou d'un dossier de dumps (ex. l'artefact d'un run de CI téléchargé).
-failures dir="test-results/failures":
+# Pour chaque test : plateforme, appareil, étapes, erreur, URL (jetons masqués) et lien Sentry de la SPA (context.json de chaque dossier).
+# Captures, arbre de l'écran et réseau : traces du service DevTools, une par test et par run, dans
+# test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/ (just trace pour les ouvrir). Les dumps sont dans le
+# sous-dossier failures/ du même run. Le résumé passants/cassés (JUnit XML, un fichier par run) est dans test-results/junit/.
+# DOSSIER : un dossier de dumps, un dossier de run, ou tout dossier qui en contient (ex. l'artefact d'un run de CI téléchargé).
+# Exemples : just failures   |   just failures test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact   |   just failures temp/test-results-pr1275
+[doc("Lister les tests en échec du dernier run · [DOSSIER]")]
+failures dir="":
     #!/usr/bin/env bash
     set -euo pipefail
-    [ -d "{{ dir }}" ] || { echo "Aucun dump dans {{ dir }} (aucun échec, ou aucun run)."; exit 0; }
+    root="{{ dir }}"
+    if [ -z "$root" ]; then
+        # Le dernier run qui a des dumps : les noms de run commencent par l'horodatage, donc le tri alphabétique est chronologique.
+        latest="$(ls -d test-results/traces/*/failures 2>/dev/null | sort | tail -1 || true)"
+        root="${latest:-test-results/failures}"
+    fi
+    [ -d "$root" ] || { echo "Aucun dump dans $root (aucun échec, ou aucun run)."; exit 0; }
     node -e '
       const fs = require("fs"), path = require("path"), root = process.argv[1]
-      const dirs = fs.readdirSync(root).filter(d => fs.existsSync(path.join(root, d, "context.json"))).sort()
-      if (dirs.length === 0) { console.log("Aucun dump dans " + root); process.exit(0) }
-      for (const d of dirs) {
-        const c = JSON.parse(fs.readFileSync(path.join(root, d, "context.json"), "utf8"))
+      const found = []
+      const walk = (dir) => {
+        if (fs.existsSync(path.join(dir, "context.json"))) { found.push(dir); return }
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) if (e.isDirectory()) walk(path.join(dir, e.name))
+      }
+      walk(root)
+      found.sort()
+      if (found.length === 0) { console.log("Aucun dump dans " + root); process.exit(0) }
+      for (const d of found) {
+        const c = JSON.parse(fs.readFileSync(path.join(d, "context.json"), "utf8"))
         console.log("✖ " + c.test + "  [" + c.platform + (c.device && c.device.deviceName ? " · " + c.device.deviceName : "") + "]  " + c.failedAtUtc)
         if (c.error) console.log("    erreur : " + String(c.error.message).split("\n")[0].slice(0, 200))
         if (c.url) console.log("    url    : " + c.url)
         if (c.steps && c.steps.length) console.log("    étapes : " + c.steps.join(" › "))
-        if (c.sentry) console.log("    sentry : trace " + c.sentry.traceId + " · dernier événement " + c.sentry.lastEventId + " · " + c.sentry.environment)
-        console.log("    dossier: " + path.join(root, d))
+        if (c.sentry) console.log("    sentry : " + (c.sentry.url || "trace inconnue") + " · dernier événement " + c.sentry.lastEventId + " · " + c.sentry.environment)
+        console.log("    dossier: " + d)
       }
-    ' "{{ dir }}"
+    ' "$root"
+
+# Le lecteur (show-trace) ne lit que des .zip : un dossier de trace (traceFormat 'ndjson-directory') est zippé à la volée dans un
+# dossier temporaire. Sans CHEMIN, la trace la plus récente de test-results/. Le lecteur s'ouvre dans le navigateur ; Ctrl+C l'arrête.
+# CHEMIN : un .zip, un dossier de trace (celui qui contient trace.trace) ou le dossier d'un test (qui contient trace/).
+# Exemples : just trace   |   just trace test-results/aide-contact_test-…/trace
+[doc("Ouvrir une trace DevTools dans le lecteur · [CHEMIN]")]
+trace path="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="{{ path }}"
+    if [ -z "$target" ]; then
+        newest="$(find test-results -name trace.trace -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)"
+        [ -n "$newest" ] || { echo "Aucune trace dans test-results/ (aucun échec, ou aucun run)."; exit 0; }
+        target="$(dirname "$newest")"
+    fi
+    [ ! -d "$target" ] || [ -e "$target/trace.trace" ] || { [ -e "$target/trace/trace.trace" ] && target="$target/trace"; }
+    if [ -d "$target" ]; then
+        [ -e "$target/trace.trace" ] || { echo "❌ « $target » n'est pas un dossier de trace (trace.trace introuvable)." >&2; exit 1; }
+        echo "📄 Transcript : $target/transcript.md"
+        zip="$(mktemp -d)/trace.zip"
+        (cd "$target" && zip -qr "$zip" .)
+        target="$zip"
+    else
+        [ -f "$target" ] || { echo "❌ « $target » introuvable." >&2; exit 1; }
+    fi
+    echo "🔎 Ouverture de la trace dans le lecteur (Ctrl+C pour l'arrêter)…"
+    npx show-trace "$target"
 
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
 # Exemples : just push-notification avec_nom_dusage   |   just push-notification avec_nom_dusage "Mon titre personnalisé"

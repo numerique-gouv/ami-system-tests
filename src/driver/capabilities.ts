@@ -24,6 +24,9 @@ export const androidCapabilities = {
   // platformVersion volontairement absent : Appium détecte la version depuis l'appareil connecté.
   // Absent sans `--device` : Appium prend alors le premier appareil connecté (émulateur ou physique).
   ...(process.env.ANDROID_DEVICE_NAME ? {'appium:deviceName': process.env.ANDROID_DEVICE_NAME} : {}),
+  // Numéro de série adb de l'appareil visé (posé par les recettes just) : sans lui, Appium prend le premier appareil
+  // connecté, qui peut être un téléphone branché à côté de l'émulateur demandé.
+  ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
   'appium:app': ANDROID_APP_PATH,
   'appium:appPackage': 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
@@ -52,9 +55,11 @@ export const androidCapabilities = {
 export const iosCapabilities: WebdriverIO.Capabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
-  // Nom unique du simulateur, donné par `--device` (justfile) : il désigne aussi le runtime iOS, d'où
-  // l'absence de platformVersion.
+  // Nom du simulateur, donné par `--device` (justfile). platformVersion absent : le simulateur est visé par son UDID (ci-dessous).
   'appium:deviceName': process.env.IOS_DEVICE_NAME,
+  // UDID du simulateur visé (posé par les recettes just) : sans lui ni platformVersion, XCUITest prend le runtime iOS le plus récent
+  // et, s'il ne correspond pas à celui du simulateur nommé, crée un simulateur temporaire jetable (appiumTest-…) très lent à démarrer.
+  ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
   'appium:app': IOS_APP_PATH,
   'appium:bundleId': 'fr.gouv.ami.staging',
   'appium:noReset': false,

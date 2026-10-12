@@ -5,11 +5,43 @@ import logger from '@wdio/logger'
 import { dumpFailure } from './src/helpers/failure-dump'
 import { resetSteps } from './src/helpers/report'
 import { stripRawCommandLogs } from './src/helpers/junit-clean'
+import { redactTraces } from './src/helpers/trace-redact'
+import { runDirName } from './src/helpers/run-dir'
 
 const log = logger('scenario')
 
+/**
+ * `rootDir` de ce run, propre à chaque exécution : le service DevTools écrit ses traces sous `<rootDir>/test-results/`, donc dans
+ * `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/` (cf. helpers/run-dir.ts). Calculé une seule fois par le
+ * lanceur ; les workers, qui relisent la config avec d'autres arguments, héritent la valeur par l'environnement.
+ * `rootDir` ne sert à WDIO qu'à résoudre des chemins relatifs de specs : les nôtres sont absolus.
+ */
+export function traceRootDir(platform: 'android' | 'ios' | 'webapp'): string {
+  process.env.WDIO_RUN_DIR ??= path.resolve(__dirname, 'test-results/traces', runDirName(platform, Date.now(), process.env, process.argv))
+  return process.env.WDIO_RUN_DIR
+}
+
 // Les variables déjà définies dans le shell ne sont pas écrasées (override: false).
 dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
+
+// Service DevTools en mode trace, écrit dans test-results/ : captures, arbre de l'écran, éléments et réseau d'un test en échec
+// (failure-dump.ts n'écrit plus que le contexte). Toutes les options sont écrites, même à leur
+// valeur par défaut. Une trace par test, gardée si ce test échoue ou est rejoué (un échec dans un hook `before` n'a pas de
+// frontière de test : le service retombe alors sur une trace de session) ; contenu : transcript.md, captures et arbre de l'écran à chaque action, locators des éléments, réseau (masqué
+// par helpers/trace-redact.ts en fin de run).
+export const traceServices: NonNullable<Options.Testrunner['services']> = [
+  ['devtools', {
+    mode: 'trace',
+    traceFormat: 'ndjson-directory',
+    traceGranularity: 'test',
+    tracePolicy: 'retain-on-failure-and-retries',
+    screenshot: 'only-on-failure',  // capture du test en échec (exige traceGranularity 'test')
+    video: 'off',
+    filmstrip: false,
+    captureAssertions: true,
+    emitArtifactsManifest: true,
+  }],
+]
 
 // `specs` n'est PAS définie ici : chaque config de plateforme (wdio.android.conf.ts,
 // wdio.ios.conf.ts, wdio.webapp.conf.ts) appelle resolveSpecs() de test-suites.ts avec
@@ -64,7 +96,9 @@ export const baseConfig: Partial<Options.Testrunner> = {
       outputFileFormat: (options: {cid: string, capabilities: unknown}): string => {
         const caps = options.capabilities as Record<string, unknown>
         const target = String(caps.platformName ?? caps.browserName ?? 'inconnu').toLowerCase()
-        return `results-${target}-${options.cid}.xml`
+        // Nommé par run (même nom que le dossier du run : horodatage, plateforme, suite ou spec) : deux runs ne s'écrasent pas.
+        const run = process.env.WDIO_RUN_DIR ? path.basename(process.env.WDIO_RUN_DIR) : target
+        return `results-${run}-${options.cid}.xml`
       },
     }],
   ],
@@ -85,9 +119,12 @@ export const baseConfig: Partial<Options.Testrunner> = {
     log.info(`-> describe : ${suite.title}`)
   },
 
-  // Une fois tous les fichiers JUnit écrits : retire les lignes brutes COMMAND/RESULT (cf. helpers/junit-clean.ts).
+  // Une fois tous les fichiers JUnit et toutes les traces écrits : retire les lignes brutes COMMAND/RESULT (cf. helpers/junit-clean.ts)
+  // et masque cookies, jetons et secrets des traces DevTools (cf. helpers/trace-redact.ts).
   onComplete: (): void => {
     stripRawCommandLogs(path.resolve(__dirname, 'test-results/junit'))
+    // Seulement le dossier de CE run : un autre run en cours écrit peut-être encore dans le sien.
+    redactTraces(process.env.WDIO_RUN_DIR ?? path.resolve(__dirname, 'test-results'))
   },
 
   // Un seul callback pour les 4 hooks Mocha (before/beforeEach/after/afterEach) — hookName les
@@ -103,7 +140,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
     resetSteps()
   },
 
-  // Dump systématique d'un test en échec (capture, DOM ou arbre natif, identifiants Sentry…) : voir helpers/failure-dump.ts.
+  // Contexte d'un test en échec (étapes, erreur, appareil, lien Sentry) : voir helpers/failure-dump.ts. Captures et réseau : service DevTools.
   afterTest: async (test, _context, result): Promise<void> => {
     if (result.passed) return
     await dumpFailure(test, result.error)

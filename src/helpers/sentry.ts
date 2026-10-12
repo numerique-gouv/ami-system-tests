@@ -18,6 +18,14 @@ export interface SentryIds {
   environment: string | null
 }
 
+/** Page « Traces » du Sentry de l'équipe (instance incubateur, organisation betagouv). */
+const SENTRY_TRACES_URL = 'https://sentry.incubateur.net/organizations/betagouv/explore/traces/'
+
+/** Lien Sentry vers la recherche de la trace (`trace:<id>`, vue tableau), ou `null` si l'identifiant est inconnu. */
+export function sentryTraceUrl(traceId: string | null): string | null {
+  return traceId ? `${SENTRY_TRACES_URL}?query=${encodeURIComponent(`trace:${traceId}`)}&table=trace` : null
+}
+
 export async function readSentryIds(): Promise<SentryIds | null> {
   return await browser.execute((): SentryIds | null => {
     const carrier = (window as unknown as {__SENTRY__?: Record<string, unknown>}).__SENTRY__

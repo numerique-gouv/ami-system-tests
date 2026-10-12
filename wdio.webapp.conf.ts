@@ -1,7 +1,7 @@
 import path from 'path'
 import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
-import { baseConfig } from './wdio.base.conf'
+import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
@@ -28,6 +28,8 @@ const deviceMetrics = { width: 412, height: 915 }
 
 export const config: Options.Testrunner = {
   ...baseConfig,
+
+  rootDir: traceRootDir('webapp'),
 
   specs: resolveSpecs(path.resolve(__dirname, 'src/tests/webapp/**/*.test.ts')),
 
@@ -69,7 +71,7 @@ export const config: Options.Testrunner = {
   ],
 
   // Pas de service Appium — session Chrome pilotée directement par WebdriverIO/Chromedriver.
-  services: [],
+  services: [...traceServices],
   before: async (): Promise<void> => {
     // La navigation initiale et la capture du window handle sont spécifiques à la webapp (pas de notion
     // d'onglet côté Appium/mobile) : gérées ici.
