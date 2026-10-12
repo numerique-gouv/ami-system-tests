@@ -55,6 +55,20 @@ export function iosBootedUdid(): string | undefined {
     .match(/[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i)?.[0]
 }
 
+/**
+ * Début de série : désinstalle l'app (son conteneur de données part avec elle). Avec `noReset: true`, le driver n'installe l'app que
+ * si elle est absente : sans cette désinstallation, une app déjà présente — éventuellement d'un ancien build — serait réutilisée.
+ * La première session réinstalle donc le build courant, puis les suivantes le réutilisent.
+ */
+export function iosUninstallApp(bundleId: string): void {
+  try {
+    const udid = iosBootedUdid()
+    if (udid) execFileSync('xcrun', ['simctl', 'uninstall', udid, bundleId], {stdio: 'ignore'})
+  } catch (err) {
+    warn(`simctl uninstall ${bundleId}`, err)
+  }
+}
+
 /** Termine l'app iOS (le simulateur reste démarré). */
 export function iosTerminateApp(bundleId: string): void {
   try {

@@ -4,7 +4,7 @@ import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { iosCapabilities } from './src/driver/capabilities'
-import { iosBootedUdid, iosTerminateApp } from './src/helpers/device-app'
+import { iosBootedUdid, iosTerminateApp, iosUninstallApp } from './src/helpers/device-app'
 import { resolveSpecs } from './test-suites'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
@@ -36,7 +36,7 @@ export const config: Options.Testrunner = {
 
   port: 4724,
 
-  // Réinitialise la session FranceConnect et le conteneur data de l'app avant chaque run.
+  // Réinitialise la session FranceConnect et désinstalle l'app (donc son conteneur de données) avant chaque run.
   // Logique portée uniquement ici, exécutée une seule fois avant tout worker.
   // Un effacement partiel (WebKit/cookies seuls) laisse l'app dans un état incohérent
   // où la WKWebView se reconnecte sans afficher la mire FC.
@@ -59,12 +59,9 @@ export const config: Options.Testrunner = {
     sim(['spawn', udid, 'defaults', 'delete', 'com.apple.SafariViewService'])
     sim(['spawn', udid, 'rm', '-rf', '/Library/Caches/com.apple.SafariViewService'])
     sim(['spawn', udid, 'rm', '-f', '/var/mobile/Library/Cookies/com.apple.SafariViewService.binarycookies'])
-    try {
-      const container = execFileSync('xcrun', ['simctl', 'get_app_container', udid, APP_ID, 'data'], { encoding: 'utf-8' }).trim()
-      if (container) execFileSync('rm', ['-rf', `${container}/`], { stdio: 'ignore' })
-    } catch (err) {
-      log.warn('reset du conteneur de données iOS impossible (ignoré)', err)
-    }
+    // L'app est désinstallée (son conteneur de données avec elle) : la première session installe le build courant, que les specs
+    // suivantes réutilisent (`noReset: true`).
+    iosUninstallApp(APP_ID)
   },
 
   // Fin de série : l'app est fermée (le simulateur reste démarré).
