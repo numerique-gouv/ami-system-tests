@@ -6,10 +6,10 @@ inputs:
     description: "Suite nommée (test-suites.ts), ex: all, CI"
     required: false
     default: CI
-  run_old_device:
-    description: "old device minSdk, new device targetSdk"
+  device:
+    description: "Nom de l'AVD, au format pixel_<profil>_api<niveau> (ex. pixel_2_api30 = ancien appareil, pixel_8_api36 = récent) : le profil et le niveau d'API de l'AVD en sont déduits."
     required: false
-    default: "true"
+    default: pixel_2_api30
 
 runs:
   using: composite
@@ -41,25 +41,24 @@ runs:
     # écart mineur). API 30 est donc retenue : sa sortie AOSP initiale (`android-11.0.0_r1`)
     # est déjà à 83 (> 80), donc viable même si l'image x86_64 CI reste figée sur ce build
     # initial comme observé pour l'API 29.
-    - name: Résoudre les paramètres de l'appareil Android (ancien vs récent)
+    - name: Résoudre les paramètres de l'appareil Android
       shell: bash
+      env:
+        DEVICE: ${{ inputs.device }}
       run: |
         # ANDROID_DEVICE_NAME sert à la fois de nom d'AVD (`with: avd-name:` des steps suivants)
-        # et de valeur lue par `just`/`capabilities.ts` (appium:deviceName) — un seul nom pour
-        # les deux usages, pas de variable dupliquée sous un 2e nom.
-        if [ "${{ inputs.run_old_device }}" = "true" ]; then
-          echo "ANDROID_DEVICE_NAME=pixel_2_api30" >> "$GITHUB_ENV"
-          echo "ANDROID_API_LEVEL=30"       >> "$GITHUB_ENV"
-          echo "ANDROID_TARGET=google_apis" >> "$GITHUB_ENV"
-          echo "ANDROID_ARCH=x86_64"        >> "$GITHUB_ENV"
-          echo "ANDROID_PROFILE=pixel_2"    >> "$GITHUB_ENV"
-        else
-          echo "ANDROID_DEVICE_NAME=pixel_8_api36" >> "$GITHUB_ENV"
-          echo "ANDROID_API_LEVEL=36"       >> "$GITHUB_ENV"
-          echo "ANDROID_TARGET=google_apis" >> "$GITHUB_ENV"
-          echo "ANDROID_ARCH=x86_64"        >> "$GITHUB_ENV"
-          echo "ANDROID_PROFILE=pixel_8"    >> "$GITHUB_ENV"
+        # et de valeur passée à `just ... --device` (appium:deviceName) — un seul nom pour
+        # les deux usages. Le profil et le niveau d'API sont déduits du nom : n'importe quel
+        # appareil `pixel_<profil>_api<niveau>` est accepté, sans liste à maintenir ici.
+        if [[ ! "$DEVICE" =~ ^pixel_([0-9]+[a-z_]*)_api([0-9]+)$ ]]; then
+          echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_2_api30)"
+          exit 1
         fi
+        echo "ANDROID_DEVICE_NAME=$DEVICE"                 >> "$GITHUB_ENV"
+        echo "ANDROID_API_LEVEL=${BASH_REMATCH[2]}"        >> "$GITHUB_ENV"
+        echo "ANDROID_TARGET=google_apis"                  >> "$GITHUB_ENV"
+        echo "ANDROID_ARCH=x86_64"                         >> "$GITHUB_ENV"
+        echo "ANDROID_PROFILE=pixel_${BASH_REMATCH[1]}"    >> "$GITHUB_ENV"
 
     # nom produit par Gradle (basename de l'APK stagingDebug). `path` est résolu par
     # actions/download-artifact relatif à $GITHUB_WORKSPACE (racine du checkout du repo
@@ -214,7 +213,7 @@ runs:
         disable-animations: true
         working-directory: ami-system-tests
         script: |
-          just test-android-suite "${{ inputs.suite }}" || echo "Test suite has failed"
+          just test-android-suite "${{ inputs.suite }}" --device "${{ env.ANDROID_DEVICE_NAME }}" || echo "Test suite has failed"
           echo "::group::Diagnostic logcat (buffer complet, non filtré)"
           adb logcat -d || true
           echo "::endgroup::"

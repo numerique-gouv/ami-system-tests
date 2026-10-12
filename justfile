@@ -6,7 +6,10 @@
 # - la cible (webapp | android | ios) est dans le NOM de la recette (test-android, explore-ios, debug-webapp…), comme pour les tests ;
 # - 3 arguments ou plus : nommés avec `[arg("x", long="x")]` ; un drapeau booléen est toujours nommé (`--debug`) ;
 # - 2 ou 3 optionnels : on nomme dès qu'il faudrait donner un argument juste pour atteindre le suivant.
-# La DERNIÈRE ligne de commentaire d'une recette est celle qu'affichent `just --list` et la complétion : la description y va en dernier.
+# `just --list` et la complétion n'affichent qu'UNE ligne par recette : l'attribut `[doc("Rôle · [--device AVD] [GLOB…]")]` quand
+# la recette a des options (rôle, puis arguments), sinon la DERNIÈRE ligne de commentaire. Les exemples restent en commentaires
+# (lisibles dans ce fichier : `just --show` les masque dès qu'un `[doc]` est présent) et le détail des arguments est dans
+# `just --usage <recette>` (rappelé par `just help`).
 
 set dotenv-path := ".env.local"
 # `just` interdit les settings booléens calculés (voir doc `set`), donc ce flag ne peut pas
@@ -31,16 +34,19 @@ android_apk := android_project / "app/build/outputs/apk/staging/debug/app-stagin
 ios_derived := "../build"
 ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI-Production.app"
 
-# env_var_or_default (pas juste "Pixel_modern" en dur) : sans ça, `start-android` ignore
-# ANDROID_DEVICE_NAME et boote toujours Pixel_modern, même quand on demande explicitement un
-# autre AVD (ex. ANDROID_DEVICE_NAME=pixel_2_api30 just test-android-suite short) — le device
-# ciblé par les capabilities Appium (capabilities.ts) et l'AVD réellement démarré divergeaient.
-android_avd := env_var_or_default("ANDROID_DEVICE_NAME", "Pixel_modern")
+# Appareil visé = `--device` (ex. just test-android --device pixel_2_api30). Sans `--device`, on prend
+# l'appareil déjà connecté (adb : émulateur ou téléphone) ou le simulateur iOS déjà démarré ; s'il n'y en a
+# aucun, on démarre celui de ANDROID_DEVICE_NAME_DEFAULT / IOS_DEVICE_NAME_DEFAULT (.env.local, propres au
+# poste : aucune valeur en dur dans le dépôt). Les recettes exportent ensuite ANDROID_DEVICE_NAME /
+# IOS_DEVICE_NAME, que lit src/driver/capabilities.ts : l'appareil démarré (start-*) et celui visé par Appium
+# sont ainsi le même.
+android_default_device := env_var_or_default("ANDROID_DEVICE_NAME_DEFAULT", "")
 android_sdk := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROID_HOME", ""))
 
-# Nom du simulateur iOS tel qu'attendu par xcrun simctl (espaces, pas tirets)
-# Doit correspondre à la -destination utilisée dans build-ios
-ios_simulator := env_var_or_default("IOS_SIMULATOR", "iPhone 17 Pro")
+# Nom du simulateur iOS tel qu'attendu par xcrun simctl (espaces, pas tirets). Le nom doit être unique parmi
+# les simulateurs installés : il désigne aussi le runtime iOS (pas de version à donner).
+# (iOS physique non géré : wdio.ios.conf.ts et l'app buildée visent un simulateur.)
+ios_default_device := env_var_or_default("IOS_DEVICE_NAME_DEFAULT", "")
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
@@ -121,8 +127,10 @@ build-ios:
 
 # Si un émulateur est déjà actif (quelle que soit sa provenance), on le réutilise.
 # Attend que UiAutomation soit disponible (sys.boot_completed + package manager prêt).
-# Démarrer l'émulateur Android si aucun appareil n'est déjà connecté via adb.
-start-android:
+# Exemple : just start-android   |   just start-android --device pixel_2_api30
+[doc("Démarrer l'émulateur Android · [--device AVD]")]
+[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
+start-android device="":
     #!/usr/bin/env bash
     set -euo pipefail
     ADB="{{ android_sdk }}/platform-tools/adb"
@@ -133,8 +141,10 @@ start-android:
         echo "✅ Appareil déjà connecté : $BOOTED — réutilisé."
         exit 0
     fi
-    echo "🤖 Démarrage de l'émulateur {{ android_avd }}…"
-    "$EMU" -avd {{ android_avd }} -no-snapshot-save &
+    AVD="{{ if device == "" { android_default_device } else { device } }}"
+    [ -n "$AVD" ] || { echo "❌ Aucun appareil Android connecté : donner --device <avd> ou définir ANDROID_DEVICE_NAME_DEFAULT dans .env.local." >&2; exit 1; }
+    echo "🤖 Démarrage de l'émulateur $AVD…"
+    "$EMU" -avd "$AVD" -no-snapshot-save &
     "$ADB" wait-for-device
     until "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q '^1$'; do sleep 2; done
     # Attendre que le package manager soit opérationnel (requis par UiAutomator2)
@@ -151,30 +161,96 @@ start-android:
 stop-android:
     {{android_sdk}}/platform-tools/adb emu kill || true
 
-# Démarrer le simulateur iOS et attendre qu'il soit prêt
-start-ios:
+# Exemple : just start-ios --device "iPhone 17 Pro"
+# Affiche le simulateur iOS visé : l'argument s'il est donné, sinon le premier simulateur démarré, sinon le défaut.
+_ios-device device="":
     #!/usr/bin/env bash
     set -euo pipefail
-    if xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; then
-        echo "✅ Simulateur '{{ ios_simulator }}' déjà démarré."
+    if [ -n "{{ device }}" ]; then echo "{{ device }}"; exit 0; fi
+    booted="$(xcrun simctl list devices booted | sed -nE 's/^ +(.+) \([0-9A-Fa-f-]{36}\) \(Booted\).*/\1/p' | head -1 || true)"
+    name="${booted:-{{ ios_default_device }}}"
+    [ -n "$name" ] || { echo "❌ Aucun simulateur iOS démarré : donner --device <nom> ou définir IOS_DEVICE_NAME_DEFAULT dans .env.local." >&2; exit 1; }
+    echo "$name"
+
+# Exemple : just start-ios   |   just start-ios --device "iPhone 17 Pro"
+[doc("Démarrer le simulateur iOS · [--device NOM]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+start-ios device="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DEVICE="$(just --quiet _ios-device "{{ device }}")"
+    if xcrun simctl list devices booted | grep -q "$DEVICE"; then
+        echo "✅ Simulateur '$DEVICE' déjà démarré."
     else
-        echo "📱 Démarrage du simulateur '{{ ios_simulator }}'…"
-        xcrun simctl boot "{{ ios_simulator }}"
-        until xcrun simctl list devices booted | grep -q "{{ ios_simulator }}"; do sleep 1; done
+        echo "📱 Démarrage du simulateur '$DEVICE'…"
+        xcrun simctl boot "$DEVICE"
+        until xcrun simctl list devices booted | grep -q "$DEVICE"; do sleep 1; done
         echo "✅ Simulateur prêt."
         # L'app graphique n'est ouverte qu'au démarrage du simulateur : `open` à chaque appel ajoutait une
         # fenêtre Device Hub par lancement de test.
         open -b com.apple.dt.Devices 2>/dev/null || open -a Simulator 2>/dev/null || echo "⚠️  App graphique Simulator.app/DeviceHub.app introuvable — simulateur utilisable en headless via simctl, tests non bloqués."
     fi
 
-# Arrêter le simulateur iOS (tous les simulateurs démarrés)
-stop-ios:
-    @echo "🛑 Arrêt du simulateur '{{ ios_simulator }}'…"
-    xcrun simctl shutdown "{{ ios_simulator }}" || true
-    @echo "✅ Simulateur arrêté."
+[doc("Arrêter le simulateur iOS · [--device NOM]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+stop-ios device="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DEVICE="$(just --quiet _ios-device "{{ device }}")"
+    echo "🛑 Arrêt du simulateur '$DEVICE'…"
+    xcrun simctl shutdown "$DEVICE" || true
+    echo "✅ Simulateur arrêté."
 
 # Arrêter tous les simulateurs
-stop: stop-android stop-ios
+stop: stop-android (stop-ios "")
+
+# Les outils absents (SDK Android, Xcode) sont signalés sans faire échouer la recette.
+[doc("Lister émulateurs et simulateurs du poste · ● = démarré")]
+devices:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    echo "🤖 Android"
+    ADB="{{ android_sdk }}/platform-tools/adb"; EMU="{{ android_sdk }}/emulator/emulator"
+    [ -x "$ADB" ] || ADB="$(command -v adb || true)"
+    [ -x "$EMU" ] || EMU="$(command -v emulator || true)"
+    running=""
+    if [ -n "$ADB" ]; then
+        # Appareils connectés : nom d'AVD pour un émulateur, numéro de série pour un téléphone.
+        while read -r serial; do
+            case "$serial" in
+              emulator-*) name="$("$ADB" -s "$serial" emu avd name 2>/dev/null | head -1 | tr -d '\r')"; running="$running|$name|" ;;
+              *) echo "  ● $serial (appareil physique)" ;;
+            esac
+        done < <("$ADB" devices 2>/dev/null | awk '/\tdevice$/{print $1}')
+    else
+        echo "  ⚠️  adb introuvable (Android SDK non installé ou hors PATH) : appareils connectés non détectés."
+    fi
+    if [ -n "$EMU" ]; then
+        avds="$("$EMU" -list-avds 2>/dev/null | grep -v '^INFO' || true)"
+        if [ -z "$avds" ]; then echo "  (aucun AVD)"; fi
+        while read -r avd; do
+            [ -n "$avd" ] || continue
+            if [[ "$running" == *"|$avd|"* ]]; then echo "  ● $avd"; else echo "  ○ $avd"; fi
+        done <<< "$avds"
+    else
+        echo "  ⚠️  emulator introuvable (Android SDK non installé ou ANDROID_SDK_ROOT absent) : AVD non listés."
+    fi
+    echo
+    echo "🍎 iOS"
+    if command -v xcrun > /dev/null 2>&1 && xcrun simctl help > /dev/null 2>&1; then
+        out="$(xcrun simctl list devices available 2>/dev/null | awk '
+            /^-- .* --$/ { gsub(/^-- | --$/, ""); runtime = $0; next }
+            /\((Booted|Shutdown|Shutting Down|Creating)\)/ && runtime ~ /^iOS/ && $0 ~ /^ +iPhone/ {
+                state = ($0 ~ /\(Booted\)/) ? "●" : "○"
+                name = $0; sub(/^ +/, "", name); sub(/ \([0-9A-Fa-f-]{36}\).*/, "", name)
+                printf "  %s %s  (%s)\n", state, name, runtime
+            }')"
+        if [ -n "$out" ]; then echo "$out"; else echo "  (aucun simulateur iOS)"; fi
+    else
+        echo "  ⚠️  xcrun/simctl introuvable (Xcode non installé) : simulateurs non listés."
+    fi
+    echo
+    echo "● démarré   ○ arrêté"
 
 # ─── Qualité ────────────────────────────────────────────────────────────────
 
@@ -202,10 +278,13 @@ _require-dotenv:
     fi
 
 # Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
-# Lancer les tests E2E Android — démarre l'émulateur, lance les tests sur les fichiers fournis
-test-android *globs="": _require-dotenv start-android
+# Exemple : just test-android --device pixel_2_api30 "src/tests/mobile/notifications*"
+[doc("Tests E2E Android · [--device AVD] [GLOB…]")]
+[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
+test-android device="" *globs="": _require-dotenv (start-android device)
     #!/usr/bin/env bash
     set -euo pipefail
+    [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
     echo "🤖 Tests E2E Android…"
     if [ -n "{{globs}}" ]; then
         SPEC_ARGS=""
@@ -218,10 +297,13 @@ test-android *globs="": _require-dotenv start-android
     fi
 
 # Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
-# Lancer les tests E2E iOS — démarre le simulateur, lance les tests sur les fichiers fournis
-test-ios *globs="": _require-dotenv start-ios
+# Exemple : just test-ios --device "iPhone 17 Pro" "src/tests/mobile/notifications*"
+[doc("Tests E2E iOS · [--device NOM] [GLOB…]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+test-ios device="" *globs="": _require-dotenv (start-ios device)
     #!/usr/bin/env bash
     set -euo pipefail
+    export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
     echo "🍎 Tests E2E iOS…"
     if [ -n "{{globs}}" ]; then
         SPEC_ARGS=""
@@ -233,14 +315,22 @@ test-ios *globs="": _require-dotenv start-ios
         npm run test:ios
     fi
 
-# Exemple : just test-android-suite all
-# Lancer les tests E2E Android avec une suite nommée (session partagée — auth une seule fois)
-test-android-suite suite: _require-dotenv start-android
+# Exemple : just test-android-suite all   |   just test-android-suite CI --device pixel_2_api30
+[doc("Tests E2E Android, suite nommée · SUITE [--device AVD]")]
+[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
+test-android-suite suite device="": _require-dotenv (start-android device)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
     WDIO_SUITE={{suite}} npm run test:android
 
-# Exemple : just test-ios-suite CI
-# Lancer les tests E2E iOS avec une suite nommée (session partagée — auth une seule fois)
-test-ios-suite suite: _require-dotenv start-ios
+# Exemple : just test-ios-suite CI   |   just test-ios-suite CI --device "iPhone 17 Pro"
+[doc("Tests E2E iOS, suite nommée · SUITE [--device NOM]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+test-ios-suite suite device="": _require-dotenv (start-ios device)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
     WDIO_SUITE={{suite}} npm run test:ios
 
 # Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
@@ -303,9 +393,10 @@ explore-webapp route="/": (_explore "webapp" route)
 # Ouvre une session d'exploration sur l'app Android (émulateur déjà démarré : just start-android), sans réinitialiser l'app.
 explore-android: (_explore "android" "/")
 
-# Usage : just explore-ios
-# Ouvre une session d'exploration sur l'app iOS (simulateur déjà démarré : just start-ios), sans réinitialiser l'app.
-explore-ios: (_explore "ios" "/")
+# Usage : just explore-ios   |   just explore-ios --device "iPhone 17 Pro"
+[doc("Session d'exploration iOS · [--device NOM]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+explore-ios device="": (_explore "ios" "/" device)
 
 # Ouvre une session d'exploration sur une cible : webapp (Chrome), android ou ios.
 # - webapp : pose le cookie `access_key` comme wdio.webapp.conf.ts (valeur de WEB_APP_ACCESS_KEYS, jamais
@@ -316,7 +407,7 @@ explore-ios: (_explore "ios" "/")
 #   (`just s <cible> contexts`, puis `exec`). En Android hybride, `snapshot` lit l'arbre natif.
 # La SPA route par hash : la route d'une page est `/#/agenda` (à entourer de guillemets).
 # (Recette privée : on lance explore-webapp, explore-android ou explore-ios.)
-_explore target route: _require-dotenv
+_explore target route device="": _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
     S="npx wdio session -s {{ target }}"
@@ -336,7 +427,7 @@ _explore target route: _require-dotenv
         $S open android --app "$(cd .. && pwd)/ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk" --package {{ app_id }} --udid "$udid" --no-reset --replace --launch-timeout 240000 < /dev/null 2>&1
         ;;
       ios)
-        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/AMI-Production.app" --bundle-id {{ app_id }} --device "{{ ios_simulator }}" --platform-version "${IOS_PLATFORM_VERSION:-27.0}" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
+        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/AMI-Production.app" --bundle-id {{ app_id }} --device "$(just --quiet _ios-device "{{ device }}")" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
         ;;
       *) echo "cible inconnue « {{ target }} » (webapp | android | ios)"; exit 2 ;;
     esac
@@ -408,20 +499,28 @@ webview target="webapp":
 # (`before all`) ne déclenche pas la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i,
 # just s debug-0-0 screenshot, just s debug-0-0 resume.
 # (Recette privée : on lance debug-webapp, debug-android ou debug-ios.)
-_debug target spec: _require-dotenv
+_debug target spec device="": _require-dotenv
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ target }}" in
+      android) [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}" ;;
+      ios) export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")" ;;
+    esac
     npx wdio run wdio.{{ target }}.conf.ts --spec {{ spec }} --debug=agent
 
 # Usage : just debug-webapp src/tests/webapp/agenda.test.ts
 # Lance un test webapp et le met en pause à son premier échec (session debug-0-0).
 debug-webapp spec: (_debug "webapp" spec)
 
-# Usage : just debug-android src/tests/mobile/profile.test.ts
-# Lance un test Android et le met en pause à son premier échec (session debug-0-0).
-debug-android spec: (_debug "android" spec)
+# Usage : just debug-android src/tests/mobile/profile.test.ts   |   just debug-android src/tests/mobile/profile.test.ts --device pixel_2_api30
+[doc("Test Android en pause au 1er échec · FICHIER [--device AVD]")]
+[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
+debug-android spec device="": (_debug "android" spec device)
 
-# Usage : just debug-ios src/tests/mobile/profile.test.ts
-# Lance un test iOS et le met en pause à son premier échec (session debug-0-0).
-debug-ios spec: (_debug "ios" spec)
+# Usage : just debug-ios src/tests/mobile/profile.test.ts   |   just debug-ios src/tests/mobile/profile.test.ts --device "iPhone 17 Pro"
+[doc("Test iOS en pause au 1er échec · FICHIER [--device NOM]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+debug-ios spec device="": (_debug "ios" spec device)
 
 # Les croix « cloud » (BrowserStack…) et « desktop » (windows, mac2) ne nous concernent pas.
 # Exemples : just doctor   |   just doctor android
@@ -462,7 +561,8 @@ push-notification login title="": _require-dotenv
 
 # ─── Aide ───────────────────────────────────────────────────────────────────
 
-# Afficher l'aide
+# Détail des arguments d'une recette : `just --usage <recette>`.
+# Lister les recettes (même chose que `just --list`, avec le rappel de `just --usage`)
 help:
-    @just --list
+    @just --list --list-heading $'Recettes — détail des arguments d\'une recette : just --usage <recette>\n'
 

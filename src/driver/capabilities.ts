@@ -21,9 +21,9 @@ const IOS_APP_PATH = path.resolve(
 export const androidCapabilities = {
   platformName: 'Android',
   'appium:automationName': 'UiAutomator2',
-  // Nom de l'AVD défini dans le justfile racine (android_avd := "Pixel_modern").
   // platformVersion volontairement absent : Appium détecte la version depuis l'appareil connecté.
-  'appium:deviceName': process.env.ANDROID_DEVICE_NAME ?? 'Pixel_modern',
+  // Absent sans `--device` : Appium prend alors le premier appareil connecté (émulateur ou physique).
+  ...(process.env.ANDROID_DEVICE_NAME ? {'appium:deviceName': process.env.ANDROID_DEVICE_NAME} : {}),
   'appium:app': ANDROID_APP_PATH,
   'appium:appPackage': 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
@@ -52,13 +52,9 @@ export const androidCapabilities = {
 export const iosCapabilities: WebdriverIO.Capabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
-  // Doit correspondre au simulateur booté par ios-start / ios_simulator dans le justfile racine.
-  'appium:deviceName': process.env.IOS_DEVICE_NAME ?? 'iPhone 17 Pro',
-  // Obligatoire dès que plusieurs runtimes iOS sont installés (ex. après une mise à jour Xcode
-  // qui ajoute un nouveau runtime sans retirer l'ancien) : sans cette capability, XCUITest prend
-  // par défaut le runtime le plus récent supporté par Xcode et, s'il ne correspond pas à celui du
-  // simulateur existant, crée un simulateur temporaire jetable au lieu de réutiliser celui-ci.
-  'appium:platformVersion': process.env.IOS_PLATFORM_VERSION ?? '27.0',
+  // Nom unique du simulateur, donné par `--device` (justfile) : il désigne aussi le runtime iOS, d'où
+  // l'absence de platformVersion.
+  'appium:deviceName': process.env.IOS_DEVICE_NAME,
   'appium:app': IOS_APP_PATH,
   'appium:bundleId': 'fr.gouv.ami.staging',
   'appium:noReset': false,

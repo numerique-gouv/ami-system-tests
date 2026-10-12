@@ -10,9 +10,10 @@ on:
         description: "nom de la suite android à lancer (test-suites.ts) — vide = ne pas lancer"
         type: string
         default: ''
-      run_old_device:
-        type: boolean
-        default: true
+      android_device:
+        description: "AVD Android au format pixel_<profil>_api<niveau> (ex. pixel_2_api30 = ancien, pixel_8_api36 = récent)"
+        type: string
+        default: pixel_2_api30
       run_ios:
         description: "nom de la suite ios à lancer (test-suites.ts) — vide = ne pas lancer"
         type: string
@@ -107,7 +108,7 @@ jobs:
         uses: ./ami-system-tests/.github/actions/e2e-android
         with:
           suite: ${{ inputs.run_android }}
-          run_old_device: ${{ inputs.run_old_device }}
+          device: ${{ inputs.android_device }}
 
       - if: ${{ inputs.run_ios != '' }}
         name: download iOS test results

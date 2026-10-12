@@ -129,7 +129,6 @@ export async function dumpFailure(test: FailedTest, error?: Error): Promise<void
     suite: test.parent ?? null,
     failedAtUtc: failedAt.toISOString(),
     platform: platform().kind,
-    runOldDevice: process.env.RUN_OLD_DEVICE === undefined ? null : process.env.RUN_OLD_DEVICE === 'true',
     device: {
       platformName: browser.capabilities?.platformName ?? null,
       deviceName: (browser.capabilities as Record<string, unknown> | undefined)?.['appium:deviceName'] ?? null,

@@ -17,8 +17,8 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
 | Appium (global) | `npm i -g appium` |
 
-Simulateur iOS attendu : **iPhone 17 Pro** (ou définir `IOS_SIMULATOR` dans `.env.local`)
-Émulateur Android : AVD de type Pixel, API 36 — nom configurable via `ANDROID_DEVICE_NAME` dans `.env.local`
+Simulateur iOS attendu : **iPhone 17 Pro** (nom dans `IOS_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device "<nom>"` : `just test-ios --device "iPhone 17 Pro"`)
+Émulateur Android : AVD de type Pixel, API 36 — nom dans `ANDROID_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device` : `just test-android --device pixel_2_api30`
 
 ---
 
