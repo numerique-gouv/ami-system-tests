@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import logger from '@wdio/logger'
 import { dumpFailure } from './src/helpers/failure-dump'
 import { resetSteps } from './src/helpers/report'
-import { stripRawCommandLogs } from './src/helpers/junit-clean'
+import { mergeRunReports, stripRawCommandLogs } from './src/helpers/junit-clean'
 import { redactTraces } from './src/helpers/trace-redact'
 import { runDirName } from './src/helpers/run-dir'
 
@@ -83,8 +83,8 @@ export const baseConfig: Partial<Options.Testrunner> = {
 
   reporters: [
     'spec',
-    // JUnit XML : résumé passants/cassés (commentaire de PR et artefact de CI). Un fichier par processus, nommé avec la
-    // plateforme pour que les résultats des trois cibles ne s'écrasent pas quand ils sont fusionnés.
+    // JUnit XML : résumé passants/cassés (commentaire de PR et artefact de CI). Un fichier par processus pendant le run
+    // (`results-<run>-<cid>.xml`), fusionnés par onComplete en `results-<run>.xml` : un rapport par run, un testsuite par spec.
     ['junit', {
       outputDir: 'test-results/junit',
       // La console du worker (nos logs : `-> it`, appels de Page Objects, `step`, avertissements) est placée AVANT les lignes
@@ -122,7 +122,10 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // Une fois tous les fichiers JUnit et toutes les traces écrits : retire les lignes brutes COMMAND/RESULT (cf. helpers/junit-clean.ts)
   // et masque cookies, jetons et secrets des traces DevTools (cf. helpers/trace-redact.ts).
   onComplete: (): void => {
-    stripRawCommandLogs(path.resolve(__dirname, 'test-results/junit'))
+    const junitDir = path.resolve(__dirname, 'test-results/junit')
+    stripRawCommandLogs(junitDir)
+    // Un seul rapport JUnit par run, un testsuite par fichier de spec (cf. helpers/junit-clean.ts).
+    if (process.env.WDIO_RUN_DIR) mergeRunReports(junitDir, path.basename(process.env.WDIO_RUN_DIR))
     // Seulement le dossier de CE run : un autre run en cours écrit peut-être encore dans le sien.
     redactTraces(process.env.WDIO_RUN_DIR ?? path.resolve(__dirname, 'test-results'))
   },
