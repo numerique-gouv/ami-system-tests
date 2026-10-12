@@ -1,6 +1,7 @@
 import path from 'path'
 import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
+import fs from 'fs'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
@@ -21,6 +22,12 @@ setBackendUrl(apiUrl)
 // lancé par WDIO/Chromedriver — pratique pour observer le run en local. Par défaut (CI via
 // just test-webci / test-webci-suite), headless.
 const headless = process.env.WEBAPP_HEADLESS !== 'false'
+
+const chromeProfileDir = path.resolve(__dirname, '.cache/chrome-profiles', path.basename(traceRootDir('webapp')))
+
+function removeChromeProfile(): void {
+  if (chromeProfileDir.includes(`${path.sep}chrome-profiles${path.sep}`)) fs.rmSync(chromeProfileDir, { recursive: true, force: true })
+}
 
 // Dimensions du viewport émulé (Pixel 7, cf. mobileEmulation ci-dessous) — réutilisées pour
 // dimensionner la fenêtre réelle en headless (cf. before()).
@@ -43,7 +50,12 @@ export const config: Options.Testrunner = {
       browserName: 'chrome',
       webSocketUrl: true,
       'goog:chromeOptions': {
-        args: headless ? ['--headless=new'] : [],
+        args: [
+          ...(headless ? ['--headless=new'] : []),
+          // Profil Chrome propre à ce run (jamais partagé entre deux runs simultanés), conservé d'une spec à l'autre : la session
+          // ouverte par la première spec est reprise par les suivantes. Supprimé en fin de série (il contient les cookies de session).
+          `--user-data-dir=${chromeProfileDir}`,
+        ],
         // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
         // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
         // addVirtualAuthenticator() dans before() ci-dessous pour celle-ci), gardé par
@@ -118,4 +130,8 @@ export const config: Options.Testrunner = {
       await browser.closeWindow().catch(err => log.warn('closeWindow a échoué (fenêtre déjà fermée ?)', err))
     }
   },
+
+  // Début et fin de série : le profil Chrome de ce run est supprimé (début : état propre, fin : il contient les cookies de session).
+  onPrepare: (): void => removeChromeProfile(),
+  onComplete: [baseConfig.onComplete as () => void, (): void => removeChromeProfile()],
 } as Options.Testrunner

@@ -30,7 +30,11 @@ export const androidCapabilities = {
   'appium:app': ANDROID_APP_PATH,
   'appium:appPackage': 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
-  'appium:noReset': false,
+  // L'app reste installée, ouverte et connectée entre deux specs (une session Appium par spec). Avec `noReset: false`, le driver
+  // désinstalle puis réinstalle l'app à chaque session (données et choix de l'environnement perdus). Avec `noReset: true`, il ne
+  // l'arrête pas en fin de session et ne la relance pas si elle tourne. État propre en début de série et fermeture en fin de
+  // série : onPrepare / onComplete de wdio.android.conf.ts.
+  'appium:noReset': true,
   'appium:fullReset': false,
   'appium:newCommandTimeout': 240,
   'appium:androidInstallTimeout': 90000,
@@ -62,12 +66,18 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
   'appium:app': IOS_APP_PATH,
   'appium:bundleId': 'fr.gouv.ami.staging',
-  'appium:noReset': false,
+  // `noReset: true` laisse le simulateur tel quel (pas de réinstallation à chaque session) et WDA ne termine ni ne relance l'app.
+  // LIMITE (vérifiée le 2026-10-12) : l'app lancée par WDA appartient au processus XCTRunner, que le driver tue à chaque nouvelle
+  // session : elle ne reste PAS ouverte d'une spec à l'autre (le sélecteur d'environnement revient). Lancer l'app par `simctl` avec
+  // `autoLaunch: false` a été essayé : WDA ne reçoit plus le bundleId et la WebView n'est plus trouvée. Piste non essayée : un WDA
+  // persistant (`webDriverAgentUrl`). État propre en début de série et fermeture en fin : onPrepare / onComplete de wdio.ios.conf.ts.
+  'appium:noReset': true,
   'appium:fullReset': false,
   'appium:newCommandTimeout': 240,
   'appium:wdaLaunchTimeout': 120000,
   'appium:wdaConnectionTimeout': 120000,
-  'appium:shouldTerminateApp': true,
+  'appium:shouldTerminateApp': false,
+  'appium:forceAppLaunch': false,
   'appium:autoAcceptAlerts': false,  // géré manuellement dans les tests
   // Réduit le délai par requête au débogueur WebKit (défaut ~10 s sur simulateur).
   // Sans cette valeur, chaque appel à getContexts() bloque ~10 s, ce qui rend

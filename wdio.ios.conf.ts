@@ -4,6 +4,7 @@ import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { iosCapabilities } from './src/driver/capabilities'
+import { iosBootedUdid, iosTerminateApp } from './src/helpers/device-app'
 import { resolveSpecs } from './test-suites'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
@@ -40,12 +41,13 @@ export const config: Options.Testrunner = {
   // Un effacement partiel (WebKit/cookies seuls) laisse l'app dans un état incohérent
   // où la WKWebView se reconnecte sans afficher la mire FC.
   onPrepare(): void {
-    const udid = execFileSync('xcrun', ['simctl', 'list', 'devices', 'booted'], { encoding: 'utf-8' })
-      .match(/[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i)?.[0]
+    const udid = iosBootedUdid()
     if (!udid) {
       log.warn('onPrepare : aucun simulateur iOS démarré — reset FC ignoré.')
       return
     }
+    // L'app est arrêtée avant d'effacer ses données : une app encore ouverte garderait son état en mémoire.
+    iosTerminateApp(APP_ID)
     const sim = (args: string[]): void => {
       try {
         execFileSync('xcrun', ['simctl', ...args], { stdio: 'ignore' })
@@ -64,4 +66,7 @@ export const config: Options.Testrunner = {
       log.warn('reset du conteneur de données iOS impossible (ignoré)', err)
     }
   },
+
+  // Fin de série : l'app est fermée (le simulateur reste démarré).
+  onComplete: [baseConfig.onComplete as () => void, (): void => iosTerminateApp(APP_ID)],
 } as Options.Testrunner
