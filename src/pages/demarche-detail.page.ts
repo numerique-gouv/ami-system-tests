@@ -75,13 +75,8 @@ class DemarcheDetailPage {
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
     const loc = getDemarcheDetailLocators()
     await platform().inWebContext(async () => {
-      try {
-        let externalButton = await findRole('button', loc.detailExternalButtonName, { timeout: timeoutMs })
-        await externalButton.click()
-      } catch (err) {
-        log.warn('Détail démarche : clic sur le bouton externe impossible', err)
-        throw new AssertionError({ message: `Bouton "${loc.detailExternalButtonName}" absent après ${timeoutMs}ms` })
-      }
+      const externalButton = await findRole('button', loc.detailExternalButtonName, { timeout: timeoutMs })
+      await externalButton.click()
 
       let lastUrl: string | null = null
       try {

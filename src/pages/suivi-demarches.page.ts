@@ -5,7 +5,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading, findRole, queryRole} from '@helpers/spa'
+import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading, findRole, hasRole, hasText} from '@helpers/spa'
 
 const log = logger('page-object')
 
@@ -13,6 +13,9 @@ const DEMARCHES_TIMEOUT_MS = 20000
 
 // Durée maximale d'attente de la démarche : traitement serveur de la notification, puis rafraîchissements (≈ 2 s d'intervalle).
 const SUIVI_WAIT_MS = 30000
+// Rendu de la page après un reload, et délai entre deux rechargements.
+const RELOAD_RENDER_MS = 8000
+const RELOAD_INTERVAL_MS = 2000
 
 class SuiviDemarchesPage {
     /**
@@ -20,66 +23,28 @@ class SuiviDemarchesPage {
      * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
      *
      * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
-     * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
-     * stratégie que `NotificationsInboxPage.assertNotificationReceived`. La présence du titre est lue
-     * par `driver.execute` (texte visible de la page) après chaque rechargement : un seul aller-retour
-     * synchrone, sans handle d'élément susceptible de devenir périmé pendant le rendu. Contrairement à
-     * `assertVisibleDemarcheWith`, aucun badge ni lien voisin n'est lu ici.
+     * on la recharge à chaque tentative, toutes les `RELOAD_INTERVAL_MS`, jusqu'à `SUIVI_WAIT_MS`. `hasText` attend le rendu
+     * de la page rechargée (le texte n'est pas là tant que Svelte n'a pas monté la liste). `waitUntil` réessaie les erreurs
+     * WebDriver d'une tentative (reload lent, contexte en cours de remplacement) ; la dernière figure dans le message d'échec.
      */
     async waitForDemarche(title: string): Promise<void> {
         const startedAt = Date.now()
-        let attempts = 0
-        // Dernière erreur WebDriver/rendu d'une tentative non rendue : si la page n'a jamais pu être lue,
-        // l'échec ne dit rien du traitement serveur (pas de renvoi vers les logs Scalingo).
-        let lastRenderError: string | null = null
-        let lastAttemptRendered = false
-        let fatal: unknown = null
-        // `waitUntil` porte l'intervalle entre deux rafraîchissements (il remplace l'ancien backoff par `browser.pause`) et
-        // avale les erreurs de sa condition : une erreur inattendue est mémorisée puis relancée ci-dessous.
-        const found = await browser.waitUntil(async () => {
-            attempts++
-            try {
-                // Un reload lent (cold-start backend, etc.) ne doit pas interrompre les tentatives : on le
-                // traite comme "pas encore trouvé" et on retente.
-                const rendered = await platform().inWebContext(async () => {
-                    await driver.execute(() => window.location.reload())
-                    // `readyState === 'complete'` ne signale que la fin du chargement du bundle JS,
-                    // pas le montage Svelte ni la résolution du fetch de la liste — juste après reload,
-                    // document.body.innerText est encore vide la quasi-totalité du temps (constaté en
-                    // debug). On attend un contenu textuel réel (liste ou état vide rendu) avant de
-                    // lire la page, sans quoi chaque tentative lit un DOM non peint et échoue à tort.
-                    return await browser.waitUntil(
-                        () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
-                        {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
-                    ).then(() => true).catch((err: Error) => {
-                        lastRenderError = err.message
-                        return false
-                    })
-                })
-                lastAttemptRendered = rendered
-                if (!rendered) {
-                    log.log(`[suivi] reload non rendu, on retente (tentative ${attempts}, ${Date.now() - startedAt}ms)`)
-                    return false
-                }
+        let attempt = 0
+        try {
+            await browser.waitUntil(async () => {
+                attempt++
                 const present = await platform().inWebContext(async () => {
-                    // Le reload qui précède peut laisser un arbre d'accessibilité WKWebView périmé sur
-                    // iOS (cf. refreshAxTree()) — no-op sur Android.
+                    await driver.execute(() => window.location.reload())
+                    // Le reload peut laisser un arbre d'accessibilité WKWebView périmé sur iOS (cf. refreshAxTree()) — no-op sur Android.
                     await platform().refreshAxTree()
-                    return driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
+                    return await hasText(title, RELOAD_RENDER_MS)
                 })
-                log.log(`[suivi] démarche "${title}" ${present ? 'visible' : 'toujours pas visible'} (tentative ${attempts}, ${Date.now() - startedAt}ms)`)
+                log.log(`[suivi] démarche "${title}" ${present ? 'visible' : 'toujours pas visible'} (tentative ${attempt}, ${Date.now() - startedAt}ms)`)
                 return present
-            } catch (err) {
-                fatal = err
-                return true
-            }
-        }, {timeout: SUIVI_WAIT_MS, interval: 2000}).then(() => true).catch(() => false)
-        if (fatal) throw fatal
-        if (found) return
-        const elapsed = Date.now() - startedAt
-        if (!lastAttemptRendered)
-            throw new AssertionError({ message: `Page Suivi illisible après ${elapsed}ms (dernière erreur : ${lastRenderError}) — la présence de la démarche "${title}" n'a pas pu être vérifiée.` })
-        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms. ${scalingoLogsHint(startedAt)}` })
+            }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS})
+        } catch (err) {
+            throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms. ${scalingoLogsHint(startedAt)} (${(err as Error).message})` })
+        }
     }
 
   /**
@@ -102,45 +67,28 @@ class SuiviDemarchesPage {
   ): Promise<void> {
     const loc = getSuiviDemarchesLocators()
     const startedAt = Date.now()
+    const statusLabelLower = statusLabel.toLowerCase()
     await platform().inWebContext(async () => {
-      let failReason: 'card-not-found' | 'status-not-found' = 'card-not-found'
-      let lastStatus: string | null = null
-      // Erreur WebDriver de la dernière tentative (contexte perdu, élément périmé…) : distincte de
-      // « carte absente », elle ne doit pas renvoyer vers les logs Scalingo.
-      let lastError: string | null = null
-      const statusLabelLower = statusLabel.toLowerCase()
+      let lastStatus: string | null = null // null : aucune carte ne porte ce titre
       try {
         await browser.waitUntil(
           async () => {
-            failReason = 'card-not-found'
             lastStatus = null
-            lastError = null
-            try {
-              for await (const card of $$(loc.cardContent)) {
-                const titleText = await card.$(loc.cardTitle).getText()
-                if (!titleText.includes(title)) continue
-                failReason = 'status-not-found'
-                lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
-                return lastStatus.includes(statusLabelLower)
-              }
-            } catch (err) {
-              lastError = (err as Error).message
+            for await (const card of $$(loc.cardContent)) {
+              if (!(await card.$(loc.cardTitle).getText()).includes(title)) continue
+              lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
+              return lastStatus.includes(statusLabelLower)
             }
             return false
           },
-          {
-            timeout: timeoutMs,
-            interval: 2000,
-            timeoutMsg: `Démarche "${title}" (statut "${statusLabel}") non trouvée après ${timeoutMs}ms`
-          }
+          { timeout: timeoutMs, interval: 2000 }
         )
       } catch (err) {
-        log.warn('Suivi : démarche/statut non trouvé', err)
-        if (lastError)
-          throw new AssertionError({ message: `Liste du Suivi illisible après ${timeoutMs}ms (dernière erreur : ${lastError}) — la démarche "${title}" n'a pas pu être vérifiée.` })
-        if (failReason === 'card-not-found')
-          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)}` })
-        throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus})` })
+        // `waitUntil` réessaie les erreurs WebDriver (carte périmée…) : `err` porte la dernière si la liste est restée illisible.
+        const reason = (err as Error).message
+        if (lastStatus === null)
+          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)} (${reason})` })
+        throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus}) (${reason})` })
       }
     })
   }
@@ -161,13 +109,8 @@ class SuiviDemarchesPage {
       await platform().refreshAxTree()
       // findRole par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
       // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
-      try {
-        const link = await findRole('button', title, { timeout: timeoutMs })
-        await link.click()
-      } catch (err) {
-        log.warn('Suivi : ouverture de la démarche impossible', err)
-        throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" à ouvrir` })
-      }
+      const link = await findRole('button', title, { timeout: timeoutMs })
+      await link.click()
     })
   }
 
@@ -203,33 +146,16 @@ class SuiviDemarchesPage {
      * `#/followup` est rechargée depuis l'origine de la page courante (même origine que l'app).
      */
     async retourJusquAPageSuivi(): Promise<void> {
-        const demarchesLocators = getSuiviDemarchesLocators()
-        const isSuiviVisible = (): Promise<boolean> => queryRole('heading', demarchesLocators.pageTitle)
-            .then((el) => el !== null)
-            .catch((ex) => {
-                log.warn('retourJusquAPageSuivi: sonde du titre de la page Suivi en échec', ex)
-                return false
-            })
-
+        const pageTitle = getSuiviDemarchesLocators().pageTitle
         await platform().inWebContext(async () => {
-            if (await isSuiviVisible()) return
+            if (await hasRole('heading', pageTitle)) return
             await browser.back()
-            const backOk = await browser.waitUntil(isSuiviVisible, {
-                timeout: 4000, interval: 500,
-                timeoutMsg: `Page Suivi (titre "${demarchesLocators.pageTitle}") non revenue après browser.back()`,
-            }).then(() => true).catch((ex) => {
-                log.debug('retourJusquAPageSuivi: page Suivi non revenue après browser.back()', ex)
-                return false
-            })
-            if (backOk) return
+            if (await hasRole('heading', pageTitle, 4000)) return
 
             const origin = await driver.execute(() => location.origin) as string
             log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
             await browser.url(`${origin}/#/followup`)
-            await browser.waitUntil(isSuiviVisible, {
-                timeout: 20000, interval: 500,
-                timeoutMsg: `Page Suivi (titre "${demarchesLocators.pageTitle}") non atteinte après rechargement de ${origin}/#/followup`,
-            })
+            await waitForHeading(pageTitle, 20000)
         })
     }
 }
