@@ -31,15 +31,20 @@ async function waitForWebViewContext(): Promise<string[]> {
   return await driver.getContexts() as string[]
 }
 
-// Profondeur d'imbrication de inWebContext : > 0 = on est déjà dans la WebView d'un appel englobant.
-let webContextDepth = 0
+/** Identifiant du contexte actif (`NATIVE_APP` ou `WEBVIEW_…`). */
+async function currentContext(): Promise<string> {
+  const current = await driver.getContext()
+  return typeof current === 'string' ? current : current.id
+}
 
 /**
- * Exécute `callback` dans le premier contexte WEBVIEW_* disponible, puis remet le contexte qui était actif à
- * l'entrée (NATIVE_APP en pratique). Lance si aucune WebView n'est détectée.
+ * Exécute `callback` dans une WebView, puis remet le contexte qui était actif à l'entrée. Lance si aucune WebView
+ * n'est détectée.
  *
- * RÉENTRANT : un appel imbriqué (une primitive de `spa.ts` appelée depuis un `inWebContext` déjà ouvert) exécute
- * simplement son callback, sans rebasculer ; seul l'appel le plus externe change de contexte et le restaure.
+ * RÉENTRANT, d'après l'état RÉEL du driver (pas un compteur) : si une WebView est déjà active à l'entrée — appel imbriqué,
+ * ou contexte basculé par ailleurs —, on y exécute `callback` SANS y toucher, ni à l'entrée ni à la sortie (la WebView
+ * active est conservée, quelle qu'elle soit : compatible avec plusieurs WebViews). Sinon (NATIVE_APP), on bascule vers la
+ * première WebView et on restaure le contexte d'origine dans un `finally`.
  *
  * Appium expose deux contextes pour les apps hybrides :
  *   NATIVE_APP  — éléments natifs Android/iOS (UIAutomator2 / XCUITest)
@@ -49,7 +54,8 @@ let webContextDepth = 0
  * pour que le context switch réussisse (Chromedriver doit correspondre au WebView embarqué).
  */
 async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
-  if (webContextDepth > 0) return await callback()
+  const previousContext = await currentContext()
+  if (previousContext.startsWith('WEBVIEW_')) return await callback()
 
   const contexts = await waitForWebViewContext()
   const webviewContext = contexts.find((c) => c.startsWith('WEBVIEW_'))
@@ -59,10 +65,7 @@ async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
       'Vérifier appium:chromedriverAutodownload (Android) ou appium:webkitResponseTimeout / isInspectable=true (iOS).'
     )
   }
-  const current = await driver.getContext()
-  const previousContext = typeof current === 'string' ? current : current.id
   await driver.switchContext(webviewContext)
-  webContextDepth++
   let callbackFailed = false
   try {
     // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
@@ -81,7 +84,6 @@ async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
     callbackFailed = true
     throw err
   } finally {
-    webContextDepth--
     try {
       await driver.switchContext(previousContext)
     } catch (err) {
