@@ -1,9 +1,11 @@
+import {roleSelector} from '../../helpers/selectors'
+
 /**
  * Sélecteurs de la navigation principale de la SPA (barre basse + menu « Plus »).
  *
  * WebView/webapp, DOM identique : un seul jeu (pas de getXxxLocators()). Tout est exposé en
  * <button> avec un nom accessible — aucun <a href> interne (vérifié en live le 2026-10-02) —
- * donc ciblage par `findRole('button', name)` (CONTRIBUTING.md §2).
+ * donc ciblage par `role/button[name=…]` (WDIO 10, `roleSelector`, CONTRIBUTING.md §2).
  *
  * Le menu « Plus » est un <dialog> DSFR titré « La suite de la navigation » ; fermé, ses boutons
  * sont masqués et donc ignorés par `findRole` (éléments non accessibles exclus).
@@ -17,15 +19,19 @@ export type PlusEntry =
   | 'Données personnelles et sécurité'
   | 'Accessibilité'
 
-export interface NavigationLocators {
-  plusButtonName: string
-  plusDialogHeading: string
-  /** Nom accessible de la barre de navigation basse. */
-  bottomBarName: string
-}
+/** Le menu « Plus » est un <dialog> DSFR nommé par son titre (aria-labelledby), ouvert ⇔ classe `fr-modal--opened`. */
+const PLUS_DIALOG_OPENED = 'dialog[id^="modal-main-nav-plus"].fr-modal--opened'
 
-export const navigationLocators: NavigationLocators = {
-  plusButtonName: 'Plus',
-  plusDialogHeading: 'La suite de la navigation',
-  bottomBarName: 'Menu principal',
+export const navigationLocators = {
+  /** Barre basse : <nav aria-label="Menu principal"> ; ses boutons se cherchent DANS elle (`within`). */
+  bottomBar: roleSelector('navigation', 'Menu principal'),
+  tab: (tab: TabName | 'Plus'): string => roleSelector('button', tab),
+  /** Le dialogue « Plus » ; ses entrées se cherchent DANS lui (`within`). */
+  plusDialog: roleSelector('dialog', 'La suite de la navigation'),
+  plusEntry: (entry: PlusEntry): string => roleSelector('button', entry),
+  anyButton: roleSelector('button'),
+  /** CSS (classes DSFR, contrat stable) : dialogue ouvert, et son bouton « Fermer » (aria-label). */
+  plusDialogOpened: PLUS_DIALOG_OPENED,
+  plusDialogClose: `${PLUS_DIALOG_OPENED} button[aria-label="Fermer"]`,
+  back: roleSelector('button', 'Retour à la page précédente'),
 }

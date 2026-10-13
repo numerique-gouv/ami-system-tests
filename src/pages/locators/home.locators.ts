@@ -1,17 +1,30 @@
+import {roleSelector} from '../../helpers/selectors'
+
 /**
- * Contenu de l'accueil rendu par la SPA (WebView/webapp, DOM identique), par nom accessible —
- * vérifié en live le 2026-10-02. L'app n'expose aucun identifiant natif (resource-id,
- * accessibilityIdentifier) pour cet écran : tout passe par `src/helpers/spa.ts`.
+ * Contenu de l'accueil rendu par la SPA (WebView/webapp, DOM identique), vérifié en live le 2026-10-02.
+ * L'app n'expose aucun identifiant natif (resource-id, accessibilityIdentifier) pour cet écran.
+ * Sélecteurs WDIO 10 : `role/…[name=…]` (nom exact, cf. selectors.ts) ou `tag*=texte` (texte visible contient).
  */
 export const homeContentLocators = {
-  greetingPattern: /^Bonjour /,
-  agendaHeading: 'Mon agenda',
-  proceduresHeading: 'Mes démarches',
-  seeAllEventsName: 'Voir tous mes évènements',
-  seeAllProceduresName: 'Voir toutes mes démarches',
-  notificationsBellName: /^Voir les notifications/,
-  /** Cartes du carrousel (chacune apparaît plusieurs fois dans le DOM). */
-  carouselNextName: 'Diapositive suivante',
-  addressCardName: 'Renseignez votre adresse',
-  otvCardName: 'Opération Tranquillité Vacances',
+  /** <h1> « Bonjour <prénom> » (prénom inconnu d'avance : texte qui contient « Bonjour »). */
+  greeting: 'h1*=Bonjour',
+  agendaHeading: roleSelector('heading', 'Mon agenda'),
+  proceduresHeading: roleSelector('heading', 'Mes démarches'),
+  /** Bouton cloche : texte visible « Voir les notifications(<n>) », n variable. */
+  notificationsBell: 'button*=Voir les notifications',
+  seeAllEvents: roleSelector('button', 'Voir tous mes évènements'),
+  seeAllProcedures: roleSelector('button', 'Voir toutes mes démarches'),
+  /**
+   * Diapositive VISIBLE du carrousel (Splide, `type: 'loop'`, une par page) — le seul parent unique : la boucle ajoute des
+   * clones (`splide__slide--clone`, `aria-hidden`, et `is-active` aussi) qui répètent chaque carte (relevé le 2026-10-13 :
+   * 6 diapositives pour 2 cartes). Les cartes se cherchent DANS elle : `$(visibleSlide).$(carte)`.
+   */
+  visibleSlide: 'li.splide__slide.is-visible:not(.splide__slide--clone)',
+  /**
+   * Flèche « suivante » par la classe de Splide, pas par son nom : en bout de boucle le nom devient « Aller à la première
+   * diapositive » (i18n de Splide). Transparente (`.splide__arrows { opacity: 0 }`) hors survol : cliquée avec `$().click()`.
+   */
+  carouselNext: '.splide__arrow--next',
+  addressCard: roleSelector('button', 'Renseignez votre adresse'),
+  otvCard: roleSelector('button', 'Opération Tranquillité Vacances'),
 }

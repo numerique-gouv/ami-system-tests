@@ -63,6 +63,62 @@ export async function hasText(text: string | RegExp, timeout = 1000): Promise<bo
   return await platform().inWebContext(() => isFound(() => findText(text, {timeout})))
 }
 
+// --- Sélecteurs natifs WDIO 10 (`role/…`, `tag*=…`, CSS) -------------------------------------------------------
+// À appeler dans une page : elles ouvrent le contexte WebView elles-mêmes. Voir `selectors.ts` pour `role/`.
+
+/** Options des aides ci-dessous. `within` : sélecteur du conteneur où chercher. */
+export interface DisplayOptions {
+  timeout?: number
+  within?: string
+}
+
+/** Premier élément AFFICHÉ de `selector`, tout de suite, sinon `null`. Ne lève jamais « strict ». */
+async function queryDisplayed(selector: string, {within}: DisplayOptions = {}): Promise<WebdriverIO.Element | null> {
+  const found = within ? await $(within).$$(selector) : await $$(selector)
+  for (const element of found) {
+    if (await element.isDisplayed()) return element
+  }
+  return null
+}
+
+/**
+ * Attend le premier élément affiché de `selector`, et le retourne. À appeler DANS un `inWebContext` ouvert (l'élément ne
+ * survit pas à la sortie de la WebView). Plusieurs correspondances ne posent pas de problème (liste d'éléments au même
+ * nom) : on prend le premier affiché, dans l'ordre du DOM.
+ */
+export async function firstDisplayed(selector: string, opts: DisplayOptions = {}): Promise<WebdriverIO.Element> {
+  const {timeout = DEFAULT_TIMEOUT, within} = opts
+  let found: WebdriverIO.Element | null = null
+  try {
+    await browser.waitUntil(async () => (found = await queryDisplayed(selector, opts)) !== null, {timeout, interval: 200})
+  } catch (err) {
+    throw new AssertionError({message: `Aucun élément affiché pour « ${selector} »${within ? ` dans « ${within} »` : ''} après ${timeout}ms (${(err as Error).message})`})
+  }
+  return found as unknown as WebdriverIO.Element
+}
+
+/** Sonde : un élément de `selector` est-il affiché sous `timeout` ms (0 : maintenant) ? `false` sans WebView ; toute autre erreur remonte. */
+export async function isShown(selector: string, timeout = 0, opts: Omit<DisplayOptions, 'timeout'> = {}): Promise<boolean> {
+  if (!await platform().isWebContextAvailable()) return false
+  return await platform().inWebContext(async () => {
+    if (timeout <= 0) return await queryDisplayed(selector, opts) !== null
+    try {
+      await firstDisplayed(selector, {...opts, timeout})
+      return true
+    } catch (err) {
+      if (err instanceof AssertionError) return false
+      throw err
+    }
+  })
+}
+
+/** Clique le premier élément affiché de `selector` (attend sa présence). */
+export async function clickDisplayed(selector: string, opts: DisplayOptions = {}): Promise<void> {
+  await platform().inWebContext(async () => {
+    await (await firstDisplayed(selector, opts)).click()
+  })
+}
+
 /** Clique l'élément de rôle `role` et de nom accessible `name` (attend sa présence). */
 export async function clickRole(role: string, name: string | RegExp, opts: WaitOptions = {}): Promise<void> {
   const {timeout = DEFAULT_TIMEOUT, ...rest} = opts

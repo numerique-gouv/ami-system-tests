@@ -1,8 +1,9 @@
 import {homeContentLocators} from './locators/home.locators'
 import {describeCurrentPage} from '../helpers/webview';
-import {clickButton, visibleButtonTexts, waitForHeading, pageText, findRole, hasRole, queryRole} from '../helpers/spa'
+import {clickDisplayed, firstDisplayed, isShown, pageText} from '../helpers/spa'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
+import NavigationPage from './navigation.page'
 import {AssertionError} from "node:assert";
 
 class HomePage {
@@ -24,7 +25,7 @@ class HomePage {
 
     /** Sonde : la salutation « Bonjour <prénom> » est-elle affichée sous `timeout` ms ? Sans cascade de récupération. */
     async isHomeDisplayed(timeout: number): Promise<boolean> {
-        return await hasRole('heading', homeContentLocators.greetingPattern, timeout)
+        return await isShown(homeContentLocators.greeting, timeout)
     }
 
     /**
@@ -32,62 +33,23 @@ class HomePage {
      * la page Suivi (`SuiviDemarchesPage.assertDisplayed()` ou ses propres méthodes).
      */
     async ouvreSuivi(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await this.closeOpenNavPlusMenu()
-            let suivi = await findRole('button', /Suivi/, {timeout: 10000})
-            await suivi.click()
-        })
+        await NavigationPage.goToTab('Suivi')
     }
 
-    /**
-     * Sonde dédiée, réutilisée par NavigationPage.openPlusMenu() : le <dialog> du menu « Plus » est-il ouvert ?
-     * Même sélecteur que closeOpenNavPlusMenu(), sans le clic.
-     */
-    async isMenuPlusVisible(): Promise<boolean> {
-        return await platform().inWebContext(() =>
-            driver.execute(() =>
-                !!document.querySelector('dialog[id^="modal-main-nav-plus"].fr-modal--opened')
-            ) as Promise<boolean>
-        )
-    }
-
-    /**
-     * Ferme défensivement le <dialog> natif du menu "Plus" de la nav (#modal-main-nav-plus-…)
-     * s'il est déjà ouvert. Observé en webapp (Chrome desktop) juste après le login : ce dialog
-     * DSFR reste en état `fr-modal--opened` sans qu'aucun clic ne l'ait ouvert et recouvre tout
-     * l'écran, interceptant le clic sur "Suivi" ("element click intercepted"). Non reproduit sur
-     * WebView Android/iOS — cause probable côté app non élucidée, contournement test uniquement.
-     *
-     * Public : réutilisée par NavigationPage.goToTab() en plus de ouvreSuivi() (le menu "Plus" est aussi le
-     * menu profil/avatar). Pas de wait, idempotente. Pas d'avertissement quand elle ferme le menu : un scénario
-     * peut l'avoir ouvert lui-même (NavigationPage.listPlusEntries()).
-     */
-    async closeOpenNavPlusMenu(): Promise<void> {
-        // Clic JS sur le bouton "Fermer" du DSFR plutôt que dialog.close() : la modale est
-        // pilotée par le contrôleur JS du DSFR (classe `fr-modal--opened` synchronisée sur son
-        // propre état interne), pas seulement par l'attribut natif `open` du <dialog> — appeler
-        // `.close()` directement laisse la classe CSS en place et le clic reste intercepté.
-        await platform().inWebContext(() => driver.execute(() => {
-            const dialog = document.querySelector('dialog[id^="modal-main-nav-plus"].fr-modal--opened')
-            const closeBtn = dialog?.querySelector('[data-fr-js-modal-button="true"]') as HTMLElement | null
-            closeBtn?.click()
-        }))
-    }
-
-    /** Vérifie les blocs de l'accueil : salutation, date, « Mon agenda », « Mes démarches », cloche. */
+    /** Vérifie les blocs de l'accueil : salutation, « Mon agenda », « Mes démarches », cloche. */
     async assertContentVisible(): Promise<void> {
-        await waitForHeading(homeContentLocators.greetingPattern)
-        await waitForHeading(homeContentLocators.agendaHeading)
-        await waitForHeading(homeContentLocators.proceduresHeading)
-        const buttons = await visibleButtonTexts()
-        if (!buttons.some(t => homeContentLocators.notificationsBellName.test(t)))
-            throw new AssertionError({message: `Cloche de notifications absente de l'accueil (boutons visibles : ${buttons.join(' | ')})`})
+        await platform().inWebContext(async () => {
+            await expect($(homeContentLocators.greeting)).toBeDisplayed()
+            await expect($(homeContentLocators.agendaHeading)).toBeDisplayed()
+            await expect($(homeContentLocators.proceduresHeading)).toBeDisplayed()
+            await expect($(homeContentLocators.notificationsBell)).toBeDisplayed()
+        })
     }
 
     /** Texte de la salutation « Bonjour <prénom> » (titre <h1> de l'accueil). */
     async greeting(): Promise<string> {
         return await platform().inWebContext(async () => {
-            const heading = await findRole('heading', homeContentLocators.greetingPattern, {timeout: 10000})
+            const heading = await firstDisplayed(homeContentLocators.greeting)
             return (await heading.getText()).trim()
         })
     }
@@ -101,15 +63,15 @@ class HomePage {
 
     /** Ouvre l'inbox via la cloche de l'accueil. */
     async openNotificationsBell(): Promise<void> {
-        await clickButton(homeContentLocators.notificationsBellName)
+        await clickDisplayed(homeContentLocators.notificationsBell)
     }
 
     async openAllEvents(): Promise<void> {
-        await clickButton(homeContentLocators.seeAllEventsName)
+        await clickDisplayed(homeContentLocators.seeAllEvents)
     }
 
     async openAllProcedures(): Promise<void> {
-        await clickButton(homeContentLocators.seeAllProceduresName)
+        await clickDisplayed(homeContentLocators.seeAllProcedures)
     }
 
     /**
@@ -119,24 +81,29 @@ class HomePage {
      */
     async openOtvCard(): Promise<void> {
         await platform().inWebContext(async () => {
-            for (let slide = 0; slide < 4; slide++) {
-                const card = await queryRole('button', homeContentLocators.otvCardName)
-                if (card) {
-                    await card.click()
-                    return
-                }
-                const next = await findRole('button', homeContentLocators.carouselNextName, {timeout: 5000})
+            // Chaîne reconstruite à chaque appel : WDIO garde le parent résolu au premier usage, alors que la diapositive
+            // visible change après chaque clic sur la flèche.
+            const card = (): ReturnType<typeof $> => $(homeContentLocators.visibleSlide).$(homeContentLocators.otvCard)
+            for (let slide = 0; slide < 4 && !await card().isDisplayed(); slide++) {
+                const next = $(homeContentLocators.carouselNext)
+                await next.waitForExist({timeout: 5000}) // le carrousel se monte après le rendu de la page
                 await next.click()
-                // Animation du carrousel : la carte devient atteignable à la fin de la transition ; sinon on retente.
-                await hasRole('button', homeContentLocators.otvCardName, 2500)
+                // Animation du carrousel : la carte devient visible à la fin de la transition. Si elle ne l'est pas, on
+                // avance d'une diapositive de plus ; l'échec définitif est signalé par l'assertion ci-dessous.
+                await card().waitForDisplayed({timeout: 2500}).catch(() => undefined)
             }
-            throw new AssertionError({message: `Carte "${homeContentLocators.otvCardName}" jamais atteignable dans le carrousel`})
+            await expect(card()).toBeDisplayed()
+            await card().click()
         })
     }
 
     /** Ouvre le formulaire d'adresse depuis la carte « Renseignez votre adresse » du carrousel (1re diapositive). */
     async openAddressCard(): Promise<void> {
-        await clickButton(homeContentLocators.addressCardName)
+        await platform().inWebContext(async () => {
+            const card = $(homeContentLocators.visibleSlide).$(homeContentLocators.addressCard)
+            await card.waitForClickable()
+            await card.click()
+        })
     }
 
 }

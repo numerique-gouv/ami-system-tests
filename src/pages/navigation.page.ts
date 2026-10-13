@@ -2,8 +2,7 @@ import {navigationLocators} from './locators/navigation.locators'
 import type {PlusEntry, TabName} from './locators/navigation.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import HomePage from './home.page'
-import {findRole, findRoleNames} from '../helpers/spa'
+import {clickDisplayed, firstDisplayed} from '../helpers/spa'
 
 /**
  * Navigation principale de la SPA : barre basse (Accueil, Agenda, Services, Suivi), menu « Plus »
@@ -14,8 +13,7 @@ class NavigationPage {
     /** Navigue directement vers une route (ex. `/network-error`) sans recharger la SPA. */
     async goToRoute(route: string): Promise<void> {
         await platform().inWebContext(async () => {
-            // driver.execute : aucun bouton ne mène à ces routes (ex. /network-error) — les primitives de
-            // spa.ts ne suffisent pas, navigation directe par hash.
+            // driver.execute : aucun bouton ne mène à ces routes (ex. /network-error) — navigation directe par hash.
             await driver.execute((r: string) => { window.location.hash = r }, route)
         })
     }
@@ -26,55 +24,72 @@ class NavigationPage {
      */
     async goToTab(tab: TabName): Promise<void> {
         await platform().inWebContext(async () => {
-            await HomePage.closeOpenNavPlusMenu()
-            const button = await findRole('button', tab, {timeout: 10000})
-            await button.click()
+            await this.closePlusMenu()
+            await clickDisplayed(navigationLocators.tab(tab), {timeout: 10000, within: navigationLocators.bottomBar})
         })
+    }
+
+    /** Le dialogue du menu « Plus » est-il ouvert ? */
+    async isPlusMenuOpen(): Promise<boolean> {
+        return await platform().inWebContext(async () => (await $$(navigationLocators.plusDialogOpened)).length > 0)
     }
 
     /** Ouvre le menu « Plus » (dialogue). Idempotent : sans effet s'il est déjà ouvert. */
     async openPlusMenu(): Promise<void> {
-        if (await HomePage.isMenuPlusVisible()) return
         await platform().inWebContext(async () => {
-            const plus = await findRole('button', navigationLocators.plusButtonName, {timeout: 10000})
-            await plus.click()
-            await findRole('heading', navigationLocators.plusDialogHeading, {timeout: 5000})
+            if (await this.isPlusMenuOpen()) return
+            await clickDisplayed(navigationLocators.tab('Plus'), {timeout: 10000, within: navigationLocators.bottomBar})
+            await firstDisplayed(navigationLocators.plusDialog, {timeout: 5000})
+        })
+    }
+
+    /**
+     * Ferme le menu « Plus » s'il est ouvert (sans effet sinon, sans attente). Observé en webapp (Chrome desktop) juste
+     * après le login : ce dialogue DSFR reste ouvert sans qu'aucun clic ne l'ait ouvert et recouvre l'écran, ce qui
+     * intercepte le clic suivant ("element click intercepted"). Non reproduit sur WebView Android/iOS — cause côté app
+     * non élucidée, contournement test uniquement. Pas d'avertissement : un scénario peut l'avoir ouvert lui-même
+     * (`listPlusEntries()`). Le menu est aussi le menu profil/avatar.
+     */
+    async closePlusMenu(): Promise<void> {
+        await platform().inWebContext(async () => {
+            const close = $(navigationLocators.plusDialogClose)
+            if (await close.isExisting()) await close.click()
         })
     }
 
     /** Ouvre le menu « Plus » et clique une entrée. L'arrivée est vérifiée par la page cible. */
     async openPlusEntry(entry: PlusEntry): Promise<void> {
-        await this.openPlusMenu()
         await platform().inWebContext(async () => {
-            const item = await findRole('button', entry, {timeout: 5000})
-            await item.click()
+            await this.openPlusMenu()
+            await clickDisplayed(navigationLocators.plusEntry(entry), {timeout: 5000, within: navigationLocators.plusDialog})
         })
     }
 
-    /** Liste les entrées du menu « Plus » (menu ouvert par la méthode), hors bouton « Fermer ». */
+    /** Liste les entrées du menu « Plus » (menu ouvert par la méthode), hors bouton « Fermer » (sans texte visible). */
     async listPlusEntries(): Promise<string[]> {
-        await this.openPlusMenu()
         return await platform().inWebContext(async () => {
-            const texts = await findRoleNames('button', undefined, {
-                timeout: 10000, in: {role: 'dialog', name: navigationLocators.plusDialogHeading},
-            })
-            return texts.filter(t => t && t !== 'Fermer')
+            await this.openPlusMenu()
+            await firstDisplayed(navigationLocators.anyButton, {timeout: 10000, within: navigationLocators.plusDialog})
+            const names: string[] = []
+            for (const button of await $(navigationLocators.plusDialog).$$(navigationLocators.anyButton)) {
+                // getText (texte visible) et non le nom accessible : `getComputedLabel` n'existe pas dans la WebView iOS.
+                const text = (await button.getText()).trim()
+                if (text && text !== 'Fermer') names.push(text)
+            }
+            return names
         })
     }
 
     /** Bouton « Retour à la page précédente » : revient d'une page enfant. */
     async goBack(): Promise<void> {
-        await platform().inWebContext(async () => {
-            const back = await findRole('button', 'Retour à la page précédente', {timeout: 5000})
-            await back.click()
-        })
+        await clickDisplayed(navigationLocators.back, {timeout: 5000})
     }
 
     /** Vérifie que la barre basse est affichée (page « onglet ») avec ses 5 boutons. */
     async assertBottomBarVisible(): Promise<void> {
         await platform().inWebContext(async () => {
-            for (const tab of ['Accueil', 'Agenda', 'Services', 'Suivi', 'Plus']) {
-                await findRole('button', tab, {timeout: 10000, in: {role: 'navigation', name: navigationLocators.bottomBarName}})
+            for (const tab of ['Accueil', 'Agenda', 'Services', 'Suivi', 'Plus'] as const) {
+                await expect($(navigationLocators.bottomBar).$(navigationLocators.tab(tab))).toBeDisplayed()
             }
         })
     }
