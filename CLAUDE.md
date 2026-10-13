@@ -79,7 +79,7 @@ src/
     appium.adapter.ts       # implémentation mobile (Appium)
     browser.adapter.ts      # implémentation webapp (Chrome)
   helpers/
-    spa.ts, dom-query.ts   # findRole(), clickButton()… : recherche par rôle ARIA, sans Testing Library
+    spa.ts, selectors.ts   # aides au-dessus des sélecteurs natifs WDIO 10 (role/…, tag*=…) ; roleSelector()
     webview.ts             # describeCurrentPage()
     partner-api/         # publishEvent() bas niveau (retry 5xx) + publishNotification/Demarche/DemarcheEnfant
   pages/
@@ -95,7 +95,7 @@ src/
 
 ### Pattern locators
 
-L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les recherches par rôle ARIA (`findRole`, `findText`, cf. `src/helpers/spa.ts`) sont donc identiques sur les deux plateformes.
+L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les sélecteurs natifs de WDIO 10 (`role/button[name=…]`, `button*=texte`, CSS ; cf. `src/helpers/selectors.ts` et `spa.ts`) sont donc identiques sur les deux plateformes.
 
 Le dispatch `getXxxLocators()` n'est nécessaire que pour les **éléments natifs** (hors WebView) :
 - `androidXxxLocators` — resource-id (`fr.gouv.ami.staging:id/<name>`)
@@ -134,7 +134,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 | `test-suites.ts` | Suites nommées (`WDIO_SUITE`) consommées par les recettes `just *-suite` et la CI |
 | `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
 | `src/platform/` | `platform()` / `PlatformAdapter` — abstraction android/ios/webapp |
-| `src/helpers/spa.ts` / `dom-query.ts` | `findRole()`, `clickButton()`, `waitForHeading()`… |
+| `src/helpers/spa.ts` / `selectors.ts` | `roleSelector()`, `clickButton()`, `waitForHeading()`, `firstDisplayed()`… |
 | `src/helpers/webview.ts` | `describeCurrentPage()` |
 | `src/helpers/partner-api/` | `publishEvent()` bas niveau (retry 5xx), `publishNotification()`, `publishDemarche()`, `publishDemarcheEnfant()`, consentement |
 | `src/pages/locators/` | Un fichier par écran, `getXxxLocators()` dispatch plateforme |

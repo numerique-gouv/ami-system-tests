@@ -8,7 +8,7 @@ import {roleSelector} from '../../helpers/selectors'
  * donc ciblage par `role/button[name=…]` (WDIO 10, `roleSelector`, CONTRIBUTING.md §2).
  *
  * Le menu « Plus » est un <dialog> DSFR titré « La suite de la navigation » ; fermé, ses boutons
- * sont masqués et donc ignorés par `findRole` (éléments non accessibles exclus).
+ * sont masqués et donc ignorés par `firstDisplayed` (seuls les éléments affichés sont retenus).
  */
 export type TabName = 'Accueil' | 'Agenda' | 'Services' | 'Suivi'
 

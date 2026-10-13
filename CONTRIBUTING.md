@@ -62,7 +62,7 @@ Quand une page est entièrement en WebView avec un DOM identique iOS/Android, ex
 ### Niveau 2 — `pages/*.page.ts`
 
 - **Aucun sélecteur direct** — appel à `getXxxLocators()` à chaque méthode.
-- Les éléments de la SPA (WebView/webapp) s'atteignent par les primitives de `src/helpers/spa.ts` (`clickRole`, `waitForRole`, `fillByLabel`…), appelées dans le Page Object, **pas** par un sélecteur dans le fichier locators (rôle + nom accessible n'ont de sens qu'en WebView).
+- Les éléments de la SPA (WebView/webapp) s'atteignent par les **sélecteurs natifs de WDIO 10 définis dans le fichier `locators/` de la page** (`roleSelector()`, `tag*=texte`, CSS : cf. §2) et par les aides de `src/helpers/spa.ts` (`clickDisplayed`, `waitForHeading`, `isShown`…), appelées dans le Page Object. Le Page Object ne contient aucune chaîne de sélecteur (rôle + nom accessible n'ont de sens qu'en WebView : ils n'existent donc que dans les locators SPA).
 - Exporté comme singleton tracé : `export default traced(new XxxPage(), 'XxxPage')`.
 - `if (driver.isIOS)` acceptable **seulement** quand le *comportement d'interaction* diffère vraiment (pas juste le sélecteur) — ex. submit de formulaire OIDC (fallback `driver.execute` sur iOS pour le bug WKRDP, inutile sur Android), clic JS vs pointer events, attente post-redirect.
 - **Avant d'écrire un branchement plateforme**, chercher si un signal DOM/WebView commun couvre déjà les deux cas (ex. la disparition d'une modale de confirmation est un événement observable identiquement sur iOS et Android — pas besoin de détecter la fin d'un logout différemment par plateforme).
@@ -110,20 +110,39 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 
 **Par défaut, sélectionner par le sens perçu par l'utilisateur**, pas par la structure DOM :
 
-- **WebView / webapp** — par rôle + nom accessible, via les primitives de `src/helpers/spa.ts`. Deux familles : celles qui **ouvrent le contexte** (`clickRole`, `waitForRole`, `clickButton`, `waitForHeading`, `fillByLabel`…), utilisables directement depuis un Page Object ; et les primitives **nues** (`findRole`, `findRoles`, `queryRole`, `findTestId`, `findLabel`, `findText`), à appeler dans un `platform().inWebContext()` déjà ouvert quand l'élément trouvé est réutilisé (attribut, saisie, plusieurs actions).
+- **WebView / webapp** — **sélecteurs natifs de WDIO 10**, définis dans les fichiers `locators/` (jamais dans le Page Object) et utilisés avec `$()`, `$$()`, le chaînage et `expect(…)` :
+
+  | Besoin | Sélecteur |
+  |---|---|
+  | élément par rôle et nom accessible **exact** | `role/button[name="Suivi"]`, construit par `roleSelector()` (`src/helpers/selectors.ts`) |
+  | texte visible qui **contient** (fragment sans apostrophe) | `button*=Voir les notifications` ; insensible à la casse : `button.*=valider` |
+  | champ de formulaire | attribut stable (`input[name="login"]`) ; `aria/<libellé>` si le libellé suffit |
+  | élément sans nom accessible stable | `[data-testid="x"]` (dernier recours, cf. plus bas) |
+  | dans un conteneur | chaînage `$(conteneur).$(élément)` (ou l'option `within` des aides) |
+
+  Les aides de `src/helpers/spa.ts` ouvrent le contexte WebView elles-mêmes et s'appellent seules ou dans un `inWebContext` déjà ouvert : `waitForHeading`, `waitForRole`, `clickRole`, `clickButton`, `waitForButtons`, `waitForPageText` (attendent), `isShown`, `hasPageText` (sondes), `firstDisplayed` / `allDisplayed` (retournent un élément : à utiliser DANS un `inWebContext`), `clickDisplayed`, `visibleButtonTexts`, `checkboxStates`.
 - **Natif** (hors WebView) — `accessibility id` (`~xxx`) de préférence à un XPath par texte ou un resource-id brut.
 
 ### Ordre de préférence
 
-1. **Les primitives `spa.ts`** (`WaitOptions {timeout, interval}`) — elles réessaient jusqu'à trouver : c'est *le* mécanisme d'attente, il n'y a rien à enrouler dans une boucle (cf. §7). Augmenter `timeout` (ou régler `interval`) plutôt que d'ajouter un retry.
+1. **Les aides `spa.ts` et les attentes de WDIO** (`waitForDisplayed`, `expect(…).toBeDisplayed()`, `waitForExist`) — elles réessaient jusqu'à trouver : c'est *le* mécanisme d'attente, il n'y a rien à enrouler dans une boucle (cf. §7). Augmenter `timeout` plutôt que d'ajouter un retry. WDIO 10 n'attend PAS l'existence d'un élément avant `click()` : attendre explicitement (`waitForClickable`, ou `waitForExist` pour un élément transparent).
 2. **Les API WDIO indépendantes de la plateforme**, sur un élément déjà obtenu : `.click()`, `.getText()`, `.isSelected()`, `waitForClickable()`… Elles fonctionnent en natif comme en WebView — elles survivront à la « promotion » d'une page de la SPA en écran natif.
-3. **`driver.execute()`** — dernier recours : c'est du JavaScript, donc **uniquement valable dans une WebView / webapp**, inutilisable le jour où l'écran devient natif. Un `driver.execute` doit porter un commentaire qui dit pourquoi les primitives `spa.ts` et les API WDIO ne suffisent pas.
+3. **`driver.execute()`** — dernier recours : c'est du JavaScript, donc **uniquement valable dans une WebView / webapp**, inutilisable le jour où l'écran devient natif. Un `driver.execute` doit porter un commentaire qui dit pourquoi les sélecteurs natifs et les API WDIO ne suffisent pas.
 
-- **Testing Library (`tl()`) est retiré du projet** : `@testing-library/webdriverio` n'est plus maintenu (dernière release 3.2.1, janvier 2023 ; la PR de compatibilité WDIO 9 est restée ouverte, `within()` est cassé sous WDIO 9). Ne plus importer `setupBrowser`, ne plus écrire `tl()`, `findBy*`, `getBy*`, `queryBy*` ni `within()`.
-- **Pas de `get*` sans attente** : toute primitive attend le rendu (le `getBy*` immédiat échouait dès que le rendu n'était pas terminé). Seule exception assumée : `queryRole`, qui ne réessaie pas et retourne `null` — pour un cas où l'absence est légitime (carte non atteignable dans un carrousel, dialogue qui doit avoir disparu).
-- **Agrégats** (liste de textes, états de cases à cocher) : primitives `spa.ts` existantes (`visibleButtonTexts`, `checkboxStates`)..
-- Besoin non couvert : **ajouter une primitive dans `src/helpers/spa.ts`** plutôt que d'écrire un sélecteur dans le Page Object.
-- **Comment ça marche** (`src/helpers/dom-query.ts`) : chaque tentative est un seul `browser.execute` qui cherche et marque l'élément (`data-wdio-pick`), puis l'élément est récupéré par ce marqueur. Le rôle est résolu par balise ou attribut `role`, les éléments non accessibles (masqués, `aria-hidden`, `inert`) sont exclus, et le nom est celui de `aria-labelledby`, `aria-label`, du texte visible ou de `title`. Le nom accepte un **texte exact ou une RegExp** (vérifié le 2026-10-07 sur Chrome, WebView Android et WKWebView iOS). `aria/…` de WDIO n'est **pas** utilisé pour cela : c'est un XPath à égalité stricte, sans RegExp ni filtre de rôle. Un échec lève une `AssertionError` qui liste les candidats vus.
+- **Testing Library (`tl()`) est retiré du projet**, et `src/helpers/dom-query.ts` (son portage, 296 lignes) aussi : `@testing-library/webdriverio` n'est plus maintenu, et WDIO 10 fournit `role/…`, `aria/…`, `tag*=…` et `expect(…)` avec attente. Ne plus importer `setupBrowser`, ne plus écrire `tl()`, `findBy*`, `getBy*`, `queryBy*`, `within()`, `findRole` ni `queryRole`.
+- **Sondes** (savoir sur quel écran l'on est) : `isShown(sélecteur, timeout)` / `hasPageText`. Un `$$(sélecteur)` ne lève jamais de violation « strict » ; un `.catch(() => false)` sur un `$()` l'avalerait (cf. `EnvironmentPickerPage`, le seul endroit où elle est volontairement relancée).
+- **Agrégats** (liste de textes, états de cases à cocher) : `visibleButtonTexts`, `checkboxStates`.
+- Besoin non couvert : **ajouter une aide dans `src/helpers/spa.ts`** et le sélecteur dans le fichier `locators/` de la page.
+
+### Pièges établis (relevés le 2026-10-13, webapp, Android, iOS)
+
+1. **`role/…[name=…]` compare le nom EXACTEMENT**, tel que le moteur le calcule. Chrome garde une espace finale pour un bouton icône + texte (`<button role="link">` eIDAS : « Démonstration eIDAS faible␠ ») : utiliser `button*=texte`. Un `&nbsp;` dans le titre (« Où habitez-vous&nbsp;? ») est normalisé différemment selon le moteur (Chrome en BiDi, script de WDIO sur mobile) : `h1*=Où habitez-vous`.
+2. **Doublons.** Une liste d'éléments au même nom est normale (boutons icône « Ouvrir la modale… » : leur texte est un libellé d'accessibilité, pas un texte affiché), de même que les clones d'un carrousel Splide en boucle (`splide__slide--clone`, `aria-hidden`, `is-active`). `$()` lève alors une violation « strict » : prendre `firstDisplayed(sélecteur)` (premier élément affiché), ou, pour le carrousel, un parent unique : `li.splide__slide.is-visible:not(.splide__slide--clone)` puis chaînage.
+3. **Une chaîne `$(parent).$(enfant)` gardée dans une variable garde son parent** résolu au premier usage : si le parent change (diapositive visible, page remplacée), la reconstruire à chaque appel (`const carte = () => $(parent).$(enfant)`).
+4. **Après une navigation qui remplace le document** (déconnexion), un élément déjà résolu devient « belongs to different document » : attendre sa disparition avec `$(sélecteur).waitForDisplayed({reverse: true})`, pas avec l'élément cliqué.
+5. **Un élément transparent** (`opacity: 0`, ex. flèches Splide hors survol) n'est pas « affiché » pour `isDisplayed()` mais reste cliquable : `waitForExist` puis `click()`.
+6. **iOS : `getComputedLabel()` et `toHaveComputedLabel` ne sont pas implémentés** dans la WebView. Lire le texte visible (`getText()`).
+7. **`aria/<libellé>`** (XPath documenté) a renvoyé sur Android et iOS un élément non éditable pour un champ (« invalid element state » au `clearValue()`) : cibler le champ par un attribut (`input[name=…]`).
 
 ### `data-testid` : dernier recours documenté
 
@@ -133,19 +152,13 @@ Avant d'ajouter un `data-testid`, essayer `clickRole`/`waitForRole`/`waitForPage
 
 Les classes du design system État (`fr-tile__content`, `fr-badge`, `fr-tabs__tab--selected`) sont un contrat stable, utilisables comme sélecteur — après `data-testid` si une requête sémantique ne suffit pas. Les classes générées par Svelte (`svelte-19k7n5y`) changent à chaque build : **jamais** comme sélecteur.
 
-### Apostrophe dans un texte matché : regex avec `.`, jamais de caractère littéral
+### Apostrophes : fragment sans apostrophe, ou caractère copié du DOM
 
-Les primitives par texte ou libellé (`waitForPageText`, `fillByLabel`) font un matching **exact** par défaut quand on leur passe une chaîne. Le contenu FR (DSFR, Svelte) utilise souvent l'apostrophe typographique `’` (U+2019), alors qu'on tape naturellement `'` (U+0027) — visuellement quasi identiques en review, donc l'erreur casse le test au runtime (`Champ de libellé "Nom d'usage" introuvable après …ms. Candidats vus : [...]`). Préférer une regex avec `.` :
-
-```typescript
-await fillByLabel(/Nom d.usage/, newValue)   // `.` matche `'` comme `’`
-```
-
-Cas sans regex possible (sélecteur WDIO natif `button=`…) : copier l'apostrophe exacte depuis le DOM rendu (`just webview <cible>` ou `just s <cible> find`), jamais la retaper, et documenter le caractère en commentaire (ex. `franceconnect-mire.locators.ts`).
+Le contenu FR (DSFR, Svelte) utilise souvent l'apostrophe typographique `’` (U+2019) ; la taper à la main en `'` (U+0027) casse le test au runtime. Pour un texte « contient », choisir un fragment **sans apostrophe** (`button*=Votre démarche n`). Pour un nom exact (`roleSelector`), copier l'apostrophe depuis le DOM ou les sources de la SPA (`just webview <cible>`, `just s <cible> find`), jamais la retaper, et la documenter en commentaire du locator.
 
 ### Écran natif
 
-Ni les primitives `spa.ts` ni `driver.execute()` n'ont de prise sur les éléments natifs XCUITest/UiAutomator2 : `$()` avec des sélecteurs natifs y est **obligatoire**, pas un choix de style. Ne pas `await` le `$()` lui-même — il se re-résout à chaque commande et résiste aux changements de navigation.
+Ni les sélecteurs `role/…` ni `driver.execute()` n'ont de prise sur les éléments natifs XCUITest/UiAutomator2 : `$()` avec des sélecteurs natifs y est **obligatoire**, pas un choix de style. Ne pas `await` le `$()` lui-même — il se re-résout à chaque commande et résiste aux changements de navigation.
 
 Pour atteindre un élément hors écran dans une liste native, **`element.scrollIntoView({direction: 'up', maxScrolls})`** (WDIO 10, défile jusqu'à ce que l'élément soit affiché) — pas de boucle de swipe écrite à la main. Le conteneur par défaut est `//android.widget.ScrollView` sur Android (introuvable pour une liste Compose : passer `scrollableElement`) et l'application entière sur iOS. Exemple : `EnvironmentPickerPage.reviewEnvironmentPicker`.
 
@@ -217,7 +230,7 @@ interface PlatformAdapter {
 }
 ```
 
-- **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA** — jamais `driver.switchContext()` directement. Sur mobile, il bascule `NATIVE_APP` → `WEBVIEW_*` et remet le contexte qui était actif à l'entrée dans un `finally`, même en cas d'exception. Sur webapp, il est quasi-identité. **Il est réentrant** : un appel imbriqué exécute simplement son callback, sans rebasculer — seul l'appel le plus externe change de contexte et le restaure. On peut donc appeler librement les primitives de `spa.ts` qui ouvrent le contexte (`clickRole`, `hasRole`, `waitForHeading`…) depuis un `inWebContext` déjà ouvert. Seule contrainte : une primitive qui **retourne un élément** (`findRole`, `findLabel`, `findText`…) se lit et s'utilise dans un `inWebContext` ouvert, car l'élément ne survit pas à la sortie de la WebView.
+- **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA** — jamais `driver.switchContext()` directement. Sur mobile, il bascule `NATIVE_APP` → `WEBVIEW_*` et remet le contexte qui était actif à l'entrée dans un `finally`, même en cas d'exception. Sur webapp, il est quasi-identité. **Il est réentrant** : un appel imbriqué exécute simplement son callback, sans rebasculer — seul l'appel le plus externe change de contexte et le restaure. On peut donc appeler librement les aides de `spa.ts` qui ouvrent le contexte (`clickRole`, `isShown`, `waitForHeading`…) depuis un `inWebContext` déjà ouvert. Seule contrainte : une aide qui **retourne un élément** (`firstDisplayed`, `allDisplayed`) se lit et s'utilise dans un `inWebContext` ouvert, car l'élément ne survit pas à la sortie de la WebView.
 - Les sélecteurs CSS/XPath ne fonctionnent qu'en `WEBVIEW_*` (mobile) ; les gestes natifs (swipe, pull-to-refresh) et les sélecteurs natifs ne fonctionnent qu'en `NATIVE_APP`. Un geste natif **ne doit jamais** être appelé depuis l'intérieur d'un `inWebContext()`.
 - **Flow OIDC FranceConnect : un seul `platform().inWebContext()`** pour tout le flow (eIDAS → identifiants → callback). Cas particulier : sortir du contexte WebView au milieu de *ce flow précis* provoque un blocage ~25 s sur iOS.
 - **Naviguer par un vrai clic utilisateur** (`clickRole(…)`, ou `$(sel).click()` après `waitForClickable()`) plutôt que `driver.execute(() => el.click())` — le clic JS est silencieux sur iOS en cas d'échec.
@@ -301,7 +314,7 @@ Trois niveaux, à ne pas confondre :
 - **Retry applicatif** (backend cold-start type Scalingo/Heroku) : retry sur 5xx uniquement, jamais sur 4xx (erreur client, non transitoire).
 - **Retry court en Page Object** (élément instable qui réapparaît brièvement, ex. bouton FranceConnect en fin de redirect OIDC) : le `catch` best-effort **ne doit jamais être totalement silencieux** — logger avec `log.warn()` (voir §1, jamais `console.warn`) conditionné au cas attendu documenté. Un
   `catch {}` vide masque un vrai bug (sélecteur cassé, timeout réseau) derrière un « comportement normal ».
-- **Ne pas retrier les primitives `spa.ts`** — elles intègrent déjà une attente interne (`WaitOptions {timeout, interval}`). Augmenter ce timeout plutôt que d'enrouler l'appel dans une boucle de retry manuelle.
+- **Ne pas retrier les aides `spa.ts`** — elles intègrent déjà une attente interne (`timeout`). Augmenter ce timeout plutôt que d'enrouler l'appel dans une boucle de retry manuelle.
 
 - **Ne pas corriger chaque échec temporaire.** Un échec isolé dû à l'infrastructure (bac à sable FranceConnect, émulateur, réseau) ou à un parcours différent parce qu'une session/des cookies traînent d'un tir sur l'autre ne justifie pas un correctif de code. Corriger sur récurrence mesurée (campagne de stabilité), avec une cause établie.
 

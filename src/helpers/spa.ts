@@ -1,26 +1,18 @@
 import logger from '@wdio/logger'
 import {AssertionError} from 'node:assert'
 import {platform} from '../platform'
-import {findLabel, findRole, findRoleNames, findRoles, findTestId, findText, queryRole} from './dom-query'
-import type {FindOptions} from './dom-query'
 import {roleSelector} from './selectors'
 
 /**
- * Primitives communes aux Page Objects de la SPA (WebView/webapp). La SPA navigue
- * exclusivement par <button> (aucun <a href> interne, vérifié le 2026-10-02) : tout passe par le
- * nom accessible (CONTRIBUTING.md §2).
+ * Primitives communes aux Page Objects de la SPA (WebView/webapp), au-dessus des sélecteurs natifs de WDIO 10
+ * (`role/<rôle>[name=…]`, `tag*=texte`, CSS, `aria/…`, cf. `selectors.ts` et CONTRIBUTING.md §2). Elles ouvrent le contexte
+ * WebView elles-mêmes : utilisables depuis un Page Object, seules ou dans un `inWebContext` déjà ouvert (réentrant,
+ * cf. CONTRIBUTING.md §4). Celles qui RETOURNENT un élément (`firstDisplayed`, `allDisplayed`) se lisent et s'utilisent DANS un
+ * `inWebContext` ouvert : l'élément ne survit pas à la sortie de la WebView.
  *
- * Deux familles :
- * - **ouvrent le contexte** (`waitForRole`, `clickRole`, `hasRole`, `waitForHeading`…) : utilisables depuis un
- *   Page Object, seules ou dans un `inWebContext` déjà ouvert (il est réentrant, cf. CONTRIBUTING.md §4) ;
- * - **retournent un élément** (`findRole`, `findRoles`, `queryRole`, `findTestId`, `findLabel`, `findText`, de
- *   `dom-query.ts`) : à appeler DANS un `platform().inWebContext()` ouvert, car l'élément ne survit pas à la
- *   sortie de la WebView (lecture d'attribut, saisie, plusieurs actions dans le même contexte).
+ * Le nom accessible de `role/…[name=…]` est comparé EXACTEMENT, tel que le moteur le calcule (Chrome garde par exemple
+ * une espace finale pour un bouton icône + texte) : pour un nom partiel ou incertain, utiliser `tag*=texte`.
  */
-
-export type WaitOptions = FindOptions
-
-export {findLabel, findRole, findRoleNames, findRoles, findTestId, findText, queryRole}
 
 const log = logger('helper')
 
@@ -31,36 +23,6 @@ export async function waitForRole(role: string, name: string, opts: DisplayOptio
   await platform().inWebContext(async () => {
     await firstDisplayed(roleSelector(role, name), opts)
   })
-}
-
-/** `true` si `find` trouve son élément, `false` sur « introuvable » (AssertionError) ; toute autre erreur remonte. */
-async function isFound(find: () => Promise<unknown>): Promise<boolean> {
-  try {
-    await find()
-    return true
-  } catch (err) {
-    if (err instanceof AssertionError) return false
-    throw err
-  }
-}
-
-/**
- * Sonde : un élément de rôle `role` et de nom accessible `name` est-il là sous `timeout` ms (0 : maintenant) ?
- * `false` s'il n'y est pas, ou s'il n'y a pas de WebView (écran natif) ; toute AUTRE erreur (contexte perdu,
- * session morte) remonte au lieu de passer pour « absent ». À utiliser pour savoir sur quel écran l'on est,
- * jamais pour attendre un écran qu'on va utiliser (`waitForRole` / `findRole` attendent déjà).
- */
-export async function hasRole(role: string, name?: string | RegExp, timeout = 0): Promise<boolean> {
-  if (!await platform().isWebContextAvailable()) return false
-  return await platform().inWebContext(async () =>
-    timeout <= 0 ? await queryRole(role, name) !== null : await isFound(() => findRole(role, name, {timeout}))
-  )
-}
-
-/** Comme `hasRole`, pour un élément dont le texte propre correspond (`timeout` > 0 ms). */
-export async function hasText(text: string | RegExp, timeout = 1000): Promise<boolean> {
-  if (!await platform().isWebContextAvailable()) return false
-  return await platform().inWebContext(() => isFound(() => findText(text, {timeout})))
 }
 
 // --- Sélecteurs natifs WDIO 10 (`role/…`, `tag*=…`, CSS) -------------------------------------------------------
@@ -131,32 +93,6 @@ export async function clickDisplayed(selector: string, opts: DisplayOptions = {}
 /** Clique l'élément de rôle `role` et de nom accessible `name` (exact). */
 export async function clickRole(role: string, name: string, opts: DisplayOptions = {}): Promise<void> {
   await clickDisplayed(roleSelector(role, name), opts)
-}
-
-/** Clique l'élément portant `data-testid` (attend sa présence). Réservé aux éléments sans nom accessible stable. */
-export async function clickTestId(testId: string, opts: WaitOptions = {}): Promise<void> {
-  const {timeout = DEFAULT_TIMEOUT, ...rest} = opts
-  await platform().inWebContext(async () => {
-    const element = await findTestId(testId, {timeout, ...rest})
-    await element.click()
-  })
-}
-
-/** Attend qu'un élément portant `data-testid` soit présent (sentinelle de rendu). */
-export async function waitForTestId(testId: string, opts: WaitOptions = {}): Promise<void> {
-  const {timeout = DEFAULT_TIMEOUT, ...rest} = opts
-  await platform().inWebContext(async () => {
-    await findTestId(testId, {timeout, ...rest})
-  })
-}
-
-/** Saisit `value` dans le champ associé au libellé `label` (attend sa présence). */
-export async function fillByLabel(label: string | RegExp, value: string, opts: WaitOptions = {}): Promise<void> {
-  const {timeout = DEFAULT_TIMEOUT, ...rest} = opts
-  await platform().inWebContext(async () => {
-    const input = await findLabel(label, {timeout, ...rest})
-    await input.setValue(value)
-  })
 }
 
 /** Clique le bouton dont le nom accessible est `name` (exact). */

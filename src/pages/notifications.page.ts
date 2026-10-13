@@ -113,7 +113,7 @@ class NotificationsInboxPage {
      * le DOM peut se re-rendre et invalider les handles ("stale element", cf. CONTRIBUTING.md §2
      * pour le cas général où driver.execute reste préférable).
      * driver.execute lit tout dans le même instantané JS synchrone, pas de fenêtre de staleness.
-     * Utilise driver.execute plutôt que findRole(…, {level: 1}) également car le titre d'une
+     * Utilise driver.execute plutôt qu'un sélecteur `role/heading` également car le titre d'une
      * notification n'est pas un heading de niveau fixe : c'est un lien (composant DSFR fr-tile).
      */
     async getTopNotificationTitle(): Promise<string> {

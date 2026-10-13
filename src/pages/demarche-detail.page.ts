@@ -56,7 +56,7 @@ class DemarcheDetailPage {
    * ma démarche » et vérifie que la WebView navigue vers `expectedUrl` (navigation JS qui
    * remplace l'URL courante, pas de nouvelle fenêtre).
    *
-   * `findRole` attend le bouton : le clic de `ouvreDemarche()` vient de déclencher une navigation SPA,
+   * `clickDisplayed` attend le bouton : le clic de `ouvreDemarche()` vient de déclencher une navigation SPA,
    * il n'existe pas forcément déjà dans le DOM au moment de l'appel. C'est cette méthode qui utilise
    * le bouton, c'est donc elle qui vérifie son arrivée sur la page de détail.
    *

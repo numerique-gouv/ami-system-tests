@@ -70,7 +70,7 @@ src/
   platform/
     index.ts               platform() : PlatformAdapter — dispatch android/ios/webapp
   helpers/
-    spa.ts / dom-query.ts  findRole(), clickButton(), waitForHeading()… (recherche par rôle ARIA)
+    spa.ts / selectors.ts  roleSelector(), clickButton(), waitForHeading()… (sélecteurs natifs WDIO 10)
     webview.ts             describeCurrentPage()
     partner-api/         publishEvent() (retry 5xx), publishNotification/Demarche()
   pages/
@@ -95,10 +95,10 @@ un utilisateur les perçoit (rôle ARIA, texte visible, `accessibility id` en na
 ```
 test (scénario)
   └── Page Object ("ouvrir l'inbox")
-        └── findRole / findText (src/helpers/spa.ts)  — élément par rôle ARIA ou texte visible
+        └── clickButton / waitForHeading… (src/helpers/spa.ts)  — sélecteurs natifs WDIO 10 (role/…, tag*=texte)
 ```
 
-Le détail des conventions (POM 3 niveaux, `findRole()` vs `$()`/`$$()` vs `driver.execute()`, WebView
+Le détail des conventions (POM 3 niveaux, sélecteurs natifs WDIO 10 vs `driver.execute()`, WebView
 et contextes) est dans **[CONTRIBUTING.md](CONTRIBUTING.md)** — à lire avant d'écrire un test. Le
 raisonnement complet derrière la règle de sélection (tableaux type de page × action) est archivé
 dans l'ADR

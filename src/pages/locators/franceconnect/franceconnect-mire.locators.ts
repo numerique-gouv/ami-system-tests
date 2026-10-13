@@ -4,7 +4,7 @@ import type { Locator } from '../types'
  * Sélecteurs natifs de l'écran "mire" AMI — le bouton "S'identifier avec FranceConnect".
  *
  * Android : le bouton est un élément natif (contentDescription "franceConnect button").
- * iOS : il n'y a pas d'écran natif FC, le bouton est dans la WebView SPA (atteint par `findRole`
+ * iOS : il n'y a pas d'écran natif FC, le bouton est dans la WebView SPA (atteint par `clickDisplayed`
  * dans le Page Object) ; seule sa lecture dans l'arbre d'accessibilité natif a un sélecteur ici.
  */
 
