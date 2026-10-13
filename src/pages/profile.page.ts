@@ -242,6 +242,21 @@ class ProfilePage {
     }
 
     /**
+     * Remet le profil dans son état d'origine (hook `after` des scénarios qui le modifient). Best-effort : chaque
+     * étape est indépendante et son échec est journalisé, pour qu'un échec partiel ne laisse pas le compte dans un
+     * état incohérent. `email` absent : le scénario ne l'a pas modifié. L'adresse n'est pas restaurée : elle vient de
+     * la Caf et n'est pas modifiée par les scénarios.
+     */
+    async restore(original: {preferredUsername: string; email?: string}): Promise<void> {
+        const attempt = async (what: string, action: () => Promise<void>): Promise<void> => {
+            try { await action() } catch (err) { log.warn(`restore : ${what} impossible`, err) }
+        }
+        await attempt('retour au profil', () => this.navigateToProfileDirect())
+        await attempt("restauration du nom d'usage", () => this.editPreferredUsername(original.preferredUsername))
+        if (original.email !== undefined) await attempt("restauration de l'email", () => this.editEmail(original.email as string))
+    }
+
+    /**
      * Ouvre le formulaire d'édition de l'adresse, saisit la requête BAN,
      * sélectionne le premier résultat de l'autocomplétion, enregistre,
      * et attend le retour sur la page profil.

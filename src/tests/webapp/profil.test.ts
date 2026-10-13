@@ -1,8 +1,5 @@
 import ProfilePage from '@pages/profile.page'
 import {getAppToStartingState} from '@pages/authenticate.process'
-import logger from '@wdio/logger'
-
-const log = logger('test')
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le hook after() restaure les valeurs d'origine. L'adresse (remontée de la Caf, limitation légale en
@@ -31,9 +28,7 @@ describe('Profil usager', () => {
 
   after(async () => {
     if (!original) return
-    try { await ProfilePage.navigateToProfileDirect() } catch (err) { log.warn('after : retour au profil impossible', err) }
-    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch (err) { log.warn('after : restauration du nom d\'usage impossible', err) }
-    try { await ProfilePage.editEmail(original.email) } catch (err) { log.warn('after : restauration de l\'email impossible', err) }
+    await ProfilePage.restore(original)
   })
 
   it('affiche l\'identité, le contact et l\'adresse issus de FranceConnect', async () => {

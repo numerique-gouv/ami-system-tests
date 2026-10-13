@@ -1,10 +1,7 @@
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import {getAppToStartingState} from '@pages/authenticate.process'
-import logger from '@wdio/logger'
 import {step} from '@helpers/report'
-
-const log = logger('test')
 
 // Valeur clairement identifiable comme donnée de test. Le logout supprime les données saisies dans
 // l'app (modale « Suppression de vos données ») : la reconnexion doit retrouver les données d'origine.
@@ -27,8 +24,7 @@ describe('Déconnexion', () => {
   after(async () => {
     // Protège le compte si le test échoue avant le logout.
     if (!original) return
-    try { await ProfilePage.navigateToProfileDirect() } catch (err) { log.warn('after : retour au profil impossible', err) }
-    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch (err) { log.warn('after : restauration du nom d\'usage impossible', err) }
+    await ProfilePage.restore(original)
   })
 
   it('se déconnecte après confirmation, puis se reconnecte avec les données d\'origine', async function () {

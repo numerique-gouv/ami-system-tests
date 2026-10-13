@@ -1,9 +1,6 @@
 import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
-import logger from '@wdio/logger'
 import {step} from '@helpers/report'
-
-const log = logger('test')
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le hook after() restaure les valeurs d'origine après chaque passage.
@@ -44,9 +41,7 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     // Restauration best-effort : chaque étape est indépendante pour éviter
     // qu'un échec partiel laisse le compte dans un état incohérent.
     if (!original) return
-    try { await ProfilePage.navigateToProfileDirect() } catch (err) { log.warn('after : retour au profil impossible', err) }
-    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch (err) { log.warn('after : restauration du nom d\'usage impossible', err) }
-    try { await ProfilePage.editEmail(original.email) } catch (err) { log.warn('after : restauration de l\'email impossible', err) }
+    await ProfilePage.restore(original)
     // Adresse originale vide (compte sans adresse Caf) : rien à restaurer — appeler editAddress('')
     // échouerait dans l'autocomplétion BAN (aucun résultat pour une saisie vide).
   })

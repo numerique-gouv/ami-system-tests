@@ -1,10 +1,7 @@
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '@pages/franceconnect/franceconnect-mire.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
-import logger from '@wdio/logger'
 import {step} from '@helpers/report'
-
-const log = logger('test')
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
@@ -45,9 +42,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
     // Restauration best-effort : protège le compte si le test échoue avant le logout.
     // Sans cela, les données modifiées resteraient et pollueraient les runs suivants.
     if (!original) return
-    try { await ProfilePage.navigateToProfileDirect() } catch (err) { log.warn('after : retour au profil impossible', err) }
-    try { await ProfilePage.editPreferredUsername(original.preferredUsername) } catch (err) { log.warn('after : restauration du nom d\'usage impossible', err) }
-    try { await ProfilePage.editEmail(original.email) } catch (err) { log.warn('after : restauration de l\'email impossible', err) }
+    await ProfilePage.restore(original)
     // Adresse originale vide (compte sans adresse Caf) : rien à restaurer, la reconnexion FranceConnect
     // a déjà ramené l'adresse à cet état vide — appeler editAddress('') échouerait dans l'autocomplétion BAN.
   })
