@@ -5,8 +5,8 @@ import type { Locator } from './types'
  *
  * Structure DOM observée via just inspect (2026-08-04) et src/lib/components/NavWithBackButton.svelte
  * (dépôt ami-notifications-api, public/mobile-app) :
- *   button "Plus" (accessible name)     ← bouton avatar (initiales) dans le header home ;
- *                                          l'ancien data-testid="toggle-menu-button" n'existe plus
+ *   button "Plus" (accessible name)     ← bouton avatar (initiales) dans le header home, ouvert par
+ *                                          NavigationPage.openPlusMenu() ; l'ancien data-testid="toggle-menu-button" n'existe plus
  *   [data-testid="profile-button"]      ← "Mon profil" dans le menu déroulant avatar
  *   <h2>Mon profil</h2>                 ← titre de la page, rendu par NavWithBackButton — sentinelle
  *                                          d'arrivée (le conteneur [data-testid="profile"] existe
@@ -23,7 +23,6 @@ import type { Locator } from './types'
  *                     l'attribut data-testid, pas un sélecteur CSS
  */
 export interface ProfileLocators {
-  toggleMenuButton: Locator   // bouton Plus (3 petits points)
   identitySection: Locator    // section "Mon identité"
   emailSection: Locator       // section "Contact"
   addressSection: Locator     // section "Mon adresse"
@@ -56,7 +55,6 @@ export interface ProfileLocators {
 }
 
 export const profileLocators: ProfileLocators = {
-  toggleMenuButton: 'button=Plus',
   identitySection: '#profile-identity',
   emailSection: '#profile-email',
   addressSection: '#profile-address',

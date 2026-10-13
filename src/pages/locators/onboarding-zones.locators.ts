@@ -9,9 +9,11 @@
  * <h2>Zones scolaires</h2>, bouton « Passer » (data-testid="skip-button" existe aussi).
  */
 export interface OnboardingZonesLocators {
+  headingName: string    // « Zones scolaires » : identité de l'écran
   skipButtonName: RegExp // « Passer »
 }
 
 export const onboardingZonesLocators: OnboardingZonesLocators = {
+  headingName: 'Zones scolaires',
   skipButtonName: /^passer/i,
 }

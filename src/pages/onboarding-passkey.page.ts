@@ -1,7 +1,6 @@
 import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
-import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import {findRole} from '../helpers/spa'
+import {clickRole, hasRole} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran de proposition de création de clé d'accès (passkey).
@@ -15,17 +14,7 @@ class OnboardingPasskeyPage {
      * Sonde dédiée, réutilisée par dismiss() (même sentinelle, un seul appel).
      */
     async isVisible(timeout = 5000): Promise<boolean> {
-        if (!await platform().isWebContextAvailable()) return false
-        return await platform().inWebContext(() =>
-            browser.waitUntil(
-                () => driver.execute(
-                    (pattern: string) => Array.from(document.querySelectorAll('button'))
-                        .some(b => new RegExp(pattern, 'i').test(b.textContent ?? '')),
-                    onboardingPasskeyLocators.createButtonName.source
-                ) as Promise<boolean>,
-                {timeout, interval: 300}
-            ).then(() => true)
-        ).catch(() => false)
+        return await hasRole('button', onboardingPasskeyLocators.createButtonName, timeout)
     }
 
     /**
@@ -34,10 +23,7 @@ class OnboardingPasskeyPage {
      */
     async dismiss(): Promise<void> {
         if (!await this.isVisible()) return
-        await platform().inWebContext(async () => {
-            const later = await findRole('button', onboardingPasskeyLocators.laterButtonName)
-            await later.click()
-        })
+        await clickRole('button', onboardingPasskeyLocators.laterButtonName)
     }
 }
 

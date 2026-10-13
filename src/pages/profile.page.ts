@@ -1,9 +1,9 @@
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import {getProfileLocators} from './locators/profile.locators'
-import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {findLabel, findRole, findTestId} from '../helpers/spa'
+import NavigationPage from './navigation.page'
 
 const log = logger('page-object')
 
@@ -34,22 +34,12 @@ class ProfilePage {
     async navigate(): Promise<void> {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
-            // Le menu avatar peut déjà être ouvert (ex. re-navigation après un logout) —
-            // ne cliquer toggleMenuButton que si "Mon profil" n'est pas déjà visible.
-            await findTestId(loc.profileMenuButtonTestId, {timeout: 500})
-                .then(async () => {
-                    await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
-                    await $(loc.toggleMenuButton).click()
-                })
-                .catch(() => {})
-
-            // 2-3. Attendre le bouton "Mon profil" dans le menu ouvert puis le cliquer —
-            // findTestId attend la résolution avant de retourner le handle, pas besoin
-            // d'un waitUntil séparé.
+            // Le menu avatar (= menu « Plus ») peut déjà être ouvert (ex. re-navigation après un logout) :
+            // openPlusMenu() est sans effet dans ce cas.
+            await NavigationPage.openPlusMenu()
             const profileBtn = await findTestId(loc.profileMenuButtonTestId, {timeout: 5000})
             await profileBtn.click()
 
-            // 4. Attendre le conteneur de la page profil
             await findRole('heading', loc.pageTitle, {timeout: 10000})
         })
     }
@@ -76,7 +66,7 @@ class ProfilePage {
     async getEmailBold(): Promise<string> {
         const loc = getProfileLocators()
         return await platform().inWebContext(async () =>
-            (await $(`${loc.emailSection} b`).getText().catch(() => '')).trim()
+            (await $(`${loc.emailSection} b`).getText()).trim()
         )
     }
 
@@ -126,8 +116,7 @@ class ProfilePage {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
             await platform().refreshAxTree()
-            await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
-            await $(loc.toggleMenuButton).click()
+            await NavigationPage.openPlusMenu()
 
             const settingsBtn = await findTestId(loc.settingsMenuButtonTestId, {timeout: 5000})
             await settingsBtn.click()
@@ -239,33 +228,16 @@ class ProfilePage {
      * natif (Android) — deux chemins de code pour un seul événement métier.
      */
     async logout(): Promise<void> {
-        const loc = getProfileLocators()
-
         await platform().inWebContext(async () => {
-            if (!await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})) {
-                log.warn("avatar menu is not clickable...")
-                return
-            }
-            await $(loc.toggleMenuButton).click()
+            await NavigationPage.openPlusMenu()
             const logoutBtn = await findRole('button', 'Me déconnecter')
             await logoutBtn.click()
 
-            const modaleAffichee = await browser.waitUntil(
-                async () => driver.execute((heading) =>
-                    Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
-                        .some(h => h.textContent?.trim() === heading),
-                    'Suppression de vos données'
-                ) as unknown as boolean,
-                {timeout: 5000, interval: 300}
-            ).catch(() => false)
-
-            if (modaleAffichee) {
-                const confirmBtn = await findRole('button', 'Confirmer')
-                await confirmBtn.click()
-                await confirmBtn.waitForDisplayed({timeout: 15000, reverse: true})
-            } else {
-                throw new AssertionError({ message: "La modale de confirmation de suppression des données ne s'affiche pas." })
-            }
+            // Modale de confirmation : son titre est le signal (échec = AssertionError avec les candidats vus).
+            await findRole('heading', 'Suppression de vos données', {timeout: 5000})
+            const confirmBtn = await findRole('button', 'Confirmer')
+            await confirmBtn.click()
+            await confirmBtn.waitForDisplayed({timeout: 15000, reverse: true})
         })
     }
 

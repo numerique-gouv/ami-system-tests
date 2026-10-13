@@ -40,6 +40,8 @@ export const iosOnboardingNotifLocators: OnboardingNotifLocators = {
  * utilisé (il déclencherait la demande de permission de notification).
  */
 export const webOnboardingNotifLocators = {
+  /** Identité de l'écran : le bouton « plus tard » existe aussi sur l'écran passkey. */
+  headingName: /^Activez les notifications/,
   laterButtonName: /plus tard/i,
 }
 

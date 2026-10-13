@@ -1,7 +1,7 @@
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
-import {clickButton, findRole, findRoles} from '../helpers/spa'
+import {clickButton, findRole, findRoles, findText, hasText} from '../helpers/spa'
 import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
@@ -9,8 +9,7 @@ const log = logger('page-object')
 class NotificationsInboxPage {
 
     /**
-     * Attend le heading « Notifications » (titre de la page inbox) — bare : à appeler dans un
-     * `inWebContext` déjà ouvert. Le titre confirme le rendu réel de la page, pas seulement l'URL.
+     * Attend le heading « Notifications » (titre de la page inbox). Le titre confirme le rendu réel de la page, pas seulement l'URL.
      */
     private async waitForNotificationsHeading(timeout = 15000): Promise<void> {
         await findRole('heading', 'Notifications', {timeout})
@@ -67,27 +66,16 @@ class NotificationsInboxPage {
      * Un seul `inWebContext`, un seul `waitUntil` qui relit le DOM en direct — pas de
      * `browser.pause` d'attente entre tentatives, pas de reload.
      */
-    async assertNotificationReceived(title: string, timeoutMs = 25000): Promise<boolean> {
-        return platform().inWebContext(async () => {
-            const found = await browser.waitUntil(
-                async () => driver.execute(
-                    (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
-                        .some(el => el.children.length === 0 && el.textContent?.trim() === text),
-                    title
-                ) as unknown as boolean,
-                {timeout: timeoutMs, interval: 2000, timeoutMsg: `Notification not received:${title}.`}
-            ).catch((ex) => {
-                log.warn(`assertNotificationReceived: "${title}" non reçue sous ${timeoutMs}ms`, ex)
-                return false
-            })
-            if (found) {
+    async assertNotificationReceived(title: string, timeoutMs = 25000): Promise<void> {
+        await platform().inWebContext(async () => {
+            if (await hasText(title, timeoutMs)) {
                 log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
-                return found
+                return
             }
 
             // Contournement iOS uniquement (cf. docs/process/2026-09-08-notifications-websocket-android-ios.md) :
             // WKWebView peut laisser le WebSocket "zombie" (pas d'event close/error après un retour
-            // d'arrière-plan), donc `found` peut être faux même si la notification existe déjà côté
+            // d'arrière-plan), donc la notification peut être absente alors qu'elle existe déjà côté
             // serveur — un reload contourne le socket mort en forçant un fetch frais. À retirer une
             // fois le heartbeat proposé dans ce document implémenté côté SPA. Sur Android, la liste se
             // met déjà à jour en place via le WebSocket (vérifié le 2026-09-08) : un reload n'y
@@ -99,46 +87,24 @@ class NotificationsInboxPage {
             log.warn('ANOMALIE (iOS) : notification non reçue par le WebSocket, rechargement de la page — ' +
                 'socket probablement zombie, non confirmé.')
             await driver.execute(() => window.location.reload())
-            await browser.waitUntil(
-                () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
-                {timeout: 8000, interval: 200, timeoutMsg: 'Page des notifications non rendue après reload (contenu toujours vide)'}
-            ).catch((ex) => log.warn('assertNotificationReceived: page non rendue après reload', ex))
-            const foundAfterReload = await driver.execute(
-                (text) => Array.from(document.querySelectorAll<HTMLElement>('*'))
-                    .some(el => el.children.length === 0 && el.textContent?.trim() === text),
-                title
-            ) as unknown as boolean
-            if (foundAfterReload) {
+            // hasText attend le rendu de la page rechargée (il réessaie jusqu'à trouver le texte).
+            if (await hasText(title, 8000)) {
                 log.warn('ANOMALIE (iOS) : notification reçue seulement après reload, WebSocket probablement zombie — non confirmé.')
-                return true
+                return
             }
             throw new AssertionError({ message: `Notification not received:${title}. (iOS, même après reload)` })
         })
     }
 
     /**
-     * Clique sur la notification dont le texte visible correspond exactement à `title`,
+     * Clique sur la notification dont le texte visible correspond exactement à `title`.
      * Ne vérifie pas la page de destination : l'arrivée est vérifiée par la page cible.
      * Pré-condition : la notification est déjà visible dans l'inbox (utiliser assertNotificationReceived avant).
-     *
-     * driver.execute : trouve et clique l'élément en un seul aller-retour synchrone — le reload forcé par
-     * assertNotificationReceived laisse souvent la page encore en cours de (re)construction à ce stade
-     * (WKWebView sur iOS notamment), et le heading peut déjà être visible alors que le document est
-     * encore en train d'être remplacé.
      */
     async clickNotification(title: string): Promise<void> {
         await platform().inWebContext(async () => {
-            await this.waitForNotificationsHeading()
-            const clicked = await driver.execute((text: string) => {
-                const el = Array.from(document.querySelectorAll<HTMLElement>('*'))
-                    .find((e) => e.children.length === 0 && e.textContent?.trim() === text)
-                const clickable = (el?.closest('a, button') as HTMLElement | null) ?? el
-                clickable?.click()
-                return !!clickable
-            }, title) as boolean
-            if (!clicked) {
-                throw new AssertionError({ message: `Notification "${title}" introuvable pour le clic` })
-            }
+            const notification = await findText(title, {timeout: 10000})
+            await notification.click()
         })
     }
 

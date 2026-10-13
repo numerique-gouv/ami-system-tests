@@ -2,7 +2,7 @@ import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from '@wdio/logger'
-import {findRole} from '../helpers/spa'
+import {clickRole, hasRole} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -17,18 +17,9 @@ import {findRole} from '../helpers/spa'
 const log = logger('page-object')
 
 class OnboardingNotificationsPage {
-    /**
-     * Route SPA `/#/welcome/notifications` affichée ? Sonde dédiée au contexte WebView/DOM
-     * (quasi-identité en webapp, cf. platform().inWebContext()).
-     */
-    private async isWebRouteVisible(timeout: number): Promise<boolean> {
-        if (platform().kind !== 'webapp' && !await platform().isWebContextAvailable()) return false
-        return await browser.waitUntil(
-            () => platform().inWebContext(
-                () => driver.execute(() => /#\/welcome\/notifications/.test(location.hash)) as Promise<boolean>
-            ),
-            {timeout, interval: 300}
-        ).then(() => true).catch(() => false)
+    /** Écran rendu par la SPA (route `/#/welcome/notifications`) affiché ? Faux s'il n'y a pas de WebView. */
+    private async isWebVisible(timeout: number): Promise<boolean> {
+        return await hasRole('heading', webOnboardingNotifLocators.headingName, timeout)
     }
 
     /**
@@ -42,8 +33,8 @@ class OnboardingNotificationsPage {
      * build ; iOS reste sur la sheet SwiftUI.
      */
     async isOnboardingVisible(timeout = 5000): Promise<boolean> {
-        if (platform().kind === 'webapp') return await this.isWebRouteVisible(timeout)
-        if (driver.isAndroid && await this.isWebRouteVisible(timeout)) return true
+        if (platform().kind === 'webapp') return await this.isWebVisible(timeout)
+        if (driver.isAndroid && await this.isWebVisible(timeout)) return true
         const loc = getOnboardingNotifLocators()
         const nativeShown = await this.firstNative(loc.dismiss, driver.isAndroid ? 1000 : timeout) !== null
         // Android : le chemin nominal est la route SPA (observée sur l'émulateur moderne). L'écran natif
@@ -66,17 +57,8 @@ class OnboardingNotificationsPage {
      */
     async dismiss(): Promise<void> {
         if (!await this.isOnboardingVisible()) return
-        if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebRouteVisible(1000))) {
-            await platform().inWebContext(async () => {
-                const later = await findRole('button', webOnboardingNotifLocators.laterButtonName, {timeout: 10000})
-                await later.click()
-            })
-            await browser.waitUntil(
-                () => platform().inWebContext(
-                    async () => !(await driver.execute(() => /#\/welcome\/notifications/.test(location.hash)))
-                ),
-                {timeout: 10000, interval: 300, timeoutMsg: 'Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »'}
-            )
+        if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebVisible(1000))) {
+            await clickRole('button', webOnboardingNotifLocators.laterButtonName, {timeout: 10000})
             return
         }
         const loc = getOnboardingNotifLocators()
