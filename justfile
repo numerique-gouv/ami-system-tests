@@ -495,11 +495,16 @@ sessions:
     npx wdio session list
 
 # À relire puis ranger dans un Page Object et src/tests/<domaine>/ (cf. CONTRIBUTING.md).
-# Exemple : just explore-export agenda-evenements webapp   →   exports/agenda-evenements.e2e.ts
+# Exemples : just explore-export agenda-evenements webapp   →   exports/agenda-evenements.e2e.ts
+#            just explore-export agenda-evenements webapp --page-objects   →   + exports/pageobjects/*.page.ts
 # Écrit les étapes de la session en spec Mocha (code WDIO réellement exécuté, sélecteurs stables).
-explore-export name target="webapp":
+# Avec --page-objects, génère aussi une classe par page (un getter par élément, nommée d'après les éléments) : un brouillon,
+# qui garde les sélecteurs dans la page et non dans src/pages/locators/ comme le veut le projet.
+[doc("Étapes de la session en spec Mocha dans exports/ · NOM [CIBLE] [--page-objects]")]
+[arg("page_objects", long="page-objects", value="--page-objects", help="Génère aussi des Page Objects (brouillon) dans exports/pageobjects/")]
+explore-export name target="webapp" page_objects="":
     mkdir -p exports
-    npx wdio session -s {{ target }} export --out exports/{{ name }}.e2e.ts --title "{{ name }}"
+    npx wdio session -s {{ target }} export --out exports/{{ name }}.e2e.ts --title "{{ name }}" {{ page_objects }}
     @echo "→ exports/{{ name }}.e2e.ts"
 
 # Ferme la session d'une cible.
