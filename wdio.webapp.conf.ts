@@ -52,9 +52,11 @@ export const config: Options.Testrunner = {
       'goog:chromeOptions': {
         args: [
           ...(headless ? ['--headless=new'] : []),
-          // Profil Chrome propre à ce run (jamais partagé entre deux runs simultanés), conservé d'une spec à l'autre : la session
-          // ouverte par la première spec est reprise par les suivantes. Supprimé en fin de série (il contient les cookies de session).
-          `--user-data-dir=${chromeProfileDir}`,
+          // Headless seulement : profil Chrome propre à ce run (jamais partagé entre deux runs simultanés), conservé d'une spec à
+          // l'autre ; la session ouverte par une spec est reprise par les suivantes. Supprimé en début et fin de série (il contient
+          // les cookies de session). Pas en mode visible : `detach: true` y laisse Chrome ouvert après la session et verrouillerait
+          // le profil (non vérifié).
+          ...(headless ? [`--user-data-dir=${chromeProfileDir}`] : []),
         ],
         // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
         // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
@@ -129,6 +131,12 @@ export const config: Options.Testrunner = {
     if (!headless && result === 0) {
       await browser.closeWindow().catch(err => log.warn('closeWindow a échoué (fenêtre déjà fermée ?)', err))
     }
+  },
+
+  // authentication.test.ts suppose une session vierge (la webapp démarre sur l'écran de connexion) : le profil Chrome conservé, qui
+  // porte la session ouverte par les specs précédentes, est supprimé avant le démarrage du navigateur.
+  beforeSession: (_config, _capabilities, specs): void => {
+    if (specs.some(spec => spec.endsWith('authentication.test.ts'))) removeChromeProfile()
   },
 
   // Début et fin de série : le profil Chrome de ce run est supprimé (début : état propre, fin : il contient les cookies de session).
