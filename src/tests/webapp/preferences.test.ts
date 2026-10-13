@@ -1,5 +1,4 @@
 import PreferencesPage from '../../pages/preferences.page'
-import HomePage from '../../pages/home.page'
 import ZonesPage from '../../pages/zones.page'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
@@ -16,8 +15,9 @@ describe('Préférences', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
     await PreferencesPage.open()
     await PreferencesPage.assertDisplayed()
   })

@@ -1,5 +1,4 @@
 import ServicesPage from '../../pages/services.page'
-import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
 /**
@@ -14,8 +13,9 @@ describe('Services', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
     await ServicesPage.open()
   })
 

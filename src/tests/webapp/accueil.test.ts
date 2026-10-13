@@ -16,8 +16,9 @@ describe('Accueil', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
   })
 
   it('affiche la salutation, la date et les blocs agenda et démarches', async () => {

@@ -1,5 +1,4 @@
 import {getHomeLocators, homeContentLocators} from './locators/home.locators'
-import {navigationLocators} from './locators/navigation.locators'
 import {describeCurrentPage} from '../helpers/webview';
 import {clickButton, visibleButtonTexts, waitForHeading, pageText, findRole, queryRole} from '../helpers/spa'
 import {platform} from '../platform'
@@ -42,7 +41,7 @@ class HomePage {
      * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
      *
      * Échec dur (throw) plutôt que booléen : centralise le diagnostic (describeCurrentPage())
-     * pour ses 3 appelants (goToHomeFromAnywhere, authenticate.process.ts, authentication.test.ts)
+     * pour ses appelants (les tests d'authentification, navigation.test.ts)
      * au lieu de le dupliquer à chaque site d'appel.
      */
     async assertHomeVisible(timeout = 30000): Promise<void> {
@@ -163,53 +162,6 @@ class HomePage {
         })
     }
 
-    /**
-     * Navigue vers la home depuis n'importe quel écran WebView, avec ou sans nav basse
-     * (ex. page de détail d'une démarche — cf. `demarche-detail.page.ts`, pas de lien "Accueil").
-     *
-     * Pattern CONTRIBUTING.md §4 (WebView et contextes) — navigation + sentinel dans le même inWebContext() :
-     * sortir du contexte pendant la transition SPA laisse WKWebView dans un état instable
-     * sur iOS (AX tree corrompu, outils WDIO aveugles). On reste dans le contexte jusqu'à
-     * ce que le DOM de destination soit stable.
-     *
-     * Stratégie :
-     *   1. clic sur le lien "Accueil" s'il est visible (préféré : déclenche les gardes Svelte).
-     *   2. Fallback hash si aucun lien de nav présent (état de départ inconnu, ex. pas de nav basse).
-     *   3. Sentinel : `assertHomeVisible()` (salutation « Bonjour »).
-     *
-     * Ne sert qu'à revenir à l'accueil en cours de scénario. Le reset de début de test (session, page hors
-     * SPA, onboarding) est `getAppToStartingState()`.
-     */
-    async goToHomeFromAnywhere(timeout: number): Promise<void> {
-        await platform().inWebContext(async () => {
-            // Webapp : clic sur le bouton « Accueil » de la barre basse (vrai geste utilisateur). Le hash seul
-            // n'aboutit pas quand la page quittée est encore en cours de montage (observé le 2026-10-07 :
-            // retour à l'accueil depuis l'agenda 20 ms après l'apparition de son titre).
-            // Mobile : hash uniquement, comme avant (clic sur la barre basse non validé sur mobile : l'iOS
-            // du 2026-10-07 était instable, y compris sur le commit précédent — à réévaluer).
-            let clicked = false
-            if (platform().kind === 'webapp') {
-                // Le menu « Plus » peut rester ouvert et intercepter le clic (cf. closeOpenNavPlusMenu()).
-                await this.closeOpenNavPlusMenu()
-                clicked = await this.clickBottomBarButton('Accueil').catch((ex) => {
-                    log.warn('goToHomeFromAnywhere: clic sur « Accueil » en échec, repli sur le hash', ex)
-                    return false
-                })
-            }
-            if (!clicked) {
-                // driver.execute : aucun bouton ne mène à la home depuis une page sans barre basse (ou sur
-                // mobile) — les primitives de spa.ts ne suffisent pas, navigation directe par hash.
-                await driver.execute(() => {
-                    window.location.hash = '/'
-                })
-            }
-        })
-        // Comme on part de n'importe où, on ne peut pas détecter qu'on a quitté la page précédente.
-        // donc on attend l'arrivée sur la page cible — assertHomeVisible() lève elle-même
-        // l'erreur (avec describeCurrentPage()) en cas d'échec.
-        await this.assertHomeVisible(timeout)
-    }
-
     /** Vérifie les blocs de l'accueil : salutation, date, « Mon agenda », « Mes démarches », cloche. */
     async assertContentVisible(): Promise<void> {
         await waitForHeading(homeContentLocators.greetingPattern)
@@ -278,24 +230,6 @@ class HomePage {
     /** Ouvre le formulaire d'adresse depuis la carte « Renseignez votre adresse » du carrousel (1re diapositive). */
     async openAddressCard(): Promise<void> {
         await clickButton(homeContentLocators.addressCardName)
-    }
-
-    /**
-     * Clique un bouton de la barre de navigation basse (`nav` « Menu principal ») — le vrai geste
-     * utilisateur, qui passe par le routeur de la SPA. La SPA n'a aucun `<a>` interne (tout est
-     * `<button>`) : l'ancienne recherche d'un lien « Accueil » ne trouvait jamais rien et retombait
-     * toujours sur le hash, qui n'aboutit pas quand la page quittée est encore en cours de montage
-     * (observé le 2026-10-07 : retour à l'accueil depuis l'agenda 20 ms après l'apparition de son titre).
-     * Retourne false si la barre est absente (page enfant sans nav basse) : l'appelant choisit le repli.
-     */
-    private async clickBottomBarButton(name: string): Promise<boolean> {
-        const button = await queryRole('button', name, {in: {role: 'navigation', name: navigationLocators.bottomBarName}}).catch((ex) => {
-            log.warn(`clickBottomBarButton: recherche du bouton « ${name} » en échec`, ex)
-            return null
-        })
-        if (!button) return false
-        await button.click()
-        return true
     }
 
 }

@@ -1,5 +1,4 @@
 import AideContactPage from '../../pages/aide-contact.page'
-import HomePage from '../../pages/home.page'
 import NavigationPage from '../../pages/navigation.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
@@ -14,8 +13,9 @@ describe('Aide, contact et pages légales', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
   })
 
   it('« Aide et contact » propose l\'aide de l\'administration et le problème applicatif', async () => {

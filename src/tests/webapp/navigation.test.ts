@@ -36,8 +36,9 @@ describe('Navigation principale', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
   })
 
   const tabs: Array<Exclude<TabName, 'Accueil'>> = ['Agenda', 'Services', 'Suivi']

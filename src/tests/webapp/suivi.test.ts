@@ -37,7 +37,7 @@ describe('Suivi des démarches', () => {
   })
 
   after(async () => {
-    try { await SuiviDemarchesPage.goToHome() } catch (err) { log.warn('after : retour accueil impossible (session déjà terminée ?)', err) }
+    try { await getAppToStartingState() } catch (err) { log.warn('after : retour accueil impossible (session déjà terminée ?)', err) }
   })
 
   it('crée une démarche visible dans le suivi (statut new)', async () => {

@@ -1,6 +1,5 @@
 import AgendaPage from '../../pages/agenda.page'
 import ZonesPage from '../../pages/zones.page'
-import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 
@@ -14,8 +13,9 @@ describe('Agenda', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
     await AgendaPage.open()
   })
 

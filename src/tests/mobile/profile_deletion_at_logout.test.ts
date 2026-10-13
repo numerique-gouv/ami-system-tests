@@ -1,4 +1,3 @@
-import HomePage from '../../pages/home.page'
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '@pages/franceconnect/franceconnect-mire.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
@@ -80,7 +79,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
 
   it('se déconnecte via le menu plus', async () => {
     step('Taper Me déconnecter depuis le menu plus')
-    await HomePage.goToHomeFromAnywhere(15000)
+    await getAppToStartingState()
     await ProfilePage.logout()
 
     // La déconnexion n'est finie qu'au retour sur l'écran de connexion : la fin de session FranceConnect

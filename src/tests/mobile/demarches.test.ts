@@ -31,7 +31,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
 
     after(async () => {
         try {
-            await SuiviDemarchesPage.goToHome()
+            await getAppToStartingState()
         } catch (err) { // session déjà terminée ?
             log.warn('after : retour accueil impossible (session déjà terminée ?)', err)
         }

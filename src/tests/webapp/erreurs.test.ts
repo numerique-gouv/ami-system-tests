@@ -1,5 +1,4 @@
 import ErrorPage from '../../pages/error.page'
-import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
 /** Pages d'erreur statiques de la SPA, atteintes par leur route. Lecture seule. */
@@ -9,8 +8,9 @@ describe('Pages d\'erreur', () => {
     await getAppToStartingState()
   })
 
-  afterEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  afterEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
   })
 
   const pages: Array<[string, string]> = [

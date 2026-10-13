@@ -1,5 +1,4 @@
 import NotificationsInboxPage from '../../pages/notifications.page'
-import HomePage from '../../pages/home.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import PreferencesPage from '../../pages/preferences.page'
 import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
@@ -20,8 +19,9 @@ describe('Notifications', () => {
     await getAppToStartingState()
   })
 
-  beforeEach(async () => {
-    await HomePage.goToHomeFromAnywhere(15000)
+  beforeEach(async function () {
+    this.timeout(180000)
+    await getAppToStartingState()
     await NotificationsInboxPage.openFromHome()
     // Avant de publier : l'inbox ouvre son WebSocket au montage, une notification publiée plus tôt serait perdue.
     await NotificationsInboxPage.assertDisplayed()

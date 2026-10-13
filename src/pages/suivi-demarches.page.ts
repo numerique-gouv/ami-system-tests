@@ -1,7 +1,6 @@
 import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
-import HomePage from './home.page'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/notifications-api'
@@ -193,15 +192,6 @@ class SuiviDemarchesPage {
   /** Vérifie l'arrivée sur la page Suivi (titre « Mes démarches »). */
   async assertDisplayed(): Promise<void> {
     await waitForHeading(getSuiviDemarchesLocators().pageTitle)
-  }
-
-  /**
-   * Retourne sur la page d'accueil. Délègue à `HomePage.goToHomeFromAnywhere()` : certaines
-   * pages (ex. détail d'une démarche) n'ont pas de nav basse avec un lien "Accueil" cliquable,
-   * cette méthode gère déjà le repli hash et le sentinel d'arrivée.
-   */
-  async goToHome(): Promise<void> {
-    await HomePage.goToHomeFromAnywhere(15000)
   }
 
     /**

@@ -1,6 +1,5 @@
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
-import HomePage from '../../pages/home.page'
 import {getAppToStartingState} from '@pages/authenticate.process'
 import logger from '@wdio/logger'
 import {step} from '@helpers/report'
@@ -39,7 +38,7 @@ describe('Déconnexion', () => {
     expect((await ProfilePage.getIdentityBolds()).some(b => b.includes(MODIFIED_PREFERRED_USERNAME))).toBe(true)
 
     step('2. Se déconnecter via le menu Plus et confirmer la suppression des données')
-    await HomePage.goToHomeFromAnywhere(15000)
+    await getAppToStartingState()
     await ProfilePage.logout()
 
     step("3. L'écran de connexion FranceConnect est de nouveau proposé")
