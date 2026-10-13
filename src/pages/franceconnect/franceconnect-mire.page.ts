@@ -1,9 +1,9 @@
-import {androidFcButton, iosFcButtonNativeAx} from '../locators/franceconnect/franceconnect-mire.locators'
+import {androidFcButton, iosFcButtonNativeAx, webFcButton, webFcButtonAny} from '../locators/franceconnect/franceconnect-mire.locators'
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
-import {findRole, hasRole} from '../../helpers/spa'
+import {firstDisplayed, isShown} from '../../helpers/spa'
 
 const log = logger('page-object')
 
@@ -49,9 +49,7 @@ class FranceConnectMirePage {
             // change de domaine (cf. iosFcButtonNativeAx).
             return await $$(iosFcButtonNativeAx).length > 0
         }
-        // Restreint au rôle `button` : la mire eIDAS (hors app AMI) contient elle-même le mot « FranceConnect »
-        // dans un lien de pied de page (« En savoir plus sur FranceConnect »), pas dans un bouton.
-        return await hasRole('button', /franceconnect/i)
+        return await isShown(webFcButtonAny)
     }
 
     /**
@@ -149,8 +147,7 @@ class FranceConnectMirePage {
         let tapped = false
         await platform().inWebContext(async () => {
             try {
-                const fcButton = await findRole('button', /^S.identifier avec FranceConnect$/i, {timeout})
-                await fcButton.click()
+                await (await firstDisplayed(webFcButton, {timeout})).click()
                 tapped = true
                 log.info('btn web FC trouvé et tap effectif !!!')
             } catch {

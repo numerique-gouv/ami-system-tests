@@ -21,3 +21,13 @@ export const androidFcButton: Locator = '~franceConnect button'
  */
 export const iosFcButtonNativeAx: Locator =
   '-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "FranceConnect"'
+
+/**
+ * Web (SPA, toutes plateformes sauf Android natif) : un bouton FranceConnect est-il affiché ? Texte « contient »,
+ * insensible à la casse, restreint à un <button> : la mire eIDAS (hors app AMI) contient elle-même le mot « FranceConnect »
+ * dans un lien de pied de page (« En savoir plus sur FranceConnect »), pas dans un bouton.
+ */
+export const webFcButtonAny: Locator = 'button.*=franceconnect'
+
+/** Le bouton « S'identifier avec FranceConnect » à taper (fragment sans apostrophe : droite ou typographique selon la page). */
+export const webFcButton: Locator = 'button*=identifier avec FranceConnect'

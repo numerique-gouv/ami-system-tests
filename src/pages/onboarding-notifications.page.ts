@@ -2,7 +2,7 @@ import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from '@wdio/logger'
-import {clickDisplayed, hasRole} from '../helpers/spa'
+import {clickDisplayed, isShown} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -19,7 +19,7 @@ const log = logger('page-object')
 class OnboardingNotificationsPage {
     /** Écran rendu par la SPA (route `/#/welcome/notifications`) affiché ? Faux s'il n'y a pas de WebView. */
     private async isWebVisible(timeout: number): Promise<boolean> {
-        return await hasRole('heading', webOnboardingNotifLocators.headingName, timeout)
+        return await isShown(webOnboardingNotifLocators.heading, timeout)
     }
 
     /**

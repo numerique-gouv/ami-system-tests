@@ -1,3 +1,5 @@
+import {roleSelector} from '../../helpers/selectors'
+
 /**
  * Sélecteurs de l'écran d'onboarding « Zones scolaires » (SPA Svelte, route `/#/welcome/zones`).
  *
@@ -9,11 +11,11 @@
  * <h2>Zones scolaires</h2>, bouton « Passer » (data-testid="skip-button" existe aussi).
  */
 export interface OnboardingZonesLocators {
-  headingName: string    // « Zones scolaires » : identité de l'écran
+  heading: string        // « Zones scolaires » : identité de l'écran (`role/heading`)
   skipButton: string     // « Passer » (texte visible contient)
 }
 
 export const onboardingZonesLocators: OnboardingZonesLocators = {
-  headingName: 'Zones scolaires',
+  heading: roleSelector('heading', 'Zones scolaires'),
   skipButton: 'button*=Passer',
 }

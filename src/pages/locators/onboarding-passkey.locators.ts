@@ -13,12 +13,12 @@
  */
 
 export interface OnboardingPasskeyLocators {
-  createButtonName: RegExp // "Ajouter une clé d'accès"
+  createButton: string     // "Ajouter une clé d'accès" (texte visible contient, insensible à la casse)
   laterButton: string      // "Peut-être plus tard" (texte visible contient)
 }
 
 export const onboardingPasskeyLocators: OnboardingPasskeyLocators = {
-  createButtonName: /ajouter une clé/i,
+  createButton: 'button.*=ajouter une clé',
   laterButton: 'button*=plus tard',
 }
 

@@ -1,16 +1,14 @@
 import {fcEidasLocators} from '../locators/franceconnect/franceconnect-eidas.locators'
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
-import {findRole, hasRole} from '../../helpers/spa'
-
-const eidasFaibleName = new RegExp(fcEidasLocators.eidasFaibleLabel, 'i')
+import {clickDisplayed, isShown} from '../../helpers/spa'
 
 class FranceConnectEidasPage {
     /**
      * Sonde dédiée, réutilisée par la boucle de connexion (authenticate.process.ts) : la mire eIDAS est-elle affichée ?
      */
     async isEidasVisible(timeout = 0): Promise<boolean> {
-        return await hasRole('link', eidasFaibleName, timeout)
+        return await isShown(fcEidasLocators.eidasFaibleLink, timeout)
     }
 
     /**
@@ -26,8 +24,7 @@ class FranceConnectEidasPage {
             // Écran atteint juste après le redirect OIDC login → eIDAS — no-op sur Android,
             // cf. commentaire de refreshAxTree() dans appium.adapter.ts.
             await platform().refreshAxTree()
-            const eidasLink = await findRole('link', eidasFaibleName, {timeout: 10000})
-            await eidasLink.click()
+            await clickDisplayed(fcEidasLocators.eidasFaibleLink, {timeout: 10000})
         })
     }
 }

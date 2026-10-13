@@ -1,22 +1,16 @@
 /**
  * Sélecteurs du formulaire FCP-LOW mock (identifiant/mot de passe FranceConnect sandbox).
  *
- * WebView, structure identique Android/iOS (mock OIDC hors app AMI).
- *
- * Note : les champs identifiant/mot de passe et le bouton de soumission sont ciblés via
- * findLabel / findRole directement dans le Page Object, pas ici.
+ * WebView, structure identique Android/iOS (mock OIDC hors app AMI). Relevé du 2026-10-13 : `<label for="login">Identifiant`,
+ * `<input type="text" name="login">`, `<label for="password">Mot de passe`, `<input type="password" name="password">`,
+ * bouton « Valider ». Champs par leur attribut `name` : `aria/<libellé>`, qui marche en webapp, a renvoyé sur Android et iOS
+ * un élément non éditable (« invalid element state » au `clearValue()`). Bouton par son texte (« contient », insensible à la
+ * casse : `button.*=`).
  */
-
-export interface FranceConnectCredentialsLocators {
-  fcpLowHeadingText: string     // texte de confirmation que la page FCP-LOW est chargée (logs/messages)
-  fcpLowHeadingPattern: RegExp  // même texte, pour le matching réel — tolérant à l'apostrophe
-}
-
-export const fcCredentialsLocators: FranceConnectCredentialsLocators = {
-  // Texte de titre de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
-  fcpLowHeadingText: "Fournisseur d'identité de démonstration - FCP-LOW",
-  // `.` à la place de l'apostrophe : tolère apostrophe droite (') et typographique (’)
-  fcpLowHeadingPattern: /Fournisseur d.identité de démonstration - FCP-LOW/,
+export const fcCredentialsLocators = {
+  identifierField: 'input[name="login"]',
+  passwordField: 'input[name="password"]',
+  submitButton: 'button.*=valider',
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform

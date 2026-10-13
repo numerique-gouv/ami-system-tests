@@ -1,6 +1,6 @@
 import {onboardingZonesLocators} from './locators/onboarding-zones.locators'
 import {traced} from '../helpers/traced'
-import {clickDisplayed, hasRole} from '../helpers/spa'
+import {clickDisplayed, isShown} from '../helpers/spa'
 
 /**
  * Page Object de l'écran d'onboarding « Zones scolaires » (`/#/welcome/zones`).
@@ -13,7 +13,7 @@ import {clickDisplayed, hasRole} from '../helpers/spa'
 class OnboardingZonesPage {
     /** Sonde dédiée, réutilisée par dismiss() et par la boucle de connexion (authenticate.process.ts). */
     async isVisible(timeout = 3000): Promise<boolean> {
-        return await hasRole('heading', onboardingZonesLocators.headingName, timeout)
+        return await isShown(onboardingZonesLocators.heading, timeout)
     }
 
     /** Passe l'écran (no-op si absent sous `timeout`). L'arrivée sur la page suivante est vérifiée par elle. */
