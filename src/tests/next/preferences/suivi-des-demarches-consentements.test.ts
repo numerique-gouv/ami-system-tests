@@ -29,7 +29,7 @@ describe('Préférences — consentements de suivi par partenaire', () => {
   })
 
   // À CONFIRMER avant implémentation : la relation entre ces toggles et le consentement API
-  // (checkConsent/grantConsent de src/helpers/notifications-api.ts) n'est PAS établie dans le
+  // (checkConsent/grantConsent de src/helpers/partner-api/) n'est PAS établie dans le
   // modèle de site — ce sont possiblement deux mécanismes distincts (préférence d'affichage
   // local vs consentement légal côté API). Vérifier via `just explore` + `snapshot -i` + lecture du store SPA
   // avant d'écrire un scénario qui présumerait un lien entre les deux.

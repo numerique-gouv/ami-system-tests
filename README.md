@@ -72,7 +72,7 @@ src/
   helpers/
     spa.ts / dom-query.ts  findRole(), clickButton(), waitForHeading()… (recherche par rôle ARIA)
     webview.ts             describeCurrentPage()
-    notifications-api.ts   publishNotification() avec retry 5xx
+    partner-api/         publishEvent() (retry 5xx), publishNotification/Demarche()
   pages/
     *.page.ts              Page Objects — actions métier, sans sélecteurs
     locators/

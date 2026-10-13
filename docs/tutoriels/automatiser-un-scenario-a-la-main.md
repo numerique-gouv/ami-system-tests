@@ -65,8 +65,8 @@ FC=<fc_hash de l'utilisateur de test, dans src/helpers/test-users.local.ts>
 |---|---|---|
 | Code d'accès de la webapp de staging (fenêtre `window.prompt` de la SPA) | un cookie `access_key` est posé **avant** d'ouvrir la SPA, valable 7 jours ; sa valeur (`WEB_APP_ACCESS_KEYS`) n'est jamais affichée | `just explore-webapp` (recette `_explore`) ; pour les tests, `handleAccessKeyCookie` dans le hook `before` de `wdio.webapp.conf.ts` (`src/helpers/access-code.ts`) |
 | Connexion FranceConnect (eIDAS, identifiants) et onboarding (clé d'accès, zones, notifications) | automatisés, et repartent de l'état courant de l'app | `getAppToStartingState()` dans `src/pages/authenticate.process.ts` |
-| Consentement partenaire | plus donné par `getAppToStartingState()` : chaque scénario le pose explicitement | `grantConsent` / `revokeConsent` (`src/helpers/notifications-api.ts`) |
-| Appels API (consentement, démarche) | helpers | `src/helpers/notifications-api.ts` : `checkConsent`, `grantConsent`, `revokeConsent`, `publishNotification` |
+| Consentement partenaire | plus donné par `getAppToStartingState()` : chaque scénario le pose explicitement | `grantConsent` / `revokeConsent` (`src/helpers/partner-api/`) |
+| Appels API (consentement, démarche) | helpers | `src/helpers/partner-api/` : `checkConsent`, `grantConsent`, `revokeConsent`, `publishEvent`, `publishNotification`, `publishDemarche` |
 
 Vous n'avez donc **pas** à refaire la connexion à la main : la voie B de l'étape 3 vous place directement dans l'app connectée.
 La section 3.3 ne la décrit que pour comprendre le parcours, ou pour la réexplorer si l'app change.
@@ -108,12 +108,11 @@ curl -s -o /dev/null -w '%{http_code}\n' -u "$AUTH" -X PUT -H 'Content-Type: app
 
 Sorties observées : lecture `200`, retrait `200`, lecture `404`, don `200`, lecture `200`, création `201`.
 
-À retenir : `event_date` doit être différente à chaque appel (le backend ignore un événement identique : `notifications-api.ts`
+À retenir : `event_date` doit être différente à chaque appel (le backend ignore un événement identique : `partner-api/event.ts`
 l'indique). Une **mise à jour** est le même appel avec le **même `item_id`** et `wip`, une **fin** avec `closed`.
 
-Résultat important, observé **avec le consentement retiré** : `GET consent` renvoie 404, et le `PUT /api/v2/event` qui suit est
-**quand même accepté** (`OK`). Le helper `publishNotification` refuse d'envoyer dans ce cas ; pour le scénario, on le contourne
-avec `checkConsent: false`.
+Sans consentement, `GET consent` renvoie 404 et le helper `publishEvent` refuse d'envoyer : un partenaire ne communique rien
+d'un usager qui n'a pas consenti. Pour le scénario d'exemple ci-dessous, qui publie volontairement sans consentement, on désactive ce contrôle avec `checkConsent: false`.
 
 ## Étape 3 — Explorer l'app, page par page
 
@@ -352,7 +351,7 @@ de la voie B se termine par `resume` ou `close`.
    `getTopNotificationTitle`), `HomePage` (`ouvreSuivi`). **À créer** : une assertion d'**absence** (« la démarche X n'est pas
    dans la liste »), qui n'existe pas dans `SuiviDemarchesPage`.
 3. **Test** — `src/tests/webapp/<scenario>.test.ts`, qu'on obtient en complétant le squelette de la voie B (même `before` et `beforeEach`) : n'importe que des Page Objects et des helpers d'API (`grantConsent`,
-   `publishNotification` de `src/helpers/notifications-api.ts`).
+   `publishEvent` de `src/helpers/partner-api/`).
 
 Squelette du test, **non exécuté** :
 
@@ -381,7 +380,7 @@ describe('Démarches — consentement', () => {
 })
 ```
 
-Où `publish` est un petit helper local qui appelle `publishNotification` avec `itemId`, `itemGenericStatus` et le libellé de statut
+Où `publish` est un petit helper local qui appelle `publishDemarche` avec `itemId` et `status`
 (`Brouillon`, `En cours`, `Terminé`).
 
 ## Étape 7 — Itérer, comparer attendu et observé

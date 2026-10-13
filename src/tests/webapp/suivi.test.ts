@@ -1,7 +1,7 @@
 import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
-import {getBackendUrl, grantConsent, publishNotification} from '../../helpers/notifications-api'
+import {getBackendUrl, grantConsent, publishDemarche} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
@@ -45,10 +45,10 @@ describe('Suivi des démarches', () => {
     const titleNew = `${title} 0`
     step('1. Ouvrir le suivi puis publier la notification avec tous les champs')
     await HomePage.ouvreSuivi()
-    await publishNotification({
+    await publishDemarche({
       title: titleNew, body: 'Corps de la notification E2E', recipientFcHash: user.fcHash,
       privateBody: 'Contenu privé E2E', icon: 'fr-icon-notification-3-line', contentLink: urlV1,
-      itemType: 'OTV', itemId, itemStatusLabel: 'Brouillon', itemGenericStatus: 'new', itemCanal: 'AMI',
+      itemType: 'OTV', itemId, status: 'new',
     })
 
     step('2. Attendre la démarche, vérifier son statut puis son lien externe V1')
@@ -62,9 +62,9 @@ describe('Suivi des démarches', () => {
   it("met à jour l'URL externe de la démarche (statut wip)", async () => {
     const titleUpdate = `${title} 1`
     step('1. Publier la notification avec la nouvelle URL')
-    await publishNotification({
+    await publishDemarche({
       title: titleUpdate, body: 'Mise à jour E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
-      itemType: 'OTV', itemId, itemStatusLabel: 'En cours', itemGenericStatus: 'wip', itemCanal: 'AMI',
+      itemType: 'OTV', itemId, status: 'wip',
     })
 
     step('2. Attendre la démarche, vérifier son statut puis son lien externe V2')
@@ -78,9 +78,9 @@ describe('Suivi des démarches', () => {
   it('clôture la démarche (statut closed) et affiche son historique dans le détail', async () => {
     const titleClosing = `${title} 2`
     step('1. Publier la notification de clôture')
-    await publishNotification({
+    await publishDemarche({
       title: titleClosing, body: 'Clôture E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
-      itemType: 'OTV', itemId, itemStatusLabel: 'Terminé', itemGenericStatus: 'closed', itemCanal: 'AMI',
+      itemType: 'OTV', itemId, status: 'closed',
     })
 
     step('2. Attendre la démarche et vérifier son statut')

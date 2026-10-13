@@ -8,7 +8,7 @@ describe('Publications partenaires — historique et suivi de démarches', () =>
   before(async () => {
     // TODO pré-requis :
     //   - usager FranceConnect sandbox connecté
-    //   - helper publishNotification utilisable pour produire plusieurs notifications
+    //   - helper publishEvent utilisable pour produire plusieurs notifications
   })
 
   it.skip("alimente l'historique des événements avec une notification partenaire", async () => {

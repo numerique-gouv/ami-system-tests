@@ -81,7 +81,7 @@ src/
   helpers/
     spa.ts, dom-query.ts   # findRole(), clickButton()… : recherche par rôle ARIA, sans Testing Library
     webview.ts             # describeCurrentPage()
-    notifications-api.ts   # publishNotification() avec retry 5xx
+    partner-api/         # publishEvent() bas niveau (retry 5xx) + publishNotification/Demarche/DemarcheEnfant
   pages/
     *.page.ts              # Page Objects — actions métier, sans sélecteurs directs
     locators/
@@ -136,7 +136,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 | `src/platform/` | `platform()` / `PlatformAdapter` — abstraction android/ios/webapp |
 | `src/helpers/spa.ts` / `dom-query.ts` | `findRole()`, `clickButton()`, `waitForHeading()`… |
 | `src/helpers/webview.ts` | `describeCurrentPage()` |
-| `src/helpers/notifications-api.ts` | `publishNotification()` avec retry 5xx |
+| `src/helpers/partner-api/` | `publishEvent()` bas niveau (retry 5xx), `publishNotification()`, `publishDemarche()`, `publishDemarcheEnfant()`, consentement |
 | `src/pages/locators/` | Un fichier par écran, `getXxxLocators()` dispatch plateforme |
 
 ## Prérequis locaux

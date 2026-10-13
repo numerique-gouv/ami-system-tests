@@ -1,5 +1,5 @@
 import NotificationsInboxPage from '../../pages/notifications.page'
-import { grantConsent, publishNotification } from '../../helpers/notifications-api'
+import { grantConsent, publishNotification } from '../../helpers/partner-api'
 import { getUser } from '../../helpers/test-users'
 import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/report'

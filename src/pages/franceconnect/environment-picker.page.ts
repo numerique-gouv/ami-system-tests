@@ -1,7 +1,7 @@
 import {getEnvironmentPickerLocators} from '../locators/franceconnect/environment-picker.locators'
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
-import {setBackendUrl} from '../../helpers/notifications-api'
+import {setBackendUrl} from '../../helpers/partner-api'
 import {rethrowStrictViolation} from '../../helpers/strict'
 import logger from '@wdio/logger'
 

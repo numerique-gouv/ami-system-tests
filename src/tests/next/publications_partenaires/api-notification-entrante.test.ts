@@ -4,7 +4,7 @@
  * authentification HTTP Basic Auth, validation du Numéro d'identification,
  * codes de retour et règles de filtrage (cf. DAT 3.5).
  *
- * Ces tests sont des appels HTTP côté driver (cf. helpers/notifications-api.ts).
+ * Ces tests sont des appels HTTP côté driver (cf. helpers/partner-api/).
  * Aucune session Appium mobile n'est strictement nécessaire pour cette suite.
  */
 describe("Publications partenaires — API de demande de notification entrante", () => {

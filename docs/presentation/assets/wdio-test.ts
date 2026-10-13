@@ -3,7 +3,7 @@ import FranceConnectPage from '../pages/franceconnect.page'
 import OnboardingNotificationsPage from '../pages/onboarding-notifications.page'
 import HomePage from '../pages/home.page'
 import NotificationsInboxPage from '../pages/notifications.page'
-import { publishNotification } from '../helpers/notifications-api'
+import { publishNotification } from '../helpers/partner-api'
 
 describe('Notifications', () => {
   it("reçoit une notification dans l'inbox in-app", async () => {

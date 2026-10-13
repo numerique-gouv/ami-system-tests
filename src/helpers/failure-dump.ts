@@ -5,7 +5,7 @@ import {platform} from '../platform'
 import {currentSteps} from './report'
 import {readSentryIds, sentryTraceUrl} from './sentry'
 import {maskSensitiveUrl} from './session'
-import {getBackendUrl} from './notifications-api'
+import {getBackendUrl} from './partner-api'
 
 const log = logger('config')
 

@@ -1,7 +1,7 @@
 import NotificationsInboxPage from '../../pages/notifications.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import PreferencesPage from '../../pages/preferences.page'
-import {getBackendUrl, grantConsent, publishNotification} from '../../helpers/notifications-api'
+import {getBackendUrl, grantConsent, publishDemarche, publishNotification} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
@@ -42,10 +42,10 @@ describe('Notifications', () => {
   it('ouvre le détail de la démarche depuis une notification liée à une démarche', async () => {
     const itemId = `E2E-${new Date().toISOString()}`
     const title = `Demarche E2E ${itemId} notif`
-    await publishNotification({
+    await publishDemarche({
       title, body: 'Notification de démarche E2E', recipientFcHash: user.fcHash,
       contentLink: `${getBackendUrl()}/demarches/${itemId}/v1`,
-      itemType: 'OTV', itemId, itemStatusLabel: 'En cours', itemGenericStatus: 'wip', itemCanal: 'AMI',
+      itemType: 'OTV', itemId, status: 'wip',
     })
     await NotificationsInboxPage.assertNotificationReceived(title)
     await NotificationsInboxPage.clickNotification(title)

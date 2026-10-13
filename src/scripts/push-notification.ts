@@ -10,7 +10,7 @@
  */
 
 import { getUser, type FcLogin } from '../helpers/test-users'
-import { publishNotification, setBackendUrl } from '../helpers/notifications-api'
+import { publishNotification, setBackendUrl } from '../helpers/partner-api'
 
 const [,, login, title] = process.argv
 

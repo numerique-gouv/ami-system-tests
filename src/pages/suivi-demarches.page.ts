@@ -3,7 +3,7 @@ import { traced } from '@helpers/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
-import {scalingoLogsHint} from '@helpers/notifications-api'
+import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
 import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading, findRole, queryRole} from '@helpers/spa'
 

@@ -1,7 +1,7 @@
 import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
-import {getBackendUrl, grantConsent, publishNotification} from '../../helpers/notifications-api'
+import {getBackendUrl, grantConsent, publishDemarche} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
@@ -55,7 +55,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         await HomePage.ouvreSuivi()
 
         step('2. Publier la notification avec tous les champs')
-        await publishNotification({
+        await publishDemarche({
             title: titleNew,
             body: 'Corps de la notification E2E',
             recipientFcHash: user.fcHash,
@@ -64,9 +64,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
             contentLink: urlV1,
             itemType: 'OTV',
             itemId,
-            itemStatusLabel: 'Brouillon',
-            itemGenericStatus: 'new',
-            itemCanal: 'AMI',
+            status: 'new',
         })
 
         step('3. Attendre que la démarche apparaisse sur le Suivi')
@@ -87,16 +85,14 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
         step('1. Publier la notification avec la nouvelle URL')
 
-        await publishNotification({
+        await publishDemarche({
             title: titleUpdate,
             body: 'Mise à jour E2E',
             recipientFcHash: user.fcHash,
             contentLink: urlV2,
             itemType: 'OTV',
             itemId,
-            itemStatusLabel: 'En cours',
-            itemGenericStatus: 'wip',
-            itemCanal: 'AMI',
+            status: 'wip',
         })
 
         step('2. Attendre que la démarche apparaisse sur le Suivi')
@@ -116,16 +112,14 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
         // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
         step('1. Publier la notification de clôture')
-        await publishNotification({
+        await publishDemarche({
             title: titleClosing,
             body: 'Clôture E2E',
             recipientFcHash: user.fcHash,
             contentLink: urlV2,
             itemType: 'OTV',
             itemId,
-            itemStatusLabel: 'Terminé',
-            itemGenericStatus: 'closed',
-            itemCanal: 'AMI',
+            status: 'closed',
         })
         step('2. Attendre que la démarche apparaisse sur le Suivi')
         await SuiviDemarchesPage.waitForDemarche(titleClosing)

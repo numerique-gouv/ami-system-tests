@@ -7,7 +7,7 @@ import { resolveEnvironment } from './src/helpers/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { handleAccessKeyCookie } from './src/helpers/access-code'
-import { setBackendUrl } from './src/helpers/notifications-api'
+import { setBackendUrl } from './src/helpers/partner-api'
 
 const log = logger('config')
 

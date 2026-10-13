@@ -321,7 +321,7 @@ Deux catégories d'échec, à ne jamais mélanger dans le type d'exception levé
   Lever le bon type au bon endroit rend le rapport et le dump d'échec directement actionnables.
 - **`expect(...).toXxx()` reste le premier choix** dès qu'un matcher `expect-webdriverio` existe pour le cas — il lève déjà le bon type en interne. `AssertionError` explicite est réservé aux échecs métier qui ne passent pas par un
   `expect()` : sortie d'une boucle de backoff (`waitForDemarche`,
-  `assertNotificationReceived`), réponse HTTP inattendue d'une API partenaire (`publishNotification`), élément de confirmation attendu absent.
+  `assertNotificationReceived`), réponse HTTP inattendue d'une API partenaire (`publishEvent`), élément de confirmation attendu absent.
 - **`throw new Error(...)` reste réservé au technique** : contexte `WEBVIEW_*` introuvable (`platform().inWebContext()`), variable d'environnement manquante (`requireEnv`) — un humain doit corriger la configuration ou l'environnement, pas relire le comportement de l'app.
 
 ```typescript

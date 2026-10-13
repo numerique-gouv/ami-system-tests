@@ -2,7 +2,7 @@ import PreferencesPage from '../../pages/preferences.page'
 import ZonesPage from '../../pages/zones.page'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import {grantConsent} from '../../helpers/notifications-api'
+import {grantConsent} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 
 /**

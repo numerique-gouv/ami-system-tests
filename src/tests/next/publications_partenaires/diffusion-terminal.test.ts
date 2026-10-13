@@ -9,7 +9,7 @@ describe("Publications partenaires — diffusion vers le terminal usager", () =>
   before(async () => {
     // TODO pré-requis :
     //   - usager FranceConnect sandbox connecté
-    //   - helper publishNotification disponible (src/helpers/notifications-api.ts)
+    //   - helper publishEvent disponible (src/helpers/partner-api/)
     //   - Numéro d'identification correspondant à l'usager connecté
   })
 
