@@ -1,113 +1,30 @@
-import {getHomeLocators, homeContentLocators} from './locators/home.locators'
+import {homeContentLocators} from './locators/home.locators'
 import {describeCurrentPage} from '../helpers/webview';
-import {clickButton, visibleButtonTexts, waitForHeading, pageText, findRole, queryRole} from '../helpers/spa'
+import {clickButton, visibleButtonTexts, waitForHeading, pageText, findRole, hasRole, queryRole} from '../helpers/spa'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import OnboardingNotificationsPage from './onboarding-notifications.page'
-import OnboardingZonesPage from './onboarding-zones.page'
-import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
-
-const log = logger('page-object')
 
 class HomePage {
     /**
-     * Attend que le conteneur WebView natif soit visible.
-     * L'app AMI est 100% SPA — pas de resource-id natif, on détecte la WebView elle-même.
-     * Sans objet en webapp : la session est déjà le DOM de la SPA, rien à attendre côté conteneur.
-     */
-    async waitForVisible(timeout = 30000): Promise<void> {
-        if (platform().kind === 'webapp') return
-        const {width, height} = await driver.getWindowSize()
-        await driver.action('pointer', {parameters: {pointerType: 'touch'}})
-            .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.4)})
-            .down({button: 0})
-            .move({duration: 300, x: Math.round(width / 2), y: Math.round(height * 0.5)})
-            .up({button: 0})
-            .perform()
-        const loc = getHomeLocators()
-        await $(loc.screenRoot).waitForDisplayed({timeout})
-    }
-
-    /**
-     * Attend que la SPA home authentifiée soit chargée, avec récupération si un écran de
-     * blocage connu masque la home (onboarding notifications resté ouvert, modale du menu
-     * "Plus" restée ouverte après un logout, cf. closeOpenNavPlusMenu).
+     * Attend que la SPA home authentifiée soit chargée : titre « Bonjour <prénom> » (<h1>), seul affiché par la
+     * home — les 5 boutons de la barre de nav sont présents sur tous les écrans, et la route seule ne distingue
+     * pas la home de la page « not connected » (écran de login FranceConnect, même route).
      *
-     * Sentinel principal : texte de salutation "Bonjour <prénom>" en haut à gauche du header —
-     * seul le header de la home l'affiche (titre <h1> « Bonjour <prénom> ») ; les 5 boutons de la barre de nav
-     * (Accueil, Agenda, Services, Suivi, Plus) sont affichés ensemble sur tous les écrans, donc ne discriminent
-     * pas Home à eux seuls.
-     * recherche par texte affiché (innerText, respecte la visibilité) plutôt que par structure DOM.
+     * Ne ferme aucun écran de blocage (onboardings, menu « Plus ») : c'est le rôle du scénario, qui les passe
+     * explicitement (`getAppToStartingState` pour les autres tests).
      *
-     * Échec dur (throw) plutôt que booléen : centralise le diagnostic (describeCurrentPage())
-     * pour ses appelants (les tests d'authentification, navigation.test.ts)
-     * au lieu de le dupliquer à chaque site d'appel.
+     * Échec dur (throw) plutôt que booléen : centralise le diagnostic (describeCurrentPage()) pour ses appelants.
      */
     async assertHomeVisible(timeout = 30000): Promise<void> {
-        // La page d'accueil est une webview
-        if (await platform().isWebContextAvailable()) {
-            // Première connexion du compte : la SPA affiche d'abord /welcome/zones (puis l'onboarding des
-            // notifications, traité juste après) avant la home.
-            if (await OnboardingZonesPage.isVisible(1000)) {
-                await OnboardingZonesPage.dismiss()
-            }
-
-            // L'écran d'onboarding peut apparaître, et doit être refusé (ça évite les pop-in natives de notification qui pourraient intercepter les clics).
-            if (await OnboardingNotificationsPage.isOnboardingVisible()) {
-                await OnboardingNotificationsPage.dismiss()
-                if (await this.probeWelcomeText(5000)) return
-            }
-
-            // Le menu plus reste parfois ouvert même après une reconnexion, au cas où, on le referme
-            if (await this.isMenuPlusVisible()) {
-                await platform().inWebContext(() => this.closeOpenNavPlusMenu())
-                if (await this.probeWelcomeText(5000)) return
-            }
-
-            // Ni onboarding ni menu "Plus" : la route seule ne suffit pas à confirmer la home
-            // authentifiée (la page "not connected" — écran de login FranceConnect — partage la
-            // même route). Seule la salutation "Bonjour" distingue les deux.
-            if (await this.probeWelcomeText(timeout)) return
-        }
-
+        if (await this.isHomeDisplayed(timeout)) return
         const where = await describeCurrentPage()
         throw new AssertionError({message: `assertHomeVisible: Home non atteinte (${where})`})
     }
 
-    /**
-     * Sonde le texte de salutation, sans cascade de récupération — extrait de l'ancien corps
-     * de assertHomeVisible(), réutilisé à la fois comme premier essai et comme re-vérification
-     * après chaque étape de la cascade.
-     */
+    /** Sonde : la salutation « Bonjour <prénom> » est-elle affichée sous `timeout` ms ? Sans cascade de récupération. */
     async isHomeDisplayed(timeout: number): Promise<boolean> {
-        return await this.probeWelcomeText(timeout)
-    }
-
-    private async probeWelcomeText(timeout: number): Promise<boolean> {
-        try {
-            return await platform().inWebContext(async () => {
-                await browser.waitUntil(
-                    async () => driver.execute(() =>
-                        // <h1> depuis la SPA du 2026-10-02 (était <p>) : on tolère les deux, les builds
-                        // mobiles embarquent une version de la SPA qui peut être plus ancienne.
-                        Array.from(document.querySelectorAll('h1, p'))
-                            .some(p => (p as HTMLElement).innerText?.trim().startsWith('Bonjour'))
-                    ) as Promise<boolean>,
-                    {
-                        timeout,
-                        interval: 300,
-                        timeoutMsg: 'Home non atteinte — texte de salutation ("Bonjour ...") absent'
-                    }
-                )
-                return true
-            })
-        } catch (ex) {
-            // Cas attendu : la salutation n'apparaît pas dans le délai (timeout du waitUntil) — l'appelant
-            // poursuit sa cascade de récupération. Un autre type d'erreur reste visible dans ce log.
-            log.warn(`probeWelcomeText: salutation non trouvée sous ${timeout}ms`, ex)
-            return false
-        }
+        return await hasRole('heading', homeContentLocators.greetingPattern, timeout)
     }
 
     /**
@@ -123,20 +40,15 @@ class HomePage {
     }
 
     /**
-     * Sonde dédiée, réutilisée par assertHomeVisible() (détection d'écran) pour décider si
-     * closeOpenNavPlusMenu() a réellement quelque chose à fermer. Même sélecteur que
-     * closeOpenNavPlusMenu(), sans le clic.
+     * Sonde dédiée, réutilisée par NavigationPage.openPlusMenu() : le <dialog> du menu « Plus » est-il ouvert ?
+     * Même sélecteur que closeOpenNavPlusMenu(), sans le clic.
      */
     async isMenuPlusVisible(): Promise<boolean> {
-        if (!await platform().isWebContextAvailable()) return false
         return await platform().inWebContext(() =>
             driver.execute(() =>
                 !!document.querySelector('dialog[id^="modal-main-nav-plus"].fr-modal--opened')
             ) as Promise<boolean>
-        ).catch((ex) => {
-            log.warn('isMenuPlusVisible: sonde du menu « Plus » en échec, considéré comme fermé', ex)
-            return false
-        })
+        )
     }
 
     /**
@@ -146,20 +58,20 @@ class HomePage {
      * l'écran, interceptant le clic sur "Suivi" ("element click intercepted"). Non reproduit sur
      * WebView Android/iOS — cause probable côté app non élucidée, contournement test uniquement.
      *
-     * Public : réutilisée par assertHomeVisible() (le menu "Plus" est aussi le menu profil/avatar,
-     * cf. profile.locators.ts `toggleMenuButton`) en plus de ouvreSuivi(). Reste context-agnostic
-     * (à appeler depuis un inWebContext déjà ouvert) — pas de wait, idempotente.
+     * Public : réutilisée par NavigationPage.goToTab() en plus de ouvreSuivi() (le menu "Plus" est aussi le
+     * menu profil/avatar). Pas de wait, idempotente. Pas d'avertissement quand elle ferme le menu : un scénario
+     * peut l'avoir ouvert lui-même (NavigationPage.listPlusEntries()).
      */
     async closeOpenNavPlusMenu(): Promise<void> {
         // Clic JS sur le bouton "Fermer" du DSFR plutôt que dialog.close() : la modale est
         // pilotée par le contrôleur JS du DSFR (classe `fr-modal--opened` synchronisée sur son
         // propre état interne), pas seulement par l'attribut natif `open` du <dialog> — appeler
         // `.close()` directement laisse la classe CSS en place et le clic reste intercepté.
-        await driver.execute(() => {
+        await platform().inWebContext(() => driver.execute(() => {
             const dialog = document.querySelector('dialog[id^="modal-main-nav-plus"].fr-modal--opened')
             const closeBtn = dialog?.querySelector('[data-fr-js-modal-button="true"]') as HTMLElement | null
             closeBtn?.click()
-        })
+        }))
     }
 
     /** Vérifie les blocs de l'accueil : salutation, date, « Mon agenda », « Mes démarches », cloche. */
@@ -215,13 +127,8 @@ class HomePage {
                 }
                 const next = await findRole('button', homeContentLocators.carouselNextName, {timeout: 5000})
                 await next.click()
-                await browser.waitUntil(
-                    async () => !!await queryRole('button', homeContentLocators.otvCardName),
-                    {timeout: 2500, interval: 250, timeoutMsg: `Carte "${homeContentLocators.otvCardName}" pas encore atteignable après « Diapositive suivante »`}
-                ).catch((ex) => {
-                    // animation du carrousel : on retente au tour suivant
-                    log.debug(`openOtvCard: carte pas encore atteignable (diapositive ${slide + 1}), on retente`, ex)
-                })
+                // Animation du carrousel : la carte devient atteignable à la fin de la transition ; sinon on retente.
+                await hasRole('button', homeContentLocators.otvCardName, 2500)
             }
             throw new AssertionError({message: `Carte "${homeContentLocators.otvCardName}" jamais atteignable dans le carrousel`})
         })

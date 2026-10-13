@@ -2,10 +2,17 @@ import {getEnvironmentPickerLocators} from '../locators/franceconnect/environmen
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
 import {setBackendUrl} from '../../helpers/partner-api'
-import {rethrowStrictViolation} from '../../helpers/strict'
-import logger from '@wdio/logger'
 
-const log = logger('page-object')
+/**
+ * SEUL endroit du dépôt où le mode strict de `$()` (WDIO 10) est contourné : la tuile « Staging » du picker
+ * porte deux textes identiques (titre et sous-titre), donc un sélecteur trop large la désigne deux fois. Une
+ * sonde qui avale toutes les erreurs la prendrait pour « picker absent » (21 échecs Android constatés le
+ * 2026-10-08, sans un mot). La violation doit remonter ; toute autre erreur reste « absent ».
+ * Ailleurs, un sélecteur natif est unique : pas de `.catch` sur les sondes.
+ */
+function rethrowStrictViolation(err: unknown): void {
+    if (err instanceof Error && /strict mode violation/i.test(err.message)) throw err
+}
 
 class EnvironmentPickerPage {
     /**
@@ -38,38 +45,17 @@ class EnvironmentPickerPage {
         const loc = getEnvironmentPickerLocators()
 
         const picker = $(loc.environmentPicker)
-        await this.scrollToPickerTile(picker)
+        // Liste longue (LazyColumn Android, ScrollView iOS) : les items hors viewport ne sont pas rendus dans
+        // l'arbre d'accessibilité. 'up' = le doigt monte, le contenu défile vers le bas (défaut de WDIO). Un swipe
+        // couvre ~95 % de la liste, mais coûte >10 s sur Android : 5 suffisent, et bornent l'échec si AMI_ENV est faux.
+        await picker.scrollIntoView({
+            direction: 'up', maxScrolls: 5,
+            ...(loc.scrollContainer && {scrollableElement: $(loc.scrollContainer)}),
+        })
         const title = await picker.getText()
         setBackendUrl(reviewTitleToApiUrl(title))
         await picker.click()
     }
-
-    /**
-     * Swipe vers le bas (doigt monte) jusqu'à ce que la tile du picker soit visible.
-     * Gère les listes longues (LazyColumn Android, ScrollView iOS) où les items
-     * hors viewport ne sont pas encore rendus dans l'arbre d'accessibilité.
-     */
-    async scrollToPickerTile(selector: ChainablePromiseElement): Promise<void> {
-        const {width, height} = await driver.getWindowSize()
-        await browser.waitUntil(
-            async () => {
-                // Tile hors du viewport ou liste encore en chargement : isDisplayed() vaut false.
-                if (await selector.isDisplayed().catch((err: unknown) => {
-                    log.warn('scrollToPickerTile : isDisplayed a échoué', err)
-                    return false
-                })) return true
-                await driver.action('pointer', {parameters: {pointerType: 'touch'}})
-                    .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.7)})
-                    .down({button: 0})
-                    .move({duration: 600, x: Math.round(width / 2), y: Math.round(height * 0.3)})
-                    .up({button: 0})
-                    .perform()
-                return false
-            },
-            {timeout: 30000, interval: 200, timeoutMsg: 'Tile du picker introuvable après scroll'}
-        )
-    }
-
 }
 
 /**

@@ -11,6 +11,13 @@ import type { Locator } from '../types'
 export interface EnvironmentPickerLocators {
   pickerSentinel:    Locator  // item "Staging" (toujours en tête) — confirme que l'écran picker est affiché
   environmentPicker: Locator  // item cible selon AMI_ENV (correspondance partielle), calculé par getEnvironmentPickerLocators()
+  /**
+   * Conteneur à faire défiler pour atteindre `environmentPicker`. `undefined` : celui par défaut de WDIO
+   * (iOS : l'application entière). Android : la liste Compose n'est pas un `android.widget.ScrollView` (défaut de
+   * WDIO, « Default scrollable element … not found ») ; vérifié sur l'émulateur le 2026-10-13, le picker n'a qu'un
+   * seul nœud `scrollable=true`.
+   */
+  scrollContainer?: Locator
 }
 
 // Seul le sentinel est une valeur statique par plateforme — `environmentPicker` dépend de
@@ -43,6 +50,7 @@ export function getEnvironmentPickerLocators(): EnvironmentPickerLocators {
   }
   return {
     pickerSentinel: PICKER_SENTINEL.android,
+    scrollContainer: 'android=new UiSelector().scrollable(true)',
     // (ex. "staging" vs tile "Staging"). La tuile entière, pas ses textes (cf. ci-dessus).
     environmentPicker: `android=new UiSelector().clickable(true).childSelector(new UiSelector().textMatches("(?i).*${env}.*"))`,
   }

@@ -1,10 +1,9 @@
-import {getFranceConnectMireLocators} from '../locators/franceconnect/franceconnect-mire.locators'
+import {androidFcButton, iosFcButtonNativeAx} from '../locators/franceconnect/franceconnect-mire.locators'
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
-import {findRole} from '../../helpers/spa'
-import {rethrowStrictViolation} from '../../helpers/strict'
+import {findRole, hasRole} from '../../helpers/spa'
 
 const log = logger('page-object')
 
@@ -33,31 +32,8 @@ class FranceConnectMirePage {
      * réutilisée par authenticate() et par tapFranceConnect() elle-même.
      */
     private async isNativeFcButtonDisplayed(): Promise<boolean> {
-        const loc = getFranceConnectMireLocators()
-        return await $(loc.fcButton).isDisplayed().catch((err: unknown) => {
-            rethrowStrictViolation(err)
-            return false
-        })
-    }
-
-    /**
-     * Sonde dédiée web — bare (à appeler depuis un inWebContext déjà ouvert, jamais son
-     * propre inWebContext : tapFranceConnect() a déjà le sien pour toute la méthode, un appel
-     * imbriqué re-switcherait vers NATIVE_APP dans son `finally` et casserait le reste du
-     * bloc). isLoginScreenVisible() ci-dessous ouvre le contexte pour les appelants externes.
-     *
-     * Scoping à un <button> (pas tout document.body.innerText) : vérifié en direct sur
-     * staging, la mire eIDAS FranceConnect elle-même contient le mot "FranceConnect" (lien de
-     * pied de page "En savoir plus sur FranceConnect") — un simple innerText.includes()
-     * matcherait donc aussi sur l'écran suivant. Le bouton "S'identifier avec FranceConnect"
-     * est un <button>, ce lien de pied de page un <a> : restreindre à button lève l'ambiguïté.
-     */
-    private async isFranceConnectTextVisible(): Promise<boolean> {
-        return await driver.execute(
-            (t: string) => Array.from(document.querySelectorAll('button'))
-                .some(b => b.textContent?.toLowerCase().includes(t.toLowerCase())),
-            'FranceConnect'
-        ) as boolean
+        // Identifiant d'accessibilité unique : `isDisplayed()` vaut `false` si le bouton est absent.
+        return await $(androidFcButton).isDisplayed()
     }
 
     /**
@@ -68,14 +44,14 @@ class FranceConnectMirePage {
         if (platform().fcButtonIsNative) {
             return await this.isNativeFcButtonDisplayed()
         }
-        const nativeAx = getFranceConnectMireLocators().fcButtonNativeAx
-        if (nativeAx) {
+        if (driver.isIOS) {
             // iOS : lecture native, jamais bloquée par un `execute` resté sans réponse pendant que la WebView
-            // change de domaine (cf. fcButtonNativeAx).
-            return await $$(nativeAx).length > 0
+            // change de domaine (cf. iosFcButtonNativeAx).
+            return await $$(iosFcButtonNativeAx).length > 0
         }
-        if (!await platform().isWebContextAvailable()) return false
-        return await platform().inWebContext(() => this.isFranceConnectTextVisible()).catch(() => false)
+        // Restreint au rôle `button` : la mire eIDAS (hors app AMI) contient elle-même le mot « FranceConnect »
+        // dans un lien de pied de page (« En savoir plus sur FranceConnect »), pas dans un bouton.
+        return await hasRole('button', /franceconnect/i)
     }
 
     /**
@@ -121,14 +97,13 @@ class FranceConnectMirePage {
         const timeout = isOkToFail ? 5000 : 15000
 
         if (driver.isAndroid) {
-            const loc = getFranceConnectMireLocators()
             let tapped = false
             await browser.waitUntil(
                 async () => {
                     const displayed = await this.isNativeFcButtonDisplayed()
                     if (displayed) {
                         tapped = true
-                        await $(loc.fcButton).click()
+                        await $(androidFcButton).click()
                     }
                     return displayed
                 },
@@ -174,11 +149,7 @@ class FranceConnectMirePage {
         let tapped = false
         await platform().inWebContext(async () => {
             try {
-                await browser.waitUntil(
-                    () => this.isFranceConnectTextVisible(),
-                    {timeout, interval: 300, timeoutMsg: `Bouton FranceConnect non affiché après ${timeout}ms`}
-                )
-                const fcButton = await findRole('button', /^S.identifier avec FranceConnect$/i)
+                const fcButton = await findRole('button', /^S.identifier avec FranceConnect$/i, {timeout})
                 await fcButton.click()
                 tapped = true
                 log.info('btn web FC trouvé et tap effectif !!!')
