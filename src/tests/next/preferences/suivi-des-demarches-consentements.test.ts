@@ -34,7 +34,7 @@ describe('Préférences — consentements de suivi par partenaire', () => {
   // local vs consentement légal côté API). Vérifier via `just explore` + `snapshot -i` + lecture du store SPA
   // avant d'écrire un scénario qui présumerait un lien entre les deux.
   it.skip("À CONFIRMER : relation entre le toggle partenaire et le consentement API (checkConsent/grantConsent)", async () => {
-    // 1. Retirer le consentement API d'un partenaire (grantConsent(fcHash, false))
+    // 1. Retirer le consentement API d'un partenaire (revokeConsent(fcHash))
     // 2. Vérifier l'état du toggle correspondant dans Préférences (impacté ou indépendant ?)
     // 3. Documenter la relation réelle observée avant de figer ce test
   })

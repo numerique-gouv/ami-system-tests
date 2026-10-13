@@ -65,8 +65,8 @@ FC=<fc_hash de l'utilisateur de test, dans src/helpers/test-users.local.ts>
 |---|---|---|
 | Code d'accès de la webapp de staging (fenêtre `window.prompt` de la SPA) | un cookie `access_key` est posé **avant** d'ouvrir la SPA, valable 7 jours ; sa valeur (`WEB_APP_ACCESS_KEYS`) n'est jamais affichée | `just explore-webapp` (recette `_explore`) ; pour les tests, `handleAccessKeyCookie` dans le hook `before` de `wdio.webapp.conf.ts` (`src/helpers/access-code.ts`) |
 | Connexion FranceConnect (eIDAS, identifiants) et onboarding (clé d'accès, zones, notifications) | automatisés, et repartent de l'état courant de l'app | `getAppToStartingState()` dans `src/pages/authenticate.process.ts` |
-| Consentement partenaire | donné par défaut en fin de `getAppToStartingState()` | idem (`grantConsent`) |
-| Appels API (consentement, démarche) | helpers | `src/helpers/notifications-api.ts` : `checkConsent`, `grantConsent`, `publishNotification` |
+| Consentement partenaire | plus donné par `getAppToStartingState()` : chaque scénario le pose explicitement | `grantConsent` / `revokeConsent` (`src/helpers/notifications-api.ts`) |
+| Appels API (consentement, démarche) | helpers | `src/helpers/notifications-api.ts` : `checkConsent`, `grantConsent`, `revokeConsent`, `publishNotification` |
 
 Vous n'avez donc **pas** à refaire la connexion à la main : la voie B de l'étape 3 vous place directement dans l'app connectée.
 La section 3.3 ne la décrit que pour comprendre le parcours, ou pour la réexplorer si l'app change.
@@ -145,7 +145,7 @@ Lire la sortie : une ligne par élément interactif, avec sa **ref** (`e1`) pour
 code exécuté.
 
 **Voie B — app connectée : un squelette de test et `just debug-webapp` (recommandée pour ce scénario).** On exécute le `before`
-standard des tests (cookie d'accès, connexion, onboarding, consentement), puis le test se met **en pause** dans l'app connectée.
+standard des tests (cookie d'accès, connexion, onboarding), puis le test se met **en pause** dans l'app connectée.
 Le squelette est dans le même dossier que ce tutoriel : [`squelette-exploration.test.ts`](squelette-exploration.test.ts).
 
 ```bash
@@ -186,7 +186,7 @@ just s debug-0-0 snapshot -i     # l'accueil de l'app connectée
 - **`resume` termine le test** (observé : « 1 passing »), `close` le fait échouer à la place. Dans les deux cas la session disparaît.
 - **La durée de la pause n'est pas limitée en pratique.** Une pause de plus de 2 minutes (« 1 passing (2m 48.4s) ») est passée sans
   réglage de délai : `--debug=agent` porte le délai du framework à 24 h (code de `@wdio/session`).
-- **`beforeEach` rappelle `getAppToStartingState()`** avant l'`it` : l'app est reconnectée si besoin et ramenée à l'accueil, vous partez toujours du même état. Le consentement est donc **redonné avant chaque `it`** : si un test en a besoin d'un autre état, il le pose dans l'`it`, après le hook.
+- **`beforeEach` rappelle `getAppToStartingState()`** avant l'`it` : l'app est reconnectée si besoin et ramenée à l'accueil, vous partez toujours du même état. Le consentement n'est **pas** touché par ce hook : le test le pose explicitement (`grantConsent` / `revokeConsent`).
 - **Avant de commiter, supprimez `browser.debug()`.** Le lint le refuse (règle `wdio/no-debug`, vérifiée) : une pause oubliée
   bloquerait la CI.
 
@@ -364,14 +364,14 @@ describe('Démarches — consentement', () => {
 
   before(async function () {                                   // `before` standard : cf. squelette-exploration.test.ts
     this.timeout(180000)
-    await getAppToStartingState()                               // connecte l'app et DONNE le consentement par défaut
+    await getAppToStartingState()                               // connecte l'app, sans toucher au consentement
   })
-  after(async () => { await grantConsent(user.fcHash, true) })       // restaurer l'état
+  after(async () => { await grantConsent(user.fcHash) })       // restaurer l'état
 
   it('ne montre que la démarche créée après le consentement', async () => {
-    step('1. Retirer le consentement');           await grantConsent(user.fcHash, false)
+    step('1. Retirer le consentement');           await revokeConsent(user.fcHash)
     step('2. Créer D1 sans consentement');        await publish(d1, 'new', {checkConsent: false})
-    step('3. Donner le consentement');            await grantConsent(user.fcHash, true)
+    step('3. Donner le consentement');            await grantConsent(user.fcHash)
     step('4. Créer D2');                          await publish(d2, 'new')
     step('5. Seule D2 est reçue');                await HomePage.ouvreSuivi()
                                                   await SuiviDemarchesPage.waitForDemarche(d2)

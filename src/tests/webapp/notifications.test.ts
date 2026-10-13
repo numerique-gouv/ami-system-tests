@@ -1,7 +1,7 @@
 import NotificationsInboxPage from '../../pages/notifications.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import PreferencesPage from '../../pages/preferences.page'
-import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
+import {getBackendUrl, grantConsent, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
@@ -17,6 +17,7 @@ describe('Notifications', () => {
   before(async function () {
     this.timeout(180000)
     await getAppToStartingState()
+    await grantConsent(user.fcHash)
   })
 
   beforeEach(async function () {

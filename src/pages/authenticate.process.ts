@@ -9,7 +9,6 @@ import HomePage from './home.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/test-users'
 import {getUser} from '../helpers/test-users'
-import {grantConsent} from '../helpers/notifications-api'
 import {currentUrlForLog, hasSessionToken, openAppRoot} from '../helpers/session'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
@@ -191,17 +190,10 @@ async function reachHome(user: TestUser): Promise<void> {
     })
 }
 
-interface AuthenticateOptions {
-    // Fournit le consentement partenaire par défaut, y compris si l'utilisateur était déjà
-    // authentifié (avant tous les tests). Mettre à false pour tester un scénario sans
-    // consentement AMI.
-    grantConsent?: boolean
-}
-
 /**
- * Remet l'app dans l'état de départ attendu par les tests : connecté, sur l'accueil, consentement partenaire
- * fourni. Chaque test (sauf l'authentification) commence par là : le test précédent a pu s'arrêter
- * n'importe où dans l'app.
+ * Remet l'app dans l'état de départ attendu par les tests : connecté, sur l'accueil. Le consentement partenaire
+ * n'est pas touché : les scénarios qui publient le donnent explicitement (grantConsent). Chaque test
+ * (sauf l'authentification) commence par là : le test précédent a pu s'arrêter n'importe où dans l'app.
  *
  * 1. Cookie de session présent → chargement de la racine de l'app (la SPA route vers l'accueil).
  * 2. Absent → rien n'est touché : la boucle déroule la connexion (sélecteur d'environnement, FranceConnect,
@@ -209,7 +201,7 @@ interface AuthenticateOptions {
  * 3. Jusqu'à l'accueil (« Bonjour »), les pages d'onboarding connues sont fermées.
  * 4. L'URL d'arrivée est journalisée.
  */
-export async function getAppToStartingState({grantConsent: shouldGrantConsent = true}: AuthenticateOptions = {}): Promise<void> {
+export async function getAppToStartingState(): Promise<void> {
     const user = getUser('avec_nom_dusage')
 
     if (await hasSessionToken()) {
@@ -220,17 +212,4 @@ export async function getAppToStartingState({grantConsent: shouldGrantConsent = 
     }
     await reachHome(user)
     log.info(`getAppToStartingState: état de départ atteint, URL : ${await currentUrlForLog()}`)
-
-    // Échec permanent (pas lié à l'écran) : remonte tel quel à l'appelant, sans retenter la séquence.
-    if (shouldGrantConsent) {
-        try {
-            await grantConsent(user.fcHash)
-            log.info(`getAppToStartingState: consentement partenaire fourni avec succès (fc_hash: ${user.fcHash})`)
-        } catch (err) {
-            log.error(`getAppToStartingState: échec de la fourniture du consentement partenaire (fc_hash: ${user.fcHash})`, err)
-            throw err
-        }
-    } else {
-        log.info(`getAppToStartingState: consentement partenaire non fourni (grantConsent: false, fc_hash: ${user.fcHash})`)
-    }
 }

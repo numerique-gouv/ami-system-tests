@@ -2,6 +2,8 @@ import PreferencesPage from '../../pages/preferences.page'
 import ZonesPage from '../../pages/zones.page'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
+import {grantConsent} from '../../helpers/notifications-api'
+import {getUser} from '../../helpers/test-users'
 
 /**
  * Préférences : suivi des démarches par partenaire (consentements), notifications, zones scolaires.
@@ -11,8 +13,9 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 describe('Préférences', () => {
   before(async function () {
     this.timeout(180000)
-    // grantConsent par défaut : le consentement AMI est la précondition du test « consentements ».
     await getAppToStartingState()
+    // Le consentement AMI est la précondition du test « consentements ».
+    await grantConsent(getUser('avec_nom_dusage').fcHash)
   })
 
   beforeEach(async function () {

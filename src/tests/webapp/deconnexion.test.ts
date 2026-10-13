@@ -45,7 +45,7 @@ describe('Déconnexion', () => {
     await FranceConnectMirePage.waitForLoginScreen()
 
     step('4. Se reconnecter avec le même compte')
-    await getAppToStartingState({grantConsent: false})
+    await getAppToStartingState()
 
     step("5. Le nom d'usage modifié a été supprimé")
     await ProfilePage.navigate()

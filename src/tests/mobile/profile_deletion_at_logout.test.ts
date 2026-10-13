@@ -90,7 +90,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
 
   it('se reconnecte avec le même compte', async () => {
     step('Lancer le flow FranceConnect')
-    await getAppToStartingState({grantConsent:false})
+    await getAppToStartingState()
 
     step('Naviguer vers Mon profil')
     await ProfilePage.navigate()

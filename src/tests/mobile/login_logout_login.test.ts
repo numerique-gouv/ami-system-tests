@@ -15,6 +15,6 @@ describe('Profil usager — déconnexion suivie d\'une reconnexion', () => {
     step('Attendre l\'écran de connexion')
     await FranceConnectMirePage.waitForLoginScreen()
     step('Lancer le flow FranceConnect')
-    await getAppToStartingState({grantConsent: false})
+    await getAppToStartingState()
   })
 })

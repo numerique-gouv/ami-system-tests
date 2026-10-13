@@ -1,7 +1,7 @@
 import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
-import {getBackendUrl, publishNotification} from '../../helpers/notifications-api'
+import {getBackendUrl, grantConsent, publishNotification} from '../../helpers/notifications-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
@@ -34,6 +34,7 @@ describe('Suivi des démarches', () => {
     urlV1 = `${domainUrl}/demarches/${itemId}/v1`
     urlV2 = `${domainUrl}/demarches/${itemId}/v2`
     await getAppToStartingState()
+    await grantConsent(user.fcHash)
   })
 
   after(async () => {

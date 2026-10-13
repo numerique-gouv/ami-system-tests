@@ -81,10 +81,9 @@ export async function checkConsent(recipientFcHash: string): Promise<boolean> {
 
 /**
  * Communique le consentement (don ou retrait) de l'usager pour le partenaire authentifié
- * (POST /api/v1/consent/{fc_hash}). Appelé une première fois lors de l'authentification
- * dans les scénarios de test — voir authenticate.process.ts.
+ * (POST /api/v1/consent/{fc_hash}). Brique commune de grantConsent() et revokeConsent().
  */
-export async function grantConsent(recipientFcHash: string, granted = true): Promise<void> {
+async function setConsent(recipientFcHash: string, granted: boolean): Promise<void> {
     const apiUrl = resolveApiUrl()
     let response: Response
     try {
@@ -101,6 +100,16 @@ export async function grantConsent(recipientFcHash: string, granted = true): Pro
         const text = await response.text().catch(() => '(corps illisible)')
         throw new AssertionError({message: `POST /api/v1/consent/${recipientFcHash} → HTTP ${response.status}: ${text}`})
     }
+}
+
+/** Donne le consentement de l'usager. Appelé par getAppToStartingState() — voir authenticate.process.ts. */
+export async function grantConsent(recipientFcHash: string): Promise<void> {
+    await setConsent(recipientFcHash, true)
+}
+
+/** Retire le consentement de l'usager. */
+export async function revokeConsent(recipientFcHash: string): Promise<void> {
+    await setConsent(recipientFcHash, false)
 }
 
 /**
