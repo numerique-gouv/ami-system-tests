@@ -1,4 +1,4 @@
-import type { PlatformAdapter } from './types'
+import type { PlatformAdapter, WebViewTarget } from './types'
 
 /**
  * Implémentation webapp de PlatformAdapter : la session WebdriverIO est un Chrome
@@ -82,7 +82,9 @@ export const browserAdapter: PlatformAdapter = {
   kind: 'webapp',
   fcButtonIsNative: false,
 
-  async inWebContext<T>(callback: () => Promise<T>): Promise<T> {
+  async inWebContext<T>(targetOrCallback: WebViewTarget | (() => Promise<T>), maybeCallback?: () => Promise<T>): Promise<T> {
+    // Une seule page (l'onglet de la SPA) : la cible éventuelle est sans objet.
+    const callback = typeof targetOrCallback === 'function' ? targetOrCallback : maybeCallback as () => Promise<T>
     await ensureAppWindow()
     return await callback()
   },

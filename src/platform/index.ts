@@ -2,7 +2,7 @@ import type { PlatformAdapter } from './types'
 import { appiumAdapter } from './appium.adapter'
 import { browserAdapter } from './browser.adapter'
 
-export type { PlatformAdapter, PlatformKind } from './types'
+export type { PlatformAdapter, PlatformKind, WebViewTarget } from './types'
 
 /**
  * Résout l'adaptateur pour la session courante. `browser.isMobile` est dérivé des
