@@ -1,3 +1,5 @@
+import {roleSelector} from '../../helpers/selectors'
+
 /**
  * Sélecteurs WebView de la page de détail d'une démarche.
  *
@@ -14,15 +16,16 @@
 
 export interface DemarcheDetailLocators {
   /**
-   * Nom accessible du bouton "Accéder à ma démarche" sur la page de détail.
-   * Sélectionné par rôle+nom via `findRole('button', name)` dans le PO
-   * (CONTRIBUTING §2 : sélecteur sémantique avant data-testid). Fallback documenté si le nom
-   * accessible s'avère instable : `#external-item-button`.
+   * Bouton "Accéder à ma démarche" de la page de détail, par rôle + nom (`role/button[name=…]`, CONTRIBUTING §2).
+   * Fallback documenté si le nom accessible s'avère instable : `#external-item-button`.
    */
+  detailExternalButton: string
+  /** Son nom, pour les messages d'échec. */
   detailExternalButtonName: string
 }
 
 export const demarcheDetailLocators: DemarcheDetailLocators = {
+  detailExternalButton:      roleSelector('button', 'Accéder à ma démarche'),
   detailExternalButtonName:  'Accéder à ma démarche',
 }
 

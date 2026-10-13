@@ -231,10 +231,27 @@ export async function pageText(): Promise<string> {
   )
 }
 
-/** Attend qu'un élément dont le texte contient `text` soit visible (sentinelle de rendu). */
-export async function waitForPageText(text: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
+/** Attend que le texte visible de la page contienne `text` (sentinelle de rendu) : assertion WDIO avec attente. */
+export async function waitForPageText(text: string, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await platform().inWebContext(async () => {
-    await findText(text, {timeout, exact: typeof text === 'string' ? false : undefined})
+    await expect($('body')).toHaveText(text, {containing: true, wait: timeout})
+  })
+}
+
+/**
+ * Sonde : le texte visible de la page contient-il `text` sous `timeout` ms ? `false` sans WebView. Seul l'échec « délai
+ * dépassé » vaut `false` : toute autre erreur (contexte perdu, session morte) remonte.
+ */
+export async function hasPageText(text: string, timeout = 1000): Promise<boolean> {
+  if (!await platform().isWebContextAvailable()) return false
+  return await platform().inWebContext(async () => {
+    try {
+      await browser.waitUntil(async () => (await $('body').getText()).includes(text), {timeout, interval: 300})
+      return true
+    } catch (err) {
+      if (/^waitUntil condition timed out/.test((err as Error).message)) return false
+      throw err
+    }
   })
 }
 

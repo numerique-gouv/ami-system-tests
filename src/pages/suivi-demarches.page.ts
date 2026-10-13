@@ -5,7 +5,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickDisplayed, visibleButtonTexts, waitForButtons, waitForHeading, findRole, hasRole, hasText} from '@helpers/spa'
+import {clickDisplayed, hasPageText, isShown, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa'
 
 const log = logger('page-object')
 
@@ -23,7 +23,7 @@ class SuiviDemarchesPage {
      * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
      *
      * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
-     * on la recharge à chaque tentative, toutes les `RELOAD_INTERVAL_MS`, jusqu'à `SUIVI_WAIT_MS`. `hasText` attend le rendu
+     * on la recharge à chaque tentative, toutes les `RELOAD_INTERVAL_MS`, jusqu'à `SUIVI_WAIT_MS`. `hasPageText` attend le rendu
      * de la page rechargée (le texte n'est pas là tant que Svelte n'a pas monté la liste). `waitUntil` réessaie les erreurs
      * WebDriver d'une tentative (reload lent, contexte en cours de remplacement) ; la dernière figure dans le message d'échec.
      */
@@ -37,7 +37,7 @@ class SuiviDemarchesPage {
                     await driver.execute(() => window.location.reload())
                     // Le reload peut laisser un arbre d'accessibilité WKWebView périmé sur iOS (cf. refreshAxTree()) — no-op sur Android.
                     await platform().refreshAxTree()
-                    return await hasText(title, RELOAD_RENDER_MS)
+                    return await hasPageText(title, RELOAD_RENDER_MS)
                 })
                 log.log(`[suivi] démarche "${title}" ${present ? 'visible' : 'toujours pas visible'} (tentative ${attempt}, ${Date.now() - startedAt}ms)`)
                 return present
@@ -50,7 +50,7 @@ class SuiviDemarchesPage {
   /**
    * Attend qu'une carte de démarche visible corresponde à `title` et `statusLabel`.
    *
-   * $$()/card.$() plutôt que findRole : on ne sait pas à l'avance quelle carte contient `title`,
+   * $$()/card.$() plutôt qu'un sélecteur de rôle : on ne sait pas à l'avance quelle carte contient `title`,
    * il faut donc lire le titre de chaque carte pour le comparer. Une fois la bonne carte
    * trouvée, lire le badge. $$() donne directement la carte, le badge
    * se lit dedans sans remonter le DOM.
@@ -107,10 +107,9 @@ class SuiviDemarchesPage {
       // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
       // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
       await platform().refreshAxTree()
-      // findRole par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
+      // Rôle + nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
       // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
-      const link = await findRole('button', title, { timeout: timeoutMs })
-      await link.click()
+      await clickDisplayed(getSuiviDemarchesLocators().demarcheTile(title), { timeout: timeoutMs })
     })
   }
 
@@ -146,11 +145,12 @@ class SuiviDemarchesPage {
      * `#/followup` est rechargée depuis l'origine de la page courante (même origine que l'app).
      */
     async retourJusquAPageSuivi(): Promise<void> {
-        const pageTitle = getSuiviDemarchesLocators().pageTitle
+        const loc = getSuiviDemarchesLocators()
+        const pageTitle = loc.pageTitle
         await platform().inWebContext(async () => {
-            if (await hasRole('heading', pageTitle)) return
+            if (await isShown(loc.pageTitleHeading)) return
             await browser.back()
-            if (await hasRole('heading', pageTitle, 4000)) return
+            if (await isShown(loc.pageTitleHeading, 4000)) return
 
             const origin = await driver.execute(() => location.origin) as string
             log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)

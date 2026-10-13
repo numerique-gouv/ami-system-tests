@@ -1,58 +1,62 @@
 import type { Locator } from './types'
+import {roleSelector} from '../../helpers/selectors'
 
 /**
- * Sélecteurs WebView de la page "Mon profil" (SPA Svelte, route /#/profile).
+ * Sélecteurs WebView de la page "Mon profil" (SPA Svelte, route /#/profile) et de ses formulaires d'édition.
+ * Sources : src/lib/components/NavWithBackButton.svelte et les pages routes/edit-address, edit-email et edit-preferred-username (dépôt ami-notifications-api,
+ * public/mobile-app) ; relevés en live sur staging.
  *
- * Structure DOM observée via just inspect (2026-08-04) et src/lib/components/NavWithBackButton.svelte
- * (dépôt ami-notifications-api, public/mobile-app) :
- *   button "Plus" (accessible name)     ← bouton avatar (initiales) dans le header home, ouvert par
- *                                          NavigationPage.openPlusMenu() ; l'ancien data-testid="toggle-menu-button" n'existe plus
+ *   button "Plus" (nom accessible)      ← bouton avatar dans le header home, ouvert par NavigationPage.openPlusMenu()
  *   [data-testid="profile-button"]      ← "Mon profil" dans le menu déroulant avatar
- *   <h2>Mon profil</h2>                 ← titre de la page, rendu par NavWithBackButton — sentinelle
- *                                          d'arrivée (le conteneur [data-testid="profile"] existe
- *                                          toujours dans le DOM mais n'est plus utilisé comme sélecteur)
- *     #profile-identity                 ← section "Mon identité" (nom, date/lieu de naissance)
- *     #profile-email                    ← section "Contact" (email)
- *     #profile-address                  ← section "Mon adresse" (rue, code postal)
+ *   <h1>Mon profil</h1>                 ← titre de la page (NavWithBackButton) — sentinelle d'arrivée
+ *     #profile-identity / #profile-email / #profile-address   ← sections « Mon identité », « Contact », « Mon adresse »
  *
- * Toute la page est dans la WebView SPA — sélecteurs CSS identiques iOS et Android.
- *
- * Deux formats de valeur cohabitent selon le consommateur :
- *   Locator (CSS)  — pour $()/$$()/driver.execute(document.querySelector(...))
- *   string (id nu) — pour findTestId(), qui attend la valeur brute de
- *                     l'attribut data-testid, pas un sélecteur CSS
+ * Toute la page est dans la WebView SPA — sélecteurs identiques iOS et Android.
+ * Chaque valeur est un sélecteur WDIO 10 prêt à l'emploi : CSS, `[data-testid=…]`, `role/…[name=…]`, `aria/<libellé>` (champ
+ * associé à un <label>) ou `tag*=texte` (texte contient). Seul `pageTitle` est un NOM (pour `waitForHeading`).
  */
 export interface ProfileLocators {
   identitySection: Locator    // section "Mon identité"
   emailSection: Locator       // section "Contact"
   addressSection: Locator     // section "Mon adresse"
 
-  // Titre <h2> de la page (NavWithBackButton) — sentinelle d'arrivée par requête sémantique
-  // (findRole('heading', pageTitle)), plutôt qu'un data-testid sur le conteneur.
+  /** Nom du titre <h1> de la page (NavWithBackButton) — sentinelle d'arrivée (`waitForHeading`). */
   pageTitle: string
-  /** Titre du formulaire d'adresse (`/#/edit-address`), atteint depuis le profil ou la carte d'accueil. */
-  addressFormTitle: RegExp
+  identityHeading: Locator
+  contactHeading: Locator
+  /**
+   * Titre « Où habitez-vous&nbsp;? » : texte CONTIENT, car l'espace insécable (&nbsp;) est normalisée différemment dans le
+   * nom accessible selon le moteur (Chrome en BiDi, script de WDIO sur mobile). Rendu par NavWithBackButton : <h1> (relevé dans les sources le 2026-10-13).
+   */
+  addressFormHeading: Locator
 
-  // DETTE : data-testid non justifié pour ces 2 champs. Choisi à l'origine (commit 09e9798)
-  // parce que c'est le premier attribut remonté par `just inspect`, pas parce qu'un
-  // findRole()/findText() aurait été essayé et aurait échoué — "ce que just inspect
-  // montre en premier" n'est pas une raison valable (cf. CONTRIBUTING.md §2 "data-testid : dernier
-  // recours documenté"). À retester avec une query sémantique avant de considérer ce champ comme figé.
-  profileMenuButtonTestId: string  // "Mon profil" dans le menu avatar
-  settingsMenuButtonTestId: string // "Paramètres" dans le menu avatar
+  // DETTE : data-testid non justifié pour ces champs. Choisi à l'origine parce que c'est le premier attribut remonté par
+  // l'inspection, pas parce qu'une requête par rôle aurait échoué (cf. CONTRIBUTING.md §2 "data-testid : dernier recours
+  // documenté"). À retester avec `role/…` avant de considérer ce champ comme figé.
+  profileMenuButton: Locator   // "Mon profil" dans le menu avatar
+  settingsMenuButton: Locator  // "Paramètres" dans le menu avatar
 
-  // Ambiguïté CONFIRMÉE : les 3 boutons "Modifier" de la page profil partagent le même rôle
-  // (button) et le même texte visible — findRole('button', 'Modifier') ne peut
-  // pas les distinguer, data-testid est ici la seule option (pas un choix de confort).
-  preferredUsernameEditButtonTestId: string
-  emailEditButtonTestId: string
-  addressEditButtonTestId: string
-  // DETTE, même raison non justifiée que profileMenuButtonTestId ci-dessus.
-  editContainerTestId: string
-  // Texte imprévisible CONFIRMÉ : dépend de la réponse de l'API BAN, connu seulement à l'exécution
-  // — aucune requête par nom accessible n'est possible par construction.
-  autocompleteFirstItemButtonTestId: string
+  // Ambiguïté CONFIRMÉE : les 3 boutons "Modifier" de la page profil partagent le même rôle (button) et le même texte
+  // visible — data-testid est ici la seule option (pas un choix de confort).
+  preferredUsernameEditButton: Locator
+  emailEditButton: Locator
+  addressEditButton: Locator
+
+  /** Champs des formulaires d'édition, par leur libellé (`<label for>`). */
+  preferredUsernameInput: Locator
+  emailInput: Locator
+  addressInput: Locator
+  // Texte imprévisible CONFIRMÉ : dépend de la réponse de l'API BAN, connu seulement à l'exécution — aucune requête par
+  // nom accessible n'est possible par construction.
+  autocompleteFirstItem: Locator
+
+  logoutButton: Locator
+  /** Titre de la modale de confirmation de la suppression des données, et son bouton « Confirmer ». */
+  deletionHeading: Locator
+  confirmButton: Locator
 }
+
+const testId = (id: string): Locator => `[data-testid="${id}"]`
 
 export const profileLocators: ProfileLocators = {
   identitySection: '#profile-identity',
@@ -60,14 +64,22 @@ export const profileLocators: ProfileLocators = {
   addressSection: '#profile-address',
 
   pageTitle: 'Mon profil',
-  addressFormTitle: /Où habitez-vous/,
-  profileMenuButtonTestId: 'profile-button',
-  settingsMenuButtonTestId: 'settings-button',
-  preferredUsernameEditButtonTestId: 'preferred-username-button',
-  emailEditButtonTestId: 'email-button',
-  addressEditButtonTestId: 'address-button',
-  editContainerTestId: 'container',
-  autocompleteFirstItemButtonTestId: 'autocomplete-item-button-0',
+  identityHeading: roleSelector('heading', 'Mon identité'),
+  contactHeading: roleSelector('heading', 'Contact'),
+  addressFormHeading: 'h1*=Où habitez-vous',
+  profileMenuButton: testId('profile-button'),
+  settingsMenuButton: testId('settings-button'),
+  preferredUsernameEditButton: testId('preferred-username-button'),
+  emailEditButton: testId('email-button'),
+  addressEditButton: testId('address-button'),
+  preferredUsernameInput: 'aria/Nom d’usage',
+  emailInput: 'aria/E-mail',
+  addressInput: 'aria/Adresse',
+  autocompleteFirstItem: testId('autocomplete-item-button-0'),
+
+  logoutButton: roleSelector('button', 'Me déconnecter'),
+  deletionHeading: roleSelector('heading', 'Suppression de vos données'),
+  confirmButton: roleSelector('button', 'Confirmer'),
 }
 
 export function getProfileLocators(): ProfileLocators {

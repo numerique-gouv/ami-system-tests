@@ -1,7 +1,9 @@
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
-import {clickButton, findRole, findRoles, findText, hasText} from '../helpers/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, waitForHeading} from '../helpers/spa'
+import {homeContentLocators} from './locators/home.locators'
+import {notificationsLocators} from './locators/notifications.locators'
 import {AssertionError} from "node:assert";
 
 const log = logger('page-object')
@@ -12,7 +14,7 @@ class NotificationsInboxPage {
      * Attend le heading « Notifications » (titre de la page inbox). Le titre confirme le rendu réel de la page, pas seulement l'URL.
      */
     private async waitForNotificationsHeading(timeout = 15000): Promise<void> {
-        await findRole('heading', 'Notifications', {timeout})
+        await waitForHeading(notificationsLocators.pageTitle, timeout)
     }
 
     /**
@@ -26,7 +28,7 @@ class NotificationsInboxPage {
     async assertDisplayed(): Promise<void> {
         await platform().inWebContext(async () => {
             await this.waitForNotificationsHeading()
-            await findRoles('heading', undefined, {level: 3, timeout: 15000})
+            await firstDisplayed(notificationsLocators.notificationItem, {timeout: 15000})
         })
     }
 
@@ -36,18 +38,14 @@ class NotificationsInboxPage {
      * Pré-condition : l'onboarding notifications a déjà été refusé.
      */
     async openFromHome(): Promise<void> {
-        await platform().inWebContext(async () => {
-            // Rôle ARIA + nom accessible de la cloche.
-            const bell = await findRole('button', /notifications/i, {timeout: 15000})
-            await bell.click()
-        })
+        await clickDisplayed(homeContentLocators.notificationsBell, {timeout: 15000})
     }
     /**
      * « Gérer » (en-tête de l'inbox) ouvre les préférences de notifications. Texte visible « Gérer »,
      * mais nom accessible = aria-label « Gérer les notifications » (vérifié en live le 2026-10-02).
      */
     async openManage(): Promise<void> {
-        await clickButton('Gérer les notifications')
+        await clickDisplayed(notificationsLocators.manageButton)
     }
 
     /**
@@ -68,7 +66,7 @@ class NotificationsInboxPage {
      */
     async assertNotificationReceived(title: string, timeoutMs = 25000): Promise<void> {
         await platform().inWebContext(async () => {
-            if (await hasText(title, timeoutMs)) {
+            if (await hasPageText(title, timeoutMs)) {
                 log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
                 return
             }
@@ -87,8 +85,8 @@ class NotificationsInboxPage {
             log.warn('ANOMALIE (iOS) : notification non reçue par le WebSocket, rechargement de la page — ' +
                 'socket probablement zombie, non confirmé.')
             await driver.execute(() => window.location.reload())
-            // hasText attend le rendu de la page rechargée (il réessaie jusqu'à trouver le texte).
-            if (await hasText(title, 8000)) {
+            // hasPageText attend le rendu de la page rechargée (il réessaie jusqu'à trouver le texte).
+            if (await hasPageText(title, 8000)) {
                 log.warn('ANOMALIE (iOS) : notification reçue seulement après reload, WebSocket probablement zombie — non confirmé.')
                 return
             }
@@ -103,8 +101,7 @@ class NotificationsInboxPage {
      */
     async clickNotification(title: string): Promise<void> {
         await platform().inWebContext(async () => {
-            const notification = await findText(title, {timeout: 10000})
-            await notification.click()
+            await clickDisplayed(notificationsLocators.notificationTitle(title), {timeout: 10000})
         })
     }
 

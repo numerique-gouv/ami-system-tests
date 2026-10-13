@@ -1,7 +1,6 @@
 import {aideContactLocators} from './locators/aide-contact.locators'
-import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import {clickButton, visibleButtonTexts, waitForHeading, findRole} from '../helpers/spa'
+import {clickButton, visibleButtonTexts, waitForHeading, waitForRole} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 
 /** Page Object de Aide et contact, Contact et des pages légales (données personnelles, accessibilité). */
@@ -25,9 +24,7 @@ class AideContactPage {
     async openContactDialog(): Promise<string[]> {
         await waitForHeading(aideContactLocators.contactTitle)
         await clickButton(aideContactLocators.contactTeamButtonName)
-        await platform().inWebContext(async () => {
-            await findRole('button', aideContactLocators.contactOnlineRequestName, {timeout: 5000})
-        })
+        await waitForRole('button', aideContactLocators.contactOnlineRequestName, {timeout: 5000})
         const texts = await visibleButtonTexts()
         return texts.filter(t => [aideContactLocators.contactOnlineRequestName, aideContactLocators.contactMailName].includes(t))
     }

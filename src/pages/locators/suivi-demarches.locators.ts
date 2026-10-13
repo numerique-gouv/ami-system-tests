@@ -1,3 +1,5 @@
+import {roleSelector} from '../../helpers/selectors'
+
 /**
  * Sélecteurs WebView de la page de suivi des démarches (liste).
  * Les sélecteurs de la page de détail sont dans `demarche-detail.locators.ts`.
@@ -6,6 +8,10 @@
 export interface SuiviDemarchesLocators {
   /** Titre principal de la page **/
   pageTitle: string
+  /** Le même titre, comme sélecteur `role/heading` (sondes de présence). */
+  pageTitleHeading: string
+  /** Tuile d'une démarche : bouton dont le nom accessible est son titre (unique, horodaté). */
+  demarcheTile: (title: string) => string
   /** Conteneurs de carte scopés au tabpanel actif */
   cardContent: string
   /** Titre visible dans une carte (peut contenir un <a>, peut ne pas en avoir) */
@@ -18,6 +24,8 @@ export interface SuiviDemarchesLocators {
 
 export const demarchesLocators: SuiviDemarchesLocators = {
   pageTitle:                 'Mes démarches',
+  pageTitleHeading:          roleSelector('heading', 'Mes démarches'),
+  demarcheTile:              (title: string): string => roleSelector('button', title),
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',

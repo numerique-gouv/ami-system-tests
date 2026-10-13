@@ -2,7 +2,7 @@ import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
-import {pageText, waitForPageText, findRole} from '@helpers/spa'
+import {clickDisplayed, pageText, waitForPageText} from '@helpers/spa'
 
 import logger from '@wdio/logger'
 
@@ -75,8 +75,7 @@ class DemarcheDetailPage {
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
     const loc = getDemarcheDetailLocators()
     await platform().inWebContext(async () => {
-      const externalButton = await findRole('button', loc.detailExternalButtonName, { timeout: timeoutMs })
-      await externalButton.click()
+      await clickDisplayed(loc.detailExternalButton, { timeout: timeoutMs })
 
       let lastUrl: string | null = null
       try {
