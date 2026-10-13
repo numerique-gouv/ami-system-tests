@@ -1,7 +1,7 @@
 import {servicesLocators} from './locators/services.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import {checkboxStates, clickButtonUntilGone, visibleButtonTexts, waitForButtons, waitForHeading, findRole} from '../helpers/spa'
+import {checkboxStates, clickButtonUntilGone, firstDisplayed, visibleButtonTexts, waitForHeading} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 
 /** Page Object de Services : onglets, checklists éditoriales, fiche d'un service partenaire. */
@@ -18,17 +18,19 @@ class ServicesPage {
     /** Sélectionne un onglet (`role=tab`) et attend qu'il soit actif. */
     async selectTab(label: string): Promise<void> {
         await platform().inWebContext(async () => {
-            const tab = await findRole('tab', label, {timeout: 10000})
+            const tab = await firstDisplayed(servicesLocators.tab(label), {timeout: 10000})
             await tab.click()
-            await browser.waitUntil(async () => (await tab.getAttribute('aria-selected')) === 'true', {
-                timeout: 5000, interval: 200, timeoutMsg: `Onglet "${label}" non sélectionné`,
-            })
+            await expect(tab).toHaveAttribute('aria-selected', 'true', {wait: 5000})
         })
     }
 
-    /** Attend que les entrées données (texte exact ou préfixe) soient rendues dans l'onglet courant. */
-    async waitForEntries(names: Array<string | RegExp>): Promise<void> {
-        await waitForButtons(names)
+    /** Attend que les entrées données (fragment du texte du bouton) soient rendues dans l'onglet courant. */
+    async waitForEntries(fragments: string[]): Promise<void> {
+        await platform().inWebContext(async () => {
+            for (const fragment of fragments) {
+                await firstDisplayed(servicesLocators.entryContaining(fragment), {timeout: 15000})
+            }
+        })
     }
 
     async buttonTexts(): Promise<string[]> {
@@ -88,8 +90,8 @@ class ServicesPage {
 
     async assertBenefitButtonOffered(): Promise<void> {
         await platform().inWebContext(async () => {
-            await findRole('heading', servicesLocators.otvServiceTitle, {timeout: 10000})
-            await findRole('button', servicesLocators.otvBenefitButtonName, {timeout: 10000})
+            await firstDisplayed(servicesLocators.otvServiceHeading)
+            await firstDisplayed(servicesLocators.otvBenefitButton)
         })
     }
 }

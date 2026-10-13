@@ -2,7 +2,7 @@ import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from '@wdio/logger'
-import {clickRole, hasRole} from '../helpers/spa'
+import {clickDisplayed, hasRole} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.
@@ -58,7 +58,7 @@ class OnboardingNotificationsPage {
     async dismiss(): Promise<void> {
         if (!await this.isOnboardingVisible()) return
         if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebVisible(1000))) {
-            await clickRole('button', webOnboardingNotifLocators.laterButtonName, {timeout: 10000})
+            await clickDisplayed(webOnboardingNotifLocators.laterButton, {timeout: 10000})
             return
         }
         const loc = getOnboardingNotifLocators()

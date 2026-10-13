@@ -12,6 +12,8 @@ export interface SuiviDemarchesLocators {
   cardTitle: string
   /** Badge de statut dans une carte */
   cardBadge: string
+  /** Accordéon « Votre démarche n’apparaît pas ? » de la page des archivées (texte visible contient ; apostrophe évitée). */
+  archivedHelpAccordion: string
 }
 
 export const demarchesLocators: SuiviDemarchesLocators = {
@@ -19,6 +21,7 @@ export const demarchesLocators: SuiviDemarchesLocators = {
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',
+  archivedHelpAccordion:     'button*=Votre démarche n',
 }
 
 /** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */

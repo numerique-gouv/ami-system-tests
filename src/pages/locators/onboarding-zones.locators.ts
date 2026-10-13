@@ -10,10 +10,10 @@
  */
 export interface OnboardingZonesLocators {
   headingName: string    // « Zones scolaires » : identité de l'écran
-  skipButtonName: RegExp // « Passer »
+  skipButton: string     // « Passer » (texte visible contient)
 }
 
 export const onboardingZonesLocators: OnboardingZonesLocators = {
   headingName: 'Zones scolaires',
-  skipButtonName: /^passer/i,
+  skipButton: 'button*=Passer',
 }

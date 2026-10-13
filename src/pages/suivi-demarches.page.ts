@@ -5,7 +5,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading, findRole, hasRole, hasText} from '@helpers/spa'
+import {clickDisplayed, visibleButtonTexts, waitForButtons, waitForHeading, findRole, hasRole, hasText} from '@helpers/spa'
 
 const log = logger('page-object')
 
@@ -126,7 +126,7 @@ class SuiviDemarchesPage {
   async archivedPartners(): Promise<string[]> {
     await waitForHeading('Démarches archivées')
     // L'encart est un accordéon fermé par défaut : les partenaires ne sont visibles qu'une fois déplié.
-    await clickButton(/Votre démarche n.apparaît pas/)
+    await clickDisplayed(getSuiviDemarchesLocators().archivedHelpAccordion)
     await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
     const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
     return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))

@@ -1,6 +1,6 @@
 import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
 import {traced} from '../helpers/traced'
-import {clickRole, hasRole} from '../helpers/spa'
+import {clickDisplayed, hasRole} from '../helpers/spa'
 
 /**
  * Page Object pour l'écran de proposition de création de clé d'accès (passkey).
@@ -23,7 +23,7 @@ class OnboardingPasskeyPage {
      */
     async dismiss(): Promise<void> {
         if (!await this.isVisible()) return
-        await clickRole('button', onboardingPasskeyLocators.laterButtonName)
+        await clickDisplayed(onboardingPasskeyLocators.laterButton)
     }
 }
 

@@ -37,8 +37,8 @@ describe('Services', () => {
   it('« Démarches et outils » liste les cartes des partenaires', async () => {
     await ServicesPage.selectTab('Démarches et outils')
     await ServicesPage.waitForEntries([
-      /^APIAS/, /^Changement de situation familiale/, /^Contacter l.équipe AMI/,
-      /^Opération Tranquillité Vacances/, /^Rendez-vous/, 'Voir toutes les démarches',
+      'APIAS', 'Changement de situation familiale', 'équipe AMI',
+      'Opération Tranquillité Vacances', 'Rendez-vous', 'Voir toutes les démarches',
     ])
   })
 

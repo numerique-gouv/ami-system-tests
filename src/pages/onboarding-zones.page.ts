@@ -1,6 +1,6 @@
 import {onboardingZonesLocators} from './locators/onboarding-zones.locators'
 import {traced} from '../helpers/traced'
-import {clickRole, hasRole} from '../helpers/spa'
+import {clickDisplayed, hasRole} from '../helpers/spa'
 
 /**
  * Page Object de l'écran d'onboarding « Zones scolaires » (`/#/welcome/zones`).
@@ -19,7 +19,7 @@ class OnboardingZonesPage {
     /** Passe l'écran (no-op si absent sous `timeout`). L'arrivée sur la page suivante est vérifiée par elle. */
     async dismiss(timeout = 3000): Promise<void> {
         if (!await this.isVisible(timeout)) return
-        await clickRole('button', onboardingZonesLocators.skipButtonName, {timeout: 10000})
+        await clickDisplayed(onboardingZonesLocators.skipButton, {timeout: 10000})
     }
 }
 

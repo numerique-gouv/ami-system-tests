@@ -1,7 +1,7 @@
 import {agendaLocators} from './locators/agenda.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
-import {clickButton, waitForHeading, findRole, findRoles, queryRole} from '../helpers/spa'
+import {allDisplayed, clickButton, clickDisplayed, firstDisplayed, isShown, waitForHeading} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 
 /** Page Object de l'Agenda (`/#/agenda`) : liste des évènements et accès aux zones scolaires (page `ZonesPage`). */
@@ -22,36 +22,30 @@ class AgendaPage {
 
     /** Nombre d'évènements listés (un bouton d'ouverture de dialogue par évènement). */
     async countEvents(): Promise<number> {
-        return await platform().inWebContext(async () => (await findRoles('button', agendaLocators.eventDialogButtonName)).length)
+        return await platform().inWebContext(async () => {
+            await firstDisplayed(agendaLocators.eventDialogButton, {timeout: 10000})
+            return (await allDisplayed(agendaLocators.eventDialogButton)).length
+        })
     }
 
     /** Ouvre le dialogue du premier évènement. */
     async openFirstEvent(): Promise<void> {
-        await platform().inWebContext(async () => {
-            const [first] = await findRoles('button', agendaLocators.eventDialogButtonName, {timeout: 10000})
-            await first.click()
-        })
+        await clickDisplayed(agendaLocators.eventDialogButton, {timeout: 10000})
     }
 
     /** Vérifie que le dialogue d'évènement propose l'action « Supprimer » — sans l'utiliser (mutante). */
     async assertDeleteActionOffered(): Promise<void> {
         await platform().inWebContext(async () => {
-            await findRole('button', agendaLocators.deleteActionName, {timeout: 5000})
+            await firstDisplayed(agendaLocators.deleteAction, {timeout: 5000})
         })
     }
 
     /** Ferme le dialogue d'évènement (bouton « Fermer la modale ») et attend sa disparition. */
     async closeEventDialog(): Promise<void> {
         await clickButton(agendaLocators.eventDialogCloseName)
-        await browser.waitUntil(async () => !await this.isDeleteActionVisible(), {
+        await browser.waitUntil(async () => !await isShown(agendaLocators.deleteAction), {
             timeout: 5000, interval: 300, timeoutMsg: "Le dialogue d'évènement est resté ouvert après « Fermer la modale »",
         })
-    }
-
-    private async isDeleteActionVisible(): Promise<boolean> {
-        return await platform().inWebContext(() =>
-            queryRole('button', agendaLocators.deleteActionName).then(el => !!el).catch(() => false)
-        )
     }
 
     /**

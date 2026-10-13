@@ -2,7 +2,8 @@ import logger from '@wdio/logger'
 import {AssertionError} from 'node:assert'
 import {platform} from '../platform'
 import {findLabel, findRole, findRoleNames, findRoles, findTestId, findText, queryRole} from './dom-query'
-import type {FindOptions, RoleOptions} from './dom-query'
+import type {FindOptions} from './dom-query'
+import {roleSelector} from './selectors'
 
 /**
  * Primitives communes aux Page Objects de la SPA (WebView/webapp). La SPA navigue
@@ -25,11 +26,10 @@ const log = logger('helper')
 
 const DEFAULT_TIMEOUT = 10000
 
-/** Attend qu'un élément de rôle `role` et de nom accessible `name` (texte exact ou RegExp) soit présent. */
-export async function waitForRole(role: string, name?: string | RegExp, opts: RoleOptions = {}): Promise<void> {
-  const {timeout = DEFAULT_TIMEOUT, ...rest} = opts
+/** Attend qu'un élément de rôle `role` et de nom accessible `name` (exact) soit affiché. */
+export async function waitForRole(role: string, name: string, opts: DisplayOptions = {}): Promise<void> {
   await platform().inWebContext(async () => {
-    await findRole(role, name, {timeout, ...rest})
+    await firstDisplayed(roleSelector(role, name), opts)
   })
 }
 
@@ -70,6 +70,15 @@ export async function hasText(text: string | RegExp, timeout = 1000): Promise<bo
 export interface DisplayOptions {
   timeout?: number
   within?: string
+}
+
+/** Tous les éléments AFFICHÉS de `selector`, tout de suite, dans l'ordre du DOM. Ne lève jamais « strict ». */
+export async function allDisplayed(selector: string, {within}: DisplayOptions = {}): Promise<WebdriverIO.Element[]> {
+  const out: WebdriverIO.Element[] = []
+  for (const element of within ? await $(within).$$(selector) : await $$(selector)) {
+    if (await element.isDisplayed()) out.push(element)
+  }
+  return out
 }
 
 /** Premier élément AFFICHÉ de `selector`, tout de suite, sinon `null`. Ne lève jamais « strict ». */
@@ -119,13 +128,9 @@ export async function clickDisplayed(selector: string, opts: DisplayOptions = {}
   })
 }
 
-/** Clique l'élément de rôle `role` et de nom accessible `name` (attend sa présence). */
-export async function clickRole(role: string, name: string | RegExp, opts: WaitOptions = {}): Promise<void> {
-  const {timeout = DEFAULT_TIMEOUT, ...rest} = opts
-  await platform().inWebContext(async () => {
-    const element = await findRole(role, name, {timeout, ...rest})
-    await element.click()
-  })
+/** Clique l'élément de rôle `role` et de nom accessible `name` (exact). */
+export async function clickRole(role: string, name: string, opts: DisplayOptions = {}): Promise<void> {
+  await clickDisplayed(roleSelector(role, name), opts)
 }
 
 /** Clique l'élément portant `data-testid` (attend sa présence). Réservé aux éléments sans nom accessible stable. */
@@ -154,8 +159,8 @@ export async function fillByLabel(label: string | RegExp, value: string, opts: W
   })
 }
 
-/** Clique le bouton visible dont le nom accessible correspond. */
-export async function clickButton(name: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
+/** Clique le bouton dont le nom accessible est `name` (exact). */
+export async function clickButton(name: string, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await clickRole('button', name, {timeout})
 }
 
@@ -165,11 +170,12 @@ export async function clickButton(name: string | RegExp, timeout = DEFAULT_TIMEO
  * perte est avérée (re-rendu concurrent) — observé sur « Services » (checklists, 3 échecs sur 5 en
  * campagne du 2026-10-06). Le bouton absent prouve le clic sans que la page d'origine connaisse la suivante.
  */
-export async function clickButtonUntilGone(name: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
+export async function clickButtonUntilGone(name: string, timeout = DEFAULT_TIMEOUT): Promise<void> {
+  const selector = roleSelector('button', name)
   await platform().inWebContext(async () => {
-    await findRole('button', name, {timeout})
+    await firstDisplayed(selector, {timeout})
     await browser.waitUntil(async () => {
-      const button = await queryRole('button', name).catch(() => null)
+      const button = await queryDisplayed(selector)
       if (!button) return true
       await button.click().catch((err: Error) => {
         log.warn(`clickButtonUntilGone : clic sur "${name}" en échec (${err.message})`)
@@ -183,32 +189,39 @@ export async function clickButtonUntilGone(name: string | RegExp, timeout = DEFA
 }
 
 /**
- * Attend que tous les boutons attendus soient visibles (listes rendues après un appel API : le
- * titre de section peut être affiché avant ses entrées). `names` : texte exact ou RegExp.
- * Un `findRole` par bouton, en séquence : chacun réessaie jusqu'à `timeout`.
+ * Attend que tous les boutons attendus soient affichés (listes rendues après un appel API : le titre de section peut
+ * être affiché avant ses entrées). `names` : noms accessibles exacts. Un par un, en séquence : chacun réessaie jusqu'à `timeout`.
  */
-export async function waitForButtons(names: Array<string | RegExp>, timeout = 15000): Promise<void> {
+export async function waitForButtons(names: string[], timeout = 15000): Promise<void> {
   await platform().inWebContext(async () => {
     for (const name of names) {
-      await findRole('button', name, {timeout})
+      await firstDisplayed(roleSelector('button', name), {timeout})
     }
   })
 }
 
-/** Attend un titre (heading) visible. */
-export async function waitForHeading(name: string | RegExp, timeout = DEFAULT_TIMEOUT): Promise<void> {
+/** Attend un titre (heading) affiché, de nom accessible `name` (exact). */
+export async function waitForHeading(name: string, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await waitForRole('heading', name, {timeout})
 }
 
+const normalizeSpaces = (text: string): string => text.replace(/\s+/g, ' ').trim()
+
 /**
- * Noms accessibles des boutons actuellement visibles, dans l'ordre du DOM. Attend qu'au moins un bouton
- * soit rendu. Lecture atomique (une seule exécution) : pas d'élément par élément pendant qu'une page ou un
- * accordéon se re-rend.
+ * Textes des boutons actuellement affichés, dans l'ordre du DOM, sans les boutons sans texte (icônes). Attend qu'au moins
+ * un bouton soit rendu. Texte visible (`getText`) et non nom accessible : `getComputedLabel` n'existe pas dans la
+ * WebView iOS.
  */
 export async function visibleButtonTexts(): Promise<string[]> {
-  return await platform().inWebContext(async () =>
-    (await findRoleNames('button', undefined, {timeout: 10000})).filter(Boolean)
-  )
+  return await platform().inWebContext(async () => {
+    await firstDisplayed(roleSelector('button'), {timeout: 10000})
+    const texts: string[] = []
+    for (const button of await allDisplayed(roleSelector('button'))) {
+      const text = normalizeSpaces(await button.getText())
+      if (text) texts.push(text)
+    }
+    return texts
+  })
 }
 
 /** Texte visible de la page (espaces normalisés). */
@@ -226,13 +239,15 @@ export async function waitForPageText(text: string | RegExp, timeout = DEFAULT_T
 }
 
 /**
- * États (coché/décoché) des cases à cocher visibles, indexés par leur attribut `name` (à défaut `id`).
- * Attend qu'au moins une case soit rendue.
+ * États (coché/décoché) des cases à cocher, indexés par leur attribut `name` (à défaut `id`). Attend qu'au moins une
+ * case soit rendue. Pas de filtre « affiché » : l'`<input>` d'une case DSFR est transparent derrière son libellé.
  */
 export async function checkboxStates(): Promise<Record<string, boolean>> {
   return await platform().inWebContext(async () => {
+    const selector = roleSelector('checkbox')
+    await browser.waitUntil(async () => (await $$(selector)).length > 0, {timeout: 10000, timeoutMsg: 'Aucune case à cocher affichée après 10000ms'})
     const out: Record<string, boolean> = {}
-    for (const box of await findRoles('checkbox', undefined, {timeout: 10000})) {
+    for (const box of await $$(selector)) {
       const key = (await box.getAttribute('name')) || (await box.getAttribute('id')) || ''
       out[key] = await box.isSelected()
     }

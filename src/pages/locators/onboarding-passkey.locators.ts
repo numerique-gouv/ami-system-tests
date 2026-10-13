@@ -14,12 +14,12 @@
 
 export interface OnboardingPasskeyLocators {
   createButtonName: RegExp // "Ajouter une clé d'accès"
-  laterButtonName: RegExp  // "Peut-être plus tard"
+  laterButton: string      // "Peut-être plus tard" (texte visible contient)
 }
 
 export const onboardingPasskeyLocators: OnboardingPasskeyLocators = {
   createButtonName: /ajouter une clé/i,
-  laterButtonName: /plus tard/i,
+  laterButton: 'button*=plus tard',
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform (écran WebView pur)

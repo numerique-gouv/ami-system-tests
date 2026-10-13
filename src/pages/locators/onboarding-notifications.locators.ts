@@ -42,7 +42,7 @@ export const iosOnboardingNotifLocators: OnboardingNotifLocators = {
 export const webOnboardingNotifLocators = {
   /** Identité de l'écran : le bouton « plus tard » existe aussi sur l'écran passkey. */
   headingName: /^Activez les notifications/,
-  laterButtonName: /plus tard/i,
+  laterButton: 'button*=plus tard',
 }
 
 export function getOnboardingNotifLocators(): OnboardingNotifLocators {
