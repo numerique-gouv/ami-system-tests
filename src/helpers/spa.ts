@@ -1,4 +1,5 @@
 import logger from '@wdio/logger'
+import {AssertionError} from 'node:assert'
 import {platform} from '../platform'
 import {findLabel, findRole, findRoleNames, findRoles, findTestId, findText, queryRole} from './dom-query'
 import type {FindOptions, RoleOptions} from './dom-query'
@@ -9,11 +10,11 @@ import type {FindOptions, RoleOptions} from './dom-query'
  * nom accessible (CONTRIBUTING.md §2).
  *
  * Deux familles :
- * - **ouvrent le contexte** (`waitForRole`, `clickRole`, `clickButton`, `waitForHeading`…) : utilisables
- *   depuis un Page Object, hors `inWebContext` ;
- * - **nues** (`findRole`, `findRoles`, `queryRole`, `findTestId`, `findLabel`, `findText`, de
- *   `dom-query.ts`) : à appeler DANS un `platform().inWebContext()` déjà ouvert, quand l'élément trouvé
- *   est réutilisé (lecture d'attribut, saisie, plusieurs actions dans le même contexte).
+ * - **ouvrent le contexte** (`waitForRole`, `clickRole`, `hasRole`, `waitForHeading`…) : utilisables depuis un
+ *   Page Object, seules ou dans un `inWebContext` déjà ouvert (il est réentrant, cf. CONTRIBUTING.md §4) ;
+ * - **retournent un élément** (`findRole`, `findRoles`, `queryRole`, `findTestId`, `findLabel`, `findText`, de
+ *   `dom-query.ts`) : à appeler DANS un `platform().inWebContext()` ouvert, car l'élément ne survit pas à la
+ *   sortie de la WebView (lecture d'attribut, saisie, plusieurs actions dans le même contexte).
  */
 
 export type WaitOptions = FindOptions
@@ -30,6 +31,36 @@ export async function waitForRole(role: string, name?: string | RegExp, opts: Ro
   await platform().inWebContext(async () => {
     await findRole(role, name, {timeout, ...rest})
   })
+}
+
+/** `true` si `find` trouve son élément, `false` sur « introuvable » (AssertionError) ; toute autre erreur remonte. */
+async function isFound(find: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await find()
+    return true
+  } catch (err) {
+    if (err instanceof AssertionError) return false
+    throw err
+  }
+}
+
+/**
+ * Sonde : un élément de rôle `role` et de nom accessible `name` est-il là sous `timeout` ms (0 : maintenant) ?
+ * `false` s'il n'y est pas, ou s'il n'y a pas de WebView (écran natif) ; toute AUTRE erreur (contexte perdu,
+ * session morte) remonte au lieu de passer pour « absent ». À utiliser pour savoir sur quel écran l'on est,
+ * jamais pour attendre un écran qu'on va utiliser (`waitForRole` / `findRole` attendent déjà).
+ */
+export async function hasRole(role: string, name?: string | RegExp, timeout = 0): Promise<boolean> {
+  if (!await platform().isWebContextAvailable()) return false
+  return await platform().inWebContext(async () =>
+    timeout <= 0 ? await queryRole(role, name) !== null : await isFound(() => findRole(role, name, {timeout}))
+  )
+}
+
+/** Comme `hasRole`, pour un élément dont le texte propre correspond (`timeout` > 0 ms). */
+export async function hasText(text: string | RegExp, timeout = 1000): Promise<boolean> {
+  if (!await platform().isWebContextAvailable()) return false
+  return await platform().inWebContext(() => isFound(() => findText(text, {timeout})))
 }
 
 /** Clique l'élément de rôle `role` et de nom accessible `name` (attend sa présence). */

@@ -31,9 +31,15 @@ async function waitForWebViewContext(): Promise<string[]> {
   return await driver.getContexts() as string[]
 }
 
+// Profondeur d'imbrication de inWebContext : > 0 = on est déjà dans la WebView d'un appel englobant.
+let webContextDepth = 0
+
 /**
- * Exécute `callback` dans le premier contexte WEBVIEW_* disponible,
- * puis restaure NATIVE_APP. Lance si aucune WebView n'est détectée.
+ * Exécute `callback` dans le premier contexte WEBVIEW_* disponible, puis remet le contexte qui était actif à
+ * l'entrée (NATIVE_APP en pratique). Lance si aucune WebView n'est détectée.
+ *
+ * RÉENTRANT : un appel imbriqué (une primitive de `spa.ts` appelée depuis un `inWebContext` déjà ouvert) exécute
+ * simplement son callback, sans rebasculer ; seul l'appel le plus externe change de contexte et le restaure.
  *
  * Appium expose deux contextes pour les apps hybrides :
  *   NATIVE_APP  — éléments natifs Android/iOS (UIAutomator2 / XCUITest)
@@ -43,6 +49,8 @@ async function waitForWebViewContext(): Promise<string[]> {
  * pour que le context switch réussisse (Chromedriver doit correspondre au WebView embarqué).
  */
 async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
+  if (webContextDepth > 0) return await callback()
+
   const contexts = await waitForWebViewContext()
   const webviewContext = contexts.find((c) => c.startsWith('WEBVIEW_'))
   if (!webviewContext) {
@@ -51,31 +59,35 @@ async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
       'Vérifier appium:chromedriverAutodownload (Android) ou appium:webkitResponseTimeout / isInspectable=true (iOS).'
     )
   }
+  const current = await driver.getContext()
+  const previousContext = typeof current === 'string' ? current : current.id
   await driver.switchContext(webviewContext)
-  // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
-  // Android/Chromedriver : le défaut est 30 000 ms.
-  // Plafond des scripts exécutés dans la page (`execute` / `executeAsync`) : 60 s sur les deux plateformes.
-  await browser.setTimeout({ script: 60000 }).catch((err: unknown) => log.warn('inWebContext : setTimeout({script}) a échoué', err))
-  // Après le switch, re-sélectionner le dernier window handle disponible.
-  // Pendant le flow OIDC, le tab callback se ferme juste après le redirect ;
-  // sans ce step, Chromedriver pointe sur un handle stale ("no such window").
-  const handles = await browser.getWindowHandles()
-  if (handles.length > 0) {
-    await browser.switchToWindow(handles[handles.length - 1])
-  }
+  webContextDepth++
   let callbackFailed = false
   try {
+    // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
+    // Android/Chromedriver : le défaut est 30 000 ms.
+    // Plafond des scripts exécutés dans la page (`execute` / `executeAsync`) : 60 s sur les deux plateformes.
+    await browser.setTimeout({ script: 60000 }).catch((err: unknown) => log.warn('inWebContext : setTimeout({script}) a échoué', err))
+    // Après le switch, re-sélectionner le dernier window handle disponible.
+    // Pendant le flow OIDC, le tab callback se ferme juste après le redirect ;
+    // sans ce step, Chromedriver pointe sur un handle stale ("no such window").
+    const handles = await browser.getWindowHandles()
+    if (handles.length > 0) {
+      await browser.switchToWindow(handles[handles.length - 1])
+    }
     return await callback()
   } catch (err) {
     callbackFailed = true
     throw err
   } finally {
+    webContextDepth--
     try {
-      await driver.switchContext('NATIVE_APP')
+      await driver.switchContext(previousContext)
     } catch (err) {
       // Le contexte reste alors WEBVIEW_* : les requêtes natives suivantes échoueront (« Unsupported locator
       // strategy: -ios predicate string »). On le trace, et on ne masque jamais l'erreur d'origine du callback.
-      log.error('inWebContext : retour au contexte NATIVE_APP impossible, la session reste en WebView', err)
+      log.error(`inWebContext : retour au contexte ${previousContext} impossible, la session reste en WebView`, err)
       if (!callbackFailed) throw err
     }
   }

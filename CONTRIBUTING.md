@@ -147,6 +147,8 @@ Cas sans regex possible (sélecteur WDIO natif `button=`…) : copier l'apostrop
 
 Ni les primitives `spa.ts` ni `driver.execute()` n'ont de prise sur les éléments natifs XCUITest/UiAutomator2 : `$()` avec des sélecteurs natifs y est **obligatoire**, pas un choix de style. Ne pas `await` le `$()` lui-même — il se re-résout à chaque commande et résiste aux changements de navigation.
 
+Pour atteindre un élément hors écran dans une liste native, **`element.scrollIntoView({direction: 'up', maxScrolls})`** (WDIO 10, défile jusqu'à ce que l'élément soit affiché) — pas de boucle de swipe écrite à la main. Le conteneur par défaut est `//android.widget.ScrollView` sur Android (introuvable pour une liste Compose : passer `scrollableElement`) et l'application entière sur iOS. Exemple : `EnvironmentPickerPage.reviewEnvironmentPicker`.
+
 ```typescript
 const tile = $(loc.pickerTile)
 await tile.waitForClickable({timeout: 15000})
@@ -215,7 +217,7 @@ interface PlatformAdapter {
 }
 ```
 
-- **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA** — jamais `driver.switchContext()` directement. Sur mobile, il bascule `NATIVE_APP` → `WEBVIEW_*` et garantit le retour en `NATIVE_APP` dans un `finally`, même en cas d'exception. Sur webapp, il est quasi-identité. **Ne pas imbriquer** deux `inWebContext()` : le `finally` du second rebascule en natif et casse la suite du premier (d'où les méthodes « bare » à appeler dans un contexte déjà ouvert).
+- **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA** — jamais `driver.switchContext()` directement. Sur mobile, il bascule `NATIVE_APP` → `WEBVIEW_*` et remet le contexte qui était actif à l'entrée dans un `finally`, même en cas d'exception. Sur webapp, il est quasi-identité. **Il est réentrant** : un appel imbriqué exécute simplement son callback, sans rebasculer — seul l'appel le plus externe change de contexte et le restaure. On peut donc appeler librement les primitives de `spa.ts` qui ouvrent le contexte (`clickRole`, `hasRole`, `waitForHeading`…) depuis un `inWebContext` déjà ouvert. Seule contrainte : une primitive qui **retourne un élément** (`findRole`, `findLabel`, `findText`…) se lit et s'utilise dans un `inWebContext` ouvert, car l'élément ne survit pas à la sortie de la WebView.
 - Les sélecteurs CSS/XPath ne fonctionnent qu'en `WEBVIEW_*` (mobile) ; les gestes natifs (swipe, pull-to-refresh) et les sélecteurs natifs ne fonctionnent qu'en `NATIVE_APP`. Un geste natif **ne doit jamais** être appelé depuis l'intérieur d'un `inWebContext()`.
 - **Flow OIDC FranceConnect : un seul `platform().inWebContext()`** pour tout le flow (eIDAS → identifiants → callback). Cas particulier : sortir du contexte WebView au milieu de *ce flow précis* provoque un blocage ~25 s sur iOS.
 - **Naviguer par un vrai clic utilisateur** (`clickRole(…)`, ou `$(sel).click()` après `waitForClickable()`) plutôt que `driver.execute(() => el.click())` — le clic JS est silencieux sur iOS en cas d'échec.
