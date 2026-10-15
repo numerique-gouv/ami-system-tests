@@ -79,7 +79,11 @@ export const config: Options.Testrunner = {
   ],
 
   // Pas de service Appium — session Chrome pilotée directement par WebdriverIO/Chromedriver.
-  services: [...traceServices],
+  // En mode visible, le service devtools (mode trace) fait clignoter la fenêtre : il prend une capture d'écran avant chaque action
+  // (clic, navigation…) et à chaque assertion, sans option pour l'éviter ; sous émulation mobile, chaque capture Chromedriver
+  // applique puis annule un changement de métriques (effet « zoom »). Traces donc actives en headless (CI), coupées en visible,
+  // sauf WEBAPP_TRACE=1 pour les réactiver.
+  services: headless || process.env.WEBAPP_TRACE === '1' ? [...traceServices] : [],
   before: async (): Promise<void> => {
     // La navigation initiale et la capture du window handle sont spécifiques à la webapp (pas de notion
     // d'onglet côté Appium/mobile) : gérées ici.
