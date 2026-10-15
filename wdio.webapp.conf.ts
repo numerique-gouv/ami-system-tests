@@ -1,6 +1,5 @@
 import path from 'path'
 import type { Options } from '@wdio/types'
-import logger from '@wdio/logger'
 import fs from 'fs'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/environment'
@@ -8,8 +7,6 @@ import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { handleAccessKeyCookie } from './src/helpers/access-code'
 import { setBackendUrl } from './src/helpers/partner-api'
-
-const log = logger('config')
 
 const { webappUrl, apiUrl } = resolveEnvironment()
 
@@ -52,11 +49,10 @@ export const config: Options.Testrunner = {
       'goog:chromeOptions': {
         args: [
           ...(headless ? ['--headless=new'] : []),
-          // Headless seulement : profil Chrome propre à ce run (jamais partagé entre deux runs simultanés), conservé d'une spec à
-          // l'autre ; la session ouverte par une spec est reprise par les suivantes. Supprimé en début et fin de série (il contient
-          // les cookies de session). Pas en mode visible : `detach: true` y laisse Chrome ouvert après la session et verrouillerait
-          // le profil (non vérifié).
-          ...(headless ? [`--user-data-dir=${chromeProfileDir}`] : []),
+          // Profil Chrome propre à ce run (jamais partagé entre deux runs simultanés), conservé d'une spec à l'autre : la session
+          // ouverte par une spec est reprise par les suivantes (cookies), sans se réauthentifier. Supprimé en début et fin de série
+          // (il contient les cookies de session).
+          `--user-data-dir=${chromeProfileDir}`,
         ],
         // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
         // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
@@ -66,11 +62,9 @@ export const config: Options.Testrunner = {
           credentials_enable_service: false,
           'profile.password_manager_enabled': false,
         },
-        // detach:true — le process Chrome ne dépend plus du cycle de vie de la session
-        // Chromedriver : il survit à la fin de session normale ET à une interruption
-        // (Ctrl+C saute tous les hooks JS, y compris after() ci-dessous). Seulement en
-        // mode visible : en headless (CI), inutile de garder un process fantôme.
-        detach: !headless,
+        // Pas de detach : Chrome se ferme avec la session (fin de chaque spec) et libère le profil ci-dessus, que la spec
+        // suivante rouvre. Avec detach:true, Chrome resterait ouvert et verrouillerait ce profil (non vérifié en mode visible).
+        detach: false,
         // La SPA est conçue pour un rendu WebView mobile — émulation d'un viewport de
         // référence (dimensions Pixel 7, cf. src/driver/capabilities.ts:ANDROID_DEVICE_NAME)
         // plutôt qu'un rendu desktop, pour rester cohérent avec les locators partagés.
@@ -119,18 +113,6 @@ export const config: Options.Testrunner = {
     // FranceConnect/DN/CNSM/OTC… inconnus à l'avance, un handle stable évite d'avoir à les
     // reconnaître par URL).
     await captureAppWindow()
-  },
-
-  // `result` : 0 si tout est passé, non nul sinon (cf. doc WDIO du hook `after`).
-  // detach:true (capabilities ci-dessus) empêche déjà toute fermeture forcée du process Chrome
-  // — y compris sur Ctrl+C, qui saute ce hook. Ici on ferme explicitement la fenêtre en plus,
-  // mais seulement si tout est vert : sinon, laissé ouvert pour inspection post-mortem (bug
-  // applicatif, ou débogueur en pause — cf. ENSURE_APP_WINDOW_TIMEOUT_MS dans
-  // src/platform/browser.adapter.ts).
-  after: async (result): Promise<void> => {
-    if (!headless && result === 0) {
-      await browser.closeWindow().catch(err => log.warn('closeWindow a échoué (fenêtre déjà fermée ?)', err))
-    }
   },
 
   // authentication.test.ts suppose une session vierge (la webapp démarre sur l'écran de connexion) : le profil Chrome conservé, qui
