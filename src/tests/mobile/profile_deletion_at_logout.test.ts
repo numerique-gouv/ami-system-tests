@@ -20,7 +20,10 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
     email: string
   }
 
-  before(async () => {
+  // Connexion initiale (jusqu'à ~105 s sur une machine lente) : comme les autres specs de login, 180 s et non les 120 s
+  // du délai Mocha global (campagne du 2026-10-15 : « before all » en timeout 2 fois sur 4 sur Android).
+  before(async function () {
+    this.timeout(180000)
 
     await getAppToStartingState()
 
@@ -83,7 +86,8 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
     await FranceConnectMirePage.waitForLoginScreen()
   })
 
-  it('se reconnecte avec le même compte', async () => {
+  it('se reconnecte avec le même compte', async function () {
+    this.timeout(180000) // une connexion complète : même raison que le before()
     step('Lancer le flow FranceConnect')
     await getAppToStartingState()
 

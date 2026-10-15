@@ -4,7 +4,10 @@ import { getAppToStartingState } from '@pages/authenticate.process'
 import {step} from '@helpers/report'
 
 describe('Profil usager — déconnexion suivie d\'une reconnexion', () => {
-  it('log out suivi d un log in', async () => {
+  // Deux connexions complètes et une déconnexion dans un seul `it` : de ~65 s (machine rapide) à ~125 s (machine lente),
+  // donc à cheval sur le délai Mocha global de 120 s (campagne du 2026-10-15 : 0/4 sur Android, toujours par timeout).
+  it('log out suivi d un log in', async function () {
+    this.timeout(300000)
 
     await getAppToStartingState()
 
