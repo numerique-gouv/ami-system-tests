@@ -15,6 +15,19 @@ export interface Environment {
   apiUrl: string
 }
 
+export type EnvironmentKind = 'preprod' | 'staging' | 'review'
+
+/**
+ * Nature de l'environnement visé par AMI_ENV, même règle que `backendUrlFor()` : `preprod`, `review` (review app d'une PR, AMI_ENV
+ * contient un nombre) ou `staging`. Sert aux scénarios qui n'ont de sens que dans un environnement : ils se sautent avec un motif
+ * visible (`this.skip()` + `log.warn`), jamais par un `if` silencieux.
+ */
+export function environmentKind(): EnvironmentKind {
+  const env = process.env.AMI_ENV ?? ''
+  if (/preprod/i.test(env)) return 'preprod'
+  return /\b\d+\b/.test(env) ? 'review' : 'staging'
+}
+
 /**
  * Dérive l'environnement depuis AMI_ENV (.env.local) :
  *   - contient un nombre → review app PR (ex : "1234" → ami-back-staging-pr1234.…)

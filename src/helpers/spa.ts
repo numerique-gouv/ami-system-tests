@@ -192,6 +192,26 @@ export async function hasPageText(text: string, timeout = 1000): Promise<boolean
 }
 
 /**
+ * Coche ou décoche la case dont l'attribut `name` — à défaut `id`, comme la clé de `checkboxStates()` — est `name`, puis attend
+ * qu'elle ait l'état demandé. Sans effet si elle l'a déjà. L'`<input>` DSFR (`fr-toggle__input`, `fr-checkbox`) est recouvert par
+ * son `<label for=id>` : un clic sur l'input est refusé (« element click intercepted », relevé en live le 2026-10-15), c'est le
+ * label qui reçoit le clic, comme pour l'usager. `$()` + `waitForExist` : l'input n'est pas « affiché » au sens WebDriver.
+ */
+export async function setCheckbox(name: string, checked: boolean): Promise<void> {
+  await platform().inWebContext(async () => {
+    const box = $(`input[type="checkbox"][name="${name}"], input[type="checkbox"][id="${name}"]`)
+    await box.waitForExist({timeout: DEFAULT_TIMEOUT, timeoutMsg: `Case « ${name} » absente après ${DEFAULT_TIMEOUT}ms`})
+    if (await box.isSelected() !== checked) {
+      const id = await box.getAttribute('id')
+      await (id ? $(`label[for="${id}"]`) : box).click()
+    }
+    await browser.waitUntil(async () => await box.isSelected() === checked, {
+      timeout: 5000, interval: 200, timeoutMsg: `La case « ${name} » n'est pas passée à ${checked ? 'cochée' : 'décochée'} après 5000ms`,
+    })
+  })
+}
+
+/**
  * États (coché/décoché) des cases à cocher, indexés par leur attribut `name` (à défaut `id`). Attend qu'au moins une
  * case soit rendue. Pas de filtre « affiché » : l'`<input>` d'une case DSFR est transparent derrière son libellé.
  */
