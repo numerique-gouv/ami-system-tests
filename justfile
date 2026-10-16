@@ -416,6 +416,23 @@ test-webapp *globs="": _require-dotenv
         WEBAPP_HEADLESS=false npm run test:webapp
     fi
 
+# Exemple : just test-webvideo src/tests/webapp/nonreg/consentement-demarches.test.ts
+# Lancer des tests webapp (headless) avec la config DevTools « vidéo » (wdio.webapp.with_video.conf.ts) : une vidéo .webm par test, réussi ou non,
+# plus la trace rejouable avec `just failures-ui <dossier>`. Les fichiers sont dans test-results/traces/<horodatage>_webapp_<spec>/test-results/ (le chemin est affiché à la fin).
+# Les globs sont obligatoires (la vidéo ralentit le run : on ne filme pas toute la suite).
+[doc("Lancer des tests webapp avec la config DevTools vidéo · GLOBS")]
+test-webvideo *globs: _require-dotenv
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🎬 Tests E2E webapp (headless, vidéo DevTools)…"
+    SPEC_ARGS=""
+    for glob in {{globs}}; do
+        SPEC_ARGS="$SPEC_ARGS --spec $glob"
+    done
+    WEBAPP_HEADLESS=true npx wdio run wdio.webapp.with_video.conf.ts $SPEC_ARGS || status=$?
+    echo "📼 Vidéos :"; find test-results/traces -name 'video-*.webm' -newermt '-1 hour' 2>/dev/null | sort | tail -5
+    exit "${status:-0}"
+
 # Exemple : just test-webapp-suite all
 # Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (session partagée — auth une seule fois)
 test-webapp-suite suite: _require-dotenv
@@ -575,7 +592,7 @@ doctor target="":
     #!/usr/bin/env bash
     npx wdio session doctor {{ target }} || echo "→ Les ✖ cloud (BrowserStack…) et desktop (mac2, windows) sont sans objet ici ; seuls node, appium, android-sdk et simctl comptent."
 
-# Pour chaque test : plateforme, appareil, étapes, erreur, URL (jetons masqués) et lien Sentry de la SPA (context.json de chaque dossier).
+# Pour chaque test : plateforme, appareil, étapes, erreur (message complet, 12 lignes au plus), URL (jetons masqués) et lien Sentry de la SPA (context.json de chaque dossier).
 # Captures, arbre de l'écran et réseau : traces du service DevTools, une par test et par run, dans
 # test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/ (just trace pour les ouvrir). Les dumps sont dans le
 # sous-dossier failures/ du même run. Le résumé passants/cassés (JUnit XML, un fichier par run) est dans test-results/junit/.
@@ -605,7 +622,11 @@ failures dir="":
       for (const d of found) {
         const c = JSON.parse(fs.readFileSync(path.join(d, "context.json"), "utf8"))
         console.log("✖ " + c.test + "  [" + c.platform + (c.device && c.device.deviceName ? " · " + c.device.deviceName : "") + "]  " + c.failedAtUtc)
-        if (c.error) console.log("    erreur : " + String(c.error.message).split("\n")[0].slice(0, 200))
+        if (c.error) {
+          const lines = String(c.error.message).split("\n").filter(Boolean)
+          console.log("    erreur : " + lines[0].slice(0, 200))
+          for (const l of lines.slice(1, 12)) console.log("             " + l.slice(0, 200))
+        }
         if (c.url) console.log("    url    : " + c.url)
         if (c.steps && c.steps.length) console.log("    étapes : " + c.steps.join(" › "))
         if (c.sentry) console.log("    sentry : " + (c.sentry.url || "trace inconnue") + " · dernier événement " + c.sentry.lastEventId + " · " + c.sentry.environment)
@@ -639,6 +660,26 @@ trace path="":
     fi
     echo "🔎 Ouverture de la trace dans le lecteur (Ctrl+C pour l'arrêter)…"
     npx show-trace "$target"
+
+# Supprime les données produites par les tests et l'exploration : `.wdio` (sessions `wdio session`, snapshots), `.wdio-logs` et le CONTENU de
+# `test-results/` (traces, vidéos, dumps d'échec, JUnit). Les dossiers eux-mêmes sont conservés ; tout est régénéré au prochain run.
+# Perdu définitivement : les traces/vidéos à consulter (`just failures-text`, `just trace`) et les sessions d'exploration ouvertes
+# (`just sessions`). Refuse de tourner pendant un `wdio run` : supprimer `test-results/` en plein run le corromprait.
+# Exemple : just clean-tests-data
+[doc("Supprimer .wdio, .wdio-logs et test-results/*")]
+clean-tests-data:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if pgrep -f "wdio run" >/dev/null 2>&1; then
+        echo "❌ Un run WDIO est en cours : attendez sa fin avant de nettoyer." >&2
+        exit 1
+    fi
+    for dir in .wdio .wdio-logs test-results; do
+        if [ -e "$dir" ]; then printf '🗑  %-13s %s\n' "$dir" "$(du -sh "$dir" | cut -f1)"; else printf '·  %-13s (absent)\n' "$dir"; fi
+    done
+    rm -rf .wdio .wdio-logs
+    [ ! -d test-results ] || find test-results -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+    echo "✅ Données de tests supprimées."
 
 # AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
 # Exemples : just push-notification avec_nom_dusage   |   just push-notification avec_nom_dusage "Mon titre personnalisé"

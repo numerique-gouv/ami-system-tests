@@ -36,6 +36,7 @@ export const traceServices: NonNullable<Options.Testrunner['services']> = [
     traceGranularity: 'test',
     tracePolicy: 'retain-on-failure-and-retries',
     screenshot: 'only-on-failure',  // capture du test en échec (exige traceGranularity 'test')
+    // Vidéo : désactivée ici. La config DevTools « vidéo » est wdio.webapp.with_video.conf.ts (`just test-webvideo`).
     video: 'off',
     filmstrip: false,
     captureAssertions: true,
