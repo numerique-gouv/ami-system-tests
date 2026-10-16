@@ -30,6 +30,21 @@ class DemarcheDetailPage {
     await waitForPageText(title)
   }
 
+  /** Vérifie que le détail affiché porte la référence dossier `reference` (sentinelle « référence dossier : <id> » du détail). */
+  async assertReference(reference: string): Promise<void> {
+    await waitForPageText(`référence dossier : ${reference}`)
+  }
+
+  /** Attend qu'une démarche enfant (son titre = le `subheading` publié) soit listée dans le détail de la démarche parente. */
+  async assertChildListed(childTitle: string): Promise<void> {
+    await waitForPageText(childTitle)
+  }
+
+  /** Le détail affiché mentionne-t-il `childTitle` ? (à appeler une fois le détail rendu : `assertDisplayed`) */
+  async hasChild(childTitle: string): Promise<boolean> {
+    return (await pageText()).includes(childTitle)
+  }
+
   /**
    * Vérifie le contenu du détail (`/#/followup/item/…`) : statut, titre, partenaire, référence
    * dossier et historique chronologique des messages — sans quitter la SPA (contrairement à
