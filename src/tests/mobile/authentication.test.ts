@@ -14,9 +14,9 @@ import {step} from '@helpers/report'
  * L'authentification est sous la responsabilité d'une autre équipe — ce test
  * valide uniquement que notre intégration fonctionne de bout en bout.
  */
-describe('Authentification', () => {
+describe('Authentification', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
   })
   
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {

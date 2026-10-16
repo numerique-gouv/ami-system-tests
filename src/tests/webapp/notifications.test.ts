@@ -11,17 +11,16 @@ import {step} from '@helpers/report'
  * démarche, accès à la gestion des notifications. Chaque notification publiée porte un titre
  * horodaté unique (idempotence backend, CONTRIBUTING.md §6). Pré-requis : variables NOTIF_*.
  */
-describe('Notifications', () => {
+describe('Notifications', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   const user = getUser('avec_nom_dusage')
 
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await grantConsent(user.fcHash)
   })
 
   beforeEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await NotificationsInboxPage.openFromHome()
     // Avant de publier : l'inbox ouvre son WebSocket au montage, une notification publiée plus tôt serait perdue.

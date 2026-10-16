@@ -2,14 +2,13 @@ import ErrorPage from '../../pages/error.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 
 /** Pages d'erreur statiques de la SPA, atteintes par leur route. Lecture seule. */
-describe('Pages d\'erreur', () => {
+describe('Pages d\'erreur', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 
   afterEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 

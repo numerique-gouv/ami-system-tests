@@ -7,14 +7,13 @@ import {zonesLocators} from '../../pages/locators/zones.locators'
  * Agenda : évènements à venir (vacances scolaires, jours fériés) et accès à la page des zones scolaires.
  * Lecture seule : « Supprimer » est vérifié mais jamais cliqué, les zones ne sont pas modifiées.
  */
-describe('Agenda', () => {
+describe('Agenda', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 
   beforeEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await AgendaPage.open()
   })

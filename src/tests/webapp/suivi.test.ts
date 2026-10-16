@@ -19,7 +19,8 @@ const log = logger('test')
  * celui laissé par le précédent. Le détail et les archivées sont indépendants.
  * Pré-requis : variables NOTIF_* dans .env.local.
  */
-describe('Suivi des démarches', () => {
+describe('Suivi des démarches', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   const user = getUser('avec_nom_dusage')
   let itemId: string
   let title: string
@@ -27,7 +28,6 @@ describe('Suivi des démarches', () => {
   let urlV2: string
 
   before(async function () {
-    this.timeout(180000)
     const domainUrl = getBackendUrl()
     itemId = `E2E-${new Date().toISOString()}`
     title = `Demarche E2E ${itemId}` // sans accent : la recherche par innerText les gère mal

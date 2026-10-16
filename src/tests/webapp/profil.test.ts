@@ -9,11 +9,11 @@ const MODIFICATIONS = {
   email: 'testdemiseajour@yopmail.com',
 }
 
-describe('Profil usager', () => {
+describe('Profil usager', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   let original: {identityBolds: string[]; preferredUsername: string; email: string}
 
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await ProfilePage.navigate()
     const identityBolds = await ProfilePage.getIdentityBolds()

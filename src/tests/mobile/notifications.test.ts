@@ -5,11 +5,11 @@ import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
 import {platform} from '../../platform'
 
-describe('Notifications', () => {
+describe('Notifications', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   const user = getUser('avec_nom_dusage')
 
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await grantConsent(user.fcHash)
   })

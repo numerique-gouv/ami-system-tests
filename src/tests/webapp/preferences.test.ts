@@ -10,16 +10,15 @@ import {getUser} from '../../helpers/test-users'
  * Lecture seule : aucune case n'est cliquée (« Activer » les notifications déclencherait une demande
  * de permission, « Tout suivre » modifierait les consentements du compte partagé).
  */
-describe('Préférences', () => {
+describe('Préférences', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     // Le consentement AMI est la précondition du test « consentements ».
     await grantConsent(getUser('avec_nom_dusage').fcHash)
   })
 
   beforeEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await PreferencesPage.open()
     await PreferencesPage.assertDisplayed()

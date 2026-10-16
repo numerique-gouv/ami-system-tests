@@ -17,13 +17,12 @@ import {step} from '@helpers/report'
  * directement sur l'écran de connexion. Les écrans d'onboarding (clé d'accès, zones scolaires,
  * notifications) ne sont affichés qu'à certaines connexions — chacun est un no-op s'il est absent.
  */
-describe('Authentification', () => {
+describe('Authentification', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
   })
 
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
-    this.timeout(180000)
     const user = getUser('avec_nom_dusage')
 
     step('1. Démarrer le flow FranceConnect (eIDAS faible)')

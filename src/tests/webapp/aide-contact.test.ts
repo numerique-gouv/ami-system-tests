@@ -7,14 +7,13 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
  * Les liens sortants (service-public.gouv.fr, demarche.numerique.gouv.fr) quittent la SPA : on teste
  * la présence des entrées, pas la disponibilité de ces sites tiers.
  */
-describe('Aide, contact et pages légales', () => {
+describe('Aide, contact et pages légales', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 
   beforeEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 

@@ -10,14 +10,13 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
  * Accueil : salutation, blocs « Mon agenda » et « Mes démarches », cloche, carrousel de raccourcis.
  * Lecture seule : les cartes ouvrent leur destination mais rien n'est enregistré.
  */
-describe('Accueil', () => {
+describe('Accueil', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 
   beforeEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 

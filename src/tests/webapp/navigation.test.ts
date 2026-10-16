@@ -30,14 +30,13 @@ const plusEntryArrival: Record<PlusEntry, () => Promise<void>> = {
  * Navigation principale : barre basse (Accueil, Agenda, Services, Suivi) et menu « Plus ».
  * Lecture seule : aucune donnée du compte n'est modifiée.
  */
-describe('Navigation principale', () => {
+describe('Navigation principale', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 
   beforeEach(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
   })
 

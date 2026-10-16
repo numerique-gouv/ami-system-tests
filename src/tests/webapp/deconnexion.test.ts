@@ -7,11 +7,11 @@ import {step} from '@helpers/report'
 // l'app (modale « Suppression de vos données ») : la reconnexion doit retrouver les données d'origine.
 const MODIFIED_PREFERRED_USERNAME = 'NOMTEST'
 
-describe('Déconnexion', () => {
+describe('Déconnexion', function () {
+  this.timeout(240000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   let original: {identityBolds: string[]; preferredUsername: string}
 
   before(async function () {
-    this.timeout(180000)
     await getAppToStartingState()
     await ProfilePage.navigate()
     const identityBolds = await ProfilePage.getIdentityBolds()
@@ -28,7 +28,6 @@ describe('Déconnexion', () => {
   })
 
   it('se déconnecte après confirmation, puis se reconnecte avec les données d\'origine', async function () {
-    this.timeout(240000)
     step("1. Modifier le nom d'usage")
     await ProfilePage.editPreferredUsername(MODIFIED_PREFERRED_USERNAME)
     expect((await ProfilePage.getIdentityBolds()).some(b => b.includes(MODIFIED_PREFERRED_USERNAME))).toBe(true)
