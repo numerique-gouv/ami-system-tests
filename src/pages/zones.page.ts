@@ -1,6 +1,6 @@
 import {zonesLocators} from './locators/zones.locators'
 import {traced} from '../helpers/traced'
-import {checkboxStates, clickButton, waitForButtons, waitForHeading} from '../helpers/spa'
+import {checkboxStates, clickButton, setCheckbox, waitForButtons, waitForHeading} from '../helpers/spa'
 
 /**
  * Page Object de la page des zones scolaires (`/#/preferences/zones`), atteinte depuis l'Agenda et depuis les Préférences.
@@ -20,6 +20,20 @@ class ZonesPage {
     /** États des cases de zones (clé = nom de la zone). Sans les modifier. */
     async zoneStates(): Promise<Record<string, boolean>> {
         return await checkboxStates()
+    }
+
+    /** Coche ou décoche la zone `name` (ex. « Zone B ») et attend l'état. */
+    async setZone(name: string, checked: boolean): Promise<void> {
+        await this.assertDisplayed()
+        await setCheckbox(name, checked)
+    }
+
+    /** Remet les zones dans l'état `states` (clé = nom de la zone), en ne touchant qu'à celles qui diffèrent. */
+    async restoreZones(states: Record<string, boolean>): Promise<void> {
+        const current = await this.zoneStates()
+        for (const [name, checked] of Object.entries(states)) {
+            if (name in current && current[name] !== checked) await setCheckbox(name, checked)
+        }
     }
 
     /** « Retour à la page précédente » : revient à la page d'origine (Agenda ou Préférences). */

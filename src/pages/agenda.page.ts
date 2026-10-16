@@ -33,6 +33,54 @@ class AgendaPage {
         await clickDisplayed(agendaLocators.eventDialogButton, {timeout: 10000})
     }
 
+    /** Titres affichés des éléments de l'agenda, dans l'ordre de la page (espaces normalisés, emoji final compris). */
+    async eventTitles(): Promise<string[]> {
+        return await platform().inWebContext(async () => {
+            await firstDisplayed(agendaLocators.eventTitles, {timeout: 10000})
+            const texts: string[] = []
+            for (const title of await allDisplayed(agendaLocators.eventTitles)) texts.push((await title.getText()).replace(/\s+/g, ' ').trim())
+            return texts
+        })
+    }
+
+    /** Sonde : un élément dont le titre commence par `title` est-il listé (attend jusqu'à `timeout` ms, 0 : maintenant) ? */
+    async isEventListed(title: string, timeout = 0): Promise<boolean> {
+        return await isShown(agendaLocators.eventItem(title), timeout)
+    }
+
+    /** Attend l'élément et retourne tout son texte visible (titre, catégorie, dates, zones…), espaces normalisés. */
+    async eventText(title: string): Promise<string> {
+        return await platform().inWebContext(async () => {
+            const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
+            return (await item.getText()).replace(/\s+/g, ' ').trim()
+        })
+    }
+
+    /** Ouvre la modale de l'élément dont le titre commence par `title` (bouton d'ouverture du même conteneur). */
+    async openEventDialog(title: string): Promise<void> {
+        await platform().inWebContext(async () => {
+            const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
+            await item.$(agendaLocators.eventOpenInItem).click()
+        })
+    }
+
+    /** Clique le TITRE de l'élément : pour une démarche avec échéance, ouvre son détail (**non confirmé**, vérifié par `DemarcheDetailPage`). */
+    async openEventTitle(title: string): Promise<void> {
+        await platform().inWebContext(async () => {
+            const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
+            await item.$(agendaLocators.eventTitleInItem).click()
+        })
+    }
+
+    /** Supprime l'élément (modale › « Cacher l’élément de l’agenda », texte visible « Supprimer ») et attend sa disparition de la liste. */
+    async deleteEvent(title: string): Promise<void> {
+        await this.openEventDialog(title)
+        await clickDisplayed(agendaLocators.deleteAction, {timeout: 5000})
+        await browser.waitUntil(async () => !await this.isEventListed(title), {
+            timeout: 10000, interval: 300, timeoutMsg: `L'élément « ${title} » est toujours dans l'agenda 10000ms après « Supprimer »`,
+        })
+    }
+
     /** Vérifie que le dialogue d'évènement propose l'action « Supprimer » — sans l'utiliser (mutante). */
     async assertDeleteActionOffered(): Promise<void> {
         await platform().inWebContext(async () => {
