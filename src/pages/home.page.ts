@@ -46,6 +46,11 @@ class HomePage {
         })
     }
 
+    /** Sonde : le bouton « Je veux suivre mes démarches » est-il affiché sur l'accueil sous `timeout` ms ? (0 : maintenant) */
+    async isFollowButtonShown(timeout = 0): Promise<boolean> {
+        return await isShown(homeContentLocators.followButton, timeout)
+    }
+
     /** Texte de la salutation « Bonjour <prénom> » (titre <h1> de l'accueil). */
     async greeting(): Promise<string> {
         return await platform().inWebContext(async () => {

@@ -25,6 +25,8 @@ export const homeContentLocators = {
    * diapositive » (i18n de Splide). Transparente (`.splide__arrows { opacity: 0 }`) hors survol : cliquée avec `$().click()`.
    */
   carouselNext: '.splide__arrow--next',
+  /** Bouton affiché à la place des démarches tant qu'aucun consentement n'est actif (relevé en live le 2026-10-15, Accueil et Suivi). */
+  followButton: roleSelector('button', 'Je veux suivre mes démarches'),
   addressCard: roleSelector('button', 'Renseignez votre adresse'),
   otvCard: roleSelector('button', 'Opération Tranquillité Vacances'),
 }

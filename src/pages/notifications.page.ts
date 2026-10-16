@@ -94,6 +94,11 @@ class NotificationsInboxPage {
         })
     }
 
+    /** Sonde : une notification de ce titre est-elle listée dans l'inbox sous `timeout` ms ? (absence : attendre ce délai en entier) */
+    async isNotificationListed(title: string, timeout = 0): Promise<boolean> {
+        return await hasPageText(title, timeout)
+    }
+
     /**
      * Clique sur la notification dont le texte visible correspond exactement à `title`.
      * Ne vérifie pas la page de destination : l'arrivée est vérifiée par la page cible.

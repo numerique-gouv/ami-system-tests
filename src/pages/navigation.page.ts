@@ -18,6 +18,14 @@ class NavigationPage {
         })
     }
 
+    /** Recharge la page courante de la SPA (la session est conservée) : relit l'état serveur, ex. après un changement de consentement par l'API. */
+    async reload(): Promise<void> {
+        await platform().inWebContext(async () => {
+            await driver.execute(() => window.location.reload())
+        })
+        await platform().refreshAxTree()
+    }
+
     /**
      * Clique un onglet de la barre basse. La page d'origine ne connaît pas la suivante : l'arrivée est
      * vérifiée par la page cible (ses propres méthodes, ex. `AgendaPage.assertDisplayed()`).

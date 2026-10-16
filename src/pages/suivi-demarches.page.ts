@@ -5,7 +5,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickDisplayed, hasPageText, isShown, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, isShown, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa'
 
 const log = logger('page-object')
 
@@ -18,6 +18,20 @@ const RELOAD_RENDER_MS = 8000
 const RELOAD_INTERVAL_MS = 2000
 
 class SuiviDemarchesPage {
+    /**
+     * Sonde : la démarche dont le titre contient `title` est-elle affichée dans le texte du Suivi courant sous `timeout` ms ? Une absence
+     * ne se prouve qu'en attendant ce délai en entier. Pré-condition : `assertDisplayed()` (h1 « Mes démarches ») a confirmé qu'on est
+     * bien sur le Suivi : l'Accueil affiche aussi un bloc « Mes démarches » et ses tuiles les plus récentes.
+     */
+    async isDemarcheListed(title: string, timeout = 1000): Promise<boolean> {
+        return await hasPageText(title, timeout)
+    }
+
+    /** Sonde : le bouton « Je veux suivre mes démarches » est-il affiché sur le Suivi sous `timeout` ms ? (0 : maintenant) */
+    async isFollowButtonShown(timeout = 0): Promise<boolean> {
+        return await isShown(getSuiviDemarchesLocators().followButton, timeout)
+    }
+
     /**
      * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
      * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
@@ -131,9 +145,15 @@ class SuiviDemarchesPage {
     return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))
   }
 
-  /** Vérifie l'arrivée sur la page Suivi (titre « Mes démarches »). */
+  /**
+   * Vérifie l'arrivée sur la page Suivi : titre h1 « Mes démarches ». Le h2 du même nom existe aussi sur l'Accueil (bloc « Mes
+   * démarches »), donc un simple `waitForHeading` validait l'Accueil — et un clic perdu sur l'onglet « Suivi » passait inaperçu
+   * (relevé le 2026-10-15 : `waitForDemarche` cherchait alors sur l'Accueil, qui n'affiche que les démarches les plus récentes).
+   */
   async assertDisplayed(): Promise<void> {
-    await waitForHeading(getSuiviDemarchesLocators().pageTitle)
+    await platform().inWebContext(async () => {
+      await firstDisplayed(getSuiviDemarchesLocators().pageTitleH1, {timeout: 10000})
+    })
   }
 
     /**
