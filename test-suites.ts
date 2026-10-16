@@ -33,10 +33,40 @@ export const testSuites: Record<string, string[][]> = {
         r('src/tests/mobile/**/*.test.ts'),
     ]],
 
+    /**
+     * Specs webapp de premier niveau en session partagée. Volontairement SANS `nonreg/` : `nonreg/passkey.test.ts` exige une session
+     * vierge, impossible au milieu d'une session déjà connectée (voir `webapp_nonreg`, qui la met dans son propre groupe).
+     */
     webapp_all: [[
         r('src/tests/webapp/authentication.test.ts'),
-        r('src/tests/webapp/**/*.test.ts'),
+        r('src/tests/webapp/*.test.ts'),
     ]],
+
+    /**
+     * Smoke webapp (préprod) : « la suite la plus courte qui prouve qu'on ne perdra pas son temps en lançant une campagne manuelle »
+     * (réunion du 2026-10-06) — authentification, puis aucun lien cassé dans le catalogue, les services et l'aide.
+     * Plans : src/tests/webapp/nonreg/catalogue.md.
+     */
+    webapp_smoke: [[
+        r('src/tests/webapp/authentication.test.ts'),
+        r('src/tests/webapp/nonreg/catalogue.test.ts'),
+    ]],
+
+    /**
+     * Recette webapp automatisée (préprod) : ce qui est pénible à vérifier à la main. Plans : src/tests/webapp/nonreg/*.md.
+     * 1er groupe : le parcours passkey, qui exige une session vierge (`wdio.webapp.conf.ts` supprime le profil avant cette spec).
+     * 2e groupe : les specs en lecture d'abord, puis celles qui modifient le compte (zones, consentements), restaurées en `after()`.
+     */
+    webapp_nonreg: [
+        [r('src/tests/webapp/nonreg/passkey.test.ts')],
+        [
+            r('src/tests/webapp/nonreg/catalogue.test.ts'),
+            r('src/tests/webapp/nonreg/demarche-detail.test.ts'),
+            r('src/tests/webapp/nonreg/zones-agenda.test.ts'),
+            r('src/tests/webapp/nonreg/consentement.test.ts'),
+            r('src/tests/webapp/nonreg/deconnexion-fc.test.ts'), // staging seulement : se saute ailleurs avec un motif (ENV3)
+        ],
+    ],
 
     /** Suite courte pour raccourcir le débogage en CI. */
     short: [[

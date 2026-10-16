@@ -46,6 +46,10 @@ export const config: Options.Testrunner = {
     {
       browserName: 'chrome',
       webSocketUrl: true,
+      // `eager` : les commandes (clic, navigation) reviennent dès `DOMContentLoaded`, sans attendre l'événement `load` des ressources tierces
+      // lentes des pages externes (service-public.gouv.fr/contact bloquait les commandes ~1 min). Les helpers qui lisent l'état du document
+      // (`followAndDescribe`) ne dépendent pas de `load`.
+      pageLoadStrategy: 'eager',
       'goog:chromeOptions': {
         args: [
           ...(headless ? ['--headless=new'] : []),
@@ -119,10 +123,10 @@ export const config: Options.Testrunner = {
     await captureAppWindow()
   },
 
-  // authentication.test.ts suppose une session vierge (la webapp démarre sur l'écran de connexion) : le profil Chrome conservé, qui
-  // porte la session ouverte par les specs précédentes, est supprimé avant le démarrage du navigateur.
+  // authentication.test.ts et nonreg/passkey.test.ts supposent une session vierge (la webapp démarre sur l'écran de connexion) : le
+  // profil Chrome conservé, qui porte la session ouverte par les specs précédentes, est supprimé avant le démarrage du navigateur.
   beforeSession: (_config, _capabilities, specs): void => {
-    if (specs.some(spec => spec.endsWith('authentication.test.ts'))) removeChromeProfile()
+    if (specs.some(spec => spec.endsWith('authentication.test.ts') || spec.endsWith('passkey.test.ts'))) removeChromeProfile()
   },
 
   // Début et fin de série : le profil Chrome de ce run est supprimé (début : état propre, fin : il contient les cookies de session).
