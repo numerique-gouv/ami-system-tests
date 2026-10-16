@@ -18,6 +18,8 @@ logs/
 test-results/
 *.log
 apps/
+# …sauf la face A du modèle de la surface de test (docs/process/model/apps/ : écrans, actions, observables)
+!docs/process/model/apps/
 .playwright-mcp/
 build/
 

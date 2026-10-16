@@ -1,0 +1,84 @@
+# Face A — FranceConnect (tiers, hors des apps AMI). Seuls les écrans traversés par le parcours
+# d'authentification des tests sont décrits. L'authentification est sous la responsabilité d'une
+# autre équipe : on valide notre intégration, pas FranceConnect.
+x-evidence:
+  code: &code {evidence: code}
+  live15: &live15 {evidence: live, observed-on: 2026-10-15}   # environnements.md § ENV3 (staging)
+
+app: franceconnect
+title: FranceConnect (eIDAS + identifiants sandbox)
+kind: external
+targets: [webapp, android, ios]
+sources:
+  - {ref: src/pages/franceconnect/*.page.ts}
+  - {ref: src/tests/webapp/authentication.test.ts}
+  - {ref: src/tests/mobile/authentication.test.ts}
+note: >-
+  Une session FranceConnect encore ouverte (SSO) renvoie directement vers l'app sans afficher
+  eIDAS ni identifiants (constat du commentaire de mobile/authentication.test.ts, 2026-10-06, iOS).
+  Ce raccourci n'est pas modélisé : une arête `navigate` n'a qu'une destination.
+screens:
+  eidas-choice:
+    title: Choix du niveau eIDAS
+    kind: external
+    page-object: FranceConnectEidasPage
+    identity: {note: "FranceConnectEidasPage.isEidasVisible()"}
+    <<: *code
+    source: src/pages/franceconnect/franceconnect-eidas.page.ts
+    actions:
+      select-eidas-low: {kind: navigate, label: "eIDAS faible", via: button, to: credentials, <<: *code}
+  credentials:
+    title: Saisie des identifiants sandbox
+    kind: external
+    page-object: FranceConnectCredentialsPage
+    identity: {note: "formulaire d'identifiants (FranceConnectCredentialsPage.fillCredentials)"}
+    <<: *code
+    source: src/pages/franceconnect/franceconnect-credentials.page.ts
+    actions:
+      submit-credentials:
+        kind: navigate
+        label: Valider les identifiants
+        via: button
+        to: "ami-spa:welcome-passkey"
+        conditional: true
+        note: "Les écrans d'onboarding ne s'affichent qu'à certaines connexions : chacun est un no-op s'il est absent."
+        <<: *code
+
+  # --- Démonstrateur de fournisseur de service FranceConnect (carte « Déconnexion FC », staging) ---
+  # Observé le 2026-10-15 sur staging seulement (environnements.md § ENV3). Disponibilité en préprod, production et review apps : non confirmée.
+  demo-sp-login:
+    title: Démonstrateur FranceConnect — page de connexion
+    kind: external
+    page-object: FranceConnectDemoSpPage
+    identity: {heading: "Bienvenue sur le démonstrateur de fournisseur de service FC v2", route: /login, note: "hôte fsp1-low.sbx.fcp.fournisseur-de-service.fr, titre « Mock Service Provider » ; la page n'effectue aucune déconnexion à elle seule"}
+    <<: *live15
+    actions:
+      connect:
+        kind: navigate
+        label: Connexion à FranceConnect
+        via: button
+        to: demo-sp-consent
+        note: "Avec une session FranceConnect ouverte : écran de consentement. Sans session (après « Se déconnecter ») : choix du compte (« Démonstration eIDAS faible »…), que le modèle ne distingue pas de `eidas-choice` (identité non confirmée comme identique)."
+        <<: *live15
+
+  demo-sp-consent:
+    title: Démonstrateur FranceConnect — consentement
+    kind: external
+    identity: {heading: "Continuer sur FSP1 LOW - Sandbox", note: "hôte fcp-low.sbx.dev-franceconnect.fr"}
+    <<: *live15
+    actions:
+      continue: {kind: navigate, label: Continuer, via: button, to: demo-sp-callback, <<: *live15}
+
+  demo-sp-callback:
+    title: Démonstrateur FranceConnect — Login Callback
+    kind: external
+    identity: {heading: "Mock Service Provider - Login Callback", note: "affiche l'identité de l'usager"}
+    <<: *live15
+    actions:
+      logout:
+        kind: navigate
+        label: Se déconnecter
+        via: link
+        to: demo-sp-login
+        note: "Retire la session FranceConnect (cookies fc_session_id et trustedDevice) et ramène sur le démonstrateur, PAS sur AMI. La session AMI n'est pas touchée (cookie token conservé, Accueil affiché)."
+        <<: *live15

@@ -1,0 +1,727 @@
+# Face A — SPA AMI (SvelteKit) : webapp Chrome et WebView Android/iOS.
+# Un seul modèle : la SPA est la même sur les trois cibles (CLAUDE.md § Pattern locators).
+#
+# Preuves :
+#  - `live`  : observé sur staging le 2026-10-02 (docs/process/schema-navigation-webapp.md,
+#              references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.md).
+#  - `code`  : déduit des specs src/tests/** ou des Page Objects, non observé en live par ce modèle.
+#  - `unconfirmed` : supposé ou incertain, hors des taux de couverture.
+# Les observables sont limités à ce que les tests et Page Objects lisent (spec.md §3.4).
+x-evidence:
+  live: &live {evidence: live, observed-on: 2026-10-02}
+  live08: &live08 {evidence: live, observed-on: 2026-10-08}   # passe du 2026-10-08 (docs/process/reconstruction-modele-applicatif.md)
+  live15: &live15 {evidence: live, observed-on: 2026-10-15}   # relevés des plans src/tests/webapp/nonreg/*.md (préprod)
+  code: &code {evidence: code}
+  unc: &unc {evidence: unconfirmed}
+
+app: ami-spa
+title: SPA AMI (webapp et WebViews mobiles)
+kind: spa
+targets: [webapp, android, ios]
+sources:
+  - {ref: docs/process/schema-navigation-webapp.md, observed-on: 2026-10-02}
+  - {ref: references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.md, observed-on: 2026-10-02}
+  - {ref: src/pages/*.page.ts, note: "Page Objects lus pour les noms d'actions et d'observables"}
+note: >-
+  Observée en live uniquement sur la webapp. La présence de chaque écran sur android et ios est
+  déduite du fait que la même SPA est packagée dans les WebViews ; elle n'a pas été observée
+  écran par écran sur mobile (non confirmé par cible).
+
+states:
+  logged-out: {title: "Session fermée, écran de connexion affiché", reached-by: "démarrage d'une session (webapp) ou déconnexion confirmée", evidence: code}
+  authenticated: {title: "Usager FranceConnect connecté, onboarding passé", reached-by: "getAppToStartingState() (src/pages/authenticate.process.ts)", options: {grantConsent: true}, evidence: code}
+  on-home: {title: "Accueil affiché", reached-by: "HomePage.goToHomeFromAnywhere()", evidence: code}
+
+components:
+  tab-bar:
+    title: Barre basse (Accueil, Agenda, Services, Suivi)
+    shown-on: [home, agenda, services, followup]
+    evidence: live
+    actions:
+      go-home: {kind: navigate, label: Accueil, via: tab, to: home, <<: *live}
+      go-agenda: {kind: navigate, label: Agenda, via: tab, to: agenda, <<: *live}
+      go-services: {kind: navigate, label: Services, via: tab, to: services, <<: *live}
+      go-followup: {kind: navigate, label: Suivi, via: tab, to: followup, <<: *live}
+
+screens:
+  # --- Connexion et onboarding -------------------------------------------------------------
+  login:
+    title: Connexion
+    kind: page
+    route: /login
+    entry: true
+    page-object: FranceConnectMirePage
+    identity: {heading: "Me connecter à AMI", route: /login}
+    <<: *live
+    actions:
+      start-franceconnect: {kind: navigate, label: "S'identifier avec FranceConnect", via: button, to: "franceconnect:eidas-choice", leaves-app: true, <<: *live}
+
+  welcome-passkey:
+    title: Proposition de clé d'accès
+    kind: page
+    page-object: OnboardingPasskeyPage
+    identity: {note: "titre et route non relevés dans ce dépôt ; écran présent selon feature flag"}
+    <<: *live
+    note: "Route non confirmée."
+    actions:
+      dismiss: {kind: navigate, label: "Peut-être plus tard", via: button, to: welcome-zones, conditional: true, <<: *live}
+      add-passkey:
+        kind: navigate
+        label: Ajouter une clé
+        via: button
+        to: welcome-zones
+        conditional: true
+        coverage: excluded
+        reason: "Crée une passkey persistante sur le compte de préprod partagé, sans suppression connue dans l'UI ; à jouer sur un compte dédié après accord de l'équipe (passkey.md, S11.2 suspendu)."
+        risk: [shared-data]
+        note: "Libellé et destination non confirmés (locator « non validé en live »)."
+        <<: *unc
+
+  welcome-zones:
+    title: Choix des zones scolaires (1re connexion)
+    kind: page
+    route: /welcome/zones
+    page-object: OnboardingZonesPage
+    identity: {route: /welcome/zones}
+    <<: *live
+    actions:
+      skip: {kind: navigate, label: Passer, via: button, to: welcome-notifications, conditional: true, <<: *live}
+
+  welcome-notifications:
+    title: Onboarding des notifications (1re connexion)
+    kind: page
+    route: /welcome/notifications
+    page-object: OnboardingNotificationsPage
+    identity: {route: /welcome/notifications}
+    <<: *live
+    actions:
+      dismiss: {kind: navigate, label: "Peut-être plus tard", via: button, to: home, conditional: true, <<: *live}
+
+  # --- Accueil -----------------------------------------------------------------------------
+  home:
+    title: Accueil
+    kind: page
+    route: /
+    page-object: HomePage
+    identity: {heading: "Bonjour {prénom}", route: /}
+    requires: [authenticated]
+    <<: *live
+    observables:
+      greeting: {label: Salutation, type: text, source: user-data, evidence: code}
+      date: {label: Date du jour, type: text, source: derived, evidence: code}
+      agenda-block: {label: Bloc « Mon agenda », type: list, source: user-data, evidence: code}
+      procedures-block: {label: Bloc « Mes démarches », type: list, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      carousel: {label: Carrousel de raccourcis, type: list, source: static, evidence: live}
+      follow-button: {label: "Bouton « Je veux suivre mes démarches »", type: link, source: derived, evidence: live, note: "Observé le 2026-10-15 (consentement.md) : visible sans aucun consentement actif, absent dès qu'un seul l'est."}
+    actions:
+      open-notifications-bell: {kind: navigate, label: Cloche, via: button, to: notifications, <<: *live}
+      open-all-events: {kind: navigate, label: "Voir tous mes évènements", via: button, to: agenda, <<: *live}
+      open-all-procedures: {kind: navigate, label: "Voir toutes mes démarches", via: button, to: followup, <<: *live}
+      open-otv-card: {kind: navigate, label: "Carte « Opération Tranquillité Vacances »", via: button, to: service-otv, <<: *live}
+      open-address-card: {kind: navigate, label: "Carte « Renseignez votre adresse »", via: button, to: edit-address, <<: *live}
+      open-procedure-title: {kind: navigate, label: "Titre d'une démarche", via: button, to: followup-item, <<: *live}
+      open-plus-menu: {kind: navigate, label: Plus, via: button, to: plus-menu, <<: *live}
+
+  plus-menu:
+    title: Menu Plus
+    kind: dialog
+    page-object: NavigationPage
+    identity: {note: "reconnu par ses 6 entrées (NavigationPage.listPlusEntries)"}
+    <<: *live
+    observables:
+      entries: {label: Entrées du menu, type: list, source: static, evidence: code}
+    actions:
+      open-profile: {kind: navigate, label: Mon profil, via: button, to: profile, <<: *live}
+      open-preferences: {kind: navigate, label: Préférences, via: button, to: preferences, <<: *live}
+      open-help-center: {kind: navigate, label: Aide et contact, via: button, to: help-center, <<: *live}
+      open-personal-data: {kind: navigate, label: Données personnelles et sécurité, via: button, to: legal-personal-data, <<: *live}
+      open-accessibility: {kind: navigate, label: Accessibilité, via: button, to: legal-accessibility, <<: *live}
+      logout:
+        kind: navigate
+        label: Me déconnecter
+        via: button
+        to: logout-confirm
+        risk: [destructive]
+        effects: ["profile@identity", "profile@contact"]
+        note: "La confirmation supprime les données saisies dans l'app (modale « Suppression de vos données »)."
+        <<: *live
+
+  logout-confirm:
+    title: Confirmation de déconnexion
+    kind: dialog
+    identity: {heading: "Suppression de vos données"}
+    <<: *code
+    source: src/tests/webapp/deconnexion.test.ts
+    actions:
+      confirm: {kind: navigate, label: Confirmer, via: button, to: login, risk: [destructive], <<: *live}
+
+  # --- Agenda ------------------------------------------------------------------------------
+  agenda:
+    title: Agenda
+    kind: page
+    route: /agenda
+    page-object: AgendaPage
+    identity: {heading: "Mon agenda", route: /agenda}
+    <<: *live
+    observables:
+      sections: {label: "Sections « à venir » et « mois suivants »", type: list, source: derived, evidence: code}
+      events: {label: "Évènements (vacances scolaires, jours fériés, échéances de démarches)", type: list, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: live, note: "Observé le 2026-10-15 (zones-agenda.md) : tuiles « Vacances et jours fériés » dont le texte cite les zones scolaires cochées ; une démarche publiée avec un jalon (milestoneStartDate) y ajoute une entrée (entrée liée à une démarche : code, publication faite par la spec)."}
+    actions:
+      open-event: {kind: navigate, label: Un évènement, via: button, to: agenda-event-dialog, <<: *live}
+      open-event-title:
+        kind: navigate
+        label: Titre d'une entrée liée à une démarche
+        via: button
+        to: followup-item
+        conditional: true
+        note: "Titre en h4 > bouton (data-testid agenda-item-link). Sur un jour férié le clic ne fait rien (zones-agenda.md, 2026-10-15) ; l'ouverture du détail pour une démarche à échéance est exercée par la spec S8 (evidence code : l'observation détaillée n'est pas rapportée)."
+        <<: *code
+      open-zone-preferences: {kind: navigate, label: Préférences, via: button, to: preferences-zones, <<: *live08, note: "Ouvre la PAGE /preferences/zones et non plus un dialogue (passe du 2026-10-08)."}
+
+  agenda-event-dialog:
+    title: Dialogue d'un évènement
+    kind: dialog
+    identity: {note: "reconnu par l'action « Supprimer » (AgendaPage.assertDeleteActionOffered)"}
+    <<: *live
+    observables:
+      delete-action: {label: "Action « Supprimer »", type: link, source: static, evidence: code}
+    actions:
+      close: {kind: navigate, label: Fermer, via: back, to: agenda, <<: *code}
+      delete:
+        kind: mutate
+        label: Supprimer
+        field: "agenda@events"
+        restore: logout
+        risk: [destructive, shared-data]
+        note: >-
+          Texte visible « Supprimer », nom accessible « Cacher l'élément de l'agenda » (zones-agenda.md, 2026-10-15). Cliquée depuis les specs
+          nonreg S10 (sur une entrée créée par le test) et S10.2 (sur un élément fixe). Une déconnexion puis reconnexion fait réapparaître les
+          éléments fixes ET une démarche à échéance supprimée (observé le 2026-10-15) : la restauration est celle de la déconnexion.
+          Auparavant exclue (jamais cliquée, compte partagé) : la décision tient pour les évènements existants, S10 ne supprime que des entrées créées par le test.
+        <<: *live15
+
+  preferences-zones:
+    title: Préférences — Zones scolaires
+    kind: page
+    route: /preferences/zones
+    page-object: ZonesPage
+    identity: {heading: "Zones scolaires", route: /preferences/zones, note: "distinguée de /welcome/zones (même titre, bouton « Passer ») par le bouton « Fermer »"}
+    <<: *live15
+    note: >-
+      PAGE et non dialogue (passe du 2026-10-08, confirmée le 2026-10-15), atteinte depuis Agenda › « Préférences » et Préférences › « Zones scolaires ».
+      Corrige l'ancien écran `agenda-zones-dialog`.
+    observables:
+      zone-states: {label: "État de chaque zone scolaire (13 cases)", type: toggles, source: user-data, evidence: live, note: "13 cases observées le 2026-10-15 ; Zone A, Zone B, Zone C et Corse cochées à l'origine du compte de préprod."}
+    actions:
+      toggle-zone:
+        kind: switch
+        label: Cocher ou décocher une zone
+        toggle: zone-states
+        gates:
+          capability: "Évènements de vacances de la zone dans l'agenda"
+          absent-probe: "agenda@events"
+          present-probe: "agenda@events"
+          evidence: live
+        params:
+          zone: [Zone A, Zone B, Zone C, Corse, Guadeloupe, Guyane, Martinique, Mayotte, Nouvelle Calédonie, Polynésie, Réunion, Saint Pierre et Miquelon, Wallis et Futuna]
+          per-value: false
+        risk: [shared-data]
+        note: "Observé le 2026-10-15 (zones-agenda.md) : décocher Zone B la retire du texte de la tuile « Vacances d'Hiver » de l'agenda, et la recocher l'y remet. La tuile « Vacances de la Toussaint » ne cite aucune zone."
+        <<: *live15
+      back: {kind: navigate, label: Retour à la page précédente, via: back, to: agenda, <<: *live08, note: "Revient à la page d'origine : l'Agenda ici ; depuis les Préférences la destination n'est pas relevée (une arête n'a qu'une destination)."}
+      close: {kind: navigate, label: Fermer, via: button, to: preferences, <<: *live08, note: "Vérifié depuis les Préférences ; depuis l'Agenda : non confirmé."}
+      open-add-cities: {kind: navigate, label: Ajouter des communes, via: button, to: zones-city, <<: *live15}
+
+  zones-city:
+    title: Recherche d'une commune (zones scolaires)
+    kind: page
+    route: /preferences/zones/city
+    identity: {heading: "Rechercher une commune", route: /preferences/zones/city}
+    <<: *live15
+    note: "Déployée sur staging le 2026-10-15 (reconstruction-modele-applicatif.md, passe du 2026-10-15). Seul bouton : « Retour à la page précédente »."
+    observables:
+      suggestions: {label: Suggestions de communes, type: list, source: derived, evidence: unconfirmed, note: "Autocomplétion vue dans le code seulement, aucune saisie faite en live ; origine des suggestions (backend d'adresses tiers ?) non confirmée."}
+    actions:
+      back: {kind: navigate, label: Retour à la page précédente, via: back, to: preferences-zones, <<: *live15}
+
+  # --- Services ----------------------------------------------------------------------------
+  services:
+    title: Services — onglet « Trouver de l'aide »
+    kind: page
+    route: /services
+    page-object: ServicesPage
+    identity: {route: /services}
+    <<: *live
+    observables:
+      help-entries: {label: "Entrées SOS, checklists, annuaire", type: list, source: static, evidence: code}
+    actions:
+      select-tools-tab: {kind: navigate, label: "Démarches et outils", via: tab, to: services-tools, <<: *live}
+      open-checklist:
+        kind: navigate
+        label: Une checklist
+        via: button
+        to: checklist
+        params: {checklist: ["Je crée une association"], per-value: false}
+        note: "5 checklists observées ; seule « Je crée une association » est nommée par un test."
+        <<: *live
+      open-cyber-diagnostic: {kind: navigate, label: "Je suis victime de cybermalveillance", via: button, to: cyber-diagnostic, <<: *live15}
+      open-help-entry:
+        kind: navigate
+        label: Une entrée de l'onglet « Trouver de l'aide »
+        via: button
+        to: ext-service-sites
+        leaves-app: true
+        transport: {http: any-success}
+        note: >-
+          Relevé du 2026-10-15 (catalogue.md S1.3) : 3 entrées internes (cybermalveillance, 5 « Comment faire si… »), « J'ai besoin d'aide sur un autre
+          sujet » → service-public.gouv.fr/contact/accueil (200), « Accéder à l'annuaire » → lannuaire.service-public.gouv.fr (200), « Dialoguer avec la
+          police ou la gendarmerie » → hôte de préproduction injoignable depuis une machine publique (avertissement toléré). La destination d'une
+          arête est unique : pour une entrée interne, la destination réelle est `cyber-diagnostic` ou `checklist` (actions dédiées).
+        <<: *live15
+      open-sos: {kind: navigate, label: "Entrées SOS", via: button, to: ext-service-sites, leaves-app: true, <<: *unc, note: "Destination non confirmée : clic jamais exécuté."}
+      open-directory: {kind: navigate, label: "Accéder à l'annuaire", via: button, to: ext-service-sites, leaves-app: true, <<: *unc, note: "Destination non confirmée."}
+
+  services-tools:
+    title: Services — onglet « Démarches et outils »
+    kind: tab
+    route: /services
+    route-shared-with: services
+    identity: {note: "reconnu par l'onglet sélectionné"}
+    <<: *live
+    observables:
+      partner-cards: {label: Cartes des partenaires, type: list, source: static, evidence: live, note: "Observé le 2026-10-15 (catalogue.md) : 20 cartes en préprod (17 en staging), repérées au data-testid service-catalog-<partenaire>:<code>."}
+    actions:
+      select-help-tab: {kind: navigate, label: "Trouver de l'aide", via: tab, to: services, <<: *live}
+      open-fc-logout-card:
+        kind: navigate
+        label: "Déconnexion FC (carte du catalogue)"
+        via: button
+        to: "franceconnect:demo-sp-login"
+        leaves-app: true
+        note: "Staging seulement : libellé visible « 1. Déconnexion FC Déconnexion FC » ; ouverte dans l'onglet courant (environnements.md § ENV3, 2026-10-15). Absente du catalogue de préprod ; production et review apps : non confirmé."
+        <<: *live15
+      open-partner-card:
+        kind: navigate
+        label: Une carte partenaire
+        via: button
+        to: ext-service-sites
+        leaves-app: true
+        transport: {http: any-success}
+        note: >-
+          Observé le 2026-10-15 (catalogue.md) : trois sortes de cibles : `psl:<code>` (Service Public, même onglet, URL à jetons), `dinum-dn:<id>`
+          (Démarche Numérique, sans jeton) et une route interne (Opération Tranquillité Vacances, `service-otv`). Le statut est lu dans le navigateur
+          (performance navigation responseStatus). Un 200 peut être inutile : « Déclaration de changement d'adresse » aboutit sur « Se connecter | Service Public ».
+        <<: *live15
+
+  checklist:
+    title: Checklist
+    kind: page
+    route: "/checklist/{id}"
+    identity: {route: "/checklist/{id}"}
+    <<: *live
+    observables:
+      sections: {label: "Sections avec progression (« Cas général 0/7 »)", type: list, source: static, evidence: code}
+    actions:
+      open-section: {kind: navigate, label: Une section, via: button, to: checklist-section, <<: *live}
+
+  checklist-section:
+    title: Section de checklist
+    kind: page
+    route: "/checklist/{id}/checks/{section}/"
+    identity: {route: "/checklist/{id}/checks/{section}/"}
+    <<: *live
+    observables:
+      progress: {label: Progression (cochées / total), type: badge, source: derived, evidence: code}
+      checks: {label: Cases à cocher, type: toggles, source: user-data, evidence: unconfirmed}
+      link-items: {label: "Items à lien (lien direct ou page intermédiaire)", type: list, source: static, evidence: live, note: "Observé le 2026-10-15 (catalogue.md S1.4) : boutons item-button-direct-link-<id> et item-button-page-link-<id>, de taille 0×0 px (lien étiré DSFR). Seules 2 des 5 listes ont des items à lien."}
+    actions:
+      follow-direct-link:
+        kind: navigate
+        label: Un item à lien direct
+        via: link
+        to: ext-checklist-link
+        leaves-app: true
+        transport: {http: any-success}
+        <<: *live15
+      open-item-page:
+        kind: navigate
+        label: "Voir le détail de ce point"
+        via: button
+        to: checklist-item
+        <<: *live15
+      toggle-check:
+        kind: switch
+        label: Cocher ou décocher une case
+        toggle: checks
+        gates:
+          capability: "Progression de la checklist"
+          absent-probe: progress
+          present-probe: progress
+          evidence: unconfirmed
+        note: "Aucun test ne coche une case ; persistance de l'état non confirmée."
+        <<: *unc
+
+  checklist-item:
+    title: Page intermédiaire d'un item à plusieurs liens
+    kind: page
+    route: "/checklist/{id}/checks/{section}/item/{item}/"
+    identity: {route: "/checklist/{id}/checks/{section}/item/{item}/"}
+    <<: *live15
+    observables:
+      links: {label: Liens de l'item (boutons), type: list, source: static, evidence: live, note: "Observé le 2026-10-15 (catalogue.md S1.4) : les liens de l'item s'affichent en boutons, par exemple « Compléter le formulaire d'affectation »."}
+    actions:
+      follow-link:
+        kind: navigate
+        label: Un lien de l'item
+        via: button
+        to: ext-checklist-link
+        leaves-app: true
+        transport: {http: any-success}
+        <<: *live15
+
+  cyber-diagnostic:
+    title: Diagnostic cybermalveillance
+    kind: page
+    route: /procedure-17cyber
+    identity: {route: /procedure-17cyber}
+    <<: *live15
+    note: "Route interne observée le 2026-10-15 (catalogue.md), atteinte depuis Services › « Trouver de l'aide ». Remplace l'ancien `proto-procedure-17cyber` (prototype non confirmé)."
+    observables:
+      frames: {label: "Iframe du diagnostic (widget-diagnostic de cybermalveillance.gouv.fr)", type: list, source: static, evidence: live, note: "Observé le 2026-10-15 : un iframe pprd.cybermalveillance.gouv.fr/widget-diagnostic."}
+
+  service-otv:
+    title: Fiche « Opération Tranquillité Vacances »
+    kind: page
+    route: /services/service/psl/OperationTranquilliteVacances
+    identity: {route: /services/service/psl/OperationTranquilliteVacances}
+    <<: *live
+    observables:
+      benefit-button: {label: "Bouton « Bénéficier de ce service »", type: link, source: static, evidence: code}
+    actions:
+      benefit: {kind: navigate, label: Bénéficier de ce service, via: link, to: ext-service-sites, leaves-app: true, <<: *unc, note: "Destination non confirmée."}
+
+  # --- Suivi des démarches -----------------------------------------------------------------
+  followup:
+    title: Suivi des démarches
+    kind: page
+    route: /followup
+    page-object: SuiviDemarchesPage
+    identity: {heading: "Mes démarches", route: /followup}
+    <<: *live
+    observables:
+      demarches: {label: "Démarches (titre, statut)", type: list, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      follow-button: {label: "Bouton « Je veux suivre mes démarches »", type: link, source: derived, evidence: live, note: "Observé le 2026-10-15 (consentement.md) : visible sans aucun consentement actif, absent dès qu'un seul l'est."}
+    actions:
+      open-demarche: {kind: navigate, label: Titre d'une démarche, via: button, to: followup-item, <<: *live}
+      open-archived-submenu: {kind: navigate, label: Sous-menu, via: button, to: followup-archived, <<: *unc, note: "Rôle du bouton « Sous-menu » et chemin par bouton vers /followup/archived non confirmés."}
+
+  followup-item:
+    title: Détail d'une démarche
+    kind: page
+    route: "/followup/item/{partner}/{type}/{id}"
+    page-object: DemarcheDetailPage
+    identity: {route: "/followup/item/{partner}/{type}/{id}", note: "sentinelle de texte « référence dossier »"}
+    <<: *live
+    observables:
+      status: {label: Statut, type: badge, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      reference: {label: Référence dossier, type: text, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      history: {label: Historique des messages, type: list, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      external-link: {label: "Lien « Accéder à ma démarche »", type: link, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      title: {label: Titre de la démarche, type: text, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+      children: {label: Démarches enfants rattachées, type: list, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code, note: "Rattachement parent-enfant : assertion proposée par la spec S13, à valider avec l'équipe produit (demarche-detail.md)."}
+    actions:
+      back-to-followup: {kind: navigate, label: "Retour (depuis le Suivi)", via: back, to: followup, <<: *live15, note: "S9.2 : « il retrouve la liste du Suivi »."}
+      back-to-home: {kind: navigate, label: "Retour (depuis l'Accueil)", via: back, to: home, <<: *code, note: "S9.1 : le plan marque « retrouve l'Accueil » non confirmé ; la spec l'asserte (HomePage.assertHomeVisible)."}
+      open-partner-demarche:
+        kind: navigate
+        label: Accéder à ma démarche
+        via: link
+        to: ext-partner-demarche
+        leaves-app: true
+        note: "Le test webapp vérifie la cible du lien (assertLienExterne), il ne clique pas."
+        <<: *live
+
+  followup-archived:
+    title: Démarches archivées
+    kind: page
+    route: /followup/archived
+    identity: {route: /followup/archived}
+    <<: *live
+    observables:
+      partners: {label: Partenaires suivis, type: list, source: user-data, evidence: code}
+
+  # --- Notifications -----------------------------------------------------------------------
+  notifications:
+    title: Notifications (inbox)
+    kind: page
+    route: /notifications
+    page-object: NotificationsInboxPage
+    identity: {heading: Notifications, route: /notifications}
+    <<: *live
+    observables:
+      inbox: {label: Notifications reçues, type: list, source: operation, fed-by: ["ami-api-partenaire:~publish-notification"], evidence: code}
+    actions:
+      open-notification: {kind: navigate, label: Une notification, via: button, to: followup-item, conditional: true, note: "Seulement pour une notification liée à une démarche (itemId).", <<: *live}
+      open-manage: {kind: navigate, label: Gérer les notifications, via: button, to: preferences-notifications, <<: *live}
+
+  preferences-notifications:
+    title: Préférences — Notifications
+    kind: page
+    route: /preferences/notifications
+    page-object: PreferencesPage
+    identity: {route: /preferences/notifications, heading: Notifications}
+    <<: *live
+    observables:
+      device-toggle: {label: Case « réception sur l'appareil », type: toggle, source: user-data, evidence: code}
+    actions:
+      toggle-device-notifications:
+        kind: switch
+        label: Activer ou désactiver la réception sur l'appareil
+        toggle: device-toggle
+        initial: unknown
+        gates:
+          capability: "Réception des push sur l'appareil"
+          absent-probe: "notifications@inbox"
+          present-probe: "notifications@inbox"
+          feed: "ami-api-partenaire:~publish-notification"
+          evidence: unconfirmed
+        risk: [permission-prompt]
+        note: >-
+          « Activer » déclenche une demande de permission (commentaire de preferences.test.ts), d'où
+          l'absence de clic aujourd'hui. Le push OS n'est pas observable via WebDriver
+          (reconstruction-modele-applicatif.md § Limites) : la sonde réelle reste à définir.
+        <<: *unc
+
+  # --- Profil ------------------------------------------------------------------------------
+  profile:
+    title: Mon profil
+    kind: page
+    route: /profile
+    page-object: ProfilePage
+    identity: {route: /profile}
+    <<: *live
+    observables:
+      identity: {label: "Bloc « Mon identité » (prénom, nom d'usage)", type: field, source: user-data, evidence: code}
+      contact: {label: "Bloc « Contact » (email)", type: field, source: user-data, evidence: code}
+      address: {label: "Bloc « Mon adresse »", type: field, source: user-data, evidence: code}
+    actions:
+      open-edit-identity: {kind: navigate, label: Modifier (identité), via: button, to: edit-preferred-username, <<: *live}
+      open-edit-contact: {kind: navigate, label: Modifier (contact), via: button, to: edit-email, <<: *live}
+      open-edit-address: {kind: navigate, label: Définir ou modifier l'adresse, via: button, to: edit-address, <<: *live}
+
+  edit-preferred-username:
+    title: Modifier le nom d'usage
+    kind: page
+    route: /edit-preferred-username
+    identity: {route: /edit-preferred-username, heading: "Mon identité"}
+    <<: *live
+    actions:
+      save:
+        kind: mutate
+        label: Enregistrer
+        field: "profile@identity"
+        restore: action
+        effects: ["profile@identity"]
+        risk: [shared-data]
+        <<: *live
+      cancel: {kind: navigate, label: Annuler, via: button, to: profile, <<: *live}
+
+  edit-email:
+    title: Modifier l'email
+    kind: page
+    route: /edit-email
+    identity: {route: /edit-email, heading: Contact}
+    <<: *live
+    actions:
+      save:
+        kind: mutate
+        label: Enregistrer
+        field: "profile@contact"
+        restore: action
+        effects: ["profile@contact"]
+        risk: [shared-data]
+        <<: *live
+      cancel: {kind: navigate, label: Annuler, via: button, to: profile, <<: *live}
+
+  edit-address:
+    title: Définir ou modifier l'adresse
+    kind: page
+    route: /edit-address
+    identity: {route: /edit-address, heading: "Où habitez-vous ?"}
+    <<: *live
+    actions:
+      save:
+        kind: mutate
+        label: Enregistrer
+        field: "profile@address"
+        restore: none
+        coverage: excluded
+        reason: "L'adresse est remontée de la Caf (limitation légale, en attente d'un COJUR) ; la restauration par autocomplétion BAN n'est pas fiable pour un compte sans adresse."
+        risk: [legal, shared-data]
+        source: "src/tests/mobile/profile.test.ts (commentaires)"
+        <<: *live
+      cancel: {kind: navigate, label: Annuler, via: button, to: profile, <<: *live}
+
+  # --- Préférences -------------------------------------------------------------------------
+  preferences:
+    title: Préférences
+    kind: page
+    route: /preferences
+    page-object: PreferencesPage
+    identity: {route: /preferences}
+    <<: *live
+    observables:
+      entries: {label: "Entrées (Suivi des démarches, Notifications, Zones scolaires)", type: list, source: static, evidence: code}
+    actions:
+      open-consents: {kind: navigate, label: Suivi des démarches, via: button, to: preferences-consents, <<: *live}
+      open-notifications: {kind: navigate, label: Notifications, via: button, to: preferences-notifications, <<: *live}
+      open-zones: {kind: navigate, label: Zones scolaires, via: button, to: preferences-zones, <<: *live08, note: "Ouvre la PAGE /preferences/zones (passe du 2026-10-08)."}
+
+  preferences-consents:
+    title: Préférences — Suivi des démarches (consentements)
+    kind: page
+    route: /preferences/consents
+    identity: {route: /preferences/consents}
+    <<: *live
+    observables:
+      consent-states: {label: Une case par partenaire, type: toggles, source: user-data, evidence: code}
+      consent-labels: {label: Libellés des partenaires, type: list, source: static, evidence: code}
+      consent-warning: {label: "Toast « Attention » à la désactivation d'un consentement", type: text, source: derived, evidence: live, note: "Observé le 2026-10-15 (consentement.md) en décochant AMI : « Si vous avez des démarches AMI en cours ou à venir, vous ne pourrez plus les suivre dans l'application. L'historique de vos démarches est conservé. » (bouton « Fermer le toast »). Sort réel des démarches déjà synchronisées : non défini, question à poser à Édouard."}
+    actions:
+      toggle-consent:
+        kind: switch
+        label: Suivre ou ne plus suivre un partenaire
+        toggle: consent-states
+        gates:
+          capability: "Suivi des démarches : l'invitation « Je veux suivre mes démarches » est proposée tant qu'aucun consentement n'est actif"
+          absent-probe: "home@follow-button"
+          present-probe: "home@follow-button"
+          evidence: live
+        params:
+          partner: ["dinum-ami", "dinum-dn", "dinum-rdvsp", "psl", "Test", "test-test"]
+          per-value: false
+        risk: [shared-data]
+        note: "Observé le 2026-10-15 (consentement.md) : sans aucun consentement le bouton est visible sur l'Accueil et le Suivi ; avec Démarche Numérique seul il disparaît. 4 cases en préprod, 6 en staging. Le consentement AMI (dinum-ami) est aussi pilotable par l'API (grant-consent / check-consent). La case et le consentement API restent à relier avec certitude."
+        <<: *live15
+      follow-all:
+        kind: switch
+        label: Tout suivre
+        toggle: consent-states
+        gates:
+          capability: "Suivi de tous les partenaires"
+          absent-probe: "consent-states"
+          present-probe: "consent-states"
+          evidence: live
+        risk: [shared-data]
+        note: "Observé le 2026-10-15 (consentement.md) : coche les 4 cases, état persisté après rechargement."
+        <<: *live15
+
+  # --- Aide, contact, pages légales --------------------------------------------------------
+  help-center:
+    title: Aide et contact
+    kind: page
+    route: /help-center
+    page-object: AideContactPage
+    identity: {route: /help-center}
+    <<: *live
+    observables:
+      entries: {label: Entrées d'aide, type: list, source: static, evidence: code}
+    actions:
+      open-contact: {kind: navigate, label: "Je rencontre un problème sur l'application", via: button, to: contact, <<: *live}
+      open-administration-help: {kind: navigate, label: "J'ai besoin de l'aide de l'administration", via: button, to: ext-service-sites, leaves-app: true, transport: {http: any-success}, <<: *live15, note: "Observé le 2026-10-15 (catalogue.md) : https://www.service-public.gouv.fr/contact/accueil (200, « Contact | Service Public »)."}
+
+  contact:
+    title: Contact
+    kind: page
+    route: /contact
+    identity: {route: /contact}
+    <<: *live
+    actions:
+      open-actions-dialog: {kind: navigate, label: Contacter notre équipe, via: button, to: contact-dialog, <<: *live}
+
+  contact-dialog:
+    title: Dialogue d'actions de contact
+    kind: dialog
+    identity: {note: "reconnu par ses 2 entrées (AideContactPage.openContactDialog)"}
+    <<: *live
+    observables:
+      entries: {label: Entrées du dialogue, type: list, source: static, evidence: code}
+    actions:
+      request-online: {kind: navigate, label: Faire une demande en ligne, via: link, to: ext-contact, leaves-app: true, <<: *unc, note: "Destination non confirmée."}
+      send-mail: {kind: navigate, label: Envoyer un mail, via: link, to: ext-contact, leaves-app: true, <<: *unc, note: "Destination non confirmée."}
+
+  legal-personal-data:
+    title: Données personnelles et sécurité
+    kind: page
+    route: /page/donnees-personnelles
+    identity: {route: /page/donnees-personnelles}
+    <<: *live
+    observables:
+      sections: {label: Sections (6), type: list, source: static, evidence: code}
+    actions:
+      open-section: {kind: read, label: Ouvrir une section, observes: [sections], <<: *unc, note: "Comportement non observé : aucun test n'ouvre une section."}
+
+  legal-accessibility:
+    title: Accessibilité
+    kind: page
+    route: /page/accessibilite
+    identity: {route: /page/accessibilite}
+    <<: *live
+    observables:
+      sections: {label: Sections, type: list, source: static, evidence: code}
+    actions:
+      open-section: {kind: read, label: Ouvrir une section, observes: [sections], <<: *unc, note: "Comportement non observé."}
+
+  # --- Pages d'erreur ----------------------------------------------------------------------
+  error-network:
+    title: Erreur réseau
+    kind: error
+    route: /network-error
+    identity: {route: /network-error, heading: "Problème de connexion Internet"}
+    <<: *live
+  error-technical:
+    title: Erreur technique
+    kind: error
+    route: /technical-error
+    identity: {route: /technical-error, heading: "Petit problème de notre côté..."}
+    <<: *live
+  error-forbidden:
+    title: Application fermée au public
+    kind: error
+    route: /forbidden
+    identity: {route: /forbidden, heading: "L’application n’est pas ouverte au public"}
+    <<: *live
+
+  # --- Prototypes --------------------------------------------------------------------------
+  proto-step:
+    title: Prototype /step
+    kind: page
+    route: /step
+    <<: *unc
+    note: "Pages de prototype : rôle et exposition en production non confirmés."
+  proto-step-form:
+    title: Prototype /step-form
+    kind: page
+    route: /step-form
+    <<: *unc
+
+  # --- Destinations hors SPA ---------------------------------------------------------------
+  ext-partner-demarche:
+    title: Site du partenaire de la démarche
+    kind: external
+    identity: {note: "cible = contentLink fourni à la publication de la notification"}
+    <<: *code
+  ext-service-sites:
+    title: Sites externes des services (service-public.gouv.fr, demarche.numerique.gouv.fr, rdv.anct.gouv.fr, annuaire)
+    kind: external
+    <<: *unc
+    note: "Hôtes relevés par l'exploration du 2026-10-02 ; correspondance carte → site non confirmée."
+  ext-checklist-link:
+    title: Pages externes liées aux items des listes d'étapes
+    kind: external
+    <<: *live15
+    note: "Hôtes relevés le 2026-10-15 (catalogue.md S1.4) : guide-depart.cnmss.fr, demarche.numerique.gouv.fr, www.cnmss.fr. Aucune identité : la cible dépend du contenu des listes."
+  ext-contact:
+    title: Contact externe (demande en ligne, mail)
+    kind: external
+    <<: *unc
