@@ -31,4 +31,7 @@ const servicesAvecVideo = traceServices.map(service =>
 export const config: Options.Testrunner = {
   ...webappConfig,
   services: servicesAvecVideo,
+  // Une seule tentative : un test rejoué écrit sa trace sous la même clé de test que le premier essai (la trace du premier est écrasée,
+  // ses vidéos, captures et dumps restent), d'où deux vidéos pour une seule trace. Pour filmer, on veut un essai = une vidéo = une trace.
+  specFileRetries: 0,
 }
