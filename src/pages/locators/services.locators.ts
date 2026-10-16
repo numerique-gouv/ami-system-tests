@@ -23,6 +23,15 @@ export const servicesLocators = {
     'Je suis affecté à l’étranger',
   ],
   seeAllProceduresName: 'Voir toutes les démarches',
+  catalogueTabName: 'Démarches et outils',
+  helpTabName: 'Trouver de l’aide',
+  /** Panneau de l'onglet courant (nom = celui de l'onglet). Relevé en live le 2026-10-15. */
+  tabpanel: (tabName: string): string => roleSelector('tabpanel', tabName),
+  /** Les cartes du catalogue sont les boutons de la liste du panneau ; « Voir toutes les démarches » n'est pas dans une liste. */
+  catalogueCard: 'li button',
+  cyberDiagnosticName: 'Je suis victime de cybermalveillance',
+  /** Iframe du widget cybermalveillance (route interne `#/procedure-17cyber`), relevé en live le 2026-10-15. */
+  cyberIframe: 'iframe',
   otvRoute: '/services/service/psl/OperationTranquilliteVacances',
   /** Un compteur « fait/total » apparaît dans le nom des sections d'une checklist (ex. « Cas général 0/7 »). */
   checklistSectionPattern: /\d+\/\d+$/,

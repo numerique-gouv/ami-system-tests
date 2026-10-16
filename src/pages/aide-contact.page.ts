@@ -1,6 +1,7 @@
 import {aideContactLocators} from './locators/aide-contact.locators'
 import {traced} from '../helpers/traced'
 import {clickButton, visibleButtonTexts, waitForHeading, waitForRole} from '../helpers/spa'
+import {followAndDescribe, type LinkTarget} from '../helpers/link-check'
 import NavigationPage from './navigation.page'
 
 /** Page Object de Aide et contact, Contact et des pages légales (données personnelles, accessibilité). */
@@ -13,6 +14,20 @@ class AideContactPage {
     async helpEntries(): Promise<string[]> {
         await waitForHeading(aideContactLocators.helpTitle)
         return (await visibleButtonTexts()).filter(t => t !== 'Retour à la page précédente')
+    }
+
+    /** Clique « J’ai besoin de l’aide de l’administration » (lien externe) et décrit la page atteinte, sans exposer son URL complète. */
+    async openAdministrationHelp(): Promise<LinkTarget> {
+        await waitForHeading(aideContactLocators.helpTitle)
+        return await followAndDescribe(async () => {
+            await clickButton(aideContactLocators.helpAdministrationEntry)
+        })
+    }
+
+    /** Revient sur Aide et contact après un lien externe (rechargement de la SPA par route). */
+    async returnFromExternal(): Promise<void> {
+        await browser.url('/#/help-center')
+        await waitForHeading(aideContactLocators.helpTitle)
     }
 
     /** Depuis Aide et contact, « Je rencontre un problème sur l'application » ouvre Contact. */

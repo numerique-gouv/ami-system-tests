@@ -6,6 +6,8 @@
  */
 export const aideContactLocators = {
   helpTitle: 'Aide et contact',
+  /** Ouvre `https://www.service-public.gouv.fr/contact/accueil` (relevé en live le 2026-10-15). */
+  helpAdministrationEntry: 'J’ai besoin de l’aide de l’administration',
   helpAppProblemEntry: 'Je rencontre un problème sur l’application',
   contactTitle: 'Nous contacter',
   contactTeamButtonName: 'Contacter notre équipe',
