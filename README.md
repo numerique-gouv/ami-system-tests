@@ -46,7 +46,7 @@ just test-webci                                       # tests webapp, headless (
 just test-android "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (glob)
 just test-android-suite CI                            # suite nommée (test-suites.ts) — idem test-ios-suite / test-webapp-suite / test-webci-suite
 just check-code                                       # lint + typecheck avant commit
-just failures                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
+just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
 just clean-install                                    # réinstallation propre (rm node_modules + npm ci)
 just upgrade                                          # met à jour les dépendances (npm-check-updates)
 just push-notification <login> [titre]                # publie une notification de test via l'API
@@ -191,7 +191,7 @@ Points à connaître :
 - Les commandes directes (`npx wdio session …`) fonctionnent aussi ; le skill
   `.claude/skills/wdio-session/SKILL.md` décrit toutes les actions.
 
-Avant toute session de débogage, regarder les dumps du dernier run (`just failures` : captures, DOM, étapes, identifiants Sentry au
+Avant toute session de débogage, regarder les dumps du dernier run (`just failures-text` : captures, DOM, étapes, identifiants Sentry au
 moment de l'échec) et `.wdio-logs/appium-android.log` / `appium-ios.log`.
 
 **Autres outils utiles** : `chrome://inspect/#devices` dans Chrome inspecte visuellement la WebView

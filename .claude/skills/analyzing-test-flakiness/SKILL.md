@@ -111,7 +111,7 @@ JUnit reporter and the **failure dumps** written by `src/helpers/failure-dump.ts
 |---|---|
 | Run the suite N times | `just test-android-suite <suite>` / `test-ios-suite` / `test-webci-suite` (headless) / `test-webapp-suite` (visible) |
 | Inspect a run's results | `flaky-runs/<platform>-run-<i>/test-results/junit/*.xml` (summary) and `…/failures/*/` (dump per failed test) |
-| List the failures of one run | `just failures flaky-runs/<platform>-run-<i>/test-results/failures` |
+| List the failures of one run | `just failures-text flaky-runs/<platform>-run-<i>/test-results/failures` |
 
 The `just` targets are the documented entry points for humans (CLAUDE.md); the underlying tools may also be called directly. The script itself
 never shells out — it only reads files already on disk.

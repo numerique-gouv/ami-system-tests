@@ -252,7 +252,7 @@ Où `publish` est un petit helper local qui appelle `publishDemarche` avec `item
 
 ## Étape 7 — Itérer, comparer attendu et observé
 
-`just test-webapp "src/tests/webapp/<scenario>.test.ts"` (Chrome visible) ou `just test-webci …` (headless). Si le test échoue : `just failures`, puis `just trace` ; pour figer le test à son échec et l'inspecter avec les mêmes commandes qu'à l'étape 3, `just debug-webapp <fichier>` puis `just s debug-0-0 snapshot -i`.
+`just test-webapp "src/tests/webapp/<scenario>.test.ts"` (Chrome visible) ou `just test-webci …` (headless). Si le test échoue : `just failures-text`, puis `just failures-ui` ; pour figer le test à son échec et l'inspecter avec les mêmes commandes qu'à l'étape 3, `just debug-webapp <fichier>` puis `just s debug-0-0 snapshot -i`.
 
 ### Ce que le scénario a donné sur le staging (2026-10-12, run `TUTO2-223235`)
 

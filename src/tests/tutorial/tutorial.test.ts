@@ -15,7 +15,7 @@
  *   Locators : rôle ARIA + nom accessible avant toute structure (CONTRIBUTING.md §2) ; ranger le code en locators → Page Objects
  *   → test, le test n'important que des Page Objects et des helpers d'API.
  *   Supprimer `browser.debug()` avant de commiter (le lint wdio/no-debug le refuse : une pause oubliée bloquerait la CI).
- *   Lancer : just test-webapp src/tests/webapp/mon-scenario.test.ts ; en cas d'échec : just failures.
+ *   Lancer : just test-webapp src/tests/webapp/mon-scenario.test.ts ; en cas d'échec : just failures-text.
  *
  * API PARTENAIRE (consentement, notification, démarche, démarche enfant) : les `it.skip` en fin de fichier donnent, pour chacun,
  * le `curl` et l'appel de helper équivalent. Préparer le shell (sans afficher les secrets) :

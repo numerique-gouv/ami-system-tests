@@ -600,12 +600,12 @@ doctor target="":
 
 # Pour chaque test : plateforme, appareil, étapes, erreur (message complet, 12 lignes au plus), URL (jetons masqués) et lien Sentry de la SPA (context.json de chaque dossier).
 # Captures, arbre de l'écran et réseau : traces du service DevTools, une par test et par run, dans
-# test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/ (just trace pour les ouvrir). Les dumps sont dans le
+# test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/ (just failures-ui pour les ouvrir). Les dumps sont dans le
 # sous-dossier failures/ du même run. Le résumé passants/cassés (JUnit XML, un fichier par run) est dans test-results/junit/.
 # DOSSIER : un dossier de dumps, un dossier de run, ou tout dossier qui en contient (ex. l'artefact d'un run de CI téléchargé).
-# Exemples : just failures   |   just failures test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact   |   just failures temp/test-results-pr1275
+# Exemples : just failures-text   |   just failures-text test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact   |   just failures-text temp/test-results-pr1275
 [doc("Lister les tests en échec du dernier run · [DOSSIER]")]
-failures dir="":
+failures-text dir="":
     #!/usr/bin/env bash
     set -euo pipefail
     root="{{ dir }}"
@@ -640,32 +640,44 @@ failures dir="":
       }
     ' "$root"
 
+# Pendant visuel de `just failures-text` : ouvre dans le lecteur DevTools (captures, arbre de l'écran, réseau) la trace d'un test en échec.
+# Les traces ne sont gardées que pour les tests en échec ou rejoués : toute trace d'un run est donc celle d'un échec.
+# CIBLE : un dossier de run (test-results/traces/<horodatage>_…), l'artefact d'une CI téléchargé, le dossier d'un test ou d'une trace
+# (celui qui contient trace.trace), ou un .zip. Sans CIBLE : le dernier run qui a des traces.
+# Si la cible en contient plusieurs, la recette les liste ; FILTRE (sous-chaîne du chemin, donc du nom du test) en désigne une.
 # Le lecteur (show-trace) ne lit que des .zip : un dossier de trace (traceFormat 'ndjson-directory') est zippé à la volée dans un
-# dossier temporaire. Sans CHEMIN, la trace la plus récente de test-results/. Le lecteur s'ouvre dans le navigateur ; Ctrl+C l'arrête.
-# CHEMIN : un .zip, un dossier de trace (celui qui contient trace.trace) ou le dossier d'un test (qui contient trace/).
-# Exemples : just trace   |   just trace test-results/aide-contact_test-…/trace
-[doc("Ouvrir une trace DevTools dans le lecteur · [CHEMIN]")]
-trace path="":
+# dossier temporaire. Il s'ouvre dans le navigateur ; Ctrl+C l'arrête.
+# Exemples : just failures-ui   |   just failures-ui "" agenda   |   just failures-ui test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact   |   just failures-ui temp/test-results-pr1275
+[doc("Ouvrir dans DevTools la trace d'un test en échec · [CIBLE] [FILTRE]")]
+failures-ui target="" filter="":
     #!/usr/bin/env bash
     set -euo pipefail
-    target="{{ path }}"
-    if [ -z "$target" ]; then
-        newest="$(find test-results -name trace.trace -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)"
-        [ -n "$newest" ] || { echo "Aucune trace dans test-results/ (aucun échec, ou aucun run)."; exit 0; }
-        target="$(dirname "$newest")"
+    root="{{ target }}"
+    if [ -z "$root" ]; then
+        # Les noms de run commencent par l'horodatage : le tri alphabétique est chronologique.
+        root="$(find test-results/traces -name trace.trace 2>/dev/null | sed 's#^\(test-results/traces/[^/]*\)/.*#\1#' | sort -u | tail -1 || true)"
+        [ -n "$root" ] || { echo "Aucune trace dans test-results/traces/ (aucun échec, ou aucun run)."; exit 0; }
     fi
-    [ ! -d "$target" ] || [ -e "$target/trace.trace" ] || { [ -e "$target/trace/trace.trace" ] && target="$target/trace"; }
-    if [ -d "$target" ]; then
-        [ -e "$target/trace.trace" ] || { echo "❌ « $target » n'est pas un dossier de trace (trace.trace introuvable)." >&2; exit 1; }
-        echo "📄 Transcript : $target/transcript.md"
-        zip="$(mktemp -d)/trace.zip"
-        (cd "$target" && zip -qr "$zip" .)
-        target="$zip"
+    if [ -f "$root" ]; then
+        zip="$root"
     else
-        [ -f "$target" ] || { echo "❌ « $target » introuvable." >&2; exit 1; }
+        [ -d "$root" ] || { echo "❌ « $root » introuvable." >&2; exit 1; }
+        traces=()
+        while IFS= read -r t; do
+            traces+=("$(dirname "$t")")
+        done < <(find "$root" -name trace.trace | grep -F -- "{{ filter }}" | sort)
+        [ "${#traces[@]}" -gt 0 ] || { echo "Aucune trace dans $root{{ if filter == "" { "" } else { " pour « " + filter + " »" } }}."; exit 0; }
+        if [ "${#traces[@]}" -gt 1 ]; then
+            echo "${#traces[@]} traces dans $root — précisez-en une avec FILTRE (just failures-ui \"$root\" <texte>) :"
+            for t in "${traces[@]}"; do echo "  - ${t#"$root"/}"; done
+            exit 0
+        fi
+        echo "📄 Transcript : ${traces[0]}/transcript.md"
+        zip="$(mktemp -d)/trace.zip"
+        (cd "${traces[0]}" && zip -qr "$zip" .)
     fi
     echo "🔎 Ouverture de la trace dans le lecteur (Ctrl+C pour l'arrêter)…"
-    npx show-trace "$target"
+    npx show-trace "$zip"
 
 # Supprime les données produites par les tests et l'exploration : `.wdio` (sessions `wdio session`, snapshots), `.wdio-logs` et le CONTENU de
 # `test-results/` (traces, vidéos, dumps d'échec, JUnit). Les dossiers eux-mêmes sont conservés ; tout est régénéré au prochain run.
