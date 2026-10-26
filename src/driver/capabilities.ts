@@ -1,20 +1,47 @@
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
+import {isPreprod} from '../helpers/environment'
+
+// AMI_ENV=preprod → builds préprod (flavor Android `preprod`, cible iOS `AMI-Preproduction`) ; sinon staging
+// (y compris les review apps PR, qui passent par le sélecteur d'environnement du build staging).
+const preprod = isPreprod()
 
 // Chemins vers les apps buildées par les projets mobiles frères
+//   Android : ./gradlew assemble<Flavor>Debug  (assembleStagingDebug / assemblePreprodDebug)
+//   iOS     : xcodebuild -scheme AMI-Staging|AMI-Preproduction … -derivedDataPath ../build
+const ANDROID_FLAVOR = preprod ? 'preprod' : 'staging'
 const ANDROID_APP_PATH = path.resolve(
   __dirname,
-  '../../../ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk'
+  `../../../ami-app-android/app/build/outputs/apk/${ANDROID_FLAVOR}/debug/app-${ANDROID_FLAVOR}-debug.apk`
 )
 
-// Le projet iOS construit avec -derivedDataPath ../build depuis ami-app-ios/, donc à côté
-// de ami-app-ios/ (sibling sous ami/), pas dans ami-app-ios/build/.
-// `IOS_APP_PATH` (variable d'environnement) permet de viser un build fait depuis Xcode (DerivedData) plutôt que ../build.
-const IOS_APP_PATH =
-  process.env.IOS_APP_PATH ||
-  path.resolve(
+// Build iOS de référence : celui produit par Xcode (DerivedData), `AMI-xcodegen-*/Build/Products/Debug-iphonesimulator/
+// AMI-Staging.app` (préprod : AMI-Preproduction.app). S'il y en a plusieurs, le plus récent. Repli : le build fait en ligne de
+// commande avec `-derivedDataPath ../build` depuis ami-app-ios/ (donc à côté de ami-app-ios/, sous ami/), dont le produit staging
+// s'appelle encore AMI-Production.app (nom historique, bundle fr.gouv.ami.staging). `IOS_APP_PATH` (variable d'environnement)
+// surcharge tout.
+function resolveIosAppPath(): string {
+  if (process.env.IOS_APP_PATH) return process.env.IOS_APP_PATH
+  const derivedData = path.join(os.homedir(), 'Library/Developer/Xcode/DerivedData')
+  const xcodeApp = `${preprod ? 'AMI-Preproduction' : 'AMI-Staging'}.app`
+  let candidates: Array<{path: string, mtimeMs: number}> = []
+  try {
+    candidates = fs.readdirSync(derivedData)
+      .filter(dir => dir.startsWith('AMI-xcodegen-'))
+      .map(dir => path.join(derivedData, dir, 'Build/Products/Debug-iphonesimulator', xcodeApp))
+      .filter(appPath => fs.existsSync(appPath))
+      .map(appPath => ({path: appPath, mtimeMs: fs.statSync(appPath).mtimeMs}))
+  } catch {
+    // DerivedData absent (machine sans Xcode, CI) : repli ci-dessous
+  }
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)
+  return candidates[0]?.path ?? path.resolve(
     __dirname,
-    '../../../build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
+    `../../../build/Build/Products/Debug-iphonesimulator/${preprod ? 'AMI-Preproduction' : 'AMI-Production'}.app`
   )
+}
+const IOS_APP_PATH = resolveIosAppPath()
 
 // ─── Android ────────────────────────────────────────────────────────────────
 
@@ -31,7 +58,7 @@ export const androidCapabilities = {
   // connecté, qui peut être un téléphone branché à côté de l'émulateur demandé.
   ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
   'appium:app': ANDROID_APP_PATH,
-  'appium:appPackage': 'fr.gouv.ami.staging',
+  'appium:appPackage': preprod ? 'fr.gouv.ami.preprod' : 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
   // L'app reste installée, ouverte et connectée entre deux specs (une session Appium par spec). Avec `noReset: false`, le driver
   // désinstalle puis réinstalle l'app à chaque session (données et choix de l'environnement perdus). Avec `noReset: true`, il ne
@@ -68,7 +95,7 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   // et, s'il ne correspond pas à celui du simulateur nommé, crée un simulateur temporaire jetable (appiumTest-…) très lent à démarrer.
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
   'appium:app': IOS_APP_PATH,
-  'appium:bundleId': 'fr.gouv.ami.staging',
+  'appium:bundleId': preprod ? 'fr.gouv.ami.preproduction' : 'fr.gouv.ami.staging',
   // `noReset: true` laisse le simulateur tel quel (pas de réinstallation à chaque session) et WDA ne termine ni ne relance l'app.
   // LIMITE (vérifiée le 2026-10-12) : l'app lancée par WDA appartient au processus XCTRunner, que le driver tue à chaque nouvelle
   // session : elle ne reste PAS ouverte d'une spec à l'autre (le sélecteur d'environnement revient). Lancer l'app par `simctl` avec
@@ -76,6 +103,11 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   // persistant (`webDriverAgentUrl`). État propre en début de série et fermeture en fin : onPrepare / onComplete de wdio.ios.conf.ts.
   'appium:noReset': true,
   'appium:fullReset': false,
+  // Sans ça, chaque session lance `open -Fn DeviceHub.app` (constaté le 2026-10-15 : 30 instances ouvertes après une campagne). Le
+  // driver cherche l'app graphique par l'identifiant de Simulator.app, ne reconnaît pas DeviceHub (Xcode 26+, com.apple.dt.Devices),
+  // croit le simulateur « sans fenêtre » et ouvre une nouvelle instance (`-n`) à chaque fois. En mode headless il n'ouvre rien.
+  // La fenêtre pour un humain reste ouverte une fois par `just start-ios`.
+  'appium:isHeadless': true,
   'appium:newCommandTimeout': 240,
   'appium:wdaLaunchTimeout': 120000,
   'appium:wdaConnectionTimeout': 120000,
