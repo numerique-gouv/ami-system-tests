@@ -4,7 +4,7 @@ _Dernière mise à jour : 2026-09-08_
 
 ## Résumé
 
-Tests E2E WebdriverIO v9 + Appium 3 + TypeScript pour l'app AMI (mobile Android/iOS + webapp Chrome). Toutes les commandes passent par `just` (jamais `npm`/`npx`/`adb`/`xcrun`/`appium` directement).
+Tests E2E WebdriverIO v9 + Appium 3 + TypeScript pour l'app AMI (mobile Android/iOS + webapp Chrome). Les cibles `just` sont les points d'entrée documentés pour les humains ; un agent peut aussi appeler directement `npm`/`npx wdio`/`adb`/`xcrun` (CLAUDE.md).
 
 ## Modèle du site testé (déjà construit — ne pas re-scanner)
 
@@ -42,11 +42,11 @@ typecheck                                   — tsc --noEmit
 appium:install / appium:update / appium:start
 failures                                    — liste les tests en échec du dernier run (dumps d'échec)
 ```
-Mais l'usage prescrit passe par `just` (voir CLAUDE.md racine) — ces scripts npm sont encapsulés par le justfile, ne pas les appeler directement.
+Le `justfile` les encapsule pour les humains (voir CLAUDE.md racine) ; un agent peut les appeler directement.
 
 ### Correspondance skills du pack tiers → commandes `just`
 
-Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent des commandes génériques (`npx wdio`, `wdio.conf.js`, `--suite=...`) qui ne s'appliquent pas telles quelles ici — ce projet interdit `npm`/`npx`/`appium` en direct (CLAUDE.md) et a 4 configs `wdio.*.conf.ts` + des suites définies dans `test-suites.ts` (pas dans une propriété `suites` de config WDIO). Table de correspondance à utiliser avant d'exécuter une commande suggérée par un skill :
+Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent des commandes génériques (`npx wdio`, `wdio.conf.js`, `--suite=...`) qui ne s'appliquent pas telles quelles ici — ce projet n'impose plus de passer par `just` (CLAUDE.md), mais a 4 configs `wdio.*.conf.ts` + des suites définies dans `test-suites.ts` (pas dans une propriété `suites` de config WDIO). Table de correspondance à utiliser avant d'exécuter une commande suggérée par un skill :
 
 | Prescription générique du pack | Équivalent AMI |
 |---|---|
