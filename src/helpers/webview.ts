@@ -10,9 +10,8 @@ export async function describeCurrentPage(): Promise<string> {
   if (!await platform().isWebContextAvailable()) {
     return 'écran natif (hors WebView)'
   }
-  return await platform().inWebContext(() =>
-    driver.execute(() => location.href) as Promise<string>
-  )
+  // Appelée depuis une WebView (l'appelant enveloppe) : pas de bascule ici.
+  return await (driver.execute(() => location.href) as Promise<string>)
     .then(href => `WebView : ${maskSensitiveUrl(href)}`)
     .catch(() => 'WebView (URL illisible)')
 }
