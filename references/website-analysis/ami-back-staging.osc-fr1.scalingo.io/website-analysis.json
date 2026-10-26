@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-08",
+  "updatedAt": "2026-10-26",
   "target": "ami-back-staging.osc-fr1.scalingo.io",
   "evidence": [
     "live-headless-wdio-2026-10-02 (compte avec_nom_dusage)",
@@ -9,7 +9,10 @@
     "native: observé le 2026-09-08, non ré-observé",
     "live-headless-wdio-2026-10-08 (27 routes, zones scolaires, snapshot d'un test en pause)",
     "native-partial: observé le 2026-10-08 (tuile du picker, feuille iOS superposée, fin de session FranceConnect)",
-    "code SPA locale en retard sur staging (2ac75804, 2026-09-24) : non relue le 2026-10-08"
+    "code SPA locale en retard sur staging (2ac75804, 2026-09-24) : non relue le 2026-10-08",
+    "live-headless-wdio-2026-10-15 (34 routes + DOM agenda + Ajouter des communes, compte avec_nom_dusage, lecture seule)",
+    "code:../ami-notifications-api/public/mobile-app@origin/main (lu par git show, dépôt local non modifié ; en avance sur staging)",
+    "live-headless-wdio-2026-10-26 (32 routes, DOM du profil, specs webapp ciblées) ; Android : authentification + profil passants"
   ],
   "nativeScreens": {
     "android": {
@@ -219,6 +222,23 @@
       "route": "/preferences/zones",
       "evidence": "live (2026-10-08)",
       "note": "page (plus un dialogue) ; accès depuis /agenda et /preferences"
+    },
+    {
+      "id": "preferences-zones-city",
+      "route": "/preferences/zones/city",
+      "sourceFile": "src/routes/preferences/zones/city/+page.svelte",
+      "evidence": "live 2026-10-15 (structure) ; autocomplétion et city-warning : code seul"
+    },
+    {
+      "id": "agenda-themes",
+      "route": "/agenda/themes",
+      "sourceFile": "src/routes/agenda/themes/+page.svelte",
+      "evidence": "code seul (origin/main) ; NON déployé sur staging : page d'erreur (live 2026-10-15)"
+    },
+    {
+      "id": "profil-hub",
+      "route": "/profile/identity | /profile/addresses (+ edit-* dessous)",
+      "evidence": "code seul (origin/main) ; NON déployé sur staging : page d'erreur (live 2026-10-15)"
     }
   ],
   "sequences": [
@@ -235,7 +255,7 @@
     {
       "section": "agenda",
       "order": [
-        "Préférences (dialogue zones)",
+        "Préférences (page /preferences/zones)",
         "Prochainement",
         "Les mois suivants"
       ]
@@ -268,6 +288,15 @@
         "/welcome/zones (Passer)",
         "/welcome/notifications",
         "Accueil"
+      ]
+    },
+    {
+      "section": "preferences-zones",
+      "order": [
+        "Retour",
+        "Ajouter des communes (→ /preferences/zones/city)",
+        "13 cases de zones",
+        "Fermer"
       ]
     }
   ],
@@ -421,6 +450,46 @@
   ],
   "diff": [
     {
+      "impact": "breaking",
+      "change": "Profil en hub déployé sur staging : /profile -> /profile/identity et /profile/addresses, edit-* dessous, routes /edit-* racine = page d'erreur ; aria/<libellé> ne trouve plus les champs d'édition",
+      "evidence": "live 2026-10-26"
+    },
+    {
+      "impact": "significant",
+      "change": "ANOMALIE APP : la carte d'accueil 'Renseignez votre adresse' mène à /#/edit-address (page d'erreur) ; lib/auto-promo.ts d'origin/main y pointe toujours",
+      "evidence": "context.json du test + code"
+    },
+    {
+      "impact": "significant",
+      "change": "Nom d'usage modifié non reflété dans Mon identité (getFullName lit _pivot) ; visible seulement dans le champ du formulaire ; voulu ou anomalie non confirmé",
+      "evidence": "live 2026-10-26"
+    },
+    {
+      "impact": "significant",
+      "change": "/followup/archived : accordéon déplié au chargement (aria-expanded=true)",
+      "evidence": "live 2026-10-26"
+    },
+    {
+      "impact": "minor",
+      "change": "/agenda/themes déployé (Thèmes) ; non couvert par les tests",
+      "evidence": "live 2026-10-26"
+    },
+    {
+      "impact": "significant",
+      "change": "Nouvelle route /preferences/zones/city (Rechercher une commune), atteinte par 'Ajouter des communes' de /preferences/zones ; non couverte par les tests",
+      "evidence": "live 2026-10-15"
+    },
+    {
+      "impact": "significant",
+      "change": "A VENIR (code origin/main, non déployé sur staging) : profil en hub /profile/identity + /profile/addresses avec edit-* déplacés ; /agenda/themes et refonte des évènements de l'agenda",
+      "evidence": "code origin/main ; live 2026-10-15 : ces routes = page d'erreur, ancien profil servi"
+    },
+    {
+      "impact": "minor",
+      "change": "consentements : 4 cases (dinum-ami, dinum-dn, dinum-rdvsp, psl), Test et test-test absentes ; agenda h1 'Mon agenda' + jours en h3 fr-sr-only ; /preferences/notifications a 2 boutons 'Retour à la page précédente'",
+      "evidence": "live 2026-10-15"
+    },
+    {
       "impact": "significant",
       "change": "Agenda > Préférences et Préférences > Zones scolaires ouvrent la page /preferences/zones (plus un dialogue) : casse AgendaPage.openZonePreferences/closeZonePreferences et le test webapp Agenda > Préférences (3/3 en échec le 2026-10-08)",
       "evidence": "live 2026-10-08"
@@ -466,6 +535,12 @@
     "zones d'ombre natives Android/iOS (cf. sections natives du .md)",
     "comportement de Fermer sur /preferences/zones depuis l'Agenda",
     "date du déploiement staging qui a remplacé le dialogue par une page",
-    "code de la SPA déployée non relu (dépôt frère local en retard)"
+    "code de la SPA déployée non relu (dépôt frère local en retard)",
+    "commit de la SPA déployée sur staging : inconnu (entre 2ac75804 et origin/main, a /preferences/zones/city mais ni profil-hub ni /agenda/themes)",
+    "/back et +error.svelte (code seul) ; autocomplétion et city-warning de /preferences/zones/city (code seul, aucune saisie)",
+    "destination de 'Ajouter des communes' depuis /welcome/zones (non cliqué)",
+    "cause de l'absence des partenaires Test et test-test dans les consentements le 2026-10-15",
+    "destination du bouton 'Information' de l'agenda (supposée /agenda/themes, non cliquée)",
+    "comportement voulu ou anomalie : nom d'usage modifié non affiché dans Mon identité"
   ]
 }

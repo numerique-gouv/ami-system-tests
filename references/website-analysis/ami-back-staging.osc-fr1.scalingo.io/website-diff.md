@@ -1,5 +1,35 @@
 # Diff — webapp AMI staging
 
+## 000. Mise à jour du 2026-10-26 (baseline 2026-10-15 → courant 2026-10-26)
+
+Voir le tableau « Diff vs baseline 2026-10-15 » de `website-analysis.md`. Résumé : profil en hub **déployé** (breaking, `ProfilePage` adapté), lien cassé de la carte « Renseignez votre adresse » (anomalie app), nom d'usage modifié non reflété dans « Mon identité » (à valider), accordéon des archivés déplié (test corrigé), `/agenda/themes` déployé (non couvert).
+
+---
+
+## 00. Mise à jour du 2026-10-15 (baseline 2026-10-08 → courant 2026-10-15)
+
+Preuves : relevé live de 34 routes (compte `avec_nom_dusage`, Chrome headless, lecture seule) ; code de la SPA lu sur `origin/main` du dépôt frère (46 commits sur `src/routes` depuis `2ac75804`). **Le code est en avance sur staging** : les changements « à venir » ci-dessous n'ont pas d'effet sur les tests tant que staging ne les déploie pas.
+
+### significant — déployé (observé live)
+- **Nouvelle route `/preferences/zones/city`** (« Rechercher une commune », champ `city-input`), atteinte par « Ajouter des communes » de `/preferences/zones` ; « Retour à la page précédente » → `/preferences/zones`. Aucun test ni locator ne la couvre (`grep` sur `src` : 0 occurrence).
+
+### significant — à venir (code `origin/main`, **non déployé** sur staging le 2026-10-15)
+- **Profil en hub** : `/profile` → `/profile/identity` et `/profile/addresses`, `edit-*` déplacés sous ces routes (`/profile/identity/edit-preferred-username`, `/profile/addresses/edit-email`, `/profile/addresses/edit-address`). Live : ces 5 routes affichent la page d'erreur ; l'ancien profil et les routes racine `/edit-*` répondent encore. Impact attendu : `ProfilePage`, `profile.test.ts`, tests mobiles de profil.
+- **Agenda** : bouton vers `/agenda/themes` (« Thèmes »), évènements refondus. Live : pas de bouton, `/agenda/themes` = page d'erreur. Impact attendu : `AgendaPage`.
+
+### minor (live)
+- Consentements : 4 cases au lieu de 6 (`Test`, `test-test` absentes) ; cause non confirmée.
+- Agenda : `h1` « Mon agenda », jours en `h3` `fr-sr-only`.
+- `/preferences/notifications` : deux boutons « Retour à la page précédente » (`back-button`, `close-button`).
+
+### inchangé
+Accueil, Services, Suivi (+ archivés), Notifications, Préférences, Zones, Aide et contact, pages légales, checklist, OTV, `/welcome/*`, pages d'erreur.
+
+### Tests à mettre à jour
+Rien de cassé constaté. À ajouter : couverture de `/preferences/zones/city`. À reprendre au déploiement : profil et agenda (voir ci-dessus).
+
+---
+
 ## 0. Mise à jour du 2026-10-08 (baseline 2026-10-02 → courant 2026-10-08)
 
 - **significant** — Agenda › « Préférences » et Préférences › « Zones scolaires » mènent à la **page** `/preferences/zones` (plus un dialogue). « Retour à la page précédente » → `/agenda` ; « Fermer » (depuis Préférences) → `/preferences`. Casse `AgendaPage.openZonePreferences()` / `closeZonePreferences()` et le test « Agenda › Préférences ouvre le sélecteur des 13 zones scolaires » (3/3 en échec). Preuve : capture live, URL `#/preferences/zones`, 0 dialogue.
