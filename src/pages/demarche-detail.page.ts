@@ -2,7 +2,7 @@ import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
-import {clickDisplayed, pageText, waitForPageText} from '@helpers/spa'
+import {clickDisplayed, hasPageText, isShown, pageText, waitForPageText} from '@helpers/spa'
 
 import logger from '@wdio/logger'
 
@@ -33,6 +33,20 @@ class DemarcheDetailPage {
   /** Vérifie que le détail affiché porte la référence dossier `reference` (sentinelle « référence dossier : <id> » du détail). */
   async assertReference(reference: string): Promise<void> {
     await waitForPageText(`référence dossier : ${reference}`)
+  }
+
+  /**
+   * Le détail propose-t-il le bouton « Accéder à ma démarche » ? Il n'existe que si au moins une notification REÇUE de la démarche
+   * porte un `content_link` (le backend retient le dernier lien non vide de toutes les notifications reçues).
+   */
+  async isLienExterneProposed(timeout = 2000): Promise<boolean> {
+    const loc = getDemarcheDetailLocators()
+    return await platform().inWebContext(async () => await isShown(loc.detailExternalButton, timeout))
+  }
+
+  /** Le détail affiché contient-il `text` (message de l'historique, sous-titre…) ? À appeler une fois le détail rendu. */
+  async hasText(text: string, timeout = 1000): Promise<boolean> {
+    return await hasPageText(text, timeout)
   }
 
   /** Attend qu'une démarche enfant (son titre = le `subheading` publié) soit listée dans le détail de la démarche parente. */

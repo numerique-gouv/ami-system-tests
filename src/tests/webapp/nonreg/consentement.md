@@ -96,31 +96,14 @@ Alors elle apparaît
 Remarque : l'observation du 2026-10-15 (S5.1 : visible après activation) laisse penser que « n'apparaît pas » est à vérifier d'abord avec Édouard avant d'en faire une assertion bloquante.
 **Constat historique, avec le partenaire AMI (système)** — remplacé le 2026-10-26 par les assertions ci-dessus avec `dinum-dn` (la visibilité observée venait du 201 d'AMI, pas d'un défaut de consentement ; à confirmer avec DN) : ancien mode constat (`consentement.test.ts`) : sans consentement et inbox ouverte, la notification est publiée (`verifyPartnerConsent: false`) et le test observe pendant 5 s, puis après rechargement (8 s), si elle apparaît (`OBS S5.2 …` ou `ANOMALIE ? S5.2 …`) sans jamais échouer sur ce point. Seul le fait certain est asserté : consentement redonné, une seconde notification apparaît dans l'inbox. **Constat du 2026-10-15 (préprod, un run)** : `ANOMALIE ? S5.2 : la notification publiée SANS consentement est visible dans l'inbox (avant rechargement : true, après : true)`. Elle est donc visible dès la publication, consentement retiré (backend confirmé), et reste visible après rechargement. La démo filmée du même jour le confirme, et elle reste visible une fois le consentement redonné : le constat de S5.1 (« visible après activation ») est moins fort que celui-ci. La seconde notification, publiée avec consentement, apparaît (fait asserté). L'attente « n'apparaît pas » reste non confirmée (question à Édouard) ; rien n'est durci.
 
-### S6.3 — Démarches publiées sans consentement au suivi : Suivi et notifications  (✅ implémenté dans `consentement-demarches.test.ts` ; 4 attentes de l'équipe non tenues)
-Scénario décrit par l'équipe le 2026-10-15 (consentement **au suivi des démarches**, case « Démarche Numérique » (`dinum-dn`) de Préférences > Suivi des démarches ; les résultats ci-dessous datent du partenaire AMI, système, qui accepte les PUT sans consentement : à rejouer avec DN). Les attentes sont vérifiées étape par étape **sans interrompre** le déroulé (écarts collectés, listés à la fin) pour que la vidéo montre tout.
+### S6.3 — D1 prime refusée sans consentement, jamais reçue ; D1 bis reçue après consentement  (implémenté dans `consentement-demarches.test.ts`, dinum-dn)
+Décision de l'utilisateur (2026-10-26), qui remplace les attentes « mise à jour de D1 absente » et « D1/D2 absentes des notifications après consentement » (une démarche est une notification : D1 bis y apparaît normalement). Champ discriminant : `content_link` (backend, `ami/followup/schemas.py` : le lien externe d'une démarche est le dernier `content_link` non vide de toutes les notifications REÇUES). `content_body` est obligatoire (non vide) : il sert de marqueur, pas de champ vide.
 Étant donné le consentement DN retiré (par l'interface ; le backend le confirme)
-Quand D1 est publiée par appel direct, le backend la **refuse** (404)
-Quand le partenaire publie la démarche D1 (sans consentement) et que l'usager attend 4 secondes puis recharge l'Accueil
-Et qu'il ouvre le Suivi des démarches
-Alors D1 est **absente** du Suivi
-Et, dans les notifications, D1 est **absente**
+Quand le partenaire publie D1 prime (corps, sous-titre, lien) par appel direct
+Alors le backend la **refuse** (404) ; après 4 s et rechargement, elle est **absente** du Suivi et des notifications
 Quand le consentement est redonné (par l'interface)
-Et que le partenaire publie une mise à jour de D1, puis la création d'une 2ᵉ démarche D2
-Et que l'usager ouvre le Suivi et attend D2
-Alors D2 est présente et la mise à jour de D1 est **absente**
-Et, dans les notifications, D1 et D2 sont **absentes**
-Restauration : consentement AMI d'origine (`after()`). Les démarches publiées restent sur le compte (aucune suppression connue).
-
-**Résultat du 2026-10-15 (préprod, vidéo `webm`, 1 test en échec, 1 min 45 s)** — 2 attentes tenues, 4 non tenues :
-
-| Étape | Attente de l'équipe | Observé |
-|---|---|---|
-| Suivi, sans consentement | D1 absente | **absente** ✅ (l'Accueil et le Suivi n'affichent que « Je veux suivre mes démarches ») |
-| Notifications, sans consentement | D1 absente | **présente** ❌ : « Création de D1 (sans consentement) » est dans l'inbox |
-| Suivi, après consentement | D2 présente | **présente** ✅ (« Brouillon », « Création de D2 ») |
-| Suivi, après consentement | mise à jour de D1 absente | **présente** ❌ : D1 apparaît « En cours », « Mise à jour de D1 » |
-| Notifications, après consentement | D1 absente | **présente** ❌ |
-| Notifications, après consentement | D2 absente | **présente** ❌ |
-
-Lecture des images (planche contact de la vidéo) : sans consentement, l'inbox liste déjà la notification de création de D1 ; après consentement, D1 réapparaît au Suivi à partir de la **mise à jour** (la création, publiée sans consentement, n'a pas créé la démarche au Suivi), et D1 comme D2 sont dans l'inbox. **Non confirmé** : si l'attente « absentes des notifications » est une règle de gestion ou une hypothèse (les démarches publiées avec consentement figurent aussi dans l'inbox, observé aussi dans la vidéo de S5) ; à confronter à Édouard. Les 4 écarts sont donc **à arbitrer** : défauts de l'application, ou attentes à corriger.
-
+Et que le partenaire publie D1 bis (même `item_id`, corps seul : ni sous-titre ni lien)
+Alors D1 bis est au Suivi, D1 prime toujours absente
+Et le détail de la démarche n'a PAS le bouton « Accéder à ma démarche » (champ vide comme dans D1 bis) et ne contient ni le corps ni le sous-titre de D1 prime : l'app n'a jamais reçu D1 prime
+Et D1 bis est dans les notifications, D1 prime n'y est jamais
+Restauration : consentement d'origine (`after()`). Les démarches publiées restent sur le compte.

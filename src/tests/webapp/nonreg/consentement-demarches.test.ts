@@ -1,12 +1,12 @@
-import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 import PreferencesPage from '../../../pages/preferences.page'
 import HomePage from '../../../pages/home.page'
 import NavigationPage from '../../../pages/navigation.page'
 import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
+import DemarcheDetailPage from '../../../pages/demarche-detail.page'
 import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {PARTNER_AMI, PARTNER_DN, checkDemarchesConsent, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials, type PartnerId} from '../../../helpers/partner-api'
+import {PARTNER_AMI, PARTNER_DN, getBackendUrl, checkDemarchesConsent, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials, type PartnerId} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
 import {step} from '../../../helpers/report'
 
@@ -16,13 +16,15 @@ const log = logger('test')
 const PARTNER = PARTNER_DN
 
 /**
- * Consentement au SUIVI DES DÉMARCHES (plan : consentement.md, scénario S6.3). Scénario décrit par l'équipe (2026-10-15) : sans
- * consentement, une démarche publiée n'apparaît ni au Suivi ni dans les notifications ; une fois le consentement redonné, la mise à jour
- * de cette démarche et sa création ne reviennent pas, seule la NOUVELLE démarche publiée après le consentement apparaît.
+ * Consentement au SUIVI DES DÉMARCHES (plan : consentement.md, scénario S6.3). Décision de l'utilisateur (2026-10-26) : sans
+ * consentement, une démarche « D1 prime » presque pleine de données est REFUSÉE (404) et n'est JAMAIS reçue (ni Suivi, ni
+ * notifications, avant comme après le consentement). Une fois le consentement donné, D1 bis (même `item_id`, presque vide) est reçue :
+ * le détail de la démarche porte le champ VIDE de D1 bis et non la valeur de D1 prime, preuve que l'app n'a jamais eu D1 prime.
  *
- * Les attentes de l'équipe sont vérifiées étape par étape SANS interrompre le scénario (écarts collectés puis listés à la fin) : le
- * déroulé complet reste lisible, y compris dans la vidéo (`wdio.webapp.with_video.conf.ts`). Une attente qui n'est pas tenue est un
- * écart à confronter à la règle de gestion (Édouard), pas forcément un défaut de l'application.
+ * Champ discriminant : `content_link` (vérifié dans ami-notifications-api, ami/followup/schemas.py). Le lien externe d'une démarche est le
+ * DERNIER `content_link` non vide de toutes les notifications reçues : si D1 prime avait été reçue, le bouton « Accéder à ma démarche » serait
+ * proposé malgré D1 bis sans lien. `content_body` est obligatoire (non vide) et sert de marqueur : le corps de D1 prime ne doit jamais
+ * apparaître dans le détail. Que D1 bis apparaisse au Suivi et dans les notifications est normal (une démarche est une notification).
  *
  * PARTENAIRE : `dinum-dn` (consentement ACTIVÉ côté backend). Le partenaire AMI est un partenaire SYSTÈME dont le consentement est ignoré
  * (un PUT sans consentement y répond 201) : il ne peut pas exercer ce scénario. Identifiants DN : NOTIF_PARTNER_DINUM_DN_ID / _SECRET
@@ -69,23 +71,14 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
     }
   })
 
-  it('S6.3 — sans consentement la démarche n’apparaît ni au Suivi ni aux notifications ; après consentement seule la nouvelle apparaît', async function () {
+  it('S6.3 — D1 prime (sans consentement) n’est jamais reçue ; après consentement, D1 bis (sans lien) est reçue et le détail n’a pas le lien de D1 prime', async function () {
     skipUnlessPartnerCredentials(this, PARTNER)
     const stamp = new Date().toISOString()
-    const d1 = {itemId: `E2E-${stamp}-1`, title: `Demarche E2E ${stamp} D1 sans consentement`}
-    const d1Maj = {...d1, title: `${d1.title} MAJ`}
-    const d2 = {itemId: `E2E-${stamp}-2`, title: `Demarche E2E ${stamp} D2 avec consentement`}
-    const ecarts: string[] = []
+    const itemId = `E2E-${stamp}`
+    const prime = {title: `Demarche E2E ${stamp} D1prime sans consentement`, body: `Corps de D1 prime ${stamp}`, subheading: `Service D1 prime ${stamp}`,
+      link: `${getBackendUrl()}/demarches/${itemId}/prime`}
+    const bis = {title: `Demarche E2E ${stamp} D1bis apres consentement`, body: `Corps de D1 bis ${stamp}`}
 
-    /** Journalise une attente de l'équipe et collecte l'écart sans interrompre le scénario. */
-    const constate = (etape: string, attente: string, presente: boolean, presenteAttendue: boolean): void => {
-      const tenue = presente === presenteAttendue
-      const observe = presente ? 'présente' : 'absente'
-      const ligne = `${tenue ? 'OK' : 'ÉCART'} — ${etape} : ${attente} (observé : ${observe})`
-      log[tenue ? 'info' : 'warn'](ligne)
-      step(ligne) // visible dans les étapes du dump (`just failures-text`)
-      if (!tenue) ecarts.push(`${etape} : attendu « ${attente} », observé ${observe}`)
-    }
     /** Tient l'écran courant pour qu'il soit lisible dans la vidéo. */
     const marquer = async (): Promise<void> => {
       // eslint-disable-next-line wdio/no-pause -- pause voulue : tenir l'écran lisible dans la vidéo, aucune condition à attendre
@@ -98,11 +91,19 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
       await HomePage.ouvreSuivi()
       await SuiviDemarchesPage.assertDisplayed()
     }
-    /** Depuis le Suivi (barre basse présente), revient à l'Accueil puis ouvre l'inbox des notifications. */
+    /** Depuis une page à barre basse, revient à l'Accueil puis ouvre l'inbox des notifications. */
     const ouvrirLesNotifications = async (): Promise<void> => {
       await NavigationPage.goToTab('Accueil')
       await NotificationsInboxPage.openFromHome()
       await NotificationsInboxPage.assertDisplayed()
+    }
+    /** D1 prime n'est ni au Suivi (liste) ni dans les notifications. */
+    const assertPrimeJamaisRecue = async (moment: string): Promise<void> => {
+      step(`D1 prime absente du Suivi et des notifications (${moment})`)
+      await ouvrirLeSuivi()
+      expect(await SuiviDemarchesPage.isDemarcheListed(prime.title, 3000)).toBe(false)
+      await ouvrirLesNotifications()
+      expect(await NotificationsInboxPage.isNotificationListed(prime.title, 3000)).toBe(false)
     }
 
     step('1. Retirer le consentement au suivi des démarches (case du partenaire)')
@@ -110,35 +111,24 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
     await waitForBackendDemarchesConsent(PARTNER, false)
     await marquer()
 
-    step('2. Publier la démarche D1 (sans consentement)')
-    const issueD1 = await publicationOutcome(() => publishDemarche({
-      title: d1.title, body: 'Création de D1 (sans consentement)', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId: d1.itemId, status: 'new', partner: PARTNER, verifyPartnerConsent: false,
-    }))
+    step('2. Publier D1 prime, presque pleine (corps, sous-titre, lien), sans consentement : le backend REFUSE (404)')
     // Un partenaire réel ferait d'abord GET consent puis s'arrêterait ; ici on force le PUT pour vérifier que le BACKEND refuse (404).
-    step(`D1 publiée sans consentement : ${issueD1} par l'API`)
-    if (issueD1 !== 'refusée') ecarts.push(`D1 sans consentement : attendu « PUT refusé (404) », observé ${issueD1} par l'API`)
+    const issuePrime = await publicationOutcome(() => publishDemarche({
+      title: prime.title, body: prime.body, subheading: prime.subheading, contentLink: prime.link, recipientFcHash: user.fcHash,
+      itemType: 'OTV', itemId, status: 'new', partner: PARTNER, verifyPartnerConsent: false,
+    }))
+    log.info(`D1 prime publiée sans consentement : ${issuePrime} par l'API`)
+    expect(issuePrime).toBe('refusée')
 
-    step('3. Attendre 4 secondes, puis recharger l’Accueil')
+    step('3. Attendre 4 secondes, recharger l’Accueil : D1 prime est absente (consentement retiré)')
     // eslint-disable-next-line wdio/no-pause -- délai imposé par le scénario de l'équipe : laisser au backend le temps de traiter l'événement
     await browser.pause(4000)
     await NavigationPage.goToRoute('/')
     await NavigationPage.reload()
     await HomePage.assertContentVisible()
-    await marquer()
+    await assertPrimeJamaisRecue('avant consentement')
 
-    step('4. Ouvrir le Suivi des démarches : D1 doit être absente')
-    await HomePage.ouvreSuivi()
-    await SuiviDemarchesPage.assertDisplayed()
-    constate('Suivi, sans consentement', 'D1 absente', await SuiviDemarchesPage.isDemarcheListed(d1.title, 3000), false)
-    await marquer()
-
-    step('5. Ouvrir les notifications : D1 doit être absente')
-    await ouvrirLesNotifications()
-    constate('Notifications, sans consentement', 'D1 absente', await NotificationsInboxPage.isNotificationListed(d1.title, 3000), false)
-    await marquer()
-
-    step('6. Remettre le consentement (case du partenaire)')
+    step('4. Remettre le consentement (case du partenaire)')
     await NavigationPage.goToRoute('/')
     await HomePage.assertContentVisible()
     await PreferencesPage.open()
@@ -147,32 +137,32 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
     await waitForBackendDemarchesConsent(PARTNER, true)
     await marquer()
 
-    step('7. Publier une mise à jour de D1, puis la création d’une 2e démarche D2')
+    step('5. Publier D1 bis (même item_id), presque vide : corps seul, sans sous-titre ni lien')
     await publishDemarche({
-      title: d1Maj.title, body: 'Mise à jour de D1', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId: d1Maj.itemId, status: 'wip', partner: PARTNER,
-    })
-    await publishDemarche({
-      title: d2.title, body: 'Création de D2', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId: d2.itemId, status: 'new', partner: PARTNER,
+      title: bis.title, body: bis.body, recipientFcHash: user.fcHash,
+      itemType: 'OTV', itemId, status: 'wip', partner: PARTNER,
     })
 
-    step('8. Ouvrir le Suivi, attendre D2 : la mise à jour de D1 doit être absente')
+    step('6. D1 bis est reçue au Suivi ; D1 prime reste absente')
     await ouvrirLeSuivi()
-    await SuiviDemarchesPage.waitForDemarche(d2.title)
-    constate('Suivi, après consentement', 'D2 présente', await SuiviDemarchesPage.isDemarcheListed(d2.title, 1000), true)
-    // `d1.title` est un préfixe de `d1Maj.title` : une seule sonde couvre la création ET la mise à jour de D1.
-    constate('Suivi, après consentement', 'D1 (mise à jour) absente', await SuiviDemarchesPage.isDemarcheListed(d1.title, 3000), false)
+    await SuiviDemarchesPage.waitForDemarche(bis.title)
+    expect(await SuiviDemarchesPage.isDemarcheListed(prime.title, 3000)).toBe(false)
+
+    step('7. Détail de la démarche : le lien est VIDE comme dans D1 bis, et rien de D1 prime')
+    await SuiviDemarchesPage.ouvreDemarche(bis.title)
+    await DemarcheDetailPage.assertDisplayed(bis.title)
+    await DemarcheDetailPage.assertReference(itemId)
+    expect(await DemarcheDetailPage.hasText(bis.body, 5000)).toBe(true)
+    expect(await DemarcheDetailPage.isLienExterneProposed(3000)).toBe(false)
+    expect(await DemarcheDetailPage.hasText(prime.body, 1000)).toBe(false)
+    expect(await DemarcheDetailPage.hasText(prime.subheading, 1000)).toBe(false)
     await marquer()
 
-    step('9. Ouvrir les notifications : les deux démarches doivent être absentes')
+    step('8. Notifications : D1 bis est reçue (normal : une démarche est une notification) ; D1 prime n’y est jamais')
+    await NavigationPage.goBack()
+    await SuiviDemarchesPage.assertDisplayed()
     await ouvrirLesNotifications()
-    constate('Notifications, après consentement', 'D1 absente', await NotificationsInboxPage.isNotificationListed(d1.title, 3000), false)
-    constate('Notifications, après consentement', 'D2 absente', await NotificationsInboxPage.isNotificationListed(d2.title, 3000), false)
-    await marquer()
-
-    if (ecarts.length > 0) {
-      throw new AssertionError({message: `${ecarts.length} attente(s) de l'équipe non tenue(s) (D1 sans consentement : ${issueD1} par l'API) :\n${ecarts.join('\n')}`})
-    }
+    await NotificationsInboxPage.assertNotificationReceived(bis.title)
+    expect(await NotificationsInboxPage.isNotificationListed(prime.title, 3000)).toBe(false)
   })
 })
