@@ -1,9 +1,10 @@
 import NotificationsInboxPage from '../../pages/notifications.page'
-import { PARTNER_AMI, grantDemarchesConsent, publishNotification } from '../../helpers/partner-api'
+import { PARTNER_AMI, getBackendUrl, grantDemarchesConsent, publishNotification } from '../../helpers/partner-api'
 import { getUser } from '../../helpers/test-users'
 import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
 import {platform} from '../../platform'
+import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/ios-notifications'
 
 describe('Notifications', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
@@ -58,14 +59,21 @@ describe('Notifications', function () {
    * Règle (utilisateur, 2026-10-26) : notification consentie ou non, elle est reçue dans le CENTRE DE NOTIFICATIONS ; si le push est
    * consenti, on reçoit EN PLUS la notification système.
    *   - Android : notification système (permission POST_NOTIFICATIONS accordée, volet des notifications ouvert) ;
-   *   - iOS : les notifications push exigent un APPAREIL PHYSIQUE (APNs/FCM indisponibles sur simulateur) : NON TESTABLE ici, le test est
-   *     explicitement sauté (pas de faux test) ; l'inbox, elle, est couverte par le test précédent.
+   *   - iOS : push APNs réel = APPAREIL PHYSIQUE (hors périmètre) ; sur simulateur, `xcrun simctl push` simule la notification
+   *     localement (src/helpers/ios-notifications.ts) : on constate la bannière, on la clique et on vérifie que l'app ouvre /#/notifications.
    * NON ÉVALUÉ à ce jour : le test Android n'a pas été exécuté (jeton FCM de l'émulateur, accord de permission : à confirmer au premier run).
    */
-  it("avec push consenti : reçue dans l'inbox ET en notification système (Android seulement)", async function() {
+  it("avec push consenti : reçue dans l'inbox ET en notification système (Android ; iOS : push simulé)", async function() {
     if (driver.isIOS) {
-      step('iOS : push système non testable sur simulateur (appareil physique requis) — test sauté, voir le commentaire du test')
-      this.skip()
+      // Simulation LOCALE (xcrun simctl push) : le push APNs réel sur appareil physique reste HORS PÉRIMÈTRE (jeton APNs, backend, Firebase non exercés).
+      step('iOS : l\'autorisation système des notifications a été accordée (parcours d\'authentification par défaut)')
+      await waitForNotificationAuthorization('authorized')
+      step('iOS : pousser une notification simulée (simctl push), cliquer sa bannière SpringBoard')
+      const title = `AMI-push-${Date.now()}`
+      await pushAndTapBanner({title, body: 'Test push simulé — bannière système', appUrl: getBackendUrl()})
+      step('iOS : le tap ouvre la page Notifications de l\'app (app_url)')
+      await waitForNotificationsRoute()
+      return
     }
     const appPackage = (driver.capabilities as {'appium:appPackage'?: string})['appium:appPackage'] as string
     step('1. Accorder la permission de notifications système à l\'app')
