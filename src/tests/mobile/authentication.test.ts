@@ -16,17 +16,17 @@ import {step} from '@helpers/report'
  */
 describe('Authentification', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
+  // Une fois par spec (pas par test) : l'app peut garder la session ouverte d'un démarrage à l'autre. Environnement choisi, puis
+  // déconnexion explicite si besoin. On reste authentifié en fin de test : le suivant repart de getAppToStartingState().
   before(async function () {
+    step('Sélectionner l\'environnement de review et s\'assurer d\'être déconnecté')
+    await getAppToLoggedOutState()
   })
-  
+
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
     const user = getUser('avec_nom_dusage')
 
-    // L'app peut garder la session ouverte d'un démarrage à l'autre : environnement choisi, puis déconnexion explicite si besoin.
-    step('1. Sélectionner l\'environnement de review et s\'assurer d\'être déconnecté')
-    await getAppToLoggedOutState()
-
-    step('2. Démarrer le flow FranceConnect (eIDAS faible)')
+    step('1. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)
     // Une session FranceConnect encore ouverte dans le simulateur/émulateur (run précédent, SSO) renvoie
     // directement vers l'app sans afficher la mire eIDAS : observé 2026-10-06 sur iOS, la capture de l'échec
@@ -38,13 +38,13 @@ describe('Authentification', function () {
       step('(session FranceConnect déjà ouverte : eIDAS et identifiants non demandés)')
     }
 
-    step('3. Passer la proposition de clé d\'accès, le choix des zones puis l\'onboarding des notifications')
+    step('2. Passer la proposition de clé d\'accès, le choix des zones puis l\'onboarding des notifications')
     await OnboardingPasskeyPage.dismiss()
     await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
     await FranceConnectMirePage.tapFranceConnect(true )
 
-    step('4. Vérifier l\'arrivée sur la page d\'accueil')
+    step('3. Vérifier l\'arrivée sur la page d\'accueil')
     await HomePage.assertHomeVisible(30000)
   })
 
