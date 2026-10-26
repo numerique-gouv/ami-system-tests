@@ -2,7 +2,7 @@ import PreferencesPage from '../../pages/preferences.page'
 import ZonesPage from '../../pages/zones.page'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import {grantConsent} from '../../helpers/partner-api'
+import {PARTNER_AMI, grantDemarchesConsent} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 
 /**
@@ -15,7 +15,7 @@ describe('Préférences', function () {
   before(async function () {
     await getAppToStartingState()
     // Le consentement AMI est la précondition du test « consentements ».
-    await grantConsent(getUser('avec_nom_dusage').fcHash)
+    await grantDemarchesConsent(PARTNER_AMI, getUser('avec_nom_dusage').fcHash)
   })
 
   beforeEach(async function () {
@@ -29,11 +29,11 @@ describe('Préférences', function () {
   })
 
   it('« Suivi des démarches » liste un partenaire par case, AMI suivi après consentement', async () => {
-    await PreferencesPage.openConsents()
-    const states = await PreferencesPage.consentStates()
+    await PreferencesPage.openDemarchesConsents()
+    const states = await PreferencesPage.demarchesConsentStates()
     expect(Object.keys(states)).toEqual(['dinum-ami', 'dinum-dn', 'dinum-rdvsp', 'psl', 'Test', 'test-test'])
     expect(states['dinum-ami']).toBe(true)
-    expect(await PreferencesPage.consentLabels()).toEqual(expect.arrayContaining(['AMI', 'Démarche Numérique', 'Service Public']))
+    expect(await PreferencesPage.demarchesConsentLabels()).toEqual(expect.arrayContaining(['AMI', 'Démarche Numérique', 'Service Public']))
   })
 
   it('« Zones scolaires » ouvre la page des 13 zones, puis « Fermer » revient aux préférences', async () => {
@@ -45,7 +45,7 @@ describe('Préférences', function () {
   })
 
   it('« Notifications » affiche la case de réception sur l\'appareil', async () => {
-    await PreferencesPage.openNotifications()
-    expect(typeof await PreferencesPage.notificationToggleState()).toBe('boolean')
+    await PreferencesPage.openPushNotificationsSettings()
+    expect(typeof await PreferencesPage.pushNotificationsToggleState()).toBe('boolean')
   })
 })

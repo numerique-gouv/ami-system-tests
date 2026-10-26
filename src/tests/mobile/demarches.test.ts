@@ -1,7 +1,7 @@
 import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
-import {getBackendUrl, grantConsent, publishDemarche} from '../../helpers/partner-api'
+import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
@@ -46,7 +46,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
         urlV2 = domainUrl+`/demarches/${itemId}/v2`
 
         await getAppToStartingState()
-        await grantConsent(user.fcHash)
+        await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     })
 
     it("crée une démarche visible dans le suivi (statut new)", async () => {

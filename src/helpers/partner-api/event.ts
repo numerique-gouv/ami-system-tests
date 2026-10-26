@@ -10,7 +10,7 @@
 import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 import {REQUEST_TIMEOUT_MS, authHeaders, getBackendUrl} from './client'
-import {checkConsent} from './consent'
+import {PARTNER_AMI, checkDemarchesConsent, type PartnerId} from './consent'
 
 const log = logger('api')
 
@@ -41,8 +41,14 @@ export interface EventPayload {
 }
 
 export interface PublishEventOptions {
-    /** Vérifie le consentement (GET) avant le PUT ; true par défaut. */
-    checkConsent?: boolean
+    /** Partenaire émetteur dont on vérifie le consentement ; AMI par défaut (partenaire des identifiants de test). */
+    partner?: PartnerId
+    /**
+     * Vérifie (GET) le consentement du partenaire pour ses événements (son consentement aux démarches) avant le PUT ; true par défaut.
+     * Garde côté test, posée pour TOUT événement : que le backend applique la même porte à une notification simple est NON CONFIRMÉ.
+     * `false` publie volontairement sans vérifier.
+     */
+    verifyPartnerConsent?: boolean
 }
 
 const PUBLISH_MAX_RETRIES = 5
@@ -53,17 +59,17 @@ const PUBLISH_RETRY_DELAY_MS = 10000
  * Retry automatique sur 5xx (cold-start Scalingo) avec délai de 10s entre chaque tentative.
  * Lance si les variables d'environnement sont manquantes ou si toutes les tentatives échouent.
  */
-export async function publishEvent(payload: EventPayload, {checkConsent: shouldCheckConsent = true}: PublishEventOptions = {}): Promise<void> {
+export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI, verifyPartnerConsent = true}: PublishEventOptions = {}): Promise<void> {
     const apiUrl = getBackendUrl()
     const recipientFcHash = payload.recipient_fc_hash
 
     log.info(`publishEvent → hôte: ${apiUrl}  fc_hash: ${recipientFcHash}`)
 
     // Consigne juridique : un partenaire ne communique rien d'un usager sans son consentement.
-    if (shouldCheckConsent) {
-        const hasConsent = await checkConsent(recipientFcHash)
+    if (verifyPartnerConsent) {
+        const hasConsent = await checkDemarchesConsent(partner, recipientFcHash)
         if (!hasConsent) {
-            const message = `publishEvent → pas de consentement AMI pour fc_hash: ${recipientFcHash}, arrêt sans appeler PUT /api/v2/event`
+            const message = `publishEvent → pas de consentement du partenaire ${partner} (démarches) pour fc_hash: ${recipientFcHash}, arrêt sans appeler PUT /api/v2/event`
             log.warn(message)
             throw new AssertionError({message})
         }
@@ -106,4 +112,20 @@ export async function publishEvent(payload: EventPayload, {checkConsent: shouldC
     }
 
     throw lastError!
+}
+
+/**
+ * Exécute une publication et dit si l'API l'a ACCEPTÉE ou REFUSÉE (HTTP 404 : `User not found` / `Consent not found` / `Consent not given`,
+ * rendus par le backend quand le flag `consent_is_enabled` du partenaire est vrai). Toute autre erreur est relancée.
+ * Sert aux scénarios « sans consentement » : `verifyPartnerConsent: false` ne fait que sauter la garde côté test, il ne prouve pas que
+ * le backend refuse. Constat du 2026-10-26 sur staging : un PUT sans consentement répond 201 (accepté).
+ */
+export async function publicationOutcome(publish: () => Promise<void>): Promise<'acceptée' | 'refusée'> {
+    try {
+        await publish()
+        return 'acceptée'
+    } catch (err) {
+        if (err instanceof Error && /HTTP 404/.test(err.message)) return 'refusée'
+        throw err
+    }
 }

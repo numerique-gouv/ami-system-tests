@@ -5,7 +5,7 @@ import ProfilePage from '../../../pages/profile.page'
 import NavigationPage from '../../../pages/navigation.page'
 import DemarcheDetailPage from '../../../pages/demarche-detail.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {grantConsent, publishDemarche} from '../../../helpers/partner-api'
+import {PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
 import {step} from '../../../helpers/report'
 import logger from '@wdio/logger'
@@ -38,7 +38,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
 
   /** Publie une démarche avec échéance (entrée d'agenda) et retourne son titre et sa référence. */
   async function publishDemarcheWithMilestone(label: string): Promise<{title: string; itemId: string}> {
-    await grantConsent(user.fcHash)
+    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     const itemId = `E2E-${new Date().toISOString()}`
     const title = `Demarche E2E ${itemId} ${label}`
     await publishDemarche({

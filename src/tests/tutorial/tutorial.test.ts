@@ -23,14 +23,14 @@
  *   API=https://ami-back-staging.osc-fr1.scalingo.io     # backend de l'environnement testé
  *   AUTH="$NOTIF_PARTNER_ID:$NOTIF_PARTNER_SECRET"
  *   FC=<fc_hash de l'utilisateur de test, dans src/helpers/test-users.ts>
- * getAppToStartingState ne touche pas au consentement : un scénario qui publie commence par grantConsent, et le restaure à la fin.
- * Les publish* refusent d'envoyer sans consentement (consigne juridique) ; `checkConsent: false` publie volontairement sans.
+ * getAppToStartingState ne touche pas au consentement : un scénario qui publie commence par grantDemarchesConsent, et le restaure à la fin.
+ * Les publish* refusent d'envoyer sans consentement (consigne juridique) ; `verifyPartnerConsent: false` publie volontairement sans.
  * Un identifiant unique par exécution (`TUTO-${Date.now()}`) retrouve ses données parmi celles des autres runs.
  */
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {getUser} from '../../helpers/test-users'
 import {
-  checkConsent, grantConsent, revokeConsent, publishDemarche, publishDemarcheEnfant, publishNotification,
+  PARTNER_AMI, checkDemarchesConsent, grantDemarchesConsent, revokeDemarchesConsent, publishDemarche, publishDemarcheEnfant, publishNotification,
 } from '../../helpers/partner-api'
 
 describe.skip('Mon scénario', () => {
@@ -69,9 +69,9 @@ describe.skip('Mon scénario', () => {
     // curl -s -o /dev/null -w '%{http_code}\n' -u "$AUTH" "$API/api/v1/consent/$FC"                                                        # 200 actif, 404 absent ou retiré
     // curl -s -o /dev/null -w '%{http_code}\n' -u "$AUTH" -H 'Content-Type: application/json' -d '{"consent": true}'  "$API/api/v1/consent/$FC"   # donner
     // curl -s -o /dev/null -w '%{http_code}\n' -u "$AUTH" -H 'Content-Type: application/json' -d '{"consent": false}' "$API/api/v1/consent/$FC"   # retirer
-    await grantConsent(user.fcHash)
-    expect(await checkConsent(user.fcHash)).toBe(true)
-    await revokeConsent(user.fcHash)
+    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
+    expect(await checkDemarchesConsent(PARTNER_AMI, user.fcHash)).toBe(true)
+    await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
   })
 
   it.skip('aide-mémoire : publier une notification simple', async () => {

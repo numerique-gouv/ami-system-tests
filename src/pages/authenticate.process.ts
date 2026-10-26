@@ -193,7 +193,7 @@ async function reachHome(user: TestUser): Promise<void> {
 
 /**
  * Remet l'app dans l'état de départ attendu par les tests : connecté, sur l'accueil. Le consentement partenaire
- * n'est pas touché : les scénarios qui publient le donnent explicitement (grantConsent). Chaque test
+ * n'est pas touché : les scénarios qui publient le donnent explicitement (grantDemarchesConsent). Chaque test
  * (sauf l'authentification) commence par là : le test précédent a pu s'arrêter n'importe où dans l'app.
  *
  * 1. Cookie de session présent → chargement de la racine de l'app (la SPA route vers l'accueil).

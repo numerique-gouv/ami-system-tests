@@ -1,7 +1,7 @@
 import PreferencesPage from '../../../pages/preferences.page'
 import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {checkConsent, grantConsent, publishNotification, revokeConsent} from '../../../helpers/partner-api'
+import {PARTNER_AMI, checkDemarchesConsent, grantDemarchesConsent, publishNotification, revokeDemarchesConsent} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
 import {step} from '../../../helpers/report'
 import logger from '@wdio/logger'
@@ -34,28 +34,28 @@ describe('Démonstration — notification reçue avant le consentement, visible 
     await browser.pause(MARQUE_MS)
   }
 
-  async function openConsents(): Promise<void> {
+  async function openDemarchesConsents(): Promise<void> {
     await getAppToStartingState()
     await PreferencesPage.open()
-    await PreferencesPage.openConsents()
+    await PreferencesPage.openDemarchesConsents()
   }
 
-  async function waitForBackendConsent(expected: boolean): Promise<void> {
-    await browser.waitUntil(async () => await checkConsent(user.fcHash) === expected, {
+  async function waitForBackendDemarchesConsent(expected: boolean): Promise<void> {
+    await browser.waitUntil(async () => await checkDemarchesConsent(PARTNER_AMI, user.fcHash) === expected, {
       timeout: 10000, interval: 500, timeoutMsg: `Le backend ne renvoie pas « consentement AMI = ${expected} » après 10000ms`,
     })
   }
 
   before(async function () {
-    await openConsents()
-    original = await PreferencesPage.consentStates()
+    await openDemarchesConsents()
+    original = await PreferencesPage.demarchesConsentStates()
   })
 
   after(async function () {
-    await openConsents()
-    await PreferencesPage.restoreConsents(original)
-    if (original['dinum-ami']) await grantConsent(user.fcHash)
-    else await revokeConsent(user.fcHash)
+    await openDemarchesConsents()
+    await PreferencesPage.restoreDemarchesConsents(original)
+    if (original[PARTNER_AMI]) await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
+    else await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
   })
 
   it('le consentement donné fait apparaître une notification publiée avant lui', async function () {
@@ -64,21 +64,21 @@ describe('Démonstration — notification reçue avant le consentement, visible 
     const n2 = `N2 publiée AVEC consentement ${stamp}`
 
     step('i. Retirer le consentement AMI par l’interface')
-    await openConsents()
+    await openDemarchesConsents()
     // Partir d'un état coché, pour que le retrait soit visible (et déclenche l'avertissement le cas échéant).
-    if (!(await PreferencesPage.consentStates())['dinum-ami']) await PreferencesPage.setConsent('dinum-ami', true)
+    if (!(await PreferencesPage.demarchesConsentStates())[PARTNER_AMI]) await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
     await marquer()
-    await PreferencesPage.setConsent('dinum-ami', false)
+    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, false)
     try {
-      await PreferencesPage.assertConsentWarningDisplayed()
+      await PreferencesPage.assertDemarchesConsentWarningDisplayed()
     } catch {
       log.warn('Pas de toast d’avertissement (aucune démarche suivie ?) : démonstration poursuivie')
     }
-    await waitForBackendConsent(false)
+    await waitForBackendDemarchesConsent(false)
     await marquer()
 
     step('ii. Publier N1 par l’API partenaire, sans consentement')
-    await publishNotification({title: n1, body: 'Publiée alors que le consentement est retiré', recipientFcHash: user.fcHash, checkConsent: false})
+    await publishNotification({title: n1, body: 'Publiée alors que le consentement est retiré', recipientFcHash: user.fcHash, verifyPartnerConsent: false})
 
     step('iii. Inbox AVANT le consentement : N1 est-elle visible ?')
     await getAppToStartingState()
@@ -89,9 +89,9 @@ describe('Démonstration — notification reçue avant le consentement, visible 
     await marquer()
 
     step('iv. Redonner le consentement AMI par l’interface')
-    await openConsents()
-    await PreferencesPage.setConsent('dinum-ami', true)
-    await waitForBackendConsent(true)
+    await openDemarchesConsents()
+    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
+    await waitForBackendDemarchesConsent(true)
     await marquer()
 
     step('v. Inbox APRÈS le consentement : N1 est-elle visible ?')

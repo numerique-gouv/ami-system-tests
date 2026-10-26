@@ -5,7 +5,7 @@ import DemarcheDetailPage from '../../../pages/demarche-detail.page'
 import NotificationsInboxPage from '../../../pages/notifications.page'
 import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {getBackendUrl, grantConsent, publishDemarche, publishDemarcheEnfant} from '../../../helpers/partner-api'
+import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche, publishDemarcheEnfant} from '../../../helpers/partner-api'
 import {describeTarget, isBrokenTarget, isExpectedUnreachable, isLoginWall, toleratedUnreachableWarning} from '../../../helpers/link-check'
 import {getUser} from '../../../helpers/test-users'
 import {step} from '../../../helpers/report'
@@ -33,7 +33,7 @@ describe('Non-régression — détail d’une démarche', function () {
 
   before(async function () {
     await getAppToStartingState()
-    await grantConsent(user.fcHash)
+    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     await publishDemarche({
       title, body: 'Démarche de non-régression', recipientFcHash: user.fcHash,
       contentLink: `${getBackendUrl()}/demarches/${itemId}/v1`,

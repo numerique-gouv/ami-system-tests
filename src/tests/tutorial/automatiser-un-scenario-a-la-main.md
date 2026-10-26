@@ -56,7 +56,7 @@ Les étapes 3 à 5 se répètent **pour chaque page**, puis on passe à la suiva
 |---|---|---|
 | Code d'accès de la webapp de staging (fenêtre `window.prompt` de la SPA) | un cookie `access_key` est posé **avant** d'ouvrir la SPA, valable 7 jours ; sa valeur n'est jamais affichée | `handleAccessKeyCookie` dans le hook `before` de `wdio.webapp.conf.ts` (`src/helpers/access-code.ts`) |
 | Connexion FranceConnect (eIDAS, identifiants) et onboarding (clé d'accès, zones, notifications) | automatisés, et repartent de l'état courant de l'app | `getAppToStartingState()` dans `src/pages/authenticate.process.ts` |
-| Appels API (consentement, notification, démarche) | helpers | `src/helpers/partner-api/` : `checkConsent`, `grantConsent`, `revokeConsent`, `publishEvent`, `publishNotification`, `publishDemarche`, `publishDemarcheEnfant` |
+| Appels API (consentement, notification, démarche) | helpers | `src/helpers/partner-api/` : `checkDemarchesConsent`, `grantDemarchesConsent`, `revokeDemarchesConsent` (consentement du partenaire, passé explicitement : `PARTNER_AMI`), `publishEvent`, `publishNotification`, `publishDemarche`, `publishDemarcheEnfant` |
 
 ## Étape 1 — Spécifier
 
@@ -75,7 +75,7 @@ Séquence jouée pour ce scénario : lire le consentement, le retirer, le relire
 
 À retenir : `event_date` doit être différente à chaque appel (le backend ignore un événement identique : `partner-api/event.ts` l'indique). Une **mise à jour** est le même appel avec le **même `item_id`** et `wip`, une **fin** avec `closed`.
 
-Sans consentement, `GET consent` renvoie 404 et le helper `publishEvent` refuse d'envoyer : un partenaire ne communique rien d'un usager qui n'a pas consenti. Pour le scénario d'exemple ci-dessous, qui publie volontairement sans consentement, on désactive ce contrôle avec `checkConsent: false`.
+Sans consentement, `GET consent` renvoie 404 et le helper `publishEvent` refuse d'envoyer : un partenaire ne communique rien d'un usager qui n'a pas consenti. Pour le scénario d'exemple ci-dessous, qui publie volontairement sans consentement, on désactive ce contrôle avec `verifyPartnerConsent: false`.
 
 ## Étape 3 — Explorer l'app, page par page
 
@@ -219,7 +219,7 @@ C'est un **brouillon** : il garde les sélecteurs générés, n'inclut ni le `be
 
 1. **Locators** — `src/pages/locators/<page>.locators.ts` : les chaînes de la colonne « À écrire ». Existent déjà : `suivi-demarches.locators.ts`, `notifications.locators.ts`.
 2. **Page Objects** — `src/pages/<page>.page.ts` : des actions métier, aucun sélecteur. Existent : `SuiviDemarchesPage` (`waitForDemarche`, `assertVisibleDemarcheWith`, `ouvreDemarche`), `NotificationsPage` (`assertNotificationReceived`, `getTopNotificationTitle`), `HomePage` (`ouvreSuivi`). **À créer** : une assertion d'**absence** (« la démarche X n'est pas dans la liste »), qui n'existe pas dans `SuiviDemarchesPage`.
-3. **Test** — `src/tests/webapp/<scenario>.test.ts`, qu'on obtient en complétant le squelette (même `before` et `beforeEach`) : n'importe que des Page Objects et des helpers d'API (`grantConsent`, `publishDemarche`… de `src/helpers/partner-api/`).
+3. **Test** — `src/tests/webapp/<scenario>.test.ts`, qu'on obtient en complétant le squelette (même `before` et `beforeEach`) : n'importe que des Page Objects et des helpers d'API (`grantDemarchesConsent`, `publishDemarche`… de `src/helpers/partner-api/`).
 
 Squelette du test, **non exécuté** :
 
@@ -233,12 +233,12 @@ describe('Démarches — consentement', () => {
     this.timeout(180000)
     await getAppToStartingState()
   })
-  after(async () => { await grantConsent(user.fcHash) })       // restaurer l'état
+  after(async () => { await grantDemarchesConsent(PARTNER_AMI, user.fcHash) })       // restaurer l'état
 
   it('ne montre que la démarche créée après le consentement', async () => {
-    step('1. Retirer le consentement');           await revokeConsent(user.fcHash)
-    step('2. Créer D1 sans consentement');        await publish(d1, 'new', {checkConsent: false})
-    step('3. Donner le consentement');            await grantConsent(user.fcHash)
+    step('1. Retirer le consentement');           await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
+    step('2. Créer D1 sans consentement');        await publish(d1, 'new', {verifyPartnerConsent: false})
+    step('3. Donner le consentement');            await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     step('4. Créer D2');                          await publish(d2, 'new')
     step('5. Seule D2 est reçue');                await HomePage.ouvreSuivi()
                                                   await SuiviDemarchesPage.waitForDemarche(d2)
@@ -298,7 +298,7 @@ Ce qui **manque sur iOS** (état au 2026-10-12, d'après les notes de session, p
 
 ## Nettoyage et pièges, en bref
 
-- **Restaurer le consentement** (`grantConsent`, ou `{"consent": true}` en `curl`) à la fin ; vérifier : `GET consent` doit répondre `200`.
+- **Restaurer le consentement** (`grantDemarchesConsent`, ou `{"consent": true}` en `curl`) à la fin ; vérifier : `GET consent` doit répondre `200`.
 - **Données laissées sur le staging** : chaque démarche créée y reste. D'où l'identifiant unique par run.
 - **Attendre une condition, jamais un délai** : `wait --text` / `--url` plutôt que `wait 3000` (le délai n'est là que pour la séquence d'observation de l'étape 3.5).
 - **Ne pas lancer deux runs en même temps sur le même appareil** : ports Appium (4723, 4724) et app partagés.

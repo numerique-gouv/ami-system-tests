@@ -1,6 +1,6 @@
 # Consentement et suivi des démarches (recette)
 
-Réunion 03:45–09:40. Le consentement AMI (`dinum-ami`) se pilote par l'API partenaire (`grantConsent`/`revokeConsent`/`checkConsent`) ;
+Réunion 03:45–09:40. Deux choses à ne pas confondre : le consentement aux **démarches**, propre à chaque partenaire (refusé, le backend refuse les événements du partenaire et l'app ne reçoit pas ses démarches), et les **notifications push**, réglage global à AMI, local à l'app, sans endpoint (permission du système : navigateur, Android ; iOS : appareil physique seulement, donc pas sur simulateur). Dans le code : `…DemarchesConsent(partenaire, fcHash)` (`PARTNER_AMI`, `PARTNER_DN`) pour le premier, aucun helper API pour le second. `/api/v1/consent/{fc_hash}` est la porte du partenaire pour ses événements. **Non confirmé** (S5, S5.2) : qu'un événement « notification » simple passe par cette même porte ; `publishNotification` appelle la même garde, d'où l'option neutre `verifyPartnerConsent`. Le consentement AMI aux démarches (`dinum-ami`) se pilote par cette API (`grantDemarchesConsent`/`revokeDemarchesConsent`/`checkDemarchesConsent`) ;
 les autres (DN, SP, …) par les switchs de Préférences > Suivi des démarches. Restauration : état d'origine relevé dans `before()`.
 
 ## Observé en préprod (2026-10-15)
@@ -24,24 +24,24 @@ Alors le bouton n'y est plus affiché
 Restauration : consentements d'origine (AMI seul)
 
 ### S4.1 — Un switch basculé est persisté côté backend
-Étant donné un usager sur Préférences > Suivi des démarches, le switch « dinum-ami » activé (API : `checkConsent` = vrai)
+Étant donné un usager sur Préférences > Suivi des démarches, le switch « dinum-ami » activé (API : `checkDemarchesConsent` = vrai)
 Quand il désactive le switch
-Alors `checkConsent` côté API renvoie faux (relecture, pas seulement l'état de l'UI)
+Alors `checkDemarchesConsent` côté API renvoie faux (relecture, pas seulement l'état de l'UI)
 Quand il le réactive
-Alors `checkConsent` renvoie vrai
+Alors `checkDemarchesConsent` renvoie vrai
 Et, après rechargement de la page, le switch est activé
 
 ### S4.2 — « Tout suivre » active tous les consentements
 Étant donné un usager dont tous les consentements sont désactivés
 Quand il clique « Tout suivre »
 Alors tous les switchs de Préférences > Suivi des démarches sont activés
-Et `checkConsent` renvoie vrai
+Et `checkDemarchesConsent` renvoie vrai
 Restauration : état d'origine de chaque switch
 
 ### S5.1 — Une notification reçue sans consentement n'apparaît jamais, même après activation
-Étant donné un usager **sans** consentement `dinum-ami` (`revokeConsent`)
-Quand une notification « N1 » est publiée (`publishNotification` avec `checkConsent: false`)
-Et que l'usager active son consentement (`grantConsent`)
+Étant donné un usager **sans** consentement du partenaire `dinum-ami` (`revokeDemarchesConsent` ; le rapport de cette porte avec les notifications est non confirmé)
+Quand une notification « N1 » est publiée (`publishNotification` avec `verifyPartnerConsent: false`)
+Et que l'usager active son consentement (`grantDemarchesConsent`)
 Et qu'une notification « N2 » est publiée
 Alors l'inbox (Notifications) affiche « N2 »
 Et n'affiche pas « N1 »
@@ -71,13 +71,13 @@ Question à poser à Édouard (reprise de la réunion, 09:01) : que doit-il arri
 ### S5.2 — Notifications reçues avec consentement : bonnes conditions inverses  (📝 à implémenter, petite)
 Source : transcript 06:27–06:53 — « si je ne l'ai pas mis, la notification n'arrive pas ; si je l'ai mis, elle arrive bien ». S5.1 (✅) couvre « activation après coup » ; il manque le cas simple :
 Étant donné un usager **sans** consentement AMI, inbox ouverte
-Quand une notification est publiée (`checkConsent: false`)
+Quand une notification est publiée (`verifyPartnerConsent: false`)
 Alors elle n'apparaît pas dans l'inbox (même après rechargement)
 Étant donné le même usager **avec** consentement
 Quand une notification est publiée
 Alors elle apparaît
 Remarque : l'observation du 2026-10-15 (S5.1 : visible après activation) laisse penser que « n'apparaît pas » est à vérifier d'abord avec Édouard avant d'en faire une assertion bloquante.
-**Implémenté en mode constat** (`consentement.test.ts`, « S5.2 — … », pas encore exécuté) : sans consentement et inbox ouverte, la notification est publiée (`checkConsent: false`) et le test observe pendant 5 s, puis après rechargement (8 s), si elle apparaît (`OBS S5.2 …` ou `ANOMALIE ? S5.2 …`) sans jamais échouer sur ce point. Seul le fait certain est asserté : consentement redonné, une seconde notification apparaît dans l'inbox. **Constat du 2026-10-15 (préprod, un run)** : `ANOMALIE ? S5.2 : la notification publiée SANS consentement est visible dans l'inbox (avant rechargement : true, après : true)`. Elle est donc visible dès la publication, consentement retiré (backend confirmé), et reste visible après rechargement. La démo filmée du même jour le confirme, et elle reste visible une fois le consentement redonné : le constat de S5.1 (« visible après activation ») est moins fort que celui-ci. La seconde notification, publiée avec consentement, apparaît (fait asserté). L'attente « n'apparaît pas » reste non confirmée (question à Édouard) ; rien n'est durci.
+**Implémenté en mode constat** (`consentement.test.ts`, « S5.2 — … », pas encore exécuté) : sans consentement et inbox ouverte, la notification est publiée (`verifyPartnerConsent: false`) et le test observe pendant 5 s, puis après rechargement (8 s), si elle apparaît (`OBS S5.2 …` ou `ANOMALIE ? S5.2 …`) sans jamais échouer sur ce point. Seul le fait certain est asserté : consentement redonné, une seconde notification apparaît dans l'inbox. **Constat du 2026-10-15 (préprod, un run)** : `ANOMALIE ? S5.2 : la notification publiée SANS consentement est visible dans l'inbox (avant rechargement : true, après : true)`. Elle est donc visible dès la publication, consentement retiré (backend confirmé), et reste visible après rechargement. La démo filmée du même jour le confirme, et elle reste visible une fois le consentement redonné : le constat de S5.1 (« visible après activation ») est moins fort que celui-ci. La seconde notification, publiée avec consentement, apparaît (fait asserté). L'attente « n'apparaît pas » reste non confirmée (question à Édouard) ; rien n'est durci.
 
 ### S6.3 — Démarches publiées sans consentement au suivi : Suivi et notifications  (✅ implémenté dans `consentement-demarches.test.ts` ; 4 attentes de l'équipe non tenues)
 Scénario décrit par l'équipe le 2026-10-15 (consentement **au suivi des démarches**, case « AMI » de Préférences > Suivi des démarches). Les attentes sont vérifiées étape par étape **sans interrompre** le déroulé (écarts collectés, listés à la fin) pour que la vidéo montre tout.

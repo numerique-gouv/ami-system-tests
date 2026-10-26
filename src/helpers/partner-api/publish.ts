@@ -7,10 +7,16 @@
  * répondre 400 au serveur ne compile pas. Pour envoyer volontairement un payload invalide :
  * publishEvent directement.
  *
+ * Les trois publications vérifient d'abord le consentement du partenaire émetteur (`partner`, AMI par défaut), c'est-à-dire son
+ * consentement aux DÉMARCHES (porte d'entrée backend des événements, cf. consent.ts), sauf `verifyPartnerConsent: false`. Pour une
+ * notification simple, que le backend applique cette même porte est NON CONFIRMÉ : l'option est donc nommée d'après le partenaire,
+ * pas d'après un type de consentement. Les notifications PUSH (réglage global AMI, côté app) n'ont rien à voir avec cette option.
+ *
  *   publishNotification     — notification simple, sans objet associé
  *   publishDemarche         — démarche (suivi) : item_type, item_id et statut obligatoires
  *   publishDemarcheEnfant   — démarche rattachée à une démarche parente
  */
+import type {PartnerId} from './consent'
 import {publishEvent, type EventPayload, type GenericStatus} from './event'
 
 export interface NotificationOptions {
@@ -27,8 +33,10 @@ export interface NotificationOptions {
     eventDate?: string
     validUntil?: string
     tryPush?: boolean
-    /** Vérifie le consentement avant publication ; true par défaut. */
-    checkConsent?: boolean
+    /** Partenaire émetteur dont on vérifie le consentement ; AMI par défaut (partenaire des identifiants de test). */
+    partner?: PartnerId
+    /** Vérifie le consentement du partenaire pour ses événements (cf. consent.ts) avant publication ; true par défaut. */
+    verifyPartnerConsent?: boolean
 }
 
 export interface DemarcheOptions extends NotificationOptions {
@@ -94,11 +102,11 @@ function demarchePayload(o: DemarcheOptions): EventPayload {
 }
 
 export async function publishNotification(o: NotificationOptions): Promise<void> {
-    await publishEvent(notificationPayload(o), {checkConsent: o.checkConsent})
+    await publishEvent(notificationPayload(o), {partner: o.partner, verifyPartnerConsent: o.verifyPartnerConsent})
 }
 
 export async function publishDemarche(o: DemarcheOptions): Promise<void> {
-    await publishEvent(demarchePayload(o), {checkConsent: o.checkConsent})
+    await publishEvent(demarchePayload(o), {partner: o.partner, verifyPartnerConsent: o.verifyPartnerConsent})
 }
 
 export async function publishDemarcheEnfant(o: DemarcheEnfantOptions): Promise<void> {
@@ -107,5 +115,5 @@ export async function publishDemarcheEnfant(o: DemarcheEnfantOptions): Promise<v
         item_parent_type: o.parent.type,
         item_parent_id: o.parent.id,
         item_parent_partner_id: o.parent.partnerId,
-    }, {checkConsent: o.checkConsent})
+    }, {partner: o.partner, verifyPartnerConsent: o.verifyPartnerConsent})
 }
