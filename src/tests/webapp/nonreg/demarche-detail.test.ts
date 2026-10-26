@@ -6,7 +6,7 @@ import NotificationsInboxPage from '../../../pages/notifications.page'
 import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {getBackendUrl, grantConsent, publishDemarche, publishDemarcheEnfant} from '../../../helpers/partner-api'
-import {describeTarget, isBrokenTarget, isLoginWall} from '../../../helpers/link-check'
+import {describeTarget, isBrokenTarget, isExpectedUnreachable, isLoginWall, toleratedUnreachableWarning} from '../../../helpers/link-check'
 import {getUser} from '../../../helpers/test-users'
 import {step} from '../../../helpers/report'
 import {AssertionError} from 'node:assert'
@@ -85,7 +85,17 @@ describe('Non-régression — détail d’une démarche', function () {
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const target = await ServicesPage.openCatalogueCardNamed('Déclaration de changement d')
-    if (isBrokenTarget(target)) throw new AssertionError({message: `Connexion silencieuse : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`})
+    // Cible non différée (`deferExternal`) : son adresse porte un jeton à usage unique, que seul le navigateur peut suivre ; l'attente du
+    // délai de connexion de Chrome (~75-90 s) quand l'hôte qualif est injoignable ne peut donc pas être évitée par un contrôle HTTP.
+    const reachability = {unreachableOk: 'réseau privé'} as const
+    if (isBrokenTarget(target)) {
+      const line = `Connexion silencieuse : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`
+      // Seul un hôte listé (`PRIVATE_NETWORK_HOSTS`) SANS réponse est toléré ; une page d'erreur d'AMI ou un autre hôte reste un échec.
+      if (!isExpectedUnreachable(target, reachability)) throw new AssertionError({message: line})
+      log.warn(toleratedUnreachableWarning(line, reachability))
+      await ServicesPage.returnFromExternal()
+      return
+    }
     expect(target.host).not.toContain('franceconnect')
     // Constat du 2026-10-15 en préprod : la cible est « Se connecter | Service Public » (200), la connexion silencieuse n'aboutit pas.
     // Ce n'est pas encore un critère d'échec (non confirmé : désactivée ou en échec ?) : signalé, pas bloquant.

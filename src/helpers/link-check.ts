@@ -68,11 +68,33 @@ const PRIVATE_NETWORK_HOSTS: ReadonlySet<string> = new Set([
 ])
 
 /**
+ * Contexte dans lequel l'injoignabilité d'une cible est acceptable. Une seule valeur aujourd'hui, celle de `PRIVATE_NETWORK_HOSTS` ;
+ * un autre contexte s'ajoute avec sa propre liste d'hôtes, jamais en élargissant celle-ci.
+ */
+export type UnreachableContext = 'réseau privé'
+
+/** Argument nommé de l'appelant : « cette injoignabilité est acceptable, et seulement dans ce contexte » (visible à la lecture de l'appel). */
+export interface UnreachableOk {
+  unreachableOk: UnreachableContext
+}
+
+const HOSTS_BY_CONTEXT: Readonly<Record<UnreachableContext, ReadonlySet<string>>> = {'réseau privé': PRIVATE_NETWORK_HOSTS}
+
+/**
  * La cible est-elle un hôte connu pour n'être joignable que depuis un réseau privé, et ne répond-elle pas du tout ? Une réponse HTTP
  * (même 404) n'est PAS tolérée : seule l'absence de réponse l'est, donc un hôte qui répondrait en erreur reste un lien cassé.
+ *
+ * `options` est facultatif pour les appelants historiques (catalogue, liste d'étapes : mêmes règles qu'avant, contexte « réseau
+ * privé »). Un appelant nouveau le passe (`{unreachableOk: 'réseau privé'}`) pour que le contexte soit lisible à l'appel ;
+ * `toleratedUnreachableWarning` le reprend dans l'avertissement.
  */
-export function isExpectedUnreachable(target: Pick<LinkTarget, 'host' | 'status'>): boolean {
-  return target.status === null && PRIVATE_NETWORK_HOSTS.has(target.host)
+export function isExpectedUnreachable(target: Pick<LinkTarget, 'host' | 'status'>, options: UnreachableOk = {unreachableOk: 'réseau privé'}): boolean {
+  return target.status === null && HOSTS_BY_CONTEXT[options.unreachableOk].has(target.host)
+}
+
+/** Message de l'avertissement « ANOMALIE tolérée » : le même qu'ailleurs, avec le contexte de la tolérance. */
+export function toleratedUnreachableWarning(line: string, options: UnreachableOk = {unreachableOk: 'réseau privé'}): string {
+  return `ANOMALIE tolérée (hôte joignable seulement depuis un ${options.unreachableOk}) : ${line}`
 }
 
 /** Entités HTML numériques littérales relevées dans des titres de démarche numérique (`&#39;` à la place de l'apostrophe, 2026-10-15). */
