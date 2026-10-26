@@ -8,10 +8,13 @@ const ANDROID_APP_PATH = path.resolve(
 
 // Le projet iOS construit avec -derivedDataPath ../build depuis ami-app-ios/, donc à côté
 // de ami-app-ios/ (sibling sous ami/), pas dans ami-app-ios/build/.
-const IOS_APP_PATH = path.resolve(
-  __dirname,
-  '../../../build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
-)
+// `IOS_APP_PATH` (variable d'environnement) permet de viser un build fait depuis Xcode (DerivedData) plutôt que ../build.
+const IOS_APP_PATH =
+  process.env.IOS_APP_PATH ||
+  path.resolve(
+    __dirname,
+    '../../../build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
+  )
 
 // ─── Android ────────────────────────────────────────────────────────────────
 
