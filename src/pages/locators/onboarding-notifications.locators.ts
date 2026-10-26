@@ -15,6 +15,8 @@ import type { Locator } from './types'
 export interface OnboardingNotifLocators {
   title:   Locator
   dismiss: Locator
+  /** Bouton « Activer » (iOS : feuille native ; Android : non utilisé, point d'extension). */
+  activate?: Locator
 }
 
 export const androidOnboardingNotifLocators: OnboardingNotifLocators = {
@@ -33,6 +35,8 @@ export const androidOnboardingNotifLocators: OnboardingNotifLocators = {
 export const iosOnboardingNotifLocators: OnboardingNotifLocators = {
   title:   '-ios predicate string:type == "XCUIElementTypeStaticText" AND label CONTAINS[c] "notifications pour suivre"',
   dismiss: '-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "plus tard" AND hittable == 1',
+  // Même raisonnement que `dismiss` (doublon avec la page de la SPA derrière) : seul le bouton de la feuille est touchable.
+  activate: '-ios predicate string:type == "XCUIElementTypeButton" AND label == "Activer" AND hittable == 1',
 }
 
 /**

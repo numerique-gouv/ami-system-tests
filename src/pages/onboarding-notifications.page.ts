@@ -61,11 +61,15 @@ class OnboardingNotificationsPage {
             await clickDisplayed(webOnboardingNotifLocators.laterButton, {timeout: 10000})
             return
         }
-        await this.dismissNative()
+        // iOS : on ACTIVE les notifications (décision utilisateur 2026-10-26) : elles pourront s'afficher en bannière pendant les
+        // tests, sans qu'on clique dessus. Android natif : « plus tard » pour l'instant ; point d'extension : appeler ici le helper
+        // `grantPostNotifications` d'`src/helpers/android-notifications.ts` quand l'agent Android l'aura validé.
+        if (driver.isIOS) await this.activateNativeIOS()
+        else await this.dismissNative()
     }
 
     /**
-     * Ferme la feuille native iOS « Activez les notifications » si elle est affichée (no-op ailleurs, et si absente sous
+     * Traite (en ACCEPTANT, cf. dismiss) la feuille native iOS « Activez les notifications » si elle est affichée (no-op ailleurs, et si absente sous
      * `timeout`). Elle ne dépend pas de la SPA : l'app la présente à chaque événement `user_logged_in` tant que la permission
      * est `.notDetermined` et que la minuterie en mémoire a expiré, donc à chaque relancement avec session ouverte
      * (HomeView-ViewModel.swift). Elle peut recouvrir l'accueil : `isHomeDisplayed` est alors vrai alors que la WebView ne
@@ -75,8 +79,40 @@ class OnboardingNotificationsPage {
         if (!driver.isIOS) return
         const loc = getOnboardingNotifLocators()
         if (await this.firstNative(loc.title, timeout) === null) return
-        log.info('Feuille native « Activez les notifications » affichée au-dessus de l\'accueil, fermeture')
-        await this.dismissNative()
+        log.info('Feuille native « Activez les notifications » affichée au-dessus de l\'accueil : activation')
+        await this.activateNativeIOS()
+    }
+
+    /**
+     * iOS : tape « Activer » sur la feuille native, puis accepte l'alerte système « souhaite vous envoyer des notifications »
+     * (bouton « Autoriser »). No-op si la feuille est déjà fermée. Si la permission est déjà décidée, l'alerte n'apparaît pas.
+     */
+    private async activateNativeIOS(): Promise<void> {
+        const loc = getOnboardingNotifLocators()
+        // Comme pour « Peut-être plus tard » (cf. dismissNative), un tap peut être sans effet : on retape, au plus 3 fois.
+        const attempts = 3
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            const activate = await this.firstNative(loc.activate as string, 5000)
+            if (!activate) {
+                if ((await $$(loc.title)).length === 0) return // fermée entre-temps
+                throw new Error('Bouton « Activer » introuvable sur la feuille « Activez les notifications »')
+            }
+            await activate.click()
+            // L'alerte système (SpringBoard) est gérée par Appium : autoAcceptAlerts est faux, on l'accepte explicitement.
+            const alertText = await browser.waitUntil(async () => {
+                try { return await driver.getAlertText() } catch { return false }
+            }, {timeout: 6000, interval: 300}).catch(() => false)
+            if (alertText) {
+                log.info(`Alerte système de notifications : « ${String(alertText).replace(/\n/g, ' ')} », acceptation`)
+                await driver.acceptAlert()
+                const closed = await browser.waitUntil(async () => (await $$(loc.title)).length === 0, {timeout: 10000, interval: 300}).catch(() => false)
+                if (closed) return
+                throw new Error('Feuille « Activez les notifications » toujours affichée après « Activer » et l\'alerte système')
+            }
+            if ((await $$(loc.title)).length === 0) return // fermée sans alerte (permission déjà décidée)
+            log.warn(`ANOMALIE : ni alerte système ni fermeture après « Activer » (tap ${attempt}/${attempts})`)
+        }
+        throw new Error('Feuille « Activez les notifications » toujours affichée après « Activer » (aucune alerte système)')
     }
 
     private async dismissNative(): Promise<void> {
