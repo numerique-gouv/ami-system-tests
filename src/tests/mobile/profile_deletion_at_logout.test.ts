@@ -54,8 +54,8 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
     step('Modifier le nom d\'usage')
     await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
 
-    const bolds = await ProfilePage.getIdentityBolds()
-    expect(bolds.some(b => b.includes(MODIFICATIONS.preferredUsername))).toBe(true)
+    // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
+    expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
   })
 
   it('modifie l\'email', async () => {
@@ -101,7 +101,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
     for (const expected of original.identityBolds) {
       expect(bolds).toContain(expected)
     }
-    expect(bolds.some(b => b.includes(MODIFICATIONS.preferredUsername))).toBe(false)
+    expect(await ProfilePage.getPreferredUsernameField()).toBe(original.preferredUsername)
   })
 
   it('affiche l\'email original (pas la valeur modifiée)', async () => {

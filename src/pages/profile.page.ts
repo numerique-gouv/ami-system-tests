@@ -2,13 +2,43 @@ import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import {getProfileLocators} from './locators/profile.locators'
 import logger from "@wdio/logger";
-import {clickDisplayed, clickRole, firstDisplayed, waitForHeading} from '../helpers/spa'
+import {clickDisplayed, clickRole, firstDisplayed, isShown, waitForHeading} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 
 const log = logger('page-object')
 
 class ProfilePage {
-    /** Vérifie l'arrivée sur la page « Mon profil » (titre). */
+    /**
+     * S'assure d'être sur une sous-page du profil (« Mon identité » ou « Mes coordonnées »), reconnue à son bloc : depuis le
+     * hub (`/#/profile`) on clique l'entrée du menu latéral ; hors du profil (formulaire d'édition ouvert, autre page), on
+     * rejoint d'abord le hub par son hash. Les méthodes de lecture et d'édition l'appellent : le profil n'est plus une page
+     * unique depuis le déploiement staging observé le 2026-10-26.
+     */
+    private async openSection(section: 'identity' | 'contact'): Promise<void> {
+        const loc = getProfileLocators()
+        const marker = section === 'identity' ? loc.identitySection : loc.emailSection
+        const menuButton = section === 'identity' ? loc.identityMenuButton : loc.contactMenuButton
+        await platform().inWebContext(async () => {
+            if (await isShown(marker)) return
+            if (!await isShown(loc.hubHeading)) await this.navigateToProfileDirect()
+            await clickDisplayed(menuButton, {timeout: 5000})
+            await firstDisplayed(marker, {timeout: 5000})
+        })
+    }
+
+    /**
+     * Attend d'avoir quitté un formulaire d'édition (Enregistrer ou Annuler = retour arrière de l'historique) : on arrive
+     * sur la sous-page d'où l'on venait, ou sur le hub si l'historique n'avait rien d'autre. Le signal est l'un des trois.
+     */
+    private async waitForProfileAfterEdit(): Promise<void> {
+        const loc = getProfileLocators()
+        await browser.waitUntil(
+            async () => await isShown(loc.hubHeading) || await isShown(loc.identitySection) || await isShown(loc.emailSection),
+            {timeout: 5000, interval: 250, timeoutMsg: "Ni le hub « Mon profil » ni une sous-page du profil affichés après la sortie du formulaire d'édition"}
+        )
+    }
+
+    /** Vérifie l'arrivée sur le hub « Mon profil » (titre). */
     async assertDisplayed(): Promise<void> {
         await waitForHeading(getProfileLocators().pageTitle)
     }
@@ -42,6 +72,7 @@ class ProfilePage {
     async getIdentityBolds(): Promise<string[]> {
         const loc = getProfileLocators()
         return await platform().inWebContext(async () => {
+            await this.openSection('identity')
             const texts: string[] = []
             for await (const b of $$(`${loc.identitySection} b`)) {
                 const text = (await b.getText()).trim()
@@ -52,13 +83,34 @@ class ProfilePage {
     }
 
     /**
+     * Retourne la valeur du champ « Nom d'usage » du formulaire d'édition (ouvert puis quitté par « Annuler », sans rien
+     * enregistrer). C'est la seule lecture fiable du nom d'usage modifié : depuis le 2026-10-26 (staging), la sous-page
+     * « Mon identité » affiche le nom issu de FranceConnect (`getFullName()` lit `_pivot`, cf. `User.svelte.ts` d'ami-notifications-api
+     * `origin/main`) et ne reflète plus la modification — **constaté en live** (NOMTEST enregistré, bolds inchangés, même après
+     * rechargement) ; que ce soit voulu ou une anomalie de l'app est **non confirmé**.
+     */
+    async getPreferredUsernameField(): Promise<string> {
+        const loc = getProfileLocators()
+        return await platform().inWebContext(async () => {
+            await this.openSection('identity')
+            await clickDisplayed(loc.preferredUsernameEditButton, {timeout: 5000})
+            const input = await firstDisplayed(loc.preferredUsernameInput, {timeout: 5000})
+            const value = await input.getValue()
+            await clickRole('button', 'Annuler', {timeout: 5000})
+            await this.waitForProfileAfterEdit()
+            return value
+        })
+    }
+
+    /**
      * Retourne le texte de la balise <b> de la section "Contact" (adresse email).
      */
     async getEmailBold(): Promise<string> {
         const loc = getProfileLocators()
-        return await platform().inWebContext(async () =>
-            (await $(`${loc.emailSection} b`).getText()).trim()
-        )
+        return await platform().inWebContext(async () => {
+            await this.openSection('contact')
+            return (await $(`${loc.emailSection} b`).getText()).trim()
+        })
     }
 
     /**
@@ -70,6 +122,7 @@ class ProfilePage {
     async getAddressBolds(): Promise<string[]> {
         const loc = getProfileLocators()
         return await platform().inWebContext(async () => {
+            await this.openSection('contact')
             // Sentinelle : `identity`/`address` sont posés dans le même onMount synchrone
             // (+page.svelte) mais le rendu de la carte peut encore être en cours juste après
             // l'arrivée sur la page — on attend que le HTML de la section soit identique sur deux
@@ -136,6 +189,7 @@ class ProfilePage {
         const editButton = {identity: loc.preferredUsernameEditButton, email: loc.emailEditButton, address: loc.addressEditButton}[block]
         const heading = {identity: loc.identityHeading, email: loc.contactHeading, address: loc.addressFormHeading}[block]
         await platform().inWebContext(async () => {
+            await this.openSection(block === 'identity' ? 'identity' : 'contact')
             await clickDisplayed(editButton, {timeout: 5000})
             await firstDisplayed(heading, {timeout: 5000})
         })
@@ -145,7 +199,7 @@ class ProfilePage {
     async cancelEdit(): Promise<void> {
         await platform().inWebContext(async () => {
             await clickRole('button', 'Annuler', {timeout: 5000})
-            await waitForHeading(getProfileLocators().pageTitle, 5000)
+            await this.waitForProfileAfterEdit()
         })
     }
 
@@ -156,12 +210,13 @@ class ProfilePage {
     async editPreferredUsername(newValue: string): Promise<void> {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
+            await this.openSection('identity')
             await clickDisplayed(loc.preferredUsernameEditButton)
             // Le champ affiché est la sentinelle : le formulaire est rendu.
             const input = await firstDisplayed(loc.preferredUsernameInput, {timeout: 5000})
             await input.setValue(newValue)
             await clickRole('button', 'Enregistrer')
-            await waitForHeading(loc.pageTitle, 5000)
+            await this.waitForProfileAfterEdit()
         })
     }
 
@@ -172,11 +227,12 @@ class ProfilePage {
     async editEmail(newValue: string): Promise<void> {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
+            await this.openSection('contact')
             await clickDisplayed(loc.emailEditButton)
             const input = await firstDisplayed(loc.emailInput, {timeout: 5000})
             await input.setValue(newValue)
             await clickRole('button', 'Enregistrer')
-            await waitForHeading(loc.pageTitle, 5000)
+            await this.waitForProfileAfterEdit()
         })
     }
 
@@ -231,6 +287,7 @@ class ProfilePage {
     async editAddress(query: string): Promise<void> {
         const loc = getProfileLocators()
         await platform().inWebContext(async () => {
+            await this.openSection('contact')
             const editBtn = await firstDisplayed(loc.addressEditButton)
             // waitForClickable vérifie aussi qu'aucun élément (info-tip laissé par une étape
             // précédente du scénario) ne recouvre le bouton au point de clic.
@@ -243,7 +300,7 @@ class ProfilePage {
 
             await clickDisplayed(loc.autocompleteFirstItem, {timeout: 6000})
             await clickRole('button', 'Enregistrer')
-            await waitForHeading(loc.pageTitle, 5000)
+            await this.waitForProfileAfterEdit()
         })
     }
 }

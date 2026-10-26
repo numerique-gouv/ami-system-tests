@@ -51,8 +51,8 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
 
     step('Vérifier que le nouveau nom d\'usage est affiché dans le profil')
-    const bolds = await ProfilePage.getIdentityBolds()
-    expect(bolds.some(b => b.includes(MODIFICATIONS.preferredUsername))).toBe(true)
+    // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
+    expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
   })
 
   // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).

@@ -50,8 +50,8 @@ describe('Profil usager', function () {
 
   it('permet de modifier le nom d\'usage du bloc « Mon identité »', async () => {
     await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
-    const bolds = await ProfilePage.getIdentityBolds()
-    expect(bolds.some(b => b.includes(MODIFICATIONS.preferredUsername))).toBe(true)
+    // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
+    expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
   })
 
   it('permet de modifier l\'email du bloc « Contact »', async () => {

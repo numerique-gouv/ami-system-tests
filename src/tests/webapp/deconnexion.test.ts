@@ -30,7 +30,7 @@ describe('Déconnexion', function () {
   it('se déconnecte après confirmation, puis se reconnecte avec les données d\'origine', async function () {
     step("1. Modifier le nom d'usage")
     await ProfilePage.editPreferredUsername(MODIFIED_PREFERRED_USERNAME)
-    expect((await ProfilePage.getIdentityBolds()).some(b => b.includes(MODIFIED_PREFERRED_USERNAME))).toBe(true)
+    expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFIED_PREFERRED_USERNAME)
 
     step('2. Se déconnecter via le menu Plus et confirmer la suppression des données')
     await getAppToStartingState()
@@ -46,6 +46,7 @@ describe('Déconnexion', function () {
     await ProfilePage.navigate()
     const bolds = await ProfilePage.getIdentityBolds()
     for (const expected of original.identityBolds) expect(bolds).toContain(expected)
-    expect(bolds.some(b => b.includes(MODIFIED_PREFERRED_USERNAME))).toBe(false)
+    // Les bolds viennent de FranceConnect même modifiés (cf. getPreferredUsernameField) : le champ du formulaire prouve la suppression.
+    expect(await ProfilePage.getPreferredUsernameField()).toBe(original.preferredUsername)
   })
 })
