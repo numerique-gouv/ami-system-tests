@@ -5,7 +5,7 @@ import {zonesLocators} from '../../pages/locators/zones.locators'
 
 /**
  * Agenda : évènements à venir (vacances scolaires, jours fériés) et accès à la page des zones scolaires.
- * Lecture seule : « Supprimer » est vérifié mais jamais cliqué, les zones ne sont pas modifiées.
+ * Lecture seule : « Masquer » est vérifié mais jamais cliqué, les zones ne sont pas modifiées.
  */
 describe('Agenda', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
@@ -23,7 +23,7 @@ describe('Agenda', function () {
     expect(await AgendaPage.countEvents()).toBeGreaterThan(0)
   })
 
-  it('ouvre le dialogue d\'un évènement qui propose « Supprimer », puis le ferme', async () => {
+  it('ouvre le dialogue d\'un évènement qui propose « Masquer », puis le ferme', async () => {
     await AgendaPage.openFirstEvent()
     await AgendaPage.assertDeleteActionOffered()
     await AgendaPage.closeEventDialog()

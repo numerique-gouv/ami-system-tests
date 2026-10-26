@@ -72,27 +72,27 @@ class AgendaPage {
         })
     }
 
-    /** Supprime l'élément (modale › « Cacher l’élément de l’agenda », texte visible « Supprimer ») et attend sa disparition de la liste. */
+    /** Supprime l'élément (modale › bouton « Masquer », ex-« Supprimer » avant le front #1430 du 2026-10-26) et attend sa disparition de la liste. */
     async deleteEvent(title: string): Promise<void> {
         await this.openEventDialog(title)
         await clickDisplayed(agendaLocators.deleteAction, {timeout: 5000})
         await browser.waitUntil(async () => !await this.isEventListed(title), {
-            timeout: 10000, interval: 300, timeoutMsg: `L'élément « ${title} » est toujours dans l'agenda 10000ms après « Supprimer »`,
+            timeout: 10000, interval: 300, timeoutMsg: `L'élément « ${title} » est toujours dans l'agenda 10000ms après « Masquer »`,
         })
     }
 
-    /** Vérifie que le dialogue d'évènement propose l'action « Supprimer » — sans l'utiliser (mutante). */
+    /** Vérifie que le dialogue d'évènement propose l'action « Masquer » (ex-« Supprimer ») — sans l'utiliser (mutante). */
     async assertDeleteActionOffered(): Promise<void> {
         await platform().inWebContext(async () => {
             await firstDisplayed(agendaLocators.deleteAction, {timeout: 5000})
         })
     }
 
-    /** Ferme le dialogue d'évènement (bouton « Fermer la modale ») et attend sa disparition. */
+    /** Ferme le dialogue d'évènement (bouton « Fermer ») et attend sa disparition. */
     async closeEventDialog(): Promise<void> {
         await clickButton(agendaLocators.eventDialogCloseName)
         await browser.waitUntil(async () => !await isShown(agendaLocators.deleteAction), {
-            timeout: 5000, interval: 300, timeoutMsg: "Le dialogue d'évènement est resté ouvert après « Fermer la modale »",
+            timeout: 5000, interval: 300, timeoutMsg: "Le dialogue d'évènement est resté ouvert après « Fermer »",
         })
     }
 

@@ -8,7 +8,7 @@ le scénario S10 ne supprime que des éléments créés par le test.
 
 - Zones (`#/preferences/zones`, page et non dialogue) : 13 cases ; **Zone A, Zone B, Zone C, Corse cochées** à l'origine.
 - La tuile « Vacances de la Toussaint » **ne cite aucune zone** (identique pour tous). C'est « **Vacances d'Hiver** » (6 février) qui cite : « Zone C », « Zone A, Corse », « Zone B » avec leurs dates. Décocher Zone B la fait disparaître de cette tuile et reste décochée après rechargement. Vérifié, puis restauré.
-- Agenda : chaque élément est un conteneur avec un bouton « Ouvrir la modale liée à l’élément de l’agenda » (`data-testid^="open-agenda-item-modal-"`) et un titre `h4 > button` (`data-testid="agenda-item-link"`). Le clic sur le titre d'un jour férié ne fait rien ; c'est le bouton d'ouverture qui ouvre la modale (`dialog`, bouton « Fermer la modale », « Cacher l’élément de l’agenda » = texte visible « Supprimer »).
+- Agenda : chaque élément est un conteneur avec un bouton « Ouvrir les options pour <titre> » (`data-testid="agenda-item-<clé>-open-modal-button"` ; avant le 2026-10-26 : « Ouvrir la modale liée à l’élément de l’agenda », `open-agenda-item-modal-*`) et un titre `h4 > button` (`data-testid="agenda-item-link"`). Le clic sur le titre d'un jour férié ne fait rien ; c'est le bouton d'ouverture qui ouvre la modale (`dialog`, bouton « Fermer » ; action « Masquer l’élément de l’agenda <titre> », texte visible « Masquer », `data-testid="agenda-item-<clé>-hide-button"` ; ex-« Cacher… »/« Supprimer » avant le 2026-10-26).
 - Entrée liée à une démarche (jalon) : **non encore observée** (publication à faire par la spec).
 
 ### S7 — Retirer une zone se reflète dans les préférences et l'agenda, la remettre aussi
@@ -31,7 +31,7 @@ Alors l'écran Détail d'une démarche s'affiche pour « D1 » avec « référen
 
 ### S10.1 — Un élément supprimé de l'agenda disparaît et ne revient pas au rechargement  (✅ implémenté)
 Étant donné une démarche « D2 » publiée avec un jalon, visible dans l'Agenda
-Quand l'usager ouvre l'entrée et clique « Supprimer » (texte visible ; nom accessible « Cacher l’élément de l’agenda »)
+Quand l'usager ouvre l'entrée et clique « Masquer » (texte visible ; ex-« Supprimer » avant le 2026-10-26)
 Alors l'entrée n'est plus dans l'Agenda
 Et, après rechargement de la page, elle reste absente
 Note : l'élément a été créé par le test (pas de restauration nécessaire). La reconnexion n'est **pas** vérifiée ici : voir S10.2.
