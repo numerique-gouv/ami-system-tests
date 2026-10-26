@@ -27,8 +27,10 @@ export const config: Options.Testrunner = {
         args: {
           port: 4723,
           relaxedSecurity: false,
-          // Appium 3 : format "<driver>:<feature>" requis pour les features insecure
-          allowInsecure: 'uiautomator2:chromedriver_autodownload',
+          // Appium 3 : format "<driver>:<feature>" requis pour les features insecure, séparées par des virgules.
+          // adb_shell : `mobile: shell` (README appium-uiautomator2-driver) — constater côté système les notifications
+          // (dumpsys notification, appops/permission POST_NOTIFICATIONS) ; cf. src/helpers/android-notifications.ts.
+          allowInsecure: 'uiautomator2:chromedriver_autodownload,uiautomator2:adb_shell',
           log: '.wdio-logs/appium-android.log',
           // debug (et non le défaut info) : nécessaire pour que
           // appium:showChromedriverLog (cf. capabilities.ts) fasse remonter la sortie du
