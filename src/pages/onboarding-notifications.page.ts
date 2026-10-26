@@ -62,12 +62,23 @@ class OnboardingNotificationsPage {
             return
         }
         const loc = getOnboardingNotifLocators()
-        const dismissButton = await this.firstNative(loc.dismiss, 5000)
-        if (!dismissButton) throw new Error('Bouton « Peut-être plus tard » introuvable')
-        await dismissButton.click()
-        await browser.waitUntil(async () => (await $$(loc.title)).length === 0, {
-            timeout: 5000, interval: 300, timeoutMsg: 'Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »',
-        })
+        // Le tap sur « Peut-être plus tard » est parfois sans effet (feuille encore affichée 5 s après, constaté sur iOS le 2026-10-26,
+        // capture à l'appui) : on retape, au plus 3 fois, avant d'échouer.
+        const attempts = 3
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            const dismissButton = await this.firstNative(loc.dismiss, 5000)
+            if (!dismissButton) {
+                if ((await $$(loc.title)).length === 0) return // fermée entre-temps
+                throw new Error('Bouton « Peut-être plus tard » introuvable')
+            }
+            await dismissButton.click()
+            const closed = await browser.waitUntil(async () => (await $$(loc.title)).length === 0, {
+                timeout: 5000, interval: 300,
+            }).catch(() => false)
+            if (closed) return
+            log.warn(`ANOMALIE : l'écran « Activez les notifications » reste affiché après « Peut-être plus tard » (tap ${attempt}/${attempts})`)
+        }
+        throw new Error('Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »')
     }
 
     /**

@@ -26,11 +26,13 @@ export const androidOnboardingNotifLocators: OnboardingNotifLocators = {
 // `/#/welcome/notifications` rendue derrière, que l'arbre d'accessibilité expose aussi. Les deux boutons portent le même
 // libellé, sans identifiant (ni `accessibilityIdentifier` dans l'app, ni `data-testid` visible nativement) : rien de
 // stable ne les distingue, et ni « natif ou WebView » ni la position ne tiendront quand les pages passeront en natif.
+// `hittable == 1` : seul le bouton de la feuille, au premier plan, est touchable (celui de la page derrière est recouvert) ;
+// sans ce filtre, le premier clic pouvait tomber sur la page cachée et la feuille restait affichée (2026-10-26, preuve : capture).
 // Décision : on prend le PREMIER (ce que faisait WDIO 9) et la page signale l'écart (`firstNative`). Les apps et la SPA
 // ne sont pas modifiées. Quand le doublon disparaît, il ne reste qu'un élément et l'avertissement cesse.
 export const iosOnboardingNotifLocators: OnboardingNotifLocators = {
   title:   '-ios predicate string:type == "XCUIElementTypeStaticText" AND label CONTAINS[c] "notifications pour suivre"',
-  dismiss: '-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "plus tard"',
+  dismiss: '-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "plus tard" AND hittable == 1',
 }
 
 /**

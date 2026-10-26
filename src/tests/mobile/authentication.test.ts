@@ -1,4 +1,4 @@
-import EnvironmentPickerPage from '../../pages/franceconnect/environment-picker.page'
+import {getAppToLoggedOutState} from '../../pages/authenticate.process'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
@@ -22,8 +22,9 @@ describe('Authentification', function () {
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
     const user = getUser('avec_nom_dusage')
 
-    step('1. Sélectionner l\'environnement de review')
-    await EnvironmentPickerPage.reviewEnvironmentPicker()
+    // L'app peut garder la session ouverte d'un démarrage à l'autre : environnement choisi, puis déconnexion explicite si besoin.
+    step('1. Sélectionner l\'environnement de review et s\'assurer d\'être déconnecté')
+    await getAppToLoggedOutState()
 
     step('2. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)

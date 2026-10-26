@@ -6,6 +6,7 @@ import OnboardingPasskeyPage from './onboarding-passkey.page'
 import OnboardingZonesPage from './onboarding-zones.page'
 import OnboardingNotificationsPage from './onboarding-notifications.page'
 import HomePage from './home.page'
+import ProfilePage from './profile.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/test-users'
 import {getUser} from '../helpers/test-users'
@@ -212,4 +213,39 @@ export async function getAppToStartingState(): Promise<void> {
     }
     await reachHome(user)
     log.info(`getAppToStartingState: état de départ atteint, URL : ${await currentUrlForLog()}`)
+}
+
+/**
+ * Remet l'app dans l'état de départ du test d'authentification : environnement choisi, NON connecté, sur l'écran de
+ * connexion. L'app iOS garde la session ouverte d'un démarrage à l'autre (cookie `token` dans le `WKWebsiteDataStore`
+ * par défaut, persistant) : une fois l'environnement choisi, l'app peut s'ouvrir directement sur l'accueil. On le vérifie
+ * donc et, si une session est ouverte, on se déconnecte explicitement (page d'onboarding éventuelle fermée d'abord).
+ *
+ * Sans WebView (sélecteur d'environnement encore affiché, écran de connexion natif Android) : déjà déconnecté.
+ */
+export async function getAppToLoggedOutState(): Promise<void> {
+    await EnvironmentPickerPage.reviewEnvironmentPicker()
+    if (!await platform().isWebContextAvailable()) return
+
+    const startedAt = Date.now()
+    let rootOpened = false
+    while (Date.now() - startedAt < UNRECOGNIZED_BEFORE_ROOT_MS * 2) {
+        if (await FranceConnectMirePage.isLoginScreenVisible()) return
+        if (await hasSessionToken() || await HomePage.isHomeDisplayed(HOME_PROBE_MS)) {
+            log.warn('getAppToLoggedOutState: session déjà ouverte au démarrage de l\'app, déconnexion explicite')
+            // Au relancement de l'app avec une session ouverte, la feuille native « Activez les notifications » peut recouvrir l'accueil
+            // (notifications non décidées, minuterie en mémoire remise à zéro) : l'accueil est lisible mais la WebView ne répond plus.
+            await OnboardingNotificationsPage.dismiss()
+            await reachHome(getUser('avec_nom_dusage')) // ferme un éventuel onboarding : la déconnexion part de l'accueil
+            await ProfilePage.logout()
+            await FranceConnectMirePage.waitForLoginScreen()
+            return
+        }
+        // Rien de reconnu (page vide `?is_logged_out`, chargement) : un seul rechargement de la racine, puis on réobserve.
+        if (!rootOpened && Date.now() - startedAt > UNRECOGNIZED_BEFORE_ROOT_MS) {
+            rootOpened = true
+            await openAppRoot().catch((err: unknown) => log.warn('getAppToLoggedOutState: rechargement de la racine impossible', err))
+        }
+    }
+    throw new AssertionError({message: `getAppToLoggedOutState: ni écran de connexion ni session reconnus (${await currentUrlForLog()})`})
 }
