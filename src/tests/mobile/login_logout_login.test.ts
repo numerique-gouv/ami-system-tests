@@ -2,6 +2,7 @@ import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '@pages/franceconnect/franceconnect-mire.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
 import {step} from '@helpers/report'
+import {platform} from '../../platform'
 
 describe('Profil usager — déconnexion suivie d\'une reconnexion', function () {
   this.timeout(300000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
@@ -11,7 +12,7 @@ describe('Profil usager — déconnexion suivie d\'une reconnexion', function ()
     await getAppToStartingState()
 
     step('Taper Me déconnecter depuis le menu avatar')
-    await ProfilePage.logout()
+    await platform().inWebContext(() => ProfilePage.logout())
     // La déconnexion n'est finie qu'au retour sur l'écran de connexion (aller-retour de fin de session
     // FranceConnect) : on l'attend avant de relancer l'authentification.
     step('Attendre l\'écran de connexion')

@@ -8,6 +8,7 @@ import OnboardingNotificationsPage from '../../pages/onboarding-notifications.pa
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/test-users'
 import {step} from '@helpers/report'
+import {platform} from '../../platform'
 
 /**
  * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
@@ -45,7 +46,7 @@ describe('Authentification', function () {
     await FranceConnectMirePage.tapFranceConnect(true )
 
     step('3. Vérifier l\'arrivée sur la page d\'accueil')
-    await HomePage.assertHomeVisible(30000)
+    await platform().inWebContext(() => HomePage.assertHomeVisible(30000))
   })
 
 })

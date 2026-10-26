@@ -241,7 +241,7 @@ export async function getAppToLoggedOutState(): Promise<void> {
             // (notifications non décidées, minuterie en mémoire remise à zéro) : l'accueil est lisible mais la WebView ne répond plus.
             await OnboardingNotificationsPage.dismiss()
             await reachHome(getUser('avec_nom_dusage')) // ferme un éventuel onboarding : la déconnexion part de l'accueil
-            await ProfilePage.logout()
+            await platform().inWebContext(() => ProfilePage.logout())
             await FranceConnectMirePage.waitForLoginScreen()
             return
         }

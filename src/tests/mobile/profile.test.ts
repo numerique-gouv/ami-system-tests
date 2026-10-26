@@ -44,7 +44,7 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
     // Restauration best-effort : chaque étape est indépendante pour éviter
     // qu'un échec partiel laisse le compte dans un état incohérent.
     if (!original) return
-    await ProfilePage.restore(original)
+    await platform().inWebContext(() => ProfilePage.restore(original))
     // Adresse originale vide (compte sans adresse Caf) : rien à restaurer — appeler editAddress('')
     // échouerait dans l'autocomplétion BAN (aucun résultat pour une saisie vide).
   })

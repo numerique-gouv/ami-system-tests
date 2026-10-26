@@ -50,7 +50,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
     // Restauration best-effort : protège le compte si le test échoue avant le logout.
     // Sans cela, les données modifiées resteraient et pollueraient les runs suivants.
     if (!original) return
-    await ProfilePage.restore(original)
+    await platform().inWebContext(() => ProfilePage.restore(original))
     // Adresse originale vide (compte sans adresse Caf) : rien à restaurer, la reconnexion FranceConnect
     // a déjà ramené l'adresse à cet état vide — appeler editAddress('') échouerait dans l'autocomplétion BAN.
   })

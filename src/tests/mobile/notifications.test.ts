@@ -88,8 +88,10 @@ describe('Notifications', function () {
     // (`mobile: shell`, cf. helpers/android-notifications.ts). Le WebView n'est pas rechargé par ce clic quand l'app est déjà ouverte.
     step('1. Accorder la permission de notifications système à l\'app (pm grant) et partir de l\'accueil')
     await SystemNotificationsPage.grantPermission()
-    await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await platform().inWebContext(async () => {
+      await NavigationPage.goToRoute('/')
+      await HomePage.assertHomeVisible()
+    })
 
     const title = `AMI-push-${Date.now()}`
     const body = 'Test push — inbox ET notification système'
@@ -122,8 +124,10 @@ describe('Notifications', function () {
   it('réglage Préférences > Notifications (Android) : interrupteur natif et réglages système', async function() {
     if (driver.isIOS) this.skip()
     await SystemNotificationsPage.grantPermission()
-    await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await platform().inWebContext(async () => {
+      await NavigationPage.goToRoute('/')
+      await HomePage.assertHomeVisible()
+    })
     step('1. Préférences > Notifications ouvre l\'écran natif « Paramètres », interrupteur actif (permission accordée)')
     await platform().inWebContext(async () => {
       await PreferencesPage.open()
@@ -151,6 +155,6 @@ describe('Notifications', function () {
     await SystemNotificationsPage.backToApp()
     await SystemNotificationsPage.grantPermission() // filet : permission accordée pour la suite de la série
     await driver.pressKeyCode(4) // BACK : quitte l'écran natif « Paramètres »
-    await NavigationPage.goToRoute('/')
+    await platform().inWebContext(() => NavigationPage.goToRoute('/'))
   })
 })
