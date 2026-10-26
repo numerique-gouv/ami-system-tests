@@ -3,10 +3,13 @@ import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import StepsListPage from '../../../pages/steps-list.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {describeTarget, isBrokenTarget, isExpectedUnreachable, type LinkTarget} from '../../../helpers/link-check'
+import {describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, mapWithConcurrency, type DeferredLink, type LinkTarget} from '../../../helpers/link-check'
 import {step} from '../../../helpers/report'
 
 const log = logger('test')
+
+/** Requêtes HTTP simultanées pour le contrôle des cibles interceptées. */
+const HTTP_CONCURRENCY = 6
 
 /**
  * Listes d'étapes (« Comment faire si… ») — chaque lien fonctionne (plan : catalogue.md, scénario S1.4). Réunion du 2026-10-06,
@@ -49,6 +52,20 @@ describe('Non-régression — listes d’étapes', function () {
       }
     }
 
+    // Cibles externes sans jeton : interceptées au clic (page non chargée, donc ni retour ni rechargement), contrôlées en HTTP après le
+    // parcours, en parallèle. Chacune garde son `where`. Les adresses à jeton et les liens restés dans l'application suivent le
+    // chemin habituel (clic + navigateur, puis retour).
+    const deferred: {where: string, link: DeferredLink}[] = []
+    /** Suit un lien ; `true` si la page a été quittée (retour nécessaire), `false` si la cible a seulement été interceptée. */
+    const follow = (where: string, target: LinkTarget | DeferredLink): boolean => {
+      if (isDeferred(target)) {
+        deferred.push({where, link: target})
+        return false
+      }
+      check(where, target)
+      return true
+    }
+
     for (const [l, list] of lists.entries()) {
       step(`liste ${l + 1}/${lists.length} — ${list}`)
       await ServicesPage.returnFromExternal()
@@ -67,8 +84,7 @@ describe('Non-régression — listes d’étapes', function () {
           const where = `${list} › ${section} › ${item.kind === 'direct' ? `« ${item.label} »` : `page n° ${i + 1}`}`
           if (item.kind === 'direct') {
             // Un lien direct mène tout de suite à une page externe, sans page intermédiaire.
-            check(where, await StepsListPage.followDirectLink(i))
-            await StepsListPage.returnTo(sectionRoute)
+            if (follow(where, await StepsListPage.followDirectLink(i, {deferExternal: true}))) await StepsListPage.returnTo(sectionRoute)
             continue
           }
           // Un item à plusieurs liens ouvre d'abord une page intermédiaire qui les liste.
@@ -76,13 +92,16 @@ describe('Non-régression — listes d’étapes', function () {
           const links = await StepsListPage.itemPageLinks()
           if (links.length < 2) broken.push(`${where} : page intermédiaire avec ${links.length} lien(s) (au moins 2 attendus)`)
           for (const [k, link] of links.entries()) {
-            check(`${where} › « ${link} »`, await StepsListPage.followItemPageLink(k))
-            await StepsListPage.returnTo(itemRoute)
+            if (follow(`${where} › « ${link} »`, await StepsListPage.followItemPageLink(k, {deferExternal: true}))) await StepsListPage.returnTo(itemRoute)
           }
           await StepsListPage.returnTo(sectionRoute)
         }
       }
     }
+
+    step(`contrôle HTTP de ${deferred.length} cible(s) interceptée(s)`)
+    const described = await mapWithConcurrency(deferred, HTTP_CONCURRENCY, async ({link}) => await describeByHttp(link))
+    for (const [position, {where}] of deferred.entries()) check(where, described[position])
 
     log.info(`liens suivis : ${followed}`)
     // Sans aucun lien suivi, le scénario ne prouverait rien : on le dit plutôt que de passer.

@@ -4,7 +4,10 @@ import logger from '@wdio/logger'
  * Contrôle de la cible d'un lien qui quitte la SPA (catalogue, aide, iframe), pour les scénarios « aucun lien KO »
  * (réunion du 2026-10-06, `src/tests/webapp/nonreg/catalogue.md`).
  *
- * La cible est lue DEPUIS LE NAVIGATEUR, après le vrai clic : l'URL du catalogue Service Public porte des jetons à usage
+ * Exception : une cible externe SANS jeton peut être interceptée au clic et contrôlée en HTTP (`followAndDescribe` avec
+ * `deferExternal`, `describeByHttp`), ce qui évite de charger des sites tiers lents dans le navigateur.
+ *
+ * Sinon, la cible est lue DEPUIS LE NAVIGATEUR, après le vrai clic : l'URL du catalogue Service Public porte des jetons à usage
  * unique (`caller`, `id_token`, relevé en live le 2026-10-15) qu'on ne doit ni rejouer depuis Node, ni journaliser. Seuls
  * l'hôte et le chemin sont conservés dans `LinkTarget` : jamais la requête (`?…`) ni le fragment (`#…`).
  */
@@ -124,6 +127,68 @@ export function isLoginWall(target: Pick<LinkTarget, 'title'>): boolean {
 }
 
 /**
+ * Cible externe dont le clic a été INTERCEPTÉ avant le chargement (`armNavigationCapture`) : on n'a que son adresse, à contrôler
+ * ensuite par `describeByHttp`. L'adresse n'est jamais affichée ni journalisée (`url` peut porter une requête).
+ */
+export interface DeferredLink {
+  deferred: true
+  url: string
+}
+
+/** Un `LinkTarget` (cible déjà décrite depuis le navigateur) ou un `DeferredLink` (à contrôler par `describeByHttp`). */
+export function isDeferred(target: LinkTarget | DeferredLink): target is DeferredLink {
+  return 'deferred' in target
+}
+
+/** Noms de paramètres d'adresse qui portent un jeton ou un état de session à usage unique : une telle cible n'est jamais interceptée. */
+const SECRET_PARAMS = '^(caller|code|state|nonce|signature|sig)$|token|login_redirect'
+
+/**
+ * Prépare la page courante à intercepter la PROCHAINE navigation de document vers une autre origine (API Navigation de Chrome,
+ * événement `navigate`) : l'adresse visée est mémorisée puis la navigation annulée, la cible n'est donc jamais chargée. Rien n'est
+ * intercepté pour une cible de la SPA, pour une adresse portant un jeton (`SECRET_PARAMS` : l'URL des cartes Service Public est à
+ * usage unique, voir l'en-tête du fichier) ni si l'événement n'est pas annulable : le clic suit alors son cours et
+ * `followAndDescribe` décrit la page depuis le navigateur, comme avant.
+ */
+async function armNavigationCapture(): Promise<void> {
+  await browser.execute((secretParams: string) => {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const w = window as any
+    const navigation = w.navigation
+    if (!navigation) return
+    if (w.__amiNavigationHandler) navigation.removeEventListener('navigate', w.__amiNavigationHandler)
+    w.__amiNavigationTarget = null
+    const secret = new RegExp(secretParams, 'i')
+    w.__amiNavigationHandler = (event: any): void => {
+      if (!event.cancelable || event.hashChange || event.downloadRequest !== null) return
+      const destination = new URL(event.destination.url)
+      if (!/^https?:$/.test(destination.protocol) || destination.origin === location.origin) return
+      if ([...destination.searchParams.keys()].some(key => secret.test(key))) return
+      w.__amiNavigationTarget = destination.href
+      event.preventDefault()
+    }
+    navigation.addEventListener('navigate', w.__amiNavigationHandler)
+  }, SECRET_PARAMS)
+}
+
+/**
+ * Après le clic : `DeferredLink` si la navigation a été interceptée, `null` si elle suit son cours (l'adresse a changé, ou le
+ * délai de `NAVIGATION_TIMEOUT_MS` est écoulé : `followAndDescribe` produit alors son message habituel).
+ */
+async function capturedNavigation(before: string): Promise<DeferredLink | null> {
+  let url: string | null = null
+  try {
+    await browser.waitUntil(async () => {
+      // La page peut se décharger entre deux commandes (navigation non interceptée) : une lecture qui échoue ne dit rien.
+      url = await browser.execute(() => (window as unknown as {__amiNavigationTarget?: string | null}).__amiNavigationTarget ?? null)
+        .catch(() => null)
+      return url !== null || (await browser.getUrl()) !== before
+    }, {timeout: NAVIGATION_TIMEOUT_MS, interval: 100})
+  } catch { /* délai écoulé : la navigation n'a pas été interceptée, `followAndDescribe` en rend compte */ }
+  return url ? {deferred: true, url} : null
+}
+
+/**
  * Exécute `click` (qui doit déclencher la navigation), attend que l'URL change puis se stabilise (les redirections
  * OIDC enchaînent plusieurs adresses), et décrit la page atteinte.
  *
@@ -133,10 +198,17 @@ export function isLoginWall(target: Pick<LinkTarget, 'title'>): boolean {
  * `SETTLE_TIMEOUT_MS`. La cible est alors décrite avec l'hôte et le chemin visés, un statut `null` (donc `isBrokenTarget` vrai) et
  * le texte de l'erreur du navigateur.
  */
-export async function followAndDescribe(click: () => Promise<void>): Promise<LinkTarget> {
+export async function followAndDescribe(click: () => Promise<void>): Promise<LinkTarget>
+export async function followAndDescribe(click: () => Promise<void>, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+export async function followAndDescribe(click: () => Promise<void>, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
   const before = await browser.getUrl()
   const origin = new URL(before).origin
+  if (options?.deferExternal) await armNavigationCapture()
   await click()
+  if (options?.deferExternal) {
+    const deferred = await capturedNavigation(before)
+    if (deferred) return deferred
+  }
 
   let changed = before
   await browser.waitUntil(async () => {
@@ -231,4 +303,74 @@ export async function statusOf(url: string, referer?: string): Promise<number | 
     log.warn(`statusOf ${parts(url).host}${parts(url).path} : ${(err as Error).message}`)
     return null
   }
+}
+
+// Sans User-Agent de navigateur, certains sites répondent 403 aux clients « scripts » (cf. le WAF de cybermalveillance ci-dessus).
+const BROWSER_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+const HTTP_TIMEOUT_MS = 15000
+/** Début du document lu : le titre et le début du texte visible y figurent, inutile de télécharger la page entière. */
+const BODY_LIMIT_BYTES = 65536
+
+/** Texte visible approximatif d'un document HTML : sans script, style ni balises, entités courantes décodées, espaces normalisés. */
+function visibleText(html: string): string {
+  return decodeNumericEntities(html
+    .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'))
+    .replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Décrit une cible interceptée (`DeferredLink`) par UNE requête HTTP depuis Node au lieu de la charger dans le navigateur : même
+ * `LinkTarget`, donc même classification (`isBrokenTarget`, `isLoginWall`, `isExpectedUnreachable`, `titleMentionsCard`).
+ * Statut = celui de la réponse finale après redirections ; pas de réponse (réseau, délai, TLS) : `null`, comme une page d'erreur du
+ * navigateur. Hôte et chemin sont ceux de l'adresse FINALE (jamais la requête). Écart connu avec le navigateur : aucun JavaScript
+ * exécuté, un titre ou un texte posé côté client (SPA, redirection JS) n'est pas vu ; le statut HTTP, lui, est le même.
+ */
+export async function describeByHttp(link: DeferredLink): Promise<LinkTarget> {
+  const asked = parts(link.url)
+  try {
+    const response = await fetch(link.url, {
+      redirect: 'follow', signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+      headers: {'User-Agent': BROWSER_USER_AGENT, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'fr-FR,fr;q=0.9'},
+    })
+    const html = await readStart(response)
+    const title = visibleText(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '')
+    const target: LinkTarget = {internal: false, ...parts(response.url || link.url), status: response.status, title, excerpt: visibleText(html).slice(0, 300)}
+    log.info(`lien contrôlé en HTTP → ${describeTarget(target)} (statut ${target.status})`)
+    return target
+  } catch (err) {
+    log.warn(`${describeTarget(asked)} sans réponse HTTP : ${(err as Error).message}`)
+    return {internal: false, ...asked, status: null, title: 'La page ne répond pas', excerpt: ''}
+  }
+}
+
+/** Lit au plus `BODY_LIMIT_BYTES` du corps, puis abandonne le flux. */
+async function readStart(response: Response): Promise<string> {
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  let bytes = 0
+  while (bytes < BODY_LIMIT_BYTES) {
+    const {done, value} = await reader.read()
+    if (done) break
+    bytes += value.byteLength
+    text += decoder.decode(value, {stream: true})
+  }
+  await reader.cancel().catch(() => undefined)
+  return text
+}
+
+/** `items` traités par `worker` avec au plus `limit` appels simultanés ; résultats dans l'ordre des `items`. */
+export async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  await Promise.all(Array.from({length: Math.min(limit, items.length)}, async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await worker(items[index])
+    }
+  }))
+  return results
 }

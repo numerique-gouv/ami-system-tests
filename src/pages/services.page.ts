@@ -3,7 +3,7 @@ import {stepsListLocators} from './locators/steps-list.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import {allDisplayed, checkboxStates, clickButton, clickButtonUntilGone, firstDisplayed, visibleButtonTexts, waitForHeading} from '../helpers/spa'
-import {followAndDescribe, type LinkTarget} from '../helpers/link-check'
+import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/link-check'
 import NavigationPage from './navigation.page'
 
 /** Page Object de Services : onglets, checklists éditoriales, fiche d'un service partenaire. */
@@ -52,15 +52,21 @@ class ServicesPage {
     /**
      * Clique la carte n° `index` (rang dans `catalogueLabels()`) et décrit la page atteinte, sans jamais en exposer l'URL
      * complète (jetons) : voir `followAndDescribe`. Pré-condition : onglet « Démarches et outils » affiché.
+     *
+     * Avec `deferExternal`, une cible externe sans jeton n'est pas chargée : le clic est intercepté et l'appelant reçoit un
+     * `DeferredLink` à contrôler par `describeByHttp` (la page reste affichée, aucun retour n'est nécessaire).
      */
-    async openCatalogueCard(index: number): Promise<LinkTarget> {
-        return await followAndDescribe(async () => {
+    async openCatalogueCard(index: number): Promise<LinkTarget>
+    async openCatalogueCard(index: number, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+    async openCatalogueCard(index: number, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
+        const click = async (): Promise<void> => {
             await platform().inWebContext(async () => {
                 const within = servicesLocators.tabpanel(servicesLocators.catalogueTabName)
                 const cards = await allDisplayed(servicesLocators.catalogueCard, {within})
                 await cards[index].click()
             })
-        })
+        }
+        return options ? await followAndDescribe(click, options) : await followAndDescribe(click)
     }
 
     /** Comme `openCatalogueCard`, pour la première carte dont le libellé commence par `labelStart`. */
@@ -118,9 +124,13 @@ class ServicesPage {
      * refuse (« invalid argument: Invalid parameters », systématique ici), WDIO replie sur un défilement qui laisse la dernière entrée
      * (« Accéder à l’annuaire ») sous la barre de navigation basse, d'où un clic « intercepté » (relevé le 2026-10-15 sur préprod et
      * staging). Le défilement natif la place au milieu de l'écran, entièrement dégagée : ce n'est PAS un défaut de l'application.
+     *
+     * `deferExternal` : comme pour `openCatalogueCard`.
      */
-    async openHelpEntry(index: number): Promise<LinkTarget> {
-        return await followAndDescribe(async () => {
+    async openHelpEntry(index: number): Promise<LinkTarget>
+    async openHelpEntry(index: number, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+    async openHelpEntry(index: number, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
+        const click = async (): Promise<void> => {
             await platform().inWebContext(async () => {
                 const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
                 // Les entrées sont rendues progressivement après un rechargement : on attend la n° `index` plutôt que de la lire
@@ -137,7 +147,8 @@ class ServicesPage {
                 // échouait en « stale element reference » (relevé le 2026-10-15) ; `followAndDescribe` attend lui-même la navigation.
                 await browser.execute((el: HTMLElement) => el.click(), entry as unknown as HTMLElement)
             })
-        })
+        }
+        return options ? await followAndDescribe(click, options) : await followAndDescribe(click)
     }
 
     /** Ouvre « Je suis victime de cybermalveillance » (route interne) et retourne l'adresse de ses iframes. */

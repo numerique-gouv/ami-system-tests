@@ -2,7 +2,7 @@ import {stepsListLocators} from './locators/steps-list.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import {allDisplayed, firstDisplayed} from '../helpers/spa'
-import {followAndDescribe, type LinkTarget} from '../helpers/link-check'
+import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/link-check'
 
 export type StepsLinkKind = 'direct' | 'page'
 
@@ -92,9 +92,15 @@ class StepsListPage {
         })
     }
 
-    /** Suit un item à LIEN DIRECT : la cible est une page externe, décrite sans son URL complète. */
-    async followDirectLink(index: number): Promise<LinkTarget> {
-        return await followAndDescribe(async () => this.clickLinkItem(index))
+    /**
+     * Suit un item à LIEN DIRECT : la cible est une page externe, décrite sans son URL complète. Avec `deferExternal`, une cible externe
+     * sans jeton est interceptée au clic (page non chargée, restée affichée) : voir `followAndDescribe`.
+     */
+    async followDirectLink(index: number): Promise<LinkTarget>
+    async followDirectLink(index: number, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+    async followDirectLink(index: number, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
+        const click = async (): Promise<void> => this.clickLinkItem(index)
+        return options ? await followAndDescribe(click, options) : await followAndDescribe(click)
     }
 
     /** Ouvre la page INTERMÉDIAIRE d'un item à plusieurs liens et attend sa route (`…/item/<id>/`). */
@@ -119,9 +125,11 @@ class StepsListPage {
         })
     }
 
-    /** Suit le lien n° `index` (rang dans `itemPageLinks()`) de la page intermédiaire d'un item. */
-    async followItemPageLink(index: number): Promise<LinkTarget> {
-        return await followAndDescribe(async () => {
+    /** Suit le lien n° `index` (rang dans `itemPageLinks()`) de la page intermédiaire d'un item. `deferExternal` : comme `followDirectLink`. */
+    async followItemPageLink(index: number): Promise<LinkTarget>
+    async followItemPageLink(index: number, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+    async followItemPageLink(index: number, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
+        const click = async (): Promise<void> => {
             await platform().inWebContext(async () => {
                 const links = await allDisplayed(stepsListLocators.itemPageLink)
                 const named: WebdriverIO.Element[] = []
@@ -131,7 +139,8 @@ class StepsListPage {
                 }
                 await named[index].click()
             })
-        })
+        }
+        return options ? await followAndDescribe(click, options) : await followAndDescribe(click)
     }
 }
 
