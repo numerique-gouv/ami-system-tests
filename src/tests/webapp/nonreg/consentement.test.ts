@@ -5,7 +5,7 @@ import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
 import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {
-  PARTNER_AMI, PARTNER_DN, checkDemarchesConsent,
+  PARTNER_AMI, PARTNER_DN, checkDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials,
   publicationOutcome, grantDemarchesConsent, publishDemarche, publishNotification, revokeDemarchesConsent,
 } from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
@@ -59,6 +59,11 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     // Le consentement AMI se rétablit aussi côté API : un test a pu le révoquer sans passer par la case.
     if (original[PARTNER_AMI]) await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     else await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
+    // Idem pour DN, que S5 et S5.2 manipulent par l'API (seulement si ses identifiants sont fournis).
+    if (hasPartnerCredentials(PARTNER_DN)) {
+      if (original[PARTNER_DN]) await grantDemarchesConsent(PARTNER_DN, user.fcHash)
+      else await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
+    }
   })
 
   it('S3 — « Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif', async function () {
@@ -124,76 +129,68 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     expect(keys.map(key => states[key])).toEqual(keys.map(() => true))
   })
 
-  // S5 et S5.2 manipulent le consentement du PARTENAIRE (aux démarches, seule porte connue) en publiant une notification simple. Qu'un
-  // événement « notification » passe par cette même porte côté backend est NON CONFIRMÉ (consentement.md) ; ce n'est pas le réglage
-  // des notifications push, global à AMI et sans endpoint.
-  it('S5 — une notification reçue sans consentement n’apparaît jamais, même après activation ; la suivante oui', async function () {
+  // S5 et S5.2 exigent un partenaire À CONSENTEMENT ACTIVÉ (flag `consent_is_enabled` du partenaire, backend) : le partenaire AMI est un
+  // partenaire système dont le consentement est ignoré (PUT sans consentement : 201). On utilise `dinum-dn` ; identifiants
+  // NOTIF_PARTNER_DINUM_DN_ID / _SECRET dans .env.local, sinon le test est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
+  // Ce n'est pas le réglage des notifications push, global à AMI et sans endpoint (voir notifications.test.ts).
+  it('S5 — une notification refusée sans consentement n’apparaît jamais, même après activation ; la suivante oui', async function () {
+    skipUnlessPartnerCredentials(this, PARTNER_DN)
     const stamp = Date.now()
     const before = `AMI-sans-consentement-${stamp}`
     const after = `AMI-avec-consentement-${stamp}`
 
-    step('1. Retirer le consentement AMI (API) et publier N1 sans consentement')
-    await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
-    // Précondition vérifiée côté backend : sans elle, N1 pourrait être visible simplement parce que la révocation n'a pas eu lieu.
-    expect(await checkDemarchesConsent(PARTNER_AMI, user.fcHash)).toBe(false)
-    const issueN1 = await publicationOutcome(() => publishNotification({title: before, body: 'Doit rester invisible', recipientFcHash: user.fcHash, verifyPartnerConsent: false}))
-    step(`N1 publiée sans consentement : ${issueN1} par l'API`)
+    step('1. Retirer le consentement DN (API) et publier N1 sans consentement')
+    await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
+    // Précondition vérifiée côté backend : sans elle, N1 pourrait être acceptée simplement parce que la révocation n'a pas eu lieu.
+    expect(await checkDemarchesConsent(PARTNER_DN, user.fcHash)).toBe(false)
+    // Appelant réel : GET consent puis arrêt, sans PUT.
+    await expect(publishNotification({partner: PARTNER_DN, title: before, body: 'Doit rester invisible', recipientFcHash: user.fcHash}))
+      .rejects.toThrow(/pas de consentement/)
+    // Appel direct à PUT /api/v2/event : c'est le BACKEND qui doit refuser (404), pas répondre 201.
+    const issueN1 = await publicationOutcome(() => publishNotification({partner: PARTNER_DN, title: before, body: 'Doit rester invisible', recipientFcHash: user.fcHash, verifyPartnerConsent: false}))
+    expect(issueN1).toBe('refusée')
 
-    step('2. Activer le consentement AMI (API), ouvrir l’inbox puis publier N2')
-    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
+    step('2. Activer le consentement DN (API), ouvrir l’inbox puis publier N2')
+    await grantDemarchesConsent(PARTNER_DN, user.fcHash)
     await getAppToStartingState()
     await NotificationsInboxPage.openFromHome()
     // Avant de publier : l'inbox ouvre son WebSocket au montage (cf. notifications.test.ts).
     await NotificationsInboxPage.assertDisplayed()
-    await publishNotification({title: after, body: 'Doit apparaître', recipientFcHash: user.fcHash})
+    await publishNotification({partner: PARTNER_DN, title: after, body: 'Doit apparaître', recipientFcHash: user.fcHash})
 
-    step('3. N2 est reçue ; N1 ne devrait jamais avoir été visible')
+    step('3. N2 est reçue ; N1 (refusée) n’est jamais visible')
     await NotificationsInboxPage.assertNotificationReceived(after)
-    // Constat du 2026-10-15 en préprod : N1 EST visible (publiée sans consentement, le backend l'accepte et l'affiche une fois le
-    // consentement donné). Réunion, 06:42–06:53 : « tu ne récupères pas les notifs déjà envoyées, si je dis pas de bêtises » — attente
-    // non confirmée : signalée, pas bloquante, jusqu'à validation avec Édouard (consentement.md).
-    if (await NotificationsInboxPage.isNotificationListed(before, 2000)) {
-      log.warn(`ANOMALIE ? La notification publiée SANS consentement (« ${before} », ${issueN1} par l'API) est visible après activation du consentement`)
-    }
+    expect(await NotificationsInboxPage.isNotificationListed(before, 2000)).toBe(false)
   })
 
-  it('S5.2 — sans consentement, la notification publiée est observée dans l’inbox ; avec consentement, elle apparaît', async function () {
+  it('S5.2 — sans consentement, la publication est refusée et rien n’apparaît dans l’inbox ; avec consentement, elle apparaît', async function () {
+    skipUnlessPartnerCredentials(this, PARTNER_DN)
     const stamp = Date.now()
     const sans = `AMI-s52-sans-consentement-${stamp}`
     const avec = `AMI-s52-avec-consentement-${stamp}`
 
-    step('1. Retirer le consentement AMI (API), ouvrir l’inbox')
-    await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
-    expect(await checkDemarchesConsent(PARTNER_AMI, user.fcHash)).toBe(false)
+    step('1. Retirer le consentement DN (API), ouvrir l’inbox')
+    await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
+    expect(await checkDemarchesConsent(PARTNER_DN, user.fcHash)).toBe(false)
     await getAppToStartingState()
     await NotificationsInboxPage.openFromHome()
     await NotificationsInboxPage.assertDisplayed()
 
-    step('2. Publier une notification sans consentement et OBSERVER (constat, jamais un échec)')
-    // Contrôle de ce que fait réellement l'API : `verifyPartnerConsent: false` saute seulement la garde côté test.
-    const issue = await publicationOutcome(() => publishNotification({title: sans, body: 'Observée sans consentement', recipientFcHash: user.fcHash, verifyPartnerConsent: false}))
-    step(`Publication sans consentement : ${issue} par l'API`)
-    // Attente non confirmée (consentement.md § S5.2, question à Édouard) : on journalise ce que l'application fait, sans l'asserter.
-    const avantReload = await NotificationsInboxPage.isNotificationListed(sans, 5000)
+    step('2. Appel direct à PUT /api/v2/event sans consentement : le backend REFUSE (404), rien n’apparaît dans l’inbox')
+    // Le GET consent puis PUT d'un partenaire réel s'arrêterait au GET ; `verifyPartnerConsent: false` force le PUT pour tester le refus.
+    const issue = await publicationOutcome(() => publishNotification({partner: PARTNER_DN, title: sans, body: 'Refusée sans consentement', recipientFcHash: user.fcHash, verifyPartnerConsent: false}))
+    expect(issue).toBe('refusée')
+    expect(await NotificationsInboxPage.isNotificationListed(sans, 5000)).toBe(false)
     await NavigationPage.reload()
     await NotificationsInboxPage.assertDisplayed()
-    const apresReload = await NotificationsInboxPage.isNotificationListed(sans, 8000)
-    if (issue === 'refusée' && (avantReload || apresReload)) {
-      // Refusée (404) et pourtant visible : incohérence réelle, c'est un échec.
-      throw new Error(`S5.2 : la publication sans consentement a été REFUSÉE par l'API mais « ${sans} » est visible dans l'inbox`)
-    }
-    if (issue === 'acceptée') {
-      log.warn(`ANOMALIE ? S5.2 : l'API a ACCEPTÉ la publication sans consentement (le partenaire n'applique pas le consentement sur cet environnement ? non confirmé) : la scène « sans consentement » n'est pas exercée`)
-    } else {
-      log.info('OBS S5.2 : publication refusée par l\'API et notification absente de l\'inbox (avant et après rechargement), comme attendu')
-    }
+    expect(await NotificationsInboxPage.isNotificationListed(sans, 8000)).toBe(false)
 
-    step('3. Redonner le consentement : une notification publiée ensuite DOIT apparaître (fait certain, comme N2 de S5)')
-    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
-    expect(await checkDemarchesConsent(PARTNER_AMI, user.fcHash)).toBe(true)
+    step('3. Redonner le consentement : une notification publiée ensuite DOIT apparaître')
+    await grantDemarchesConsent(PARTNER_DN, user.fcHash)
+    expect(await checkDemarchesConsent(PARTNER_DN, user.fcHash)).toBe(true)
     await NavigationPage.reload() // rouvre le WebSocket de l'inbox avec le consentement actif
     await NotificationsInboxPage.assertDisplayed()
-    await publishNotification({title: avec, body: 'Doit apparaître', recipientFcHash: user.fcHash})
+    await publishNotification({partner: PARTNER_DN, title: avec, body: 'Doit apparaître', recipientFcHash: user.fcHash})
     await NotificationsInboxPage.assertNotificationReceived(avec)
   })
 

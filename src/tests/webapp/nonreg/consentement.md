@@ -3,6 +3,23 @@
 Réunion 03:45–09:40. Deux choses à ne pas confondre : le consentement aux **démarches**, propre à chaque partenaire (refusé, le backend refuse les événements du partenaire et l'app ne reçoit pas ses démarches), et les **notifications push**, réglage global à AMI, local à l'app, sans endpoint (permission du système : navigateur, Android ; iOS : appareil physique seulement, donc pas sur simulateur). Dans le code : `…DemarchesConsent(partenaire, fcHash)` (`PARTNER_AMI`, `PARTNER_DN`) pour le premier, aucun helper API pour le second. `/api/v1/consent/{fc_hash}` est la porte du partenaire pour ses événements. **Non confirmé** (S5, S5.2) : qu'un événement « notification » simple passe par cette même porte ; `publishNotification` appelle la même garde, d'où l'option neutre `verifyPartnerConsent`. Le consentement AMI aux démarches (`dinum-ami`) se pilote par cette API (`grantDemarchesConsent`/`revokeDemarchesConsent`/`checkDemarchesConsent`) ;
 les autres (DN, SP, …) par les switchs de Préférences > Suivi des démarches. Restauration : état d'origine relevé dans `before()`.
 
+
+## Partenaires de test et identifiants (2026-10-26)
+
+Backend (`ami/partner/models.py`, `notification/api_views_v2.py`) : `PUT /api/v2/event` et `POST /api/v1/notifications` passent par la même porte ; le blocage dépend du flag `consent_is_enabled` du **partenaire**. Vrai (`dinum-dn`, `dinum-rdvsp`) : sans utilisateur / consentement absent ou retiré, **404** (`User not found`, `Consent not found`, `Consent not given`), rien n'est créé. Faux (`psl`) : consentement ignoré. `dinum-ami` est le partenaire **système** AMI ; sur staging il a répondu **201 sans consentement** : il ne peut pas exercer les scènes « sans consentement ».
+
+Conséquence : S5, S5.2 et S6.3 utilisent **`dinum-dn`** (`PARTNER_DN`). Un partenaire réel fait GET `/api/v1/consent/{fc_hash}` puis PUT (c'est ce que simule `publishEvent` par défaut) ; pour tester le **refus du backend** on appelle le PUT directement (`verifyPartnerConsent: false`) et on exige `publicationOutcome` = `refusée` (404).
+
+Variables d'environnement (`.env.local`, jamais commitées ; gabarit `.env`) :
+
+| Partenaire | Identifiant | Secret (valeur : variable `PARTNERS_<SLUG>_SECRET` de l'app Scalingo du backend) |
+|---|---|---|
+| AMI (`dinum-ami`) | `NOTIF_PARTNER_ID` | `NOTIF_PARTNER_SECRET` |
+| Autre partenaire `<slug>` | `NOTIF_PARTNER_<SLUG>_ID` | `NOTIF_PARTNER_<SLUG>_SECRET` (`<SLUG>` = slug en majuscules, non alphanumériques → `_`) |
+| Démarche Numérique (`dinum-dn`) | `NOTIF_PARTNER_DINUM_DN_ID` | `NOTIF_PARTNER_DINUM_DN_SECRET` |
+
+Le paramètre `partner` des helpers (`publishEvent`, `publishNotification`, `publishDemarche`, `…DemarchesConsent`) choisit les identifiants de l'appel (`client.ts`). Sans les variables DN, S5, S5.2 et S6.3 sont **SKIPPÉS (BLOQUÉS)** avec un message qui nomme les variables manquantes (`skipUnlessPartnerCredentials`) : aucun faux succès. Valeur réelle de `consent_is_enabled` de `dinum-dn` sur staging : non confirmée tant que ces scénarios n'ont pas tourné.
+
 ## Observé en préprod (2026-10-15)
 
 - Préférences > Suivi des démarches (`#/preferences/consents`) : bouton « Tout suivre » + 4 cases : « Suivre mes démarches AMI | Démarche Numérique | RDV Service Public | Service Public sur mon appareil mobile ». État d'origine du compte : **AMI seul**.
@@ -39,8 +56,8 @@ Et `checkDemarchesConsent` renvoie vrai
 Restauration : état d'origine de chaque switch
 
 ### S5.1 — Une notification reçue sans consentement n'apparaît jamais, même après activation
-Étant donné un usager **sans** consentement du partenaire `dinum-ami` (`revokeDemarchesConsent` ; le rapport de cette porte avec les notifications est non confirmé)
-Quand une notification « N1 » est publiée (`publishNotification` avec `verifyPartnerConsent: false`)
+Étant donné un usager **sans** consentement du partenaire `dinum-dn` (`revokeDemarchesConsent`)
+Quand une notification « N1 » est publiée par appel direct (`publishNotification` avec `verifyPartnerConsent: false`) : le backend la **refuse** (404)
 Et que l'usager active son consentement (`grantDemarchesConsent`)
 Et qu'une notification « N2 » est publiée
 Alors l'inbox (Notifications) affiche « N2 »
@@ -70,18 +87,19 @@ Question à poser à Édouard (reprise de la réunion, 09:01) : que doit-il arri
 
 ### S5.2 — Notifications reçues avec consentement : bonnes conditions inverses  (📝 à implémenter, petite)
 Source : transcript 06:27–06:53 — « si je ne l'ai pas mis, la notification n'arrive pas ; si je l'ai mis, elle arrive bien ». S5.1 (✅) couvre « activation après coup » ; il manque le cas simple :
-Étant donné un usager **sans** consentement AMI, inbox ouverte
-Quand une notification est publiée (`verifyPartnerConsent: false`)
-Alors elle n'apparaît pas dans l'inbox (même après rechargement)
+Étant donné un usager **sans** consentement `dinum-dn`, inbox ouverte
+Quand une notification est publiée par appel direct (`verifyPartnerConsent: false`)
+Alors le backend la **refuse** (404) et elle n'apparaît pas dans l'inbox (même après rechargement)
 Étant donné le même usager **avec** consentement
 Quand une notification est publiée
 Alors elle apparaît
 Remarque : l'observation du 2026-10-15 (S5.1 : visible après activation) laisse penser que « n'apparaît pas » est à vérifier d'abord avec Édouard avant d'en faire une assertion bloquante.
-**Implémenté en mode constat** (`consentement.test.ts`, « S5.2 — … », pas encore exécuté) : sans consentement et inbox ouverte, la notification est publiée (`verifyPartnerConsent: false`) et le test observe pendant 5 s, puis après rechargement (8 s), si elle apparaît (`OBS S5.2 …` ou `ANOMALIE ? S5.2 …`) sans jamais échouer sur ce point. Seul le fait certain est asserté : consentement redonné, une seconde notification apparaît dans l'inbox. **Constat du 2026-10-15 (préprod, un run)** : `ANOMALIE ? S5.2 : la notification publiée SANS consentement est visible dans l'inbox (avant rechargement : true, après : true)`. Elle est donc visible dès la publication, consentement retiré (backend confirmé), et reste visible après rechargement. La démo filmée du même jour le confirme, et elle reste visible une fois le consentement redonné : le constat de S5.1 (« visible après activation ») est moins fort que celui-ci. La seconde notification, publiée avec consentement, apparaît (fait asserté). L'attente « n'apparaît pas » reste non confirmée (question à Édouard) ; rien n'est durci.
+**Constat historique, avec le partenaire AMI (système)** — remplacé le 2026-10-26 par les assertions ci-dessus avec `dinum-dn` (la visibilité observée venait du 201 d'AMI, pas d'un défaut de consentement ; à confirmer avec DN) : ancien mode constat (`consentement.test.ts`) : sans consentement et inbox ouverte, la notification est publiée (`verifyPartnerConsent: false`) et le test observe pendant 5 s, puis après rechargement (8 s), si elle apparaît (`OBS S5.2 …` ou `ANOMALIE ? S5.2 …`) sans jamais échouer sur ce point. Seul le fait certain est asserté : consentement redonné, une seconde notification apparaît dans l'inbox. **Constat du 2026-10-15 (préprod, un run)** : `ANOMALIE ? S5.2 : la notification publiée SANS consentement est visible dans l'inbox (avant rechargement : true, après : true)`. Elle est donc visible dès la publication, consentement retiré (backend confirmé), et reste visible après rechargement. La démo filmée du même jour le confirme, et elle reste visible une fois le consentement redonné : le constat de S5.1 (« visible après activation ») est moins fort que celui-ci. La seconde notification, publiée avec consentement, apparaît (fait asserté). L'attente « n'apparaît pas » reste non confirmée (question à Édouard) ; rien n'est durci.
 
 ### S6.3 — Démarches publiées sans consentement au suivi : Suivi et notifications  (✅ implémenté dans `consentement-demarches.test.ts` ; 4 attentes de l'équipe non tenues)
-Scénario décrit par l'équipe le 2026-10-15 (consentement **au suivi des démarches**, case « AMI » de Préférences > Suivi des démarches). Les attentes sont vérifiées étape par étape **sans interrompre** le déroulé (écarts collectés, listés à la fin) pour que la vidéo montre tout.
-Étant donné le consentement AMI retiré (par l'interface ; le backend le confirme)
+Scénario décrit par l'équipe le 2026-10-15 (consentement **au suivi des démarches**, case « Démarche Numérique » (`dinum-dn`) de Préférences > Suivi des démarches ; les résultats ci-dessous datent du partenaire AMI, système, qui accepte les PUT sans consentement : à rejouer avec DN). Les attentes sont vérifiées étape par étape **sans interrompre** le déroulé (écarts collectés, listés à la fin) pour que la vidéo montre tout.
+Étant donné le consentement DN retiré (par l'interface ; le backend le confirme)
+Quand D1 est publiée par appel direct, le backend la **refuse** (404)
 Quand le partenaire publie la démarche D1 (sans consentement) et que l'usager attend 4 secondes puis recharge l'Accueil
 Et qu'il ouvre le Suivi des démarches
 Alors D1 est **absente** du Suivi

@@ -6,11 +6,14 @@ import NavigationPage from '../../../pages/navigation.page'
 import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
 import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {PARTNER_AMI, checkDemarchesConsent, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent} from '../../../helpers/partner-api'
+import {PARTNER_AMI, PARTNER_DN, checkDemarchesConsent, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials, type PartnerId} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
 import {step} from '../../../helpers/report'
 
 const log = logger('test')
+
+/** Partenaire à consentement activé (voir l'en-tête du describe). */
+const PARTNER = PARTNER_DN
 
 /**
  * Consentement au SUIVI DES DÉMARCHES (plan : consentement.md, scénario S6.3). Scénario décrit par l'équipe (2026-10-15) : sans
@@ -21,7 +24,11 @@ const log = logger('test')
  * déroulé complet reste lisible, y compris dans la vidéo (`wdio.webapp.with_video.conf.ts`). Une attente qui n'est pas tenue est un
  * écart à confronter à la règle de gestion (Édouard), pas forcément un défaut de l'application.
  *
- * MODIFIE le consentement AMI du compte partagé `avec_nom_dusage` : état d'origine relevé au `before()`, rétabli à l'`after()`. Les
+ * PARTENAIRE : `dinum-dn` (consentement ACTIVÉ côté backend). Le partenaire AMI est un partenaire SYSTÈME dont le consentement est ignoré
+ * (un PUT sans consentement y répond 201) : il ne peut pas exercer ce scénario. Identifiants DN : NOTIF_PARTNER_DINUM_DN_ID / _SECRET
+ * (.env.local) ; absents, le scénario est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
+ *
+ * MODIFIE le consentement DN (et AMI) du compte partagé `avec_nom_dusage` : état d'origine relevé au `before()`, rétabli à l'`after()`. Les
  * démarches publiées (titres horodatés) restent sur le compte : aucune suppression n'est connue.
  */
 describe('Non-régression — démarches publiées sans consentement au suivi', function () {
@@ -38,10 +45,10 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
     await PreferencesPage.openDemarchesConsents()
   }
 
-  /** Le consentement AMI aux démarches vu par le backend atteint-il `expected` ? (la bascule d'une case est asynchrone) */
-  async function waitForBackendDemarchesConsent(expected: boolean): Promise<void> {
-    await browser.waitUntil(async () => await checkDemarchesConsent(PARTNER_AMI, user.fcHash) === expected, {
-      timeout: 10000, interval: 500, timeoutMsg: `Le backend ne renvoie pas « consentement AMI = ${expected} » après 10000ms`,
+  /** Le consentement du partenaire aux démarches vu par le backend atteint-il `expected` ? (la bascule d'une case est asynchrone) */
+  async function waitForBackendDemarchesConsent(partner: PartnerId, expected: boolean): Promise<void> {
+    await browser.waitUntil(async () => await checkDemarchesConsent(partner, user.fcHash) === expected, {
+      timeout: 10000, interval: 500, timeoutMsg: `Le backend ne renvoie pas « consentement ${partner} = ${expected} » après 10000ms`,
     })
   }
 
@@ -53,12 +60,17 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
   after(async function () {
     await openDemarchesConsents()
     await PreferencesPage.restoreDemarchesConsents(original)
-    // Aligné aussi par l'API : un test a pu le révoquer sans passer par la case.
+    // Aligné aussi par l'API : un test a pu le révoquer sans passer par la case (DN : seulement si ses identifiants sont fournis).
     if (original[PARTNER_AMI]) await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     else await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
+    if (hasPartnerCredentials(PARTNER_DN)) {
+      if (original[PARTNER_DN]) await grantDemarchesConsent(PARTNER_DN, user.fcHash)
+      else await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
+    }
   })
 
   it('S6.3 — sans consentement la démarche n’apparaît ni au Suivi ni aux notifications ; après consentement seule la nouvelle apparaît', async function () {
+    skipUnlessPartnerCredentials(this, PARTNER)
     const stamp = new Date().toISOString()
     const d1 = {itemId: `E2E-${stamp}-1`, title: `Demarche E2E ${stamp} D1 sans consentement`}
     const d1Maj = {...d1, title: `${d1.title} MAJ`}
@@ -93,19 +105,19 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
       await NotificationsInboxPage.assertDisplayed()
     }
 
-    step('1. Retirer le consentement au suivi des démarches (case « AMI »)')
-    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, false)
-    await waitForBackendDemarchesConsent(false)
+    step('1. Retirer le consentement au suivi des démarches (case du partenaire)')
+    await PreferencesPage.setDemarchesConsent(PARTNER, false)
+    await waitForBackendDemarchesConsent(PARTNER, false)
     await marquer()
 
     step('2. Publier la démarche D1 (sans consentement)')
     const issueD1 = await publicationOutcome(() => publishDemarche({
       title: d1.title, body: 'Création de D1 (sans consentement)', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId: d1.itemId, status: 'new', verifyPartnerConsent: false,
+      itemType: 'OTV', itemId: d1.itemId, status: 'new', partner: PARTNER, verifyPartnerConsent: false,
     }))
-    // Cause des écarts « présente » ci-dessous : si l'API ACCEPTE D1 sans consentement (constat staging du 2026-10-26 : HTTP 201), D1 existe
-    // côté backend et l'inbox la liste ; l'attente de l'équipe suppose un refus (404).
+    // Un partenaire réel ferait d'abord GET consent puis s'arrêterait ; ici on force le PUT pour vérifier que le BACKEND refuse (404).
     step(`D1 publiée sans consentement : ${issueD1} par l'API`)
+    if (issueD1 !== 'refusée') ecarts.push(`D1 sans consentement : attendu « PUT refusé (404) », observé ${issueD1} par l'API`)
 
     step('3. Attendre 4 secondes, puis recharger l’Accueil')
     // eslint-disable-next-line wdio/no-pause -- délai imposé par le scénario de l'équipe : laisser au backend le temps de traiter l'événement
@@ -126,23 +138,23 @@ describe('Non-régression — démarches publiées sans consentement au suivi', 
     constate('Notifications, sans consentement', 'D1 absente', await NotificationsInboxPage.isNotificationListed(d1.title, 3000), false)
     await marquer()
 
-    step('6. Remettre le consentement (case « AMI »)')
+    step('6. Remettre le consentement (case du partenaire)')
     await NavigationPage.goToRoute('/')
     await HomePage.assertContentVisible()
     await PreferencesPage.open()
     await PreferencesPage.openDemarchesConsents()
-    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
-    await waitForBackendDemarchesConsent(true)
+    await PreferencesPage.setDemarchesConsent(PARTNER, true)
+    await waitForBackendDemarchesConsent(PARTNER, true)
     await marquer()
 
     step('7. Publier une mise à jour de D1, puis la création d’une 2e démarche D2')
     await publishDemarche({
       title: d1Maj.title, body: 'Mise à jour de D1', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId: d1Maj.itemId, status: 'wip',
+      itemType: 'OTV', itemId: d1Maj.itemId, status: 'wip', partner: PARTNER,
     })
     await publishDemarche({
       title: d2.title, body: 'Création de D2', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId: d2.itemId, status: 'new',
+      itemType: 'OTV', itemId: d2.itemId, status: 'new', partner: PARTNER,
     })
 
     step('8. Ouvrir le Suivi, attendre D2 : la mise à jour de D1 doit être absente')
