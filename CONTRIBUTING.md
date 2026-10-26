@@ -378,7 +378,7 @@ La configuration des reporters est commentée dans `wdio.base.conf.ts`.
 - **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just explore-webapp|android|ios` puis `just s <cible> snapshot -i`) plutôt que deviner un sélecteur « qui devrait marcher ».
 - **Ne jamais commiter un locator ou un workaround qui n'a pas été validé** en exécution réelle. Un commit de workaround hypothétique casse silencieusement un autre cas. Tester d'abord, puis commiter avec un message qui décrit le **pourquoi** (bug WKRDP, AX tree périmé, etc.), pas seulement le *quoi*.
 - **Toggles de debug** (`logLevel: 'info'`, `specFileRetries: 0`) : tolérés commités tant que la suite est en développement actif, pour faciliter le diagnostic quotidien. `wdio.base.conf.ts` est aujourd'hui à
-  `logLevel: 'warn'` / `specFileRetries: 0`.
+  `logLevel: 'warn'` / `specFileRetries: 1` (un échec rejoué à l'identique indique un bug reproductible, un échec qui passe au second essai un test instable).
 - Avant toute session de débogage approfondie, regarder les dumps d'échec (`just failures-text`) et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
 
 La boucle d'exploration (`wdio session` : `just explore`, `just s`, `just webview`, `just explore-export`, `just debug`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).
