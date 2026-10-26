@@ -47,12 +47,10 @@ class SuiviDemarchesPage {
         try {
             await browser.waitUntil(async () => {
                 attempt++
-                const present = await platform().inWebContext(async () => {
-                    await driver.execute(() => window.location.reload())
-                    // Le reload peut laisser un arbre d'accessibilité WKWebView périmé sur iOS (cf. refreshAxTree()) — no-op sur Android.
-                    await platform().refreshAxTree()
-                    return await hasPageText(title, RELOAD_RENDER_MS)
-                })
+                await driver.execute(() => window.location.reload())
+                // Le reload peut laisser un arbre d'accessibilité WKWebView périmé sur iOS (cf. refreshAxTree()) — no-op sur Android.
+                await platform().refreshAxTree()
+                const present = await hasPageText(title, RELOAD_RENDER_MS)
                 log.log(`[suivi] démarche "${title}" ${present ? 'visible' : 'toujours pas visible'} (tentative ${attempt}, ${Date.now() - startedAt}ms)`)
                 return present
             }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS})
@@ -82,29 +80,27 @@ class SuiviDemarchesPage {
     const loc = getSuiviDemarchesLocators()
     const startedAt = Date.now()
     const statusLabelLower = statusLabel.toLowerCase()
-    await platform().inWebContext(async () => {
-      let lastStatus: string | null = null // null : aucune carte ne porte ce titre
-      try {
-        await browser.waitUntil(
-          async () => {
-            lastStatus = null
-            for await (const card of $$(loc.cardContent)) {
-              if (!(await card.$(loc.cardTitle).getText()).includes(title)) continue
-              lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
-              return lastStatus.includes(statusLabelLower)
-            }
-            return false
-          },
-          { timeout: timeoutMs, interval: 2000 }
-        )
-      } catch (err) {
-        // `waitUntil` réessaie les erreurs WebDriver (carte périmée…) : `err` porte la dernière si la liste est restée illisible.
-        const reason = (err as Error).message
-        if (lastStatus === null)
-          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)} (${reason})` })
-        throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus}) (${reason})` })
-      }
-    })
+    let lastStatus: string | null = null // null : aucune carte ne porte ce titre
+    try {
+      await browser.waitUntil(
+        async () => {
+          lastStatus = null
+          for await (const card of $$(loc.cardContent)) {
+            if (!(await card.$(loc.cardTitle).getText()).includes(title)) continue
+            lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
+            return lastStatus.includes(statusLabelLower)
+          }
+          return false
+        },
+        { timeout: timeoutMs, interval: 2000 }
+      )
+    } catch (err) {
+      // `waitUntil` réessaie les erreurs WebDriver (carte périmée…) : `err` porte la dernière si la liste est restée illisible.
+      const reason = (err as Error).message
+      if (lastStatus === null)
+        throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)} (${reason})` })
+      throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus}) (${reason})` })
+    }
   }
 
   /**
@@ -117,14 +113,12 @@ class SuiviDemarchesPage {
    * - demarcheDetailPage.assertDisplayed(...)
    */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
-    await platform().inWebContext(async () => {
-      // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
-      // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
-      await platform().refreshAxTree()
-      // Rôle + nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
-      // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
-      await clickDisplayed(getSuiviDemarchesLocators().demarcheTile(title), { timeout: timeoutMs })
-    })
+    // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
+    // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
+    await platform().refreshAxTree()
+    // Rôle + nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
+    // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
+    await clickDisplayed(getSuiviDemarchesLocators().demarcheTile(title), { timeout: timeoutMs })
   }
 
   /**
@@ -154,9 +148,7 @@ class SuiviDemarchesPage {
    * (relevé le 2026-10-15 : `waitForDemarche` cherchait alors sur l'Accueil, qui n'affiche que les démarches les plus récentes).
    */
   async assertDisplayed(): Promise<void> {
-    await platform().inWebContext(async () => {
-      await firstDisplayed(getSuiviDemarchesLocators().pageTitleH1, {timeout: 10000})
-    })
+    await firstDisplayed(getSuiviDemarchesLocators().pageTitleH1, {timeout: 10000})
   }
 
     /**
@@ -170,16 +162,14 @@ class SuiviDemarchesPage {
     async retourJusquAPageSuivi(): Promise<void> {
         const loc = getSuiviDemarchesLocators()
         const pageTitle = loc.pageTitle
-        await platform().inWebContext(async () => {
-            if (await isShown(loc.pageTitleHeading)) return
-            await browser.back()
-            if (await isShown(loc.pageTitleHeading, 4000)) return
+        if (await isShown(loc.pageTitleHeading)) return
+        await browser.back()
+        if (await isShown(loc.pageTitleHeading, 4000)) return
 
-            const origin = await driver.execute(() => location.origin) as string
-            log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
-            await browser.url(`${origin}/#/followup`)
-            await waitForHeading(pageTitle, 20000)
-        })
+        const origin = await driver.execute(() => location.origin) as string
+        log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
+        await browser.url(`${origin}/#/followup`)
+        await waitForHeading(pageTitle, 20000)
     }
 }
 

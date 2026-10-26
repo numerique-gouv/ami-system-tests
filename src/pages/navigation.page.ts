@@ -12,17 +12,13 @@ import {clickDisplayed, firstDisplayed} from '../helpers/spa'
 class NavigationPage {
     /** Navigue directement vers une route (ex. `/network-error`) sans recharger la SPA. */
     async goToRoute(route: string): Promise<void> {
-        await platform().inWebContext(async () => {
-            // driver.execute : aucun bouton ne mène à ces routes (ex. /network-error) — navigation directe par hash.
-            await driver.execute((r: string) => { window.location.hash = r }, route)
-        })
+        // driver.execute : aucun bouton ne mène à ces routes (ex. /network-error) — navigation directe par hash.
+        await driver.execute((r: string) => { window.location.hash = r }, route)
     }
 
     /** Recharge la page courante de la SPA (la session est conservée) : relit l'état serveur, ex. après un changement de consentement par l'API. */
     async reload(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await driver.execute(() => window.location.reload())
-        })
+        await driver.execute(() => window.location.reload())
         await platform().refreshAxTree()
     }
 
@@ -31,15 +27,13 @@ class NavigationPage {
      * vérifiée par la page cible (ses propres méthodes, ex. `AgendaPage.assertDisplayed()`).
      */
     async goToTab(tab: TabName): Promise<void> {
-        await platform().inWebContext(async () => {
-            await this.closePlusMenu()
-            await clickDisplayed(navigationLocators.tab(tab), {timeout: 10000, within: navigationLocators.bottomBar})
-        })
+        await this.closePlusMenu()
+        await clickDisplayed(navigationLocators.tab(tab), {timeout: 10000, within: navigationLocators.bottomBar})
     }
 
     /** Le dialogue du menu « Plus » est-il ouvert ? */
     async isPlusMenuOpen(): Promise<boolean> {
-        return await platform().inWebContext(async () => (await $$(navigationLocators.plusDialogOpened)).length > 0)
+        return (await $$(navigationLocators.plusDialogOpened)).length > 0
     }
 
     /**
@@ -51,20 +45,18 @@ class NavigationPage {
      * Un second clic ~0,5 s plus tard ouvre le menu (8 essais sur 8). Le clic ne bascule pas : le rejouer sur un menu déjà ouvert est sans effet.
      */
     async openPlusMenu(): Promise<void> {
-        await platform().inWebContext(async () => {
-            // Ouvert ET affiché : la classe `fr-modal--opened` peut être posée sur un dialogue que la SPA remplace aussitôt (nouvelle page).
-            const isReady = async (): Promise<boolean> => await this.isPlusMenuOpen() && await $(navigationLocators.plusDialog).isDisplayed()
-            await browser.waitUntil(async () => {
-                if (await isReady()) return true
-                await clickDisplayed(navigationLocators.tab('Plus'), {timeout: 10000, within: navigationLocators.bottomBar})
-                try {
-                    await browser.waitUntil(isReady, {timeout: 1500, interval: 250})
-                    return true
-                } catch {
-                    return false
-                }
-            }, {timeout: 15000, interval: 100, timeoutMsg: 'Le menu « Plus » ne s’ouvre pas après plusieurs clics sur le bouton « Plus » (15000ms)'})
-        })
+        // Ouvert ET affiché : la classe `fr-modal--opened` peut être posée sur un dialogue que la SPA remplace aussitôt (nouvelle page).
+        const isReady = async (): Promise<boolean> => await this.isPlusMenuOpen() && await $(navigationLocators.plusDialog).isDisplayed()
+        await browser.waitUntil(async () => {
+            if (await isReady()) return true
+            await clickDisplayed(navigationLocators.tab('Plus'), {timeout: 10000, within: navigationLocators.bottomBar})
+            try {
+                await browser.waitUntil(isReady, {timeout: 1500, interval: 250})
+                return true
+            } catch {
+                return false
+            }
+        }, {timeout: 15000, interval: 100, timeoutMsg: 'Le menu « Plus » ne s’ouvre pas après plusieurs clics sur le bouton « Plus » (15000ms)'})
     }
 
     /**
@@ -75,33 +67,27 @@ class NavigationPage {
      * (`listPlusEntries()`). Le menu est aussi le menu profil/avatar.
      */
     async closePlusMenu(): Promise<void> {
-        await platform().inWebContext(async () => {
-            const close = $(navigationLocators.plusDialogClose)
-            if (await close.isExisting()) await close.click()
-        })
+        const close = $(navigationLocators.plusDialogClose)
+        if (await close.isExisting()) await close.click()
     }
 
     /** Ouvre le menu « Plus » et clique une entrée. L'arrivée est vérifiée par la page cible. */
     async openPlusEntry(entry: PlusEntry): Promise<void> {
-        await platform().inWebContext(async () => {
-            await this.openPlusMenu()
-            await clickDisplayed(navigationLocators.plusEntry(entry), {timeout: 5000, within: navigationLocators.plusDialog})
-        })
+        await this.openPlusMenu()
+        await clickDisplayed(navigationLocators.plusEntry(entry), {timeout: 5000, within: navigationLocators.plusDialog})
     }
 
     /** Liste les entrées du menu « Plus » (menu ouvert par la méthode), hors bouton « Fermer » (sans texte visible). */
     async listPlusEntries(): Promise<string[]> {
-        return await platform().inWebContext(async () => {
-            await this.openPlusMenu()
-            await firstDisplayed(navigationLocators.anyButton, {timeout: 10000, within: navigationLocators.plusDialog})
-            const names: string[] = []
-            for (const button of await $(navigationLocators.plusDialog).$$(navigationLocators.anyButton)) {
-                // getText (texte visible) et non le nom accessible : `getComputedLabel` n'existe pas dans la WebView iOS.
-                const text = (await button.getText()).trim()
-                if (text && text !== 'Fermer') names.push(text)
-            }
-            return names
-        })
+        await this.openPlusMenu()
+        await firstDisplayed(navigationLocators.anyButton, {timeout: 10000, within: navigationLocators.plusDialog})
+        const names: string[] = []
+        for (const button of await $(navigationLocators.plusDialog).$$(navigationLocators.anyButton)) {
+            // getText (texte visible) et non le nom accessible : `getComputedLabel` n'existe pas dans la WebView iOS.
+            const text = (await button.getText()).trim()
+            if (text && text !== 'Fermer') names.push(text)
+        }
+        return names
     }
 
     /** Bouton « Retour à la page précédente » : revient d'une page enfant. */
@@ -111,11 +97,9 @@ class NavigationPage {
 
     /** Vérifie que la barre basse est affichée (page « onglet ») avec ses 5 boutons. */
     async assertBottomBarVisible(): Promise<void> {
-        await platform().inWebContext(async () => {
-            for (const tab of ['Accueil', 'Agenda', 'Services', 'Suivi', 'Plus'] as const) {
-                await expect($(navigationLocators.bottomBar).$(navigationLocators.tab(tab))).toBeDisplayed()
-            }
-        })
+        for (const tab of ['Accueil', 'Agenda', 'Services', 'Suivi', 'Plus'] as const) {
+            await expect($(navigationLocators.bottomBar).$(navigationLocators.tab(tab))).toBeDisplayed()
+        }
     }
 }
 

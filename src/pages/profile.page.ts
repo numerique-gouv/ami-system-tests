@@ -18,12 +18,10 @@ class ProfilePage {
         const loc = getProfileLocators()
         const marker = section === 'identity' ? loc.identitySection : loc.emailSection
         const menuButton = section === 'identity' ? loc.identityMenuButton : loc.contactMenuButton
-        await platform().inWebContext(async () => {
-            if (await isShown(marker)) return
-            if (!await isShown(loc.hubHeading)) await this.navigateToProfileDirect()
-            await clickDisplayed(menuButton, {timeout: 5000})
-            await firstDisplayed(marker, {timeout: 5000})
-        })
+        if (await isShown(marker)) return
+        if (!await isShown(loc.hubHeading)) await this.navigateToProfileDirect()
+        await clickDisplayed(menuButton, {timeout: 5000})
+        await firstDisplayed(marker, {timeout: 5000})
     }
 
     /**
@@ -45,24 +43,20 @@ class ProfilePage {
 
     /** Vérifie l'arrivée sur le formulaire d'adresse (titre « Où habitez-vous ? »). */
     async assertAddressFormDisplayed(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await firstDisplayed(getProfileLocators().addressFormHeading)
-        })
+        await firstDisplayed(getProfileLocators().addressFormHeading)
     }
 
     /**
      * Navigue vers la page "Mon profil" depuis la home : menu avatar → « Mon profil » → titre de la page.
-     * Un seul inWebContext : la page /#/profile est dans la même WebView que la home.
+     * À appeler dans un `inWebContext` (l'appelant le pose) : la page /#/profile est dans la même WebView que la home.
      */
     async navigate(): Promise<void> {
         const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            // Le menu avatar (= menu « Plus ») peut déjà être ouvert (ex. re-navigation après un logout) :
-            // openPlusMenu() est sans effet dans ce cas.
-            await NavigationPage.openPlusMenu()
-            await clickDisplayed(loc.profileMenuButton, {timeout: 5000})
-            await waitForHeading(loc.pageTitle)
-        })
+        // Le menu avatar (= menu « Plus ») peut déjà être ouvert (ex. re-navigation après un logout) :
+        // openPlusMenu() est sans effet dans ce cas.
+        await NavigationPage.openPlusMenu()
+        await clickDisplayed(loc.profileMenuButton, {timeout: 5000})
+        await waitForHeading(loc.pageTitle)
     }
 
     /**
@@ -71,15 +65,13 @@ class ProfilePage {
      */
     async getIdentityBolds(): Promise<string[]> {
         const loc = getProfileLocators()
-        return await platform().inWebContext(async () => {
-            await this.openSection('identity')
-            const texts: string[] = []
-            for await (const b of $$(`${loc.identitySection} b`)) {
-                const text = (await b.getText()).trim()
-                if (text) texts.push(text)
-            }
-            return texts
-        })
+        await this.openSection('identity')
+        const texts: string[] = []
+        for await (const b of $$(`${loc.identitySection} b`)) {
+            const text = (await b.getText()).trim()
+            if (text) texts.push(text)
+        }
+        return texts
     }
 
     /**
@@ -91,15 +83,13 @@ class ProfilePage {
      */
     async getPreferredUsernameField(): Promise<string> {
         const loc = getProfileLocators()
-        return await platform().inWebContext(async () => {
-            await this.openSection('identity')
-            await clickDisplayed(loc.preferredUsernameEditButton, {timeout: 5000})
-            const input = await firstDisplayed(loc.preferredUsernameInput, {timeout: 5000})
-            const value = await input.getValue()
-            await clickRole('button', 'Annuler', {timeout: 5000})
-            await this.waitForProfileAfterEdit()
-            return value
-        })
+        await this.openSection('identity')
+        await clickDisplayed(loc.preferredUsernameEditButton, {timeout: 5000})
+        const input = await firstDisplayed(loc.preferredUsernameInput, {timeout: 5000})
+        const value = await input.getValue()
+        await clickRole('button', 'Annuler', {timeout: 5000})
+        await this.waitForProfileAfterEdit()
+        return value
     }
 
     /**
@@ -107,10 +97,8 @@ class ProfilePage {
      */
     async getEmailBold(): Promise<string> {
         const loc = getProfileLocators()
-        return await platform().inWebContext(async () => {
-            await this.openSection('contact')
-            return (await $(`${loc.emailSection} b`).getText()).trim()
-        })
+        await this.openSection('contact')
+        return (await $(`${loc.emailSection} b`).getText()).trim()
     }
 
     /**
@@ -121,34 +109,32 @@ class ProfilePage {
      */
     async getAddressBolds(): Promise<string[]> {
         const loc = getProfileLocators()
-        return await platform().inWebContext(async () => {
-            await this.openSection('contact')
-            // Sentinelle : `identity`/`address` sont posés dans le même onMount synchrone
-            // (+page.svelte) mais le rendu de la carte peut encore être en cours juste après
-            // l'arrivée sur la page — on attend que le HTML de la section soit identique sur deux
-            // lectures rapprochées avant de lire les <b>, plutôt que d'exiger `>0` balise (qui
-            // traiterait une adresse légitimement vide comme un échec, cf. CONTRIBUTING.md §5).
-            let previousHtml: string | null = null
-            await browser.waitUntil(
-                async () => {
-                    const html = await $(loc.addressSection).getHTML({includeSelectorTag: false}).catch((ex) => {
-                        log.warn('getAddressBolds: lecture du HTML de la section « Mon adresse » en échec, on retente', ex)
-                        return null
-                    })
-                    const stable = html !== null && html === previousHtml
-                    previousHtml = html
-                    return stable
-                },
-                {timeout: 5000, interval: 300, timeoutMsg: 'Section "Mon adresse" jamais stabilisée'}
-            )
+        await this.openSection('contact')
+        // Sentinelle : `identity`/`address` sont posés dans le même onMount synchrone
+        // (+page.svelte) mais le rendu de la carte peut encore être en cours juste après
+        // l'arrivée sur la page — on attend que le HTML de la section soit identique sur deux
+        // lectures rapprochées avant de lire les <b>, plutôt que d'exiger `>0` balise (qui
+        // traiterait une adresse légitimement vide comme un échec, cf. CONTRIBUTING.md §5).
+        let previousHtml: string | null = null
+        await browser.waitUntil(
+            async () => {
+                const html = await $(loc.addressSection).getHTML({includeSelectorTag: false}).catch((ex) => {
+                    log.warn('getAddressBolds: lecture du HTML de la section « Mon adresse » en échec, on retente', ex)
+                    return null
+                })
+                const stable = html !== null && html === previousHtml
+                previousHtml = html
+                return stable
+            },
+            {timeout: 5000, interval: 300, timeoutMsg: 'Section "Mon adresse" jamais stabilisée'}
+        )
 
-            const texts: string[] = []
-            for await (const b of $$(`${loc.addressSection} b`)) {
-                const text = (await b.getText()).trim()
-                if (text) texts.push(text)
-            }
-            return texts
-        })
+        const texts: string[] = []
+        for await (const b of $$(`${loc.addressSection} b`)) {
+            const text = (await b.getText()).trim()
+            if (text) texts.push(text)
+        }
+        return texts
     }
 
     /**
@@ -158,11 +144,9 @@ class ProfilePage {
      */
     async navigateToSettings(): Promise<void> {
         const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await platform().refreshAxTree()
-            await NavigationPage.openPlusMenu()
-            await clickDisplayed(loc.settingsMenuButton, {timeout: 5000})
-        })
+        await platform().refreshAxTree()
+        await NavigationPage.openPlusMenu()
+        await clickDisplayed(loc.settingsMenuButton, {timeout: 5000})
     }
 
     /**
@@ -170,14 +154,12 @@ class ProfilePage {
      * Utilisable depuis n'importe quelle page d'édition ou après un échec de test.
      */
     async navigateToProfileDirect(): Promise<void> {
-        await platform().inWebContext(async () => {
-            // driver.execute : pas de bouton menant au profil depuis une page d'édition ou après un échec —
-            // navigation directe par hash.
-            await driver.execute(() => {
-                window.location.hash = '/profile'
-            })
-            await waitForHeading(getProfileLocators().pageTitle, 5000)
+        // driver.execute : pas de bouton menant au profil depuis une page d'édition ou après un échec —
+        // navigation directe par hash.
+        await driver.execute(() => {
+            window.location.hash = '/profile'
         })
+        await waitForHeading(getProfileLocators().pageTitle, 5000)
     }
 
     /**
@@ -188,19 +170,15 @@ class ProfilePage {
         const loc = getProfileLocators()
         const editButton = {identity: loc.preferredUsernameEditButton, email: loc.emailEditButton, address: loc.addressEditButton}[block]
         const heading = {identity: loc.identityHeading, email: loc.contactHeading, address: loc.addressFormHeading}[block]
-        await platform().inWebContext(async () => {
-            await this.openSection(block === 'identity' ? 'identity' : 'contact')
-            await clickDisplayed(editButton, {timeout: 5000})
-            await firstDisplayed(heading, {timeout: 5000})
-        })
+        await this.openSection(block === 'identity' ? 'identity' : 'contact')
+        await clickDisplayed(editButton, {timeout: 5000})
+        await firstDisplayed(heading, {timeout: 5000})
     }
 
     /** « Annuler » dans un formulaire d'édition : retour au profil sans modification. */
     async cancelEdit(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await clickRole('button', 'Annuler', {timeout: 5000})
-            await this.waitForProfileAfterEdit()
-        })
+        await clickRole('button', 'Annuler', {timeout: 5000})
+        await this.waitForProfileAfterEdit()
     }
 
     /**
@@ -209,15 +187,13 @@ class ProfilePage {
      */
     async editPreferredUsername(newValue: string): Promise<void> {
         const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await this.openSection('identity')
-            await clickDisplayed(loc.preferredUsernameEditButton)
-            // Le champ affiché est la sentinelle : le formulaire est rendu.
-            const input = await firstDisplayed(loc.preferredUsernameInput, {timeout: 5000})
-            await input.setValue(newValue)
-            await clickRole('button', 'Enregistrer')
-            await this.waitForProfileAfterEdit()
-        })
+        await this.openSection('identity')
+        await clickDisplayed(loc.preferredUsernameEditButton)
+        // Le champ affiché est la sentinelle : le formulaire est rendu.
+        const input = await firstDisplayed(loc.preferredUsernameInput, {timeout: 5000})
+        await input.setValue(newValue)
+        await clickRole('button', 'Enregistrer')
+        await this.waitForProfileAfterEdit()
     }
 
     /**
@@ -226,14 +202,12 @@ class ProfilePage {
      */
     async editEmail(newValue: string): Promise<void> {
         const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await this.openSection('contact')
-            await clickDisplayed(loc.emailEditButton)
-            const input = await firstDisplayed(loc.emailInput, {timeout: 5000})
-            await input.setValue(newValue)
-            await clickRole('button', 'Enregistrer')
-            await this.waitForProfileAfterEdit()
-        })
+        await this.openSection('contact')
+        await clickDisplayed(loc.emailEditButton)
+        const input = await firstDisplayed(loc.emailInput, {timeout: 5000})
+        await input.setValue(newValue)
+        await clickRole('button', 'Enregistrer')
+        await this.waitForProfileAfterEdit()
     }
 
     /**
@@ -248,17 +222,15 @@ class ProfilePage {
      */
     async logout(): Promise<void> {
         const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await NavigationPage.openPlusMenu()
-            await clickDisplayed(loc.logoutButton)
+        await NavigationPage.openPlusMenu()
+        await clickDisplayed(loc.logoutButton)
 
-            // Modale de confirmation : son titre est le signal (échec = AssertionError avec le sélecteur et le délai).
-            await firstDisplayed(loc.deletionHeading, {timeout: 5000})
-            await clickDisplayed(loc.confirmButton)
-            // `$()` et non l'élément cliqué : la déconnexion remplace le document, un élément déjà résolu y deviendrait
-            // « belongs to different document » ; `$()` se ré-interroge à chaque commande.
-            await $(loc.confirmButton).waitForDisplayed({timeout: 15000, reverse: true})
-        })
+        // Modale de confirmation : son titre est le signal (échec = AssertionError avec le sélecteur et le délai).
+        await firstDisplayed(loc.deletionHeading, {timeout: 5000})
+        await clickDisplayed(loc.confirmButton)
+        // `$()` et non l'élément cliqué : la déconnexion remplace le document, un élément déjà résolu y deviendrait
+        // « belongs to different document » ; `$()` se ré-interroge à chaque commande.
+        await $(loc.confirmButton).waitForDisplayed({timeout: 15000, reverse: true})
     }
 
     /**
@@ -286,22 +258,20 @@ class ProfilePage {
      */
     async editAddress(query: string): Promise<void> {
         const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await this.openSection('contact')
-            const editBtn = await firstDisplayed(loc.addressEditButton)
-            // waitForClickable vérifie aussi qu'aucun élément (info-tip laissé par une étape
-            // précédente du scénario) ne recouvre le bouton au point de clic.
-            await editBtn.waitForClickable({timeout: 5000})
-            await editBtn.click()
+        await this.openSection('contact')
+        const editBtn = await firstDisplayed(loc.addressEditButton)
+        // waitForClickable vérifie aussi qu'aucun élément (info-tip laissé par une étape
+        // précédente du scénario) ne recouvre le bouton au point de clic.
+        await editBtn.waitForClickable({timeout: 5000})
+        await editBtn.click()
 
-            // setValue envoie des keystrokes qui déclenchent oninput + debounce
-            const input = await firstDisplayed(loc.addressInput, {timeout: 5000})
-            await input.setValue(query)
+        // setValue envoie des keystrokes qui déclenchent oninput + debounce
+        const input = await firstDisplayed(loc.addressInput, {timeout: 5000})
+        await input.setValue(query)
 
-            await clickDisplayed(loc.autocompleteFirstItem, {timeout: 6000})
-            await clickRole('button', 'Enregistrer')
-            await this.waitForProfileAfterEdit()
-        })
+        await clickDisplayed(loc.autocompleteFirstItem, {timeout: 6000})
+        await clickRole('button', 'Enregistrer')
+        await this.waitForProfileAfterEdit()
     }
 }
 

@@ -1,4 +1,3 @@
-import { platform } from '../platform'
 import { traced } from '@helpers/traced'
 import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
@@ -41,7 +40,7 @@ class DemarcheDetailPage {
    */
   async isLienExterneProposed(timeout = 2000): Promise<boolean> {
     const loc = getDemarcheDetailLocators()
-    return await platform().inWebContext(async () => await isShown(loc.detailExternalButton, timeout))
+    return await isShown(loc.detailExternalButton, timeout)
   }
 
   /** Le détail affiché contient-il `text` (message de l'historique, sous-titre…) ? À appeler une fois le détail rendu. */
@@ -90,7 +89,7 @@ class DemarcheDetailPage {
    * le bouton, c'est donc elle qui vérifie son arrivée sur la page de détail.
    *
    * Le retour sur la liste n'est pas fait ici : voir `SuiviDemarchesPage.retourJusquAPageSuivi()`.
-   * Un seul `platform().inWebContext()` couvre le clic et la vérification de l'URL.
+   * Le `inWebContext` de l'appelant couvre le clic et la vérification de l'URL.
    *
    * LIMITATION CONNUE (iOS) : Android confirmé vert (3/3). Sur iOS, le clic ouvre bien une
    * seconde fenêtre WKWebView (confirmé via `browser.getWindowHandles()`), mais celle-ci reste
@@ -103,35 +102,33 @@ class DemarcheDetailPage {
    */
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
     const loc = getDemarcheDetailLocators()
-    await platform().inWebContext(async () => {
-      await clickDisplayed(loc.detailExternalButton, { timeout: timeoutMs })
+    await clickDisplayed(loc.detailExternalButton, { timeout: timeoutMs })
 
-      let lastUrl: string | null = null
-      try {
-        await browser.waitUntil(
-          async () => {
-            lastUrl = await browser.getUrl()
-            if (lastUrl.includes(expectedUrl)) return true
-            // Constaté (iOS, 2026-10-06) : le lien passe par la racine de l'app, la cible étant encodée dans
-            // `?login_redirect_url=…`, alors qu'Android atterrit directement sur l'URL en clair.
-            // Hypothèse (non confirmée) : redirection de connexion propre à l'iOS testé.
-            if (decodeURIComponentSafe(lastUrl).includes(expectedUrl)) {
-              log.warn('ANOMALIE : lien externe atteint seulement via une URL encodée (`login_redirect_url`) au lieu de l\'URL en clair (constaté sur iOS, cause non confirmée).')
-              return true
-            }
-            return false
-          },
-          {
-            timeout: timeoutMs,
-            interval: 500,
-            timeoutMsg: `URL externe "${expectedUrl}" non atteinte après ${timeoutMs}ms`
+    let lastUrl: string | null = null
+    try {
+      await browser.waitUntil(
+        async () => {
+          lastUrl = await browser.getUrl()
+          if (lastUrl.includes(expectedUrl)) return true
+          // Constaté (iOS, 2026-10-06) : le lien passe par la racine de l'app, la cible étant encodée dans
+          // `?login_redirect_url=…`, alors qu'Android atterrit directement sur l'URL en clair.
+          // Hypothèse (non confirmée) : redirection de connexion propre à l'iOS testé.
+          if (decodeURIComponentSafe(lastUrl).includes(expectedUrl)) {
+            log.warn('ANOMALIE : lien externe atteint seulement via une URL encodée (`login_redirect_url`) au lieu de l\'URL en clair (constaté sur iOS, cause non confirmée).')
+            return true
           }
-        )
-      } catch (err) {
-        log.warn('Détail démarche : attente de l\'URL externe en échec', err)
-        throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${loc.detailExternalButtonName}" (dernière URL observée : ${maskIdToken(lastUrl)})` })
-      }
-    })
+          return false
+        },
+        {
+          timeout: timeoutMs,
+          interval: 500,
+          timeoutMsg: `URL externe "${expectedUrl}" non atteinte après ${timeoutMs}ms`
+        }
+      )
+    } catch (err) {
+      log.warn('Détail démarche : attente de l\'URL externe en échec', err)
+      throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${loc.detailExternalButtonName}" (dernière URL observée : ${maskIdToken(lastUrl)})` })
+    }
   }
 }
 

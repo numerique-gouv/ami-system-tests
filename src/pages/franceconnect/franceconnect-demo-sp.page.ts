@@ -1,6 +1,5 @@
 import {fcDemoSpLocators} from '../locators/franceconnect/franceconnect-demo-sp.locators'
 import {traced} from '../../helpers/traced'
-import {platform} from '../../platform'
 import {clickDisplayed, firstDisplayed, isShown} from '../../helpers/spa'
 import FranceConnectEidasPage from './franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect-credentials.page'
@@ -13,10 +12,8 @@ import type {TestUser} from '../../helpers/test-users'
 class FranceConnectDemoSpPage {
     /** Attend la page de connexion du démonstrateur (titre d'onglet et bouton « Connexion à FranceConnect »). */
     async assertLoginDisplayed(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await firstDisplayed(fcDemoSpLocators.loginButton, {timeout: 15000})
-            await expect(browser).toHaveTitle(fcDemoSpLocators.loginPageTitle)
-        })
+        await firstDisplayed(fcDemoSpLocators.loginButton, {timeout: 15000})
+        await expect(browser).toHaveTitle(fcDemoSpLocators.loginPageTitle)
     }
 
     /** Clique « Connexion à FranceConnect » : mène à FranceConnect (consentement si une session FC est ouverte, choix du compte sinon). */
@@ -51,9 +48,7 @@ class FranceConnectDemoSpPage {
 
     /** Attend la page de retour du démonstrateur (« Login Callback »). */
     async assertCallbackDisplayed(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await firstDisplayed(fcDemoSpLocators.logoutLink, {timeout: 15000})
-        })
+        await firstDisplayed(fcDemoSpLocators.logoutLink, {timeout: 15000})
     }
 
     /** Clique « Se déconnecter » : déconnexion de FranceConnect, retour sur la page de connexion du démonstrateur. */

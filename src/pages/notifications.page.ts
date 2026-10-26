@@ -1,4 +1,3 @@
-import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import logger from "@wdio/logger";
 import {clickDisplayed, firstDisplayed, hasPageText, waitForHeading} from '../helpers/spa'
@@ -26,10 +25,8 @@ class NotificationsInboxPage {
      * toujours au moins la notification d'accueil « Bienvenue sur AMI ».
      */
     async assertDisplayed(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await this.waitForNotificationsHeading()
-            await firstDisplayed(notificationsLocators.notificationItem, {timeout: 15000})
-        })
+        await this.waitForNotificationsHeading()
+        await firstDisplayed(notificationsLocators.notificationItem, {timeout: 15000})
     }
 
     /**
@@ -61,37 +58,35 @@ class NotificationsInboxPage {
      * (vérifié en direct le 2026-09-08 : le mécanisme reload+poll précédent datait d'une
      * période où la livraison WebSocket n'était pas fiable ; ce n'est plus le cas).
      *
-     * Un seul `inWebContext`, un seul `waitUntil` qui relit le DOM en direct — pas de
+     * Un seul `waitUntil` (dans le `inWebContext` de l'appelant) qui relit le DOM en direct — pas de
      * `browser.pause` d'attente entre tentatives, pas de reload.
      */
     async assertNotificationReceived(title: string, timeoutMs = 25000): Promise<void> {
-        await platform().inWebContext(async () => {
-            if (await hasPageText(title, timeoutMs)) {
-                log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
-                return
-            }
+        if (await hasPageText(title, timeoutMs)) {
+            log.log(`[notifications] reçue (WebSocket, ≤ ${timeoutMs}ms)`)
+            return
+        }
 
-            // Contournement iOS uniquement (cf. docs/process/2026-09-08-notifications-websocket-android-ios.md) :
-            // WKWebView peut laisser le WebSocket "zombie" (pas d'event close/error après un retour
-            // d'arrière-plan), donc la notification peut être absente alors qu'elle existe déjà côté
-            // serveur — un reload contourne le socket mort en forçant un fetch frais. À retirer une
-            // fois le heartbeat proposé dans ce document implémenté côté SPA. Sur Android, la liste se
-            // met déjà à jour en place via le WebSocket (vérifié le 2026-09-08) : un reload n'y
-            // apporterait qu'un délai supplémentaire, donc on échoue directement.
-            if (!driver.isIOS) {
-                throw new AssertionError({ message: `Notification not received:${title}.` })
-            }
+        // Contournement iOS uniquement (cf. docs/process/2026-09-08-notifications-websocket-android-ios.md) :
+        // WKWebView peut laisser le WebSocket "zombie" (pas d'event close/error après un retour
+        // d'arrière-plan), donc la notification peut être absente alors qu'elle existe déjà côté
+        // serveur — un reload contourne le socket mort en forçant un fetch frais. À retirer une
+        // fois le heartbeat proposé dans ce document implémenté côté SPA. Sur Android, la liste se
+        // met déjà à jour en place via le WebSocket (vérifié le 2026-09-08) : un reload n'y
+        // apporterait qu'un délai supplémentaire, donc on échoue directement.
+        if (!driver.isIOS) {
+            throw new AssertionError({ message: `Notification not received:${title}.` })
+        }
 
-            log.warn('ANOMALIE (iOS) : notification non reçue par le WebSocket, rechargement de la page — ' +
-                'socket probablement zombie, non confirmé.')
-            await driver.execute(() => window.location.reload())
-            // hasPageText attend le rendu de la page rechargée (il réessaie jusqu'à trouver le texte).
-            if (await hasPageText(title, 8000)) {
-                log.warn('ANOMALIE (iOS) : notification reçue seulement après reload, WebSocket probablement zombie — non confirmé.')
-                return
-            }
-            throw new AssertionError({ message: `Notification not received:${title}. (iOS, même après reload)` })
-        })
+        log.warn('ANOMALIE (iOS) : notification non reçue par le WebSocket, rechargement de la page — ' +
+            'socket probablement zombie, non confirmé.')
+        await driver.execute(() => window.location.reload())
+        // hasPageText attend le rendu de la page rechargée (il réessaie jusqu'à trouver le texte).
+        if (await hasPageText(title, 8000)) {
+            log.warn('ANOMALIE (iOS) : notification reçue seulement après reload, WebSocket probablement zombie — non confirmé.')
+            return
+        }
+        throw new AssertionError({ message: `Notification not received:${title}. (iOS, même après reload)` })
     }
 
     /** Sonde : une notification de ce titre est-elle listée dans l'inbox sous `timeout` ms ? (absence : attendre ce délai en entier) */
@@ -105,9 +100,7 @@ class NotificationsInboxPage {
      * Pré-condition : la notification est déjà visible dans l'inbox (utiliser assertNotificationReceived avant).
      */
     async clickNotification(title: string): Promise<void> {
-        await platform().inWebContext(async () => {
-            await clickDisplayed(notificationsLocators.notificationTitle(title), {timeout: 10000})
-        })
+        await clickDisplayed(notificationsLocators.notificationTitle(title), {timeout: 10000})
     }
 
     /**
@@ -122,21 +115,19 @@ class NotificationsInboxPage {
      * notification n'est pas un heading de niveau fixe : c'est un lien (composant DSFR fr-tile).
      */
     async getTopNotificationTitle(): Promise<string> {
-        return platform().inWebContext(async () => {
-            const text = await driver.execute(() => {
-                // Le titre de la notification est rendu comme un <a> (composant fr-tile DSFR), pas un heading.
-                // On exclut les liens de navigation pour ne garder que le titre métier.
-                const EXCLUDED = new Set(['Retour à la page précédente', 'Gérer', 'Notifications', ''])
-                const el = Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"], a[href]')).find(
-                    (e) => !EXCLUDED.has((e.textContent ?? '').replace(/\s+/g, ' ').trim())
-                )
-                return el ? (el.textContent ?? '').replace(/\s+/g, ' ').trim() : ''
-            }) as string
-            // Retourne '' sur inbox vide (pas de notification antérieure) — le test gère ce cas
-            // via l'assertion expect(oldTop).not.toEqual(title). Sur la page de détail après clic,
-            // '' provoque un échec à l'assertion expect(newTop).toEqual(title), ce qui est correct.
-            return text
-        })
+        const text = await driver.execute(() => {
+            // Le titre de la notification est rendu comme un <a> (composant fr-tile DSFR), pas un heading.
+            // On exclut les liens de navigation pour ne garder que le titre métier.
+            const EXCLUDED = new Set(['Retour à la page précédente', 'Gérer', 'Notifications', ''])
+            const el = Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"], a[href]')).find(
+                (e) => !EXCLUDED.has((e.textContent ?? '').replace(/\s+/g, ' ').trim())
+            )
+            return el ? (el.textContent ?? '').replace(/\s+/g, ' ').trim() : ''
+        }) as string
+        // Retourne '' sur inbox vide (pas de notification antérieure) — le test gère ce cas
+        // via l'assertion expect(oldTop).not.toEqual(title). Sur la page de détail après clic,
+        // '' provoque un échec à l'assertion expect(newTop).toEqual(title), ce qui est correct.
+        return text
     }
 }
 

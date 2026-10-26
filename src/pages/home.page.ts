@@ -1,7 +1,6 @@
 import {homeContentLocators} from './locators/home.locators'
 import {describeCurrentPage} from '../helpers/webview';
 import {clickDisplayed, firstDisplayed, isShown, pageText} from '../helpers/spa'
-import {platform} from '../platform'
 import {traced} from '../helpers/traced'
 import NavigationPage from './navigation.page'
 import {AssertionError} from "node:assert";
@@ -38,12 +37,10 @@ class HomePage {
 
     /** Vérifie les blocs de l'accueil : salutation, « Mon agenda », « Mes démarches », cloche. */
     async assertContentVisible(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await expect($(homeContentLocators.greeting)).toBeDisplayed()
-            await expect($(homeContentLocators.agendaHeading)).toBeDisplayed()
-            await expect($(homeContentLocators.proceduresHeading)).toBeDisplayed()
-            await expect($(homeContentLocators.notificationsBell)).toBeDisplayed()
-        })
+        await expect($(homeContentLocators.greeting)).toBeDisplayed()
+        await expect($(homeContentLocators.agendaHeading)).toBeDisplayed()
+        await expect($(homeContentLocators.proceduresHeading)).toBeDisplayed()
+        await expect($(homeContentLocators.notificationsBell)).toBeDisplayed()
     }
 
     /** Sonde : le bouton « Je veux suivre mes démarches » est-il affiché sur l'accueil sous `timeout` ms ? (0 : maintenant) */
@@ -53,10 +50,8 @@ class HomePage {
 
     /** Texte de la salutation « Bonjour <prénom> » (titre <h1> de l'accueil). */
     async greeting(): Promise<string> {
-        return await platform().inWebContext(async () => {
-            const heading = await firstDisplayed(homeContentLocators.greeting)
-            return (await heading.getText()).trim()
-        })
+        const heading = await firstDisplayed(homeContentLocators.greeting)
+        return (await heading.getText()).trim()
     }
 
     /** La date du jour est affichée sous la salutation (ex. « vendredi 2 octobre 2026 »). */
@@ -85,30 +80,26 @@ class HomePage {
      * avec « Diapositive suivante » jusqu'à ce que la carte soit atteignable.
      */
     async openOtvCard(): Promise<void> {
-        await platform().inWebContext(async () => {
-            // Chaîne reconstruite à chaque appel : WDIO garde le parent résolu au premier usage, alors que la diapositive
-            // visible change après chaque clic sur la flèche.
-            const card = (): ReturnType<typeof $> => $(homeContentLocators.visibleSlide).$(homeContentLocators.otvCard)
-            for (let slide = 0; slide < 4 && !await card().isDisplayed(); slide++) {
-                const next = $(homeContentLocators.carouselNext)
-                await next.waitForExist({timeout: 5000}) // le carrousel se monte après le rendu de la page
-                await next.click()
-                // Animation du carrousel : la carte devient visible à la fin de la transition. Si elle ne l'est pas, on
-                // avance d'une diapositive de plus ; l'échec définitif est signalé par l'assertion ci-dessous.
-                await card().waitForDisplayed({timeout: 2500}).catch(() => undefined)
-            }
-            await expect(card()).toBeDisplayed()
-            await card().click()
-        })
+        // Chaîne reconstruite à chaque appel : WDIO garde le parent résolu au premier usage, alors que la diapositive
+        // visible change après chaque clic sur la flèche.
+        const card = (): ReturnType<typeof $> => $(homeContentLocators.visibleSlide).$(homeContentLocators.otvCard)
+        for (let slide = 0; slide < 4 && !await card().isDisplayed(); slide++) {
+            const next = $(homeContentLocators.carouselNext)
+            await next.waitForExist({timeout: 5000}) // le carrousel se monte après le rendu de la page
+            await next.click()
+            // Animation du carrousel : la carte devient visible à la fin de la transition. Si elle ne l'est pas, on
+            // avance d'une diapositive de plus ; l'échec définitif est signalé par l'assertion ci-dessous.
+            await card().waitForDisplayed({timeout: 2500}).catch(() => undefined)
+        }
+        await expect(card()).toBeDisplayed()
+        await card().click()
     }
 
     /** Ouvre le formulaire d'adresse depuis la carte « Renseignez votre adresse » du carrousel (1re diapositive). */
     async openAddressCard(): Promise<void> {
-        await platform().inWebContext(async () => {
-            const card = $(homeContentLocators.visibleSlide).$(homeContentLocators.addressCard)
-            await card.waitForClickable()
-            await card.click()
-        })
+        const card = $(homeContentLocators.visibleSlide).$(homeContentLocators.addressCard)
+        await card.waitForClickable()
+        await card.click()
     }
 
 }
