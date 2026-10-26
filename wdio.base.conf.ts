@@ -107,7 +107,9 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // specFileRetries relance le fichier de spec entier dans un nouveau processus Appium
   // (session fraîche, logs propres par tentative) contrairement à mochaOpts.retries
   // qui réutilise la même session et répète les logs dans le même flux de sortie.
-  specFileRetries: 0,
+  // 1 : un fichier de spec en échec est rejoué une fois (la trace du premier essai est gardée : tracePolicy
+  // 'retain-on-failure-and-retries'). 0 pour désactiver, ou --specFileRetries=N en ligne de commande.
+  specFileRetries: 1,
   specFileRetriesDelay: 0,
 
   mochaOpts: {
