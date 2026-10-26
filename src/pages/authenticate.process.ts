@@ -155,7 +155,11 @@ async function reachHome(user: TestUser): Promise<void> {
         // natif), l'accueil et l'onboarding ne peuvent pas être affichés — on ne les sonde pas, sous peine
         // d'attendre un contexte WebView qui n'existe pas (25 s par sonde).
         if (await platform().isWebContextAvailable()) {
-            if (await HomePage.isHomeDisplayed(HOME_PROBE_MS)) return
+            if (await HomePage.isHomeDisplayed(HOME_PROBE_MS)) {
+                // iOS : la feuille native « Activez les notifications » peut recouvrir l'accueil (session restaurée au relancement).
+                await OnboardingNotificationsPage.dismissNativeSheet()
+                return
+            }
 
             if (await dismissOnboardingPage(dismissals)) {
                 unrecognizedSince = null

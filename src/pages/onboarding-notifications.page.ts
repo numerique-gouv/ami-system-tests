@@ -61,6 +61,25 @@ class OnboardingNotificationsPage {
             await clickDisplayed(webOnboardingNotifLocators.laterButton, {timeout: 10000})
             return
         }
+        await this.dismissNative()
+    }
+
+    /**
+     * Ferme la feuille native iOS « Activez les notifications » si elle est affichée (no-op ailleurs, et si absente sous
+     * `timeout`). Elle ne dépend pas de la SPA : l'app la présente à chaque événement `user_logged_in` tant que la permission
+     * est `.notDetermined` et que la minuterie en mémoire a expiré, donc à chaque relancement avec session ouverte
+     * (HomeView-ViewModel.swift). Elle peut recouvrir l'accueil : `isHomeDisplayed` est alors vrai alors que la WebView ne
+     * répond plus. À appeler une fois l'accueil atteint.
+     */
+    async dismissNativeSheet(timeout = 3000): Promise<void> {
+        if (!driver.isIOS) return
+        const loc = getOnboardingNotifLocators()
+        if (await this.firstNative(loc.title, timeout) === null) return
+        log.info('Feuille native « Activez les notifications » affichée au-dessus de l\'accueil, fermeture')
+        await this.dismissNative()
+    }
+
+    private async dismissNative(): Promise<void> {
         const loc = getOnboardingNotifLocators()
         // Le tap sur « Peut-être plus tard » est parfois sans effet (feuille encore affichée 5 s après, constaté sur iOS le 2026-10-26,
         // capture à l'appui) : on retape, au plus 3 fois, avant d'échouer.
