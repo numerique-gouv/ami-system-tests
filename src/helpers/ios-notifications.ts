@@ -28,17 +28,19 @@ export type IosNotificationAuthorization = 'absente' | 'notDetermined' | 'denied
 
 const STATUS_NAMES: IosNotificationAuthorization[] = ['notDetermined', 'denied', 'authorized', 'provisional', 'ephemeral']
 
+/** Capacité de la session, avec ou sans le préfixe `appium:` (selon ce que le serveur renvoie). */
 function capability(name: string): string {
-  return (driver.capabilities as Record<string, unknown>)[name] as string
+  const caps = driver.capabilities as Record<string, unknown>
+  return (caps[`appium:${name}`] ?? caps[name]) as string
 }
 
 /** UDID du simulateur de la session (capabilities Appium), ou `booted`. */
 export function simulatorUdid(): string {
-  return capability('appium:udid') || 'booted'
+  return capability('udid') || 'booted'
 }
 
 export function appBundleId(): string {
-  return capability('appium:bundleId')
+  return capability('bundleId')
 }
 
 /** Lit `authorizationStatus` de l'app dans la base BulletinBoard du simulateur (voir l'en-tête du fichier). */
@@ -66,11 +68,13 @@ else:
 
 /** Attend (la base est écrite après la réponse à l'alerte) que l'autorisation atteigne `expected`. */
 export async function waitForNotificationAuthorization(expected: IosNotificationAuthorization, timeout = 10000): Promise<IosNotificationAuthorization> {
-  let last: IosNotificationAuthorization = 'inconnue'
-  await browser.waitUntil(async () => (last = readNotificationAuthorization()) === expected, {
-    timeout, interval: 500, timeoutMsg: `Autorisation des notifications iOS : « ${expected} » attendue, constatée dans le simulateur : « ${last} »`,
-  })
-  return last
+  let last = 'inconnue'
+  const reached = await browser.waitUntil(async () => {
+    try { last = readNotificationAuthorization() } catch (err) { last = `illisible (${err instanceof Error ? err.message.split('\n')[0] : String(err)})` }
+    return last === expected
+  }, {timeout, interval: 500}).catch(() => false)
+  if (!reached) throw new Error(`Autorisation des notifications iOS : « ${expected} » attendue, constatée dans le simulateur : « ${last} » (simulateur ${simulatorUdid()}, app ${appBundleId()})`)
+  return expected
 }
 
 export interface SimulatedPush {
@@ -103,10 +107,21 @@ export function simctlPush(push: SimulatedPush): void {
 export async function pushAndTapBanner(push: SimulatedPush): Promise<void> {
   await driver.execute('mobile: activateApp', {bundleId: 'com.apple.springboard'})
   simctlPush(push)
-  const banner = $(`${BANNER} AND label CONTAINS ${JSON.stringify(push.title)}`)
-  await banner.waitForExist({timeout: 15000, timeoutMsg: `Bannière de la notification « ${push.title} » absente de SpringBoard après 15000ms`})
-  log.info(`Bannière affichée : « ${await banner.getAttribute('label')} », tap`)
-  await banner.click()
+  const bannerSelector = `${BANNER} AND label CONTAINS ${JSON.stringify(push.title)}`
+  await $(bannerSelector).waitForExist({timeout: 15000, timeoutMsg: `Bannière de la notification « ${push.title} » absente de SpringBoard après 15000ms`})
+  log.info(`Bannière affichée pour « ${push.title} », tap`)
+  // La bannière s'anime puis disparaît : l'élément trouvé peut devenir périmé entre la recherche et le tap (constaté). On le
+  // retrouve à chaque tentative ; si l'app est déjà revenue au premier plan, le tap a eu lieu.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await $(bannerSelector).click()
+      break
+    } catch (err) {
+      if (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()}) === 4) break
+      if (attempt === 3) throw err
+      log.warn(`ANOMALIE : tap sur la bannière impossible (${attempt}/3) : ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`)
+    }
+  }
   await driver.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})) === 4, {
     timeout: 15000, timeoutMsg: 'L\'app n\'est pas repassée au premier plan après le tap sur la bannière',
   })

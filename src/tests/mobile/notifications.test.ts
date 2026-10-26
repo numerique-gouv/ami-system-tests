@@ -55,6 +55,10 @@ describe('Notifications', function () {
 
       step('4. Ouvrir la notification')
       await NotificationsInboxPage.clickNotification(title)
+
+      // Quitter l'inbox AVANT la fin de l'enveloppe : au test suivant, le service de trace lit le « page source » natif de ce qui est
+      // affiché ; avec l'inbox (des centaines de notifications) il bloque la file d'Appium ~2 min (cf. commentaire ci-dessus).
+      await NavigationPage.goToRoute('/')
     })
   })
 
