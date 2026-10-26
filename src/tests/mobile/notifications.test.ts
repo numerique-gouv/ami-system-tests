@@ -5,6 +5,7 @@ import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
 import {platform} from '../../platform'
 import NavigationPage from '../../pages/navigation.page'
+import HomePage from '../../pages/home.page'
 import PreferencesPage from '../../pages/preferences.page'
 import SystemNotificationsPage from '../../pages/system-notifications.page'
 import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/ios-notifications'
@@ -88,6 +89,7 @@ describe('Notifications', function () {
     step('1. Accorder la permission de notifications système à l\'app (pm grant) et partir de l\'accueil')
     await SystemNotificationsPage.grantPermission()
     await NavigationPage.goToRoute('/')
+    await HomePage.assertHomeVisible()
 
     const title = `AMI-push-${Date.now()}`
     const body = 'Test push — inbox ET notification système'
@@ -121,6 +123,7 @@ describe('Notifications', function () {
     if (driver.isIOS) this.skip()
     await SystemNotificationsPage.grantPermission()
     await NavigationPage.goToRoute('/')
+    await HomePage.assertHomeVisible()
     step('1. Préférences > Notifications ouvre l\'écran natif « Paramètres », interrupteur actif (permission accordée)')
     await platform().inWebContext(async () => {
       await PreferencesPage.open()
