@@ -2,6 +2,7 @@ import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '@pages/franceconnect/franceconnect-mire.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
 import {step} from '@helpers/report'
+import {platform} from '../../platform'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
@@ -11,7 +12,9 @@ const MODIFICATIONS = {
   email: 'testdemiseajour@yopmail.com',
 }
 
-describe('Profil usager — suppression des modifications à la déconnexion', () => {
+describe('Profil usager — suppression des modifications à la déconnexion', function () {
+  this.timeout(180000)
+
   // Données initiales capturées dynamiquement — non codées en dur.
   // Initialisées dans le before() pour refléter l'état réel du compte au moment du test.
   let original: {
@@ -22,23 +25,25 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
 
   // Connexion initiale (jusqu'à ~105 s sur une machine lente) : comme les autres specs de login, 180 s et non les 120 s
   // du délai Mocha global (campagne du 2026-10-15 : « before all » en timeout 2 fois sur 4 sur Android).
+  // Le délai se pose au niveau du describe : this.timeout() dans un hook est sans effet avec WDIO (constaté le 2026-10-26 : « before all »
+  // expiré à 120 s, passé au retry).
   before(async function () {
-    this.timeout(180000)
-
     await getAppToStartingState()
 
-    step('Naviguer vers Mon profil')
-    await ProfilePage.navigate()
+    await platform().inWebContext(async () => {
+      step('Naviguer vers Mon profil')
+      await ProfilePage.navigate()
 
-    step('Capturer les données initiales du profil')
-    const identityBolds = await ProfilePage.getIdentityBolds()
-    const displayName = identityBolds[0] ?? ''
-    const preferredUsername = displayName.replace(/^.+?\s/, '').replace(/,$/, '').trim()
-    original = {
-      identityBolds,
-      preferredUsername,
-      email: await ProfilePage.getEmailBold(),
-    }
+      step('Capturer les données initiales du profil')
+      const identityBolds = await ProfilePage.getIdentityBolds()
+      const displayName = identityBolds[0] ?? ''
+      const preferredUsername = displayName.replace(/^.+?\s/, '').replace(/,$/, '').trim()
+      original = {
+        identityBolds,
+        preferredUsername,
+        email: await ProfilePage.getEmailBold(),
+      }
+    })
   })
 
   after(async () => {
@@ -51,18 +56,22 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
   })
 
   it('modifie le nom d\'usage', async () => {
-    step('Modifier le nom d\'usage')
-    await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
+    await platform().inWebContext(async () => {
+      step('Modifier le nom d\'usage')
+      await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
 
-    // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
-    expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
+      // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
+      expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
+    })
   })
 
   it('modifie l\'email', async () => {
-    step('Modifier l\'email')
-    await ProfilePage.editEmail(MODIFICATIONS.email)
+    await platform().inWebContext(async () => {
+      step('Modifier l\'email')
+      await ProfilePage.editEmail(MODIFICATIONS.email)
 
-    expect(await ProfilePage.getEmailBold()).toBe(MODIFICATIONS.email)
+      expect(await ProfilePage.getEmailBold()).toBe(MODIFICATIONS.email)
+    })
   })
 
   // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).
@@ -78,7 +87,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
   it('se déconnecte via le menu plus', async () => {
     step('Taper Me déconnecter depuis le menu plus')
     await getAppToStartingState()
-    await ProfilePage.logout()
+    await platform().inWebContext(() => ProfilePage.logout())
 
     // La déconnexion n'est finie qu'au retour sur l'écran de connexion : la fin de session FranceConnect
     // est un aller-retour que la suite ne doit pas interrompre.
@@ -91,24 +100,30 @@ describe('Profil usager — suppression des modifications à la déconnexion', (
     step('Lancer le flow FranceConnect')
     await getAppToStartingState()
 
-    step('Naviguer vers Mon profil')
-    await ProfilePage.navigate()
+    await platform().inWebContext(async () => {
+      step('Naviguer vers Mon profil')
+      await ProfilePage.navigate()
+    })
   })
 
   it('affiche les données d\'identité originales (pas les valeurs modifiées)', async () => {
-    step('Vérifier que le nom d\'usage est restauré')
-    const bolds = await ProfilePage.getIdentityBolds()
-    for (const expected of original.identityBolds) {
-      expect(bolds).toContain(expected)
-    }
-    expect(await ProfilePage.getPreferredUsernameField()).toBe(original.preferredUsername)
+    await platform().inWebContext(async () => {
+      step('Vérifier que le nom d\'usage est restauré')
+      const bolds = await ProfilePage.getIdentityBolds()
+      for (const expected of original.identityBolds) {
+        expect(bolds).toContain(expected)
+      }
+      expect(await ProfilePage.getPreferredUsernameField()).toBe(original.preferredUsername)
+    })
   })
 
   it('affiche l\'email original (pas la valeur modifiée)', async () => {
-    step('Vérifier que l\'email est restauré')
-    const email = await ProfilePage.getEmailBold()
-    expect(email).toBe(original.email)
-    expect(email).not.toBe(MODIFICATIONS.email)
+    await platform().inWebContext(async () => {
+      step('Vérifier que l\'email est restauré')
+      const email = await ProfilePage.getEmailBold()
+      expect(email).toBe(original.email)
+      expect(email).not.toBe(MODIFICATIONS.email)
+    })
   })
 
   // Désactivé en attendant le COJUR. Attendu : pour un compte sans adresse Caf, l'état original est
