@@ -138,8 +138,11 @@ class SuiviDemarchesPage {
   /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
   async archivedPartners(): Promise<string[]> {
     await waitForHeading('Démarches archivées')
-    // L'encart est un accordéon fermé par défaut : les partenaires ne sont visibles qu'une fois déplié.
-    await clickDisplayed(getSuiviDemarchesLocators().archivedHelpAccordion)
+    // L'encart est un accordéon DÉPLIÉ au chargement depuis le déploiement staging observé le 2026-10-26 (`aria-expanded="true"` ;
+    // il était fermé par défaut avant) : on ne le déplie que s'il est replié, un clic le refermerait sinon.
+    if (await isShown(getSuiviDemarchesLocators().archivedHelpAccordionCollapsed, 1000)) {
+      await clickDisplayed(getSuiviDemarchesLocators().archivedHelpAccordion)
+    }
     await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
     const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
     return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))

@@ -22,6 +22,8 @@ export interface SuiviDemarchesLocators {
   cardBadge: string
   /** Accordéon « Votre démarche n’apparaît pas ? » de la page des archivées (texte visible contient ; apostrophe évitée). */
   archivedHelpAccordion: string
+  /** Même accordéon quand il est REPLIÉ (`aria-expanded="false"`, attribut DSFR) : sert à ne cliquer que s'il est fermé. */
+  archivedHelpAccordionCollapsed: string
   /** Bouton affiché tant qu'aucun consentement n'est actif (relevé en live le 2026-10-15). */
   followButton: string
 }
@@ -36,6 +38,7 @@ export const demarchesLocators: SuiviDemarchesLocators = {
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',
   archivedHelpAccordion:     'button*=Votre démarche n',
+  archivedHelpAccordionCollapsed: '.fr-accordion__btn[aria-expanded="false"]',
 }
 
 /** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */
