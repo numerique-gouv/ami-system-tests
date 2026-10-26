@@ -2,6 +2,7 @@ import {getEnvironmentPickerLocators} from '../locators/franceconnect/environmen
 import {traced} from '../../helpers/traced'
 import {platform} from '../../platform'
 import {setBackendUrl} from '../../helpers/partner-api'
+import {backendUrlFor} from '../../helpers/environment'
 
 /**
  * SEUL endroit du dépôt où le mode strict de `$()` (WDIO 10) est contourné : la tuile « Staging » du picker
@@ -64,10 +65,7 @@ class EnvironmentPickerPage {
  */
 function reviewTitleToApiUrl(title: string): string {
     const prMatch = title.match(/^PR(\d+):/i)
-    if (prMatch) {
-        return `https://ami-back-staging-pr${prMatch[1]}.osc-fr1.scalingo.io`
-    }
-    return 'https://ami-back-staging.osc-fr1.scalingo.io'
+    return backendUrlFor(prMatch ? prMatch[1] : title)
 }
 
 export default traced(new EnvironmentPickerPage(), 'EnvironmentPickerPage')

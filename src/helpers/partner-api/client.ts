@@ -15,14 +15,15 @@
  * depuis le titre de l'item cliqué dans le picker ; en webapp, depuis resolveEnvironment() (AMI_ENV).
  */
 
-const STAGING_BASE_URL = 'https://ami-back-staging.osc-fr1.scalingo.io'
+import {backendUrlFor} from '../environment'
 
 // Sans timeout, un fetch() sur une connexion coupée reste pendu jusqu'au timeout Mocha du
 // hook/test appelant (120-180s) au lieu d'échouer vite avec un message clair.
 export const REQUEST_TIMEOUT_MS = 15000
 
 // URL du backend pour la session courante — fixée par setBackendUrl() lors du choix de l'env.
-let _backendUrl: string = STAGING_BASE_URL
+// Par défaut dérivée d'AMI_ENV : les builds préprod n'ont pas de sélecteur d'environnement pour l'appeler.
+let _backendUrl: string = backendUrlFor(process.env.AMI_ENV ?? '')
 
 /**
  * Définit l'URL backend pour toute la session de test.

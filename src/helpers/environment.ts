@@ -8,11 +8,33 @@
  */
 
 const STAGING_URL = 'https://ami-back-staging.osc-fr1.scalingo.io'
+const PREPROD_URL = 'https://preprod.ami.beta.numerique.gouv.fr'
 
 export interface Environment {
-  /** URL de la SPA — aussi l'hôte de l'API partenaire, staging sert les deux. */
+  /** URL de la SPA — aussi l'hôte de l'API partenaire, staging et préprod servent les deux. */
   webappUrl: string
   apiUrl: string
+}
+
+/**
+ * Dérive l'URL backend (SPA + API événements/consentement) depuis une valeur d'AMI_ENV :
+ *   - contient « preprod » (insensible à la casse) → préproduction (preprod.ami.beta.numerique.gouv.fr)
+ *   - contient un nombre                           → review app PR (ex : "1234" → ami-back-staging-pr1234.…)
+ *   - sinon                                        → staging (ami-back-staging.osc-fr1.scalingo.io)
+ * Source unique : webapp, picker mobile, scripts et CI s'appuient dessus.
+ */
+export function backendUrlFor(env: string): string {
+  if (/preprod/i.test(env)) return PREPROD_URL
+  const prMatch = env.match(/\b(\d+)\b/)
+  return prMatch ? `https://ami-back-staging-pr${prMatch[1]}.osc-fr1.scalingo.io` : STAGING_URL
+}
+
+/**
+ * AMI_ENV vise-t-il la préprod ? Choisit aussi le build mobile à installer (flavor Android `preprod`,
+ * schéma iOS `AMI-Preproduction`) : voir src/driver/capabilities.ts et les variables du justfile.
+ */
+export function isPreprod(): boolean {
+  return /preprod/i.test(process.env.AMI_ENV ?? '')
 }
 
 export type EnvironmentKind = 'preprod' | 'staging' | 'review'
@@ -28,16 +50,8 @@ export function environmentKind(): EnvironmentKind {
   return /\b\d+\b/.test(env) ? 'review' : 'staging'
 }
 
-/**
- * Dérive l'environnement depuis AMI_ENV (.env.local) :
- *   - contient un nombre → review app PR (ex : "1234" → ami-back-staging-pr1234.…)
- *   - sinon               → staging (ami-back-staging.osc-fr1.scalingo.io)
- */
+/** Dérive l'environnement depuis AMI_ENV (.env.local), cf. backendUrlFor(). */
 export function resolveEnvironment(): Environment {
-  const env = process.env.AMI_ENV ?? ''
-  const prMatch = env.match(/\b(\d+)\b/)
-  const url = prMatch
-    ? `https://ami-back-staging-pr${prMatch[1]}.osc-fr1.scalingo.io`
-    : STAGING_URL
+  const url = backendUrlFor(process.env.AMI_ENV ?? '')
   return {webappUrl: url, apiUrl: url}
 }

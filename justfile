@@ -26,13 +26,19 @@ export APPIUM_HOME := env_var_or_default("APPIUM_HOME", env_var("HOME") / ".appi
 
 android_project := "../ami-app-android"
 ios_project     := "../ami-app-ios"
-app_id          := "fr.gouv.ami.staging"
 
-android_apk := android_project / "app/build/outputs/apk/staging/debug/app-staging-debug.apk"
+# AMI_ENV=preprod (.env.local) → builds préprod ; sinon staging (review apps PR comprises).
+preprod     := if env_var_or_default("AMI_ENV", "") =~ "(?i)preprod" { "1" } else { "" }
+app_id      := if preprod == "1" { "fr.gouv.ami.preprod" } else { "fr.gouv.ami.staging" }
+ios_bundle  := if preprod == "1" { "fr.gouv.ami.preproduction" } else { "fr.gouv.ami.staging" }
+android_flavor := if preprod == "1" { "preprod" } else { "staging" }
+# Constructeur : ./gradlew assemble{{ if preprod == "1" { "Preprod" } else { "Staging" } }}Debug | assemblePreprodDebug
+android_apk := android_project / "app/build/outputs/apk" / android_flavor / "debug/app-" + android_flavor + "-debug.apk"
 # Le projet iOS construit avec -derivedDataPath ../build depuis ami-app-ios/, donc à côté
 # de ami-app-ios/ (sibling sous ami/), pas dans ami-app-ios/build/.
 ios_derived := "../build"
-ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator/AMI-Production.app"
+# Scheme AMI-Preproduction → AMI-Preproduction.app ; le staging local garde son nom historique AMI-Production.app.
+ios_app     := ios_derived / "Build/Products/Debug-iphonesimulator" / (if preprod == "1" { "AMI-Preproduction.app" } else { "AMI-Production.app" })
 
 # Appareil visé = `--device` (ex. just test-android --device pixel_2_api30). Sans `--device`, on prend
 # l'appareil déjà connecté (adb : émulateur ou téléphone) ou le simulateur iOS déjà démarré ; s'il n'y en a
@@ -107,7 +113,7 @@ build-android:
         echo "✅ APK trouvé : {{android_apk}}"
     else
         echo "❌ APK introuvable : {{android_apk}}"
-        echo "   → Lance le build depuis le projet mobile : cd {{android_project}} && ./gradlew assembleStagingDebug"
+        echo "   → Lance le build depuis le projet mobile : cd {{android_project}} && ./gradlew assemble{{ if preprod == "1" { "Preprod" } else { "Staging" } }}Debug"
         exit 1
     fi
 
@@ -119,7 +125,7 @@ build-ios:
         echo "✅ App iOS trouvée : {{ios_app}}"
     else
         echo "❌ App iOS introuvable : {{ios_app}}"
-        echo "   → Lance le build depuis le projet mobile : cd {{ios_project}} && just build (ou xcodebuild)"
+        echo "   → Lance le build depuis le projet mobile : cd {{ios_project}} && just build-staging (ou xcodebuild -scheme {{ if preprod == "1" { "AMI-Preproduction" } else { "AMI-Staging" } }} -configuration Debug -destination \"generic/platform=iOS Simulator\" -derivedDataPath ../build build)"
         exit 1
     fi
 
@@ -473,7 +479,7 @@ _explore target route device="": _require-dotenv
     case "{{ target }}" in
       webapp)
         env="${AMI_ENV:-}"
-        if [[ "$env" =~ ([0-9]+) ]]; then origin="https://ami-back-staging-pr${BASH_REMATCH[1]}.osc-fr1.scalingo.io"; else origin="https://ami-back-staging.osc-fr1.scalingo.io"; fi
+        if [[ "$env" =~ [Pp][Rr][Ee][Pp][Rr][Oo][Dd] ]]; then origin="https://preprod.ami.beta.numerique.gouv.fr"; elif [[ "$env" =~ ([0-9]+) ]]; then origin="https://ami-back-staging-pr${BASH_REMATCH[1]}.osc-fr1.scalingo.io"; else origin="https://ami-back-staging.osc-fr1.scalingo.io"; fi
         [ -n "${WEB_APP_ACCESS_KEYS:-}" ] || { echo "❌ WEB_APP_ACCESS_KEYS absent de .env.local (cf. gabarit .env)"; exit 3; }
         $S open chrome "$origin/favicon.ico" --replace --no-snapshot --launch-timeout 240000 2>&1 | mask
         $S exec -e 'await browser.setCookies({name: "access_key", value: process.env.WEB_APP_ACCESS_KEYS, expiry: Math.floor(Date.now() / 1000) + 7 * 24 * 3600})' 2>&1 | mask
@@ -482,10 +488,10 @@ _explore target route device="": _require-dotenv
       android)
         udid="$("{{ android_sdk }}/platform-tools/adb" devices | awk '/\tdevice$/{print $1; exit}')"
         [ -n "$udid" ] || { echo "❌ aucun appareil Android : lance « just start-android »"; exit 3; }
-        $S open android --app "$(cd .. && pwd)/ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk" --package {{ app_id }} --udid "$udid" --no-reset --replace --launch-timeout 240000 < /dev/null 2>&1
+        $S open android --app "$(cd .. && pwd)/ami-app-android/app/build/outputs/apk/{{ android_flavor }}/debug/app-{{ android_flavor }}-debug.apk" --package {{ app_id }} --udid "$udid" --no-reset --replace --launch-timeout 240000 < /dev/null 2>&1
         ;;
       ios)
-        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/AMI-Production.app" --bundle-id {{ app_id }} --udid "$(just --quiet _ios-udid "$(just --quiet _ios-device "{{ device }}")")" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
+        $S open ios --app "$(cd .. && pwd)/build/Build/Products/Debug-iphonesimulator/{{ if preprod == "1" { "AMI-Preproduction" } else { "AMI-Production" } }}.app" --bundle-id {{ ios_bundle }} --udid "$(just --quiet _ios-udid "$(just --quiet _ios-device "{{ device }}")")" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
         ;;
       *) echo "cible inconnue « {{ target }} » (webapp | android | ios)"; exit 2 ;;
     esac
@@ -681,7 +687,7 @@ clean-tests-data:
     [ ! -d test-results ] || find test-results -mindepth 1 -maxdepth 1 -exec rm -rf {} +
     echo "✅ Données de tests supprimées."
 
-# AMI_ENV (.env.local) détermine l'environnement cible (nombre → PR, sinon → staging).
+# AMI_ENV (.env.local) détermine l'environnement cible (« preprod » → préproduction, nombre → PR, sinon → staging).
 # Exemples : just push-notification avec_nom_dusage   |   just push-notification avec_nom_dusage "Mon titre personnalisé"
 # Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 push-notification login title="": _require-dotenv

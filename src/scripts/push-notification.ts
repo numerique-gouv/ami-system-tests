@@ -11,6 +11,7 @@
 
 import { getUser, type FcLogin } from '../helpers/test-users'
 import { publishNotification, setBackendUrl } from '../helpers/partner-api'
+import { backendUrlFor } from '../helpers/environment'
 
 const [,, login, title] = process.argv
 
@@ -20,18 +21,9 @@ if (!login) {
   process.exit(1)
 }
 
-function resolveBackendUrl(): string {
-  const env = process.env.AMI_ENV ?? ''
-  const prMatch = env.match(/\b(\d+)\b/)
-  if (prMatch) {
-    return `https://ami-back-staging-pr${prMatch[1]}.osc-fr1.scalingo.io`
-  }
-  return 'https://ami-back-staging.osc-fr1.scalingo.io'
-}
-
 async function main(): Promise<void> {
   const user = getUser(login as FcLogin)
-  const apiUrl = resolveBackendUrl()
+  const apiUrl = backendUrlFor(process.env.AMI_ENV ?? '')
   setBackendUrl(apiUrl)
 
   const notifTitle = title || `Test push — ${new Date().toISOString()}`
