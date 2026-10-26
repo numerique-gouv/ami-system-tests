@@ -1,6 +1,7 @@
 import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
 import {step} from '@helpers/report'
+import {platform} from '../../platform'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le hook after() restaure les valeurs d'origine après chaque passage.
@@ -22,19 +23,21 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
 
     await getAppToStartingState()
 
-    step('Naviguer vers Mon profil depuis le menu avatar')
-    await ProfilePage.navigate()
+    await platform().inWebContext(async () => {
+      step('Naviguer vers Mon profil depuis le menu avatar')
+      await ProfilePage.navigate()
 
-    step('Capturer les données initiales du profil')
-    const identityBolds = await ProfilePage.getIdentityBolds()
-    // Format attendu du premier bold : "Prénom NOM_USAGE," → extraire NOM_USAGE
-    const displayName = identityBolds[0] ?? ''
-    const preferredUsername = displayName.replace(/^.+?\s/, '').replace(/,$/, '').trim()
-    original = {
-      identityBolds,
-      preferredUsername,
-      email: await ProfilePage.getEmailBold(),
-    }
+      step('Capturer les données initiales du profil')
+      const identityBolds = await ProfilePage.getIdentityBolds()
+      // Format attendu du premier bold : "Prénom NOM_USAGE," → extraire NOM_USAGE
+      const displayName = identityBolds[0] ?? ''
+      const preferredUsername = displayName.replace(/^.+?\s/, '').replace(/,$/, '').trim()
+      original = {
+        identityBolds,
+        preferredUsername,
+        email: await ProfilePage.getEmailBold(),
+      }
+    })
   })
 
   after(async () => {
@@ -48,11 +51,13 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
 
   it('permet de modifier le nom d\'usage dans le bloc "Mon identité"', async () => {
     step('Cliquer Modifier et saisir le nouveau nom d\'usage')
-    await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
+    await platform().inWebContext(async () => {
+      await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
 
-    step('Vérifier que le nouveau nom d\'usage est affiché dans le profil')
-    // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
-    expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
+      step('Vérifier que le nouveau nom d\'usage est affiché dans le profil')
+      // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
+      expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
+    })
   })
 
   // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).
@@ -67,11 +72,13 @@ describe('Profil usager — vérification des données (Mon profil)', () => {
   })
 
   it('permet de modifier l\'email dans le bloc "Contact"', async () => {
-    step('Cliquer Modifier et saisir le nouvel email')
-    await ProfilePage.editEmail(MODIFICATIONS.email)
+    await platform().inWebContext(async () => {
+      step('Cliquer Modifier et saisir le nouvel email')
+      await ProfilePage.editEmail(MODIFICATIONS.email)
 
-    step('Vérifier que le nouvel email est affiché dans le profil')
-    const email = await ProfilePage.getEmailBold()
-    expect(email).toBe(MODIFICATIONS.email)
+      step('Vérifier que le nouvel email est affiché dans le profil')
+      const email = await ProfilePage.getEmailBold()
+      expect(email).toBe(MODIFICATIONS.email)
+    })
   })
 })

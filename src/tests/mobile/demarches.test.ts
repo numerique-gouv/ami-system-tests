@@ -6,6 +6,7 @@ import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
 import {step} from '@helpers/report'
+import {platform} from '../../platform'
 
 const log = logger('test')
 
@@ -50,86 +51,92 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
     })
 
     it("crée une démarche visible dans le suivi (statut new)", async () => {
-        let titleNew = `${title} 0`;
-        step('1. Ouvrir la page de suivi des démarches')
-        await HomePage.ouvreSuivi()
+        await platform().inWebContext(async () => {
+          let titleNew = `${title} 0`;
+          step('1. Ouvrir la page de suivi des démarches')
+          await HomePage.ouvreSuivi()
 
-        step('2. Publier la notification avec tous les champs')
-        await publishDemarche({
-            title: titleNew,
-            body: 'Corps de la notification E2E',
-            recipientFcHash: user.fcHash,
-            privateBody: 'Contenu privé E2E',
-            icon: 'fr-icon-notification-3-line',
-            contentLink: urlV1,
-            itemType: 'OTV',
-            itemId,
-            status: 'new',
+          step('2. Publier la notification avec tous les champs')
+          await publishDemarche({
+              title: titleNew,
+              body: 'Corps de la notification E2E',
+              recipientFcHash: user.fcHash,
+              privateBody: 'Contenu privé E2E',
+              icon: 'fr-icon-notification-3-line',
+              contentLink: urlV1,
+              itemType: 'OTV',
+              itemId,
+              status: 'new',
+          })
+
+          step('3. Attendre que la démarche apparaisse sur le Suivi')
+          await SuiviDemarchesPage.waitForDemarche(titleNew)
+
+          step('4. Vérifier statut sur la liste')
+          await SuiviDemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
+
+          step('5. Ouvrir la démarche et vérifier le lien externe V1')
+          await SuiviDemarchesPage.ouvreDemarche(titleNew)
+          await DemarcheDetailPage.assertLienExterne(urlV1)
+          await SuiviDemarchesPage.retourJusquAPageSuivi()
         })
-
-        step('3. Attendre que la démarche apparaisse sur le Suivi')
-        await SuiviDemarchesPage.waitForDemarche(titleNew)
-
-        step('4. Vérifier statut sur la liste')
-        await SuiviDemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
-
-        step('5. Ouvrir la démarche et vérifier le lien externe V1')
-        await SuiviDemarchesPage.ouvreDemarche(titleNew)
-        await DemarcheDetailPage.assertLienExterne(urlV1)
-        await SuiviDemarchesPage.retourJusquAPageSuivi()
     })
 
     it("met à jour l'URL externe de la démarche (statut wip)", async () => {
         let titleUpdate = `${title} 1`
-        // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
-        // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
-        step('1. Publier la notification avec la nouvelle URL')
+        await platform().inWebContext(async () => {
+          // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
+          // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
+          step('1. Publier la notification avec la nouvelle URL')
 
-        await publishDemarche({
-            title: titleUpdate,
-            body: 'Mise à jour E2E',
-            recipientFcHash: user.fcHash,
-            contentLink: urlV2,
-            itemType: 'OTV',
-            itemId,
-            status: 'wip',
+          await publishDemarche({
+              title: titleUpdate,
+              body: 'Mise à jour E2E',
+              recipientFcHash: user.fcHash,
+              contentLink: urlV2,
+              itemType: 'OTV',
+              itemId,
+              status: 'wip',
+          })
+
+          step('2. Attendre que la démarche apparaisse sur le Suivi')
+          await SuiviDemarchesPage.waitForDemarche(titleUpdate)
+
+          step('3. Vérifier statut sur la liste')
+          await SuiviDemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
+
+          step('4. Ouvrir la démarche et vérifier le lien externe V2')
+          await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
+          await DemarcheDetailPage.assertLienExterne(urlV2)
+          await SuiviDemarchesPage.retourJusquAPageSuivi()
         })
-
-        step('2. Attendre que la démarche apparaisse sur le Suivi')
-        await SuiviDemarchesPage.waitForDemarche(titleUpdate)
-
-        step('3. Vérifier statut sur la liste')
-        await SuiviDemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
-
-        step('4. Ouvrir la démarche et vérifier le lien externe V2')
-        await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
-        await DemarcheDetailPage.assertLienExterne(urlV2)
-        await SuiviDemarchesPage.retourJusquAPageSuivi()
     })
 
     it("ferme la démarche (statut closed)", async () => {
         let titleClosing = `${title} 2`
-        // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
-        // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
-        step('1. Publier la notification de clôture')
-        await publishDemarche({
-            title: titleClosing,
-            body: 'Clôture E2E',
-            recipientFcHash: user.fcHash,
-            contentLink: urlV2,
-            itemType: 'OTV',
-            itemId,
-            status: 'closed',
+        await platform().inWebContext(async () => {
+          // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
+          // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
+          step('1. Publier la notification de clôture')
+          await publishDemarche({
+              title: titleClosing,
+              body: 'Clôture E2E',
+              recipientFcHash: user.fcHash,
+              contentLink: urlV2,
+              itemType: 'OTV',
+              itemId,
+              status: 'closed',
+          })
+          step('2. Attendre que la démarche apparaisse sur le Suivi')
+          await SuiviDemarchesPage.waitForDemarche(titleClosing)
+
+          step('3. Vérifier statut sur la liste')
+          await SuiviDemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
+
+          step('4. Ouvrir la démarche et vérifier le lien externe V2')
+          await SuiviDemarchesPage.ouvreDemarche(titleClosing)
+          await DemarcheDetailPage.assertLienExterne(urlV2)
+          await SuiviDemarchesPage.retourJusquAPageSuivi()
         })
-        step('2. Attendre que la démarche apparaisse sur le Suivi')
-        await SuiviDemarchesPage.waitForDemarche(titleClosing)
-
-        step('3. Vérifier statut sur la liste')
-        await SuiviDemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
-
-        step('4. Ouvrir la démarche et vérifier le lien externe V2')
-        await SuiviDemarchesPage.ouvreDemarche(titleClosing)
-        await DemarcheDetailPage.assertLienExterne(urlV2)
-        await SuiviDemarchesPage.retourJusquAPageSuivi()
     })
 })
