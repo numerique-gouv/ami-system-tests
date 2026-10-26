@@ -4,6 +4,9 @@ import { getUser } from '../../helpers/test-users'
 import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
 import {platform} from '../../platform'
+import NavigationPage from '../../pages/navigation.page'
+import PreferencesPage from '../../pages/preferences.page'
+import SystemNotificationsPage from '../../pages/system-notifications.page'
 import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/ios-notifications'
 
 describe('Notifications', function () {
@@ -61,7 +64,6 @@ describe('Notifications', function () {
    *   - Android : notification système (permission POST_NOTIFICATIONS accordée, volet des notifications ouvert) ;
    *   - iOS : push APNs réel = APPAREIL PHYSIQUE (hors périmètre) ; sur simulateur, `xcrun simctl push` simule la notification
    *     localement (src/helpers/ios-notifications.ts) : on constate la bannière, on la clique et on vérifie que l'app ouvre /#/notifications.
-   * NON ÉVALUÉ à ce jour : le test Android n'a pas été exécuté (jeton FCM de l'émulateur, accord de permission : à confirmer au premier run).
    */
   it("avec push consenti : reçue dans l'inbox ET en notification système (Android ; iOS : push simulé)", async function() {
     if (driver.isIOS) {
@@ -75,28 +77,73 @@ describe('Notifications', function () {
       await waitForNotificationsRoute()
       return
     }
-    const appPackage = (driver.capabilities as {'appium:appPackage'?: string})['appium:appPackage'] as string
-    step('1. Accorder la permission de notifications système à l\'app')
-    await driver.execute('mobile: changePermissions', {action: 'grant', appPackage, permissions: ['android.permission.POST_NOTIFICATIONS']})
+    // Android (constats en live le 2026-10-26, émulateur API 36, staging) : l'app ne poste la notification système (FirebaseService) que si
+    // POST_NOTIFICATIONS est accordée ; elle arrive ~20 s après la publication (FCM), id fixe (une nouvelle remplace la précédente) ;
+    // son clic démarre MainActivity avec les extras sender/app_url/title/message (onNewIntent : visibles dans logcat ; titre = celui de la 1re notification, PendingIntent réutilisé). Constats par adb_shell
+    // (`mobile: shell`, cf. helpers/android-notifications.ts). Le WebView n'est pas rechargé par ce clic quand l'app est déjà ouverte.
+    step('1. Accorder la permission de notifications système à l\'app (pm grant) et partir de l\'accueil')
+    await SystemNotificationsPage.grantPermission()
+    await NavigationPage.goToRoute('/')
 
     const title = `AMI-push-${Date.now()}`
+    const body = 'Test push — inbox ET notification système'
     await platform().inWebContext(async () => {
       step("2. Ouvrir l'inbox puis publier la notification avec push")
       await NotificationsInboxPage.openFromHome()
       await NotificationsInboxPage.assertDisplayed()
-      await publishNotification({title, body: 'Test push — inbox ET notification système', recipientFcHash: user.fcHash, tryPush: true})
+      await publishNotification({title, body, recipientFcHash: user.fcHash, tryPush: true})
       step("3. Reçue dans l'inbox")
       await NotificationsInboxPage.assertNotificationReceived(title)
+      // Quitter l'inbox : même raison que dans le test précédent (service de trace, « page source » natif).
+      await NavigationPage.goToRoute('/')
     })
 
-    step('4. Affichée comme notification système (volet des notifications)')
-    await driver.openNotifications()
+    step('4. Reçue par le système (dumpsys notification : titre et texte)')
+    await SystemNotificationsPage.waitForSystemNotification(title, body)
+
+    step('5. Visible dans le volet des notifications ; le clic ramène dans l\'app avec l\'intent de la notification')
+    await SystemNotificationsPage.openShadeAndTap(title)
+    await SystemNotificationsPage.assertTapOpenedApp()
+  })
+
+  /**
+   * Réglage « notifications » d'AMI sur Android : la page Préférences > Notifications est PROMUE EN NATIF (écran « Paramètres », un interrupteur
+   * qui reflète la permission système POST_NOTIFICATIONS). Permission accordée, taper l'interrupteur n'efface pas la permission : l'app
+   * ouvre les réglages SYSTÈME de ses notifications, où « All AMI … notifications » coupe/rétablit l'importance du canal et le mode appops
+   * POST_NOTIFICATION (constaté par dumpsys). Le test rétablit l'état d'origine. (Le sens inverse, permission refusée -> boîte de dialogue
+   * système, n'est pas exercé : révoquer la permission tue l'app.)
+   */
+  it('réglage Préférences > Notifications (Android) : interrupteur natif et réglages système', async function() {
+    if (driver.isIOS) this.skip()
+    await SystemNotificationsPage.grantPermission()
+    await NavigationPage.goToRoute('/')
+    step('1. Préférences > Notifications ouvre l\'écran natif « Paramètres », interrupteur actif (permission accordée)')
+    await platform().inWebContext(async () => {
+      await PreferencesPage.open()
+      await PreferencesPage.openPushNotificationsSettings()
+    })
+    expect(await SystemNotificationsPage.isAmiSettingsDisplayed()).toBe(true)
+    expect(await SystemNotificationsPage.amiSettingsSwitchChecked()).toBe(true)
+
+    step('2. Taper l\'interrupteur ouvre les réglages système des notifications de l\'app')
+    await SystemNotificationsPage.tapAmiSettingsSwitch()
+    expect(await SystemNotificationsPage.isOsAppNotificationSettingsFocused()).toBe(true)
     try {
-      await $(`android=new UiSelector().textContains("${title}")`).waitForDisplayed({
-        timeout: 30000, timeoutMsg: `Notification « ${title} » reçue dans l'inbox mais absente du volet des notifications système après 30000ms`,
-      })
+      step('3. Couper les notifications dans les réglages système : importance NONE et appops « ignore »')
+      await SystemNotificationsPage.setOsAppNotifications(false)
+      const off = await SystemNotificationsPage.osState()
+      expect(off.importance).toBe('NONE')
+      expect(off.appOps).toContain('ignore')
     } finally {
-      await driver.pressKeyCode(4) // BACK : referme le volet
+      step('4. Rétablir : importance par défaut et appops non « ignore »')
+      await SystemNotificationsPage.setOsAppNotifications(true)
     }
+    const on = await SystemNotificationsPage.osState()
+    expect(on.importance).not.toBe('NONE')
+    expect(on.appOps).not.toContain('ignore')
+    await SystemNotificationsPage.backToApp()
+    await SystemNotificationsPage.grantPermission() // filet : permission accordée pour la suite de la série
+    await driver.pressKeyCode(4) // BACK : quitte l'écran natif « Paramètres »
+    await NavigationPage.goToRoute('/')
   })
 })
