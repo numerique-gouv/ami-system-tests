@@ -16,11 +16,10 @@ export interface FcPivotData {
 }
 
 /**
- * Reproduit `build_fc_hash` de ami-notifications-api (ami/user/utils.py:6-23).
- * v1 (défaut) : SHA-256 hex de la concaténation SANS séparateur.
- * v2 (FEATURE_FLAG_USE_FC_HASH_V2) : même chose avec « ; » entre les champs.
+ * Reproduit `build_fc_hash` de ami-notifications-api (ami/user/utils.py:6-23), version 2 (la seule en service) :
+ * SHA-256 hex de l'UTF-8 de `given_name;family_name;birthdate;gender;birthplace;birthcountry`, champs bruts.
  */
-export function computeFcHash(data: FcPivotData, version: 1 | 2 = 1): string {
+export function computeFcHash(data: FcPivotData): string {
   const parts = [
     data.given_name,
     data.family_name,
@@ -29,5 +28,5 @@ export function computeFcHash(data: FcPivotData, version: 1 | 2 = 1): string {
     data.birthplace,
     data.birthcountry,
   ]
-  return createHash('sha256').update(parts.join(version === 2 ? ';' : '')).digest('hex')
+  return createHash('sha256').update(parts.join(';')).digest('hex')
 }

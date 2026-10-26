@@ -3,22 +3,17 @@
  * Source : https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-high/mocks/idp/databases/citizen/base.csv
  * La clé est la colonne `login` du CSV (identifiant saisi sur la mire de la maquette).
  *
- * fcHash = SHA-256 hex des données pivot FC, calculé par `build_fc_hash` (ami-notifications-api, ami/user/utils.py:6-23),
- * sans normalisation ni sel, avec les valeurs brutes du userinfo FC (family_name = nom de NAISSANCE, pas preferred_username ;
- * birthplace vide pour une naissance à l'étranger) :
- *   v1 : SHA256(given_name + family_name + birthdate + gender + birthplace + birthcountry)        (flag backend FEATURE_FLAG_USE_FC_HASH_V2 = false)
- *   v2 : SHA256(given_name;family_name;birthdate;gender;birthplace;birthcountry)                  (flag = true)
- * Version retenue ici : v2, ou v1 si FC_HASH_VERSION=1 (le flag du backend visé n'est pas lisible depuis les tests : non confirmé
- * par environnement). Vérification : avec_nom_dusage v2 = bf530095…, test v1 = 4abd71ec… (anciens hashs saisis à la main).
+ * fcHash = SHA-256 hex de given_name;family_name;birthdate;gender;birthplace;birthcountry (`build_fc_hash`, ami-notifications-api,
+ * ami/user/utils.py:6-23, format v2 : la seule version en service), sans normalisation ni sel, avec les valeurs brutes du userinfo FC
+ * (family_name = nom de NAISSANCE, pas preferred_username ; birthplace vide pour une naissance à l'étranger).
+ * Vérification : avec_nom_dusage = bf530095… (ancien hash saisi à la main).
  * Alternative côté backend : GET /dev-utils/recipient-fc-hash?given_name=…&family_name=…&birthdate=…&gender=…&birthplace=…&birthcountry=…
- * (si FEATURE_FLAG_DEV_UTILS_RECIPIENT_FC_HASH est actif ; ami/utils/api_views.py:33-56).
+ * (si FEATURE_FLAG_DEV_UTILS_RECIPIENT_FC_HASH est actif ; ami/utils/api_views.py:33-56). Non disponible sur staging le 2026-10-26 (404).
  */
 import { computeFcHash, type FcPivotData } from './fc-hash'
 
-const version: 1 | 2 = process.env.FC_HASH_VERSION === '1' ? 1 : 2
-
 function account(password: string, pivot: FcPivotData): { password: string; pivot: FcPivotData; fcHash: string } {
-  return { password, pivot, fcHash: computeFcHash(pivot, version) }
+  return { password, pivot, fcHash: computeFcHash(pivot) }
 }
 
 const credentials = {
