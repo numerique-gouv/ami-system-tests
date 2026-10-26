@@ -42,12 +42,28 @@ class NavigationPage {
         return await platform().inWebContext(async () => (await $$(navigationLocators.plusDialogOpened)).length > 0)
     }
 
-    /** Ouvre le menu « Plus » (dialogue). Idempotent : sans effet s'il est déjà ouvert. */
+    /**
+     * Ouvre le menu « Plus » (dialogue). Idempotent : sans effet s'il est déjà ouvert.
+     *
+     * Le clic sur « Plus » est REJOUÉ tant que le dialogue n'est pas ouvert : constaté en live le 2026-10-26 (staging, front avec
+     * `LightModal`/`BottomModal`), un clic donné juste après un changement de page est perdu (le dialogue n'a pas encore été
+     * initialisé par le DSFR, qui lui pose `data-fr-js-modal`) : le bouton « Plus » est affiché et cliquable, mais rien ne s'ouvre.
+     * Un second clic ~0,5 s plus tard ouvre le menu (8 essais sur 8). Le clic ne bascule pas : le rejouer sur un menu déjà ouvert est sans effet.
+     */
     async openPlusMenu(): Promise<void> {
         await platform().inWebContext(async () => {
-            if (await this.isPlusMenuOpen()) return
-            await clickDisplayed(navigationLocators.tab('Plus'), {timeout: 10000, within: navigationLocators.bottomBar})
-            await firstDisplayed(navigationLocators.plusDialog, {timeout: 5000})
+            // Ouvert ET affiché : la classe `fr-modal--opened` peut être posée sur un dialogue que la SPA remplace aussitôt (nouvelle page).
+            const isReady = async (): Promise<boolean> => await this.isPlusMenuOpen() && await $(navigationLocators.plusDialog).isDisplayed()
+            await browser.waitUntil(async () => {
+                if (await isReady()) return true
+                await clickDisplayed(navigationLocators.tab('Plus'), {timeout: 10000, within: navigationLocators.bottomBar})
+                try {
+                    await browser.waitUntil(isReady, {timeout: 1500, interval: 250})
+                    return true
+                } catch {
+                    return false
+                }
+            }, {timeout: 15000, interval: 100, timeoutMsg: 'Le menu « Plus » ne s’ouvre pas après plusieurs clics sur le bouton « Plus » (15000ms)'})
         })
     }
 
