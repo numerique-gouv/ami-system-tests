@@ -4,8 +4,12 @@
  * Variables (.env / .env.local) :
  *   AMI_ENV              — environnement cible (titre ou numéro de PR) ; en webapp, l'URL en est
  *                          dérivée par resolveEnvironment() (environment.ts).
- *   NOTIF_PARTNER_ID     — identifiant partenaire
- *   NOTIF_PARTNER_SECRET — secret partenaire (HTTP Basic auth)
+ *   NOTIF_PARTNER_ID     — identifiant du partenaire AMI (`dinum-ami`, partenaire SYSTÈME, consentement non activé côté backend)
+ *   NOTIF_PARTNER_SECRET — secret du partenaire AMI (HTTP Basic auth)
+ *   NOTIF_PARTNER_<SLUG>_ID / NOTIF_PARTNER_<SLUG>_SECRET — identifiants d'UN AUTRE partenaire, <SLUG> = son identifiant en majuscules,
+ *                          tout caractère non alphanumérique remplacé par `_` (`dinum-dn` → NOTIF_PARTNER_DINUM_DN_ID / _SECRET ;
+ *                          `dinum-rdvsp` → NOTIF_PARTNER_DINUM_RDVSP_ID / _SECRET). Les secrets viennent de Scalingo (PARTNERS_<SLUG>_SECRET).
+ *                          Les scénarios qui exigent un partenaire à consentement activé (S5, S5.2, S6.3) en ont besoin : absents, ils sont SKIPPÉS.
  *
  * L'URL backend est définie via setBackendUrl() : en mobile, par EnvironmentPickerPage.reviewEnvironmentPicker()
  * depuis le titre de l'item cliqué dans le picker ; en webapp, depuis resolveEnvironment() (AMI_ENV).
@@ -33,9 +37,36 @@ export function getBackendUrl(): string {
     return _backendUrl
 }
 
-export function authHeaders(): {Authorization: string} {
-    const partnerId = requireEnv('NOTIF_PARTNER_ID')
-    const secret = requireEnv('NOTIF_PARTNER_SECRET')
+/** Identifiant du partenaire AMI : ses identifiants sont les NOTIF_PARTNER_ID / NOTIF_PARTNER_SECRET historiques. */
+const AMI_PARTNER = 'dinum-ami'
+
+/** Noms des deux variables d'environnement portant les identifiants Basic du partenaire (`id`, `secret`). */
+export function partnerCredentialVariables(partner: string): {id: string; secret: string} {
+    if (partner === AMI_PARTNER) return {id: 'NOTIF_PARTNER_ID', secret: 'NOTIF_PARTNER_SECRET'}
+    const slug = partner.toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+    return {id: `NOTIF_PARTNER_${slug}_ID`, secret: `NOTIF_PARTNER_${slug}_SECRET`}
+}
+
+/** Les identifiants du partenaire sont-ils renseignés (`.env.local`) ? */
+export function hasPartnerCredentials(partner: string = AMI_PARTNER): boolean {
+    const vars = partnerCredentialVariables(partner)
+    return Boolean(process.env[vars.id]) && Boolean(process.env[vars.secret])
+}
+
+/** Message qui dit précisément quelles variables manquent pour appeler l'API au nom du partenaire. */
+export function missingPartnerCredentialsMessage(partner: string): string {
+    const vars = partnerCredentialVariables(partner)
+    const missing = [vars.id, vars.secret].filter(name => !process.env[name])
+    return `Identifiants du partenaire « ${partner} » absents : renseigner ${missing.join(' et ')} dans .env.local ` +
+        `(secret : variable PARTNERS_${partner.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_SECRET de l'application Scalingo du backend).`
+}
+
+/** En-tête HTTP Basic du partenaire (AMI par défaut). */
+export function authHeaders(partner: string = AMI_PARTNER): {Authorization: string} {
+    if (!hasPartnerCredentials(partner)) throw new Error(missingPartnerCredentialsMessage(partner))
+    const vars = partnerCredentialVariables(partner)
+    const partnerId = requireEnv(vars.id)
+    const secret = requireEnv(vars.secret)
     const credentials = Buffer.from(`${partnerId}:${secret}`).toString('base64')
     return {Authorization: `Basic ${credentials}`}
 }

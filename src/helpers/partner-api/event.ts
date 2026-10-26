@@ -41,12 +41,13 @@ export interface EventPayload {
 }
 
 export interface PublishEventOptions {
-    /** Partenaire émetteur dont on vérifie le consentement ; AMI par défaut (partenaire des identifiants de test). */
+    /** Partenaire émetteur : ses identifiants (client.ts) signent l'appel et c'est son consentement qu'on vérifie ; AMI par défaut. */
     partner?: PartnerId
     /**
      * Vérifie (GET) le consentement du partenaire pour ses événements (son consentement aux démarches) avant le PUT ; true par défaut.
-     * Garde côté test, posée pour TOUT événement : que le backend applique la même porte à une notification simple est NON CONFIRMÉ.
-     * `false` publie volontairement sans vérifier.
+     * Cette garde simule ce que fait un partenaire réel (appelant en production) ; le REFUS est celui du backend : `PUT /api/v2/event`
+     * et `POST /api/v1/notifications` passent par la même porte, et un partenaire à consentement activé obtient 404 sans consentement.
+     * `false` appelle quand même le PUT (pour vérifier ce refus).
      */
     verifyPartnerConsent?: boolean
 }
@@ -78,13 +79,16 @@ export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI
     // JSON.stringify omet les champs `undefined` : seules les valeurs définies sont envoyées.
     const body = JSON.stringify({...payload, event_date: payload.event_date ?? new Date().toISOString()})
 
+    // Identifiants lus avant la boucle : des variables manquantes doivent échouer avec leur nom, pas passer pour une absence de réponse.
+    const headers = {'Content-Type': 'application/json', ...authHeaders(partner)}
+
     let lastError: Error | undefined
     for (let attempt = 1; attempt <= PUBLISH_MAX_RETRIES; attempt++) {
         let response: Response
         try {
             response = await fetch(`${apiUrl}/api/v2/event`, {
                 method: 'PUT',
-                headers: {'Content-Type': 'application/json', ...authHeaders()},
+                headers,
                 body,
                 signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
             })
@@ -101,7 +105,7 @@ export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI
         if (response.ok) return
 
         const text = await response.text().catch(() => '(corps illisible)')
-        lastError = new AssertionError({message: `PUT /api/v2/event → HTTP ${response.status}: ${text}`})
+        lastError = new AssertionError({message: `PUT /api/v2/event (partenaire ${partner}) → HTTP ${response.status}: ${text}`})
 
         // Pas de retry sur les erreurs 4xx (erreur client, pas transitoire)
         if (response.status < 500) break
@@ -118,7 +122,8 @@ export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI
  * Exécute une publication et dit si l'API l'a ACCEPTÉE ou REFUSÉE (HTTP 404 : `User not found` / `Consent not found` / `Consent not given`,
  * rendus par le backend quand le flag `consent_is_enabled` du partenaire est vrai). Toute autre erreur est relancée.
  * Sert aux scénarios « sans consentement » : `verifyPartnerConsent: false` ne fait que sauter la garde côté test, il ne prouve pas que
- * le backend refuse. Constat du 2026-10-26 sur staging : un PUT sans consentement répond 201 (accepté).
+ * le backend refuse. Constat du 2026-10-26 sur staging : le partenaire AMI (système, consentement non activé) obtient 201 sans consentement ; seul un partenaire à
+ * consentement activé (ex. `dinum-dn`) est refusé.
  */
 export async function publicationOutcome(publish: () => Promise<void>): Promise<'acceptée' | 'refusée'> {
     try {

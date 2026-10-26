@@ -1,5 +1,5 @@
-export {setBackendUrl, getBackendUrl, scalingoLogsHint} from './client'
-export {checkDemarchesConsent, grantDemarchesConsent, revokeDemarchesConsent, PARTNER_AMI, PARTNER_DN, type PartnerId} from './consent'
+export {setBackendUrl, getBackendUrl, scalingoLogsHint, hasPartnerCredentials, partnerCredentialVariables, missingPartnerCredentialsMessage} from './client'
+export {checkDemarchesConsent, grantDemarchesConsent, revokeDemarchesConsent, PARTNER_AMI, PARTNER_DN, skipUnlessPartnerCredentials, type PartnerId} from './consent'
 export {publishEvent, publicationOutcome, type EventPayload, type GenericStatus, type PublishEventOptions} from './event'
 export {
     publishNotification, publishDemarche, publishDemarcheEnfant,

@@ -4,8 +4,8 @@
  * Ce consentement est propre à chaque PARTENAIRE (une case par partenaire dans Préférences > Suivi des démarches :
  * `dinum-ami`, `dinum-dn`…). S'il est refusé, le backend REFUSE de recevoir les événements du partenaire et l'app
  * (iOS, Android, web) ne reçoit donc pas ses démarches : c'est la porte d'entrée backend des événements du partenaire.
- * Le partenaire visé par l'appel est celui des identifiants Basic (`NOTIF_PARTNER_ID`) ; le paramètre `partner` le rend
- * explicite à l'appel et dans les messages d'erreur, il ne change pas la requête.
+ * Le paramètre `partner` CHOISIT les identifiants Basic de l'appel (client.ts : NOTIF_PARTNER_ID pour AMI, NOTIF_PARTNER_<SLUG>_ID
+ * pour les autres) : le consentement lu ou écrit est celui de l'usager pour CE partenaire.
  *
  * À ne pas confondre avec les NOTIFICATIONS PUSH : réglage global à AMI (pas par partenaire), local au front / à l'API
  * mobile, soumis à la permission du système (navigateur, Android ; iOS : appareil physique seulement). Aucun endpoint ne
@@ -15,14 +15,17 @@
  * porte de consentement côté backend. Les specs S5 et S5.2 (consentement.md) l'exercent sans l'avoir établi.
  */
 import {AssertionError} from 'node:assert'
-import {REQUEST_TIMEOUT_MS, authHeaders, getBackendUrl} from './client'
+import logger from '@wdio/logger'
+import {REQUEST_TIMEOUT_MS, authHeaders, getBackendUrl, hasPartnerCredentials, missingPartnerCredentialsMessage} from './client'
+
+const log = logger('api')
 
 /** Identifiant d'un partenaire, tel qu'il nomme la case de Préférences > Suivi des démarches (attribut `name`). */
 export type PartnerId = string
 
-/** AMI lui-même : le partenaire des identifiants de test (`NOTIF_PARTNER_ID`). */
+/** AMI lui-même : partenaire SYSTÈME (backend : consent_is_enabled faux, consentement ignoré à la réception des événements). */
 export const PARTNER_AMI: PartnerId = 'dinum-ami'
-/** Démarche Numérique (case « Démarche Numérique » du suivi des démarches). */
+/** Démarche Numérique (case « Démarche Numérique » du suivi des démarches) : partenaire à consentement ACTIVÉ côté backend. */
 export const PARTNER_DN: PartnerId = 'dinum-dn'
 
 /**
@@ -31,10 +34,11 @@ export const PARTNER_DN: PartnerId = 'dinum-dn'
  */
 export async function checkDemarchesConsent(partner: PartnerId, recipientFcHash: string): Promise<boolean> {
     const url = `${getBackendUrl()}/api/v1/consent/${recipientFcHash}`
+    const headers = {'Content-Type': 'application/json', ...authHeaders(partner)}
     let response: Response
     try {
         response = await fetch(url, {
-            headers: {'Content-Type': 'application/json', ...authHeaders()},
+            headers,
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
     } catch (err) {
@@ -51,11 +55,12 @@ export async function checkDemarchesConsent(partner: PartnerId, recipientFcHash:
 /** Communique le consentement aux démarches du partenaire (don ou retrait) (POST /api/v1/consent/{fc_hash}). */
 async function setDemarchesConsent(partner: PartnerId, recipientFcHash: string, granted: boolean): Promise<void> {
     const url = `${getBackendUrl()}/api/v1/consent/${recipientFcHash}`
+    const headers = {'Content-Type': 'application/json', ...authHeaders(partner)}
     let response: Response
     try {
         response = await fetch(url, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', ...authHeaders()},
+            headers,
             body: JSON.stringify({consent: granted}),
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
@@ -76,4 +81,16 @@ export async function grantDemarchesConsent(partner: PartnerId, recipientFcHash:
 /** Retire le consentement de l'usager aux démarches du partenaire. */
 export async function revokeDemarchesConsent(partner: PartnerId, recipientFcHash: string): Promise<void> {
     await setDemarchesConsent(partner, recipientFcHash, false)
+}
+
+/**
+ * Saute le test en cours (Mocha `this.skip()`) quand les identifiants du partenaire ne sont pas disponibles, en disant précisément
+ * quelle variable manque : un test qui exige un partenaire à consentement activé n'a pas de sens avec le seul partenaire AMI.
+ * À appeler au début d'un `it` (fonction `function`, pas flèche) : `skipUnlessPartnerCredentials(this, PARTNER_DN)`.
+ */
+export function skipUnlessPartnerCredentials(mochaContext: Mocha.Context, partner: PartnerId): void {
+    if (hasPartnerCredentials(partner)) return
+    const message = `BLOQUÉ — ${missingPartnerCredentialsMessage(partner)}`
+    log.warn(message)
+    mochaContext.skip()
 }
