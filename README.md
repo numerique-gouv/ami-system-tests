@@ -31,8 +31,8 @@ just check                   # vérifier que les outils sont présents
 ```
 
 Hors CI, `.env.local` est obligatoire (garde-fou `_require-dotenv` dans le `justfile`) — en CI, les
-variables viennent du workflow GitHub Actions. Pour les comptes de test FranceConnect, copier
-`src/helpers/test-users.local.example.ts` en `src/helpers/test-users.local.ts` (non commité, comme `.env.local`).
+variables viennent du workflow GitHub Actions. Les comptes de test FranceConnect (maquette publique, sans secret) sont dans
+`src/helpers/test-users.ts` ; leur `fcHash` est calculé (`src/helpers/fc-hash.ts`).
 
 ---
 

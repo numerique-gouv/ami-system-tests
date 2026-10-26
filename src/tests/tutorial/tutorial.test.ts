@@ -22,7 +22,7 @@
  *   set -a; . ./.env.local; set +a
  *   API=https://ami-back-staging.osc-fr1.scalingo.io     # backend de l'environnement testé
  *   AUTH="$NOTIF_PARTNER_ID:$NOTIF_PARTNER_SECRET"
- *   FC=<fc_hash de l'utilisateur de test, dans src/helpers/test-users.local.ts>
+ *   FC=<fc_hash de l'utilisateur de test, dans src/helpers/test-users.ts>
  * getAppToStartingState ne touche pas au consentement : un scénario qui publie commence par grantConsent, et le restaure à la fin.
  * Les publish* refusent d'envoyer sans consentement (consigne juridique) ; `checkConsent: false` publie volontairement sans.
  * Un identifiant unique par exécution (`TUTO-${Date.now()}`) retrouve ses données parmi celles des autres runs.
