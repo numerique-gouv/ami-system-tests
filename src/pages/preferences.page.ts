@@ -90,6 +90,35 @@ class PreferencesPage {
         return Array.from(text.matchAll(/Suivre mes démarches (.+?) sur mon appareil mobile/g)).map(m => m[1])
     }
 
+    /** Active ou désactive l'interrupteur GLOBAL des notifications push (page Préférences > Notifications déjà ouverte). */
+    async setPushNotifications(enabled: boolean): Promise<void> {
+        await this.assertNotificationsDisplayed()
+        await setCheckbox(preferencesLocators.pushNotificationsToggleName, enabled)
+    }
+
+    /**
+     * WEBAPP seulement : attend que le navigateur ait un abonnement Web Push (service worker + pushManager). Faux si le navigateur piloté
+     * n'en obtient pas (ex. service de push du navigateur injoignable en automatisation) : le test doit alors le dire, pas échouer à l'aveugle.
+     */
+    async waitForWebPushSubscription(timeoutMs = 20000): Promise<boolean> {
+        try {
+            await browser.waitUntil(async () => await browser.execute(() => navigator.serviceWorker.ready
+                .then(reg => reg.pushManager.getSubscription())
+                .then(sub => sub !== null, () => false)), {timeout: timeoutMs, interval: 500})
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /** WEBAPP seulement : titres des notifications SYSTÈME (navigateur) affichées par le service worker. */
+    async webSystemNotificationTitles(): Promise<string[]> {
+        // execute W3C : la Promise retournée est attendue par le navigateur (executeAsync n'existe plus en WDIO 10).
+        return await browser.execute(() => navigator.serviceWorker.ready
+            .then(reg => reg.getNotifications())
+            .then(list => list.map(n => n.title), () => [] as string[]))
+    }
+
     /** État de l'interrupteur GLOBAL des notifications push (Préférences > Notifications), distinct des consentements aux démarches par partenaire. */
     async pushNotificationsToggleState(): Promise<boolean | undefined> {
         await this.assertNotificationsDisplayed()

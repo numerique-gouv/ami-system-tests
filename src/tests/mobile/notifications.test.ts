@@ -53,4 +53,42 @@ describe('Notifications', function () {
       await NotificationsInboxPage.clickNotification(title)
     })
   })
+
+  /**
+   * Règle (utilisateur, 2026-10-26) : notification consentie ou non, elle est reçue dans le CENTRE DE NOTIFICATIONS ; si le push est
+   * consenti, on reçoit EN PLUS la notification système.
+   *   - Android : notification système (permission POST_NOTIFICATIONS accordée, volet des notifications ouvert) ;
+   *   - iOS : les notifications push exigent un APPAREIL PHYSIQUE (APNs/FCM indisponibles sur simulateur) : NON TESTABLE ici, le test est
+   *     explicitement sauté (pas de faux test) ; l'inbox, elle, est couverte par le test précédent.
+   * NON ÉVALUÉ à ce jour : le test Android n'a pas été exécuté (jeton FCM de l'émulateur, accord de permission : à confirmer au premier run).
+   */
+  it("avec push consenti : reçue dans l'inbox ET en notification système (Android seulement)", async function() {
+    if (driver.isIOS) {
+      step('iOS : push système non testable sur simulateur (appareil physique requis) — test sauté, voir le commentaire du test')
+      this.skip()
+    }
+    const appPackage = (driver.capabilities as {'appium:appPackage'?: string})['appium:appPackage'] as string
+    step('1. Accorder la permission de notifications système à l\'app')
+    await driver.execute('mobile: changePermissions', {action: 'grant', appPackage, permissions: ['android.permission.POST_NOTIFICATIONS']})
+
+    const title = `AMI-push-${Date.now()}`
+    await platform().inWebContext(async () => {
+      step("2. Ouvrir l'inbox puis publier la notification avec push")
+      await NotificationsInboxPage.openFromHome()
+      await NotificationsInboxPage.assertDisplayed()
+      await publishNotification({title, body: 'Test push — inbox ET notification système', recipientFcHash: user.fcHash, tryPush: true})
+      step("3. Reçue dans l'inbox")
+      await NotificationsInboxPage.assertNotificationReceived(title)
+    })
+
+    step('4. Affichée comme notification système (volet des notifications)')
+    await driver.openNotifications()
+    try {
+      await $(`android=new UiSelector().textContains("${title}")`).waitForDisplayed({
+        timeout: 30000, timeoutMsg: `Notification « ${title} » reçue dans l'inbox mais absente du volet des notifications système après 30000ms`,
+      })
+    } finally {
+      await driver.pressKeyCode(4) // BACK : referme le volet
+    }
+  })
 })

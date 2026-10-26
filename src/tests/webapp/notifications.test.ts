@@ -5,6 +5,9 @@ import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche, publ
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/report'
+import logger from '@wdio/logger'
+
+const log = logger('test')
 
 /**
  * Notifications in-app en webapp : réception dans l'inbox, ouverture d'une notification liée à une
@@ -27,15 +30,53 @@ describe('Notifications', function () {
     await NotificationsInboxPage.assertDisplayed()
   })
 
-  it("reçoit une notification publiée dans l'inbox in-app", async () => {
+  // Règle (utilisateur, 2026-10-26) : notification consentie ou non, elle est reçue dans le CENTRE DE NOTIFICATIONS ; si le push est
+  // consenti (permission du navigateur + interrupteur Préférences > Notifications), on reçoit EN PLUS la version notification système.
+  it("sans push consenti : la notification est reçue dans l'inbox, sans notification système", async () => {
     const title = `AMI-vanilla-${Date.now()}`
-    step("1. Publier la notification via l'API partenaire")
+    step("1. Publier la notification via l'API partenaire (push demandé, mais non consenti dans ce navigateur)")
     await publishNotification({
-      title, body: "Test vanilla — doit apparaître dans l'inbox", recipientFcHash: user.fcHash,
+      title, body: "Test vanilla — doit apparaître dans l'inbox", recipientFcHash: user.fcHash, tryPush: true,
     })
     step("2. Vérifier la réception, puis l'ouvrir")
     await NotificationsInboxPage.assertNotificationReceived(title)
+    expect(await PreferencesPage.webSystemNotificationTitles()).not.toContain(title)
     await NotificationsInboxPage.clickNotification(title)
+  })
+
+  it("avec push consenti : la notification est reçue dans l'inbox ET en notification système du navigateur", async function () {
+    step("1. Autoriser les notifications du navigateur et activer l'interrupteur de Préférences")
+    await browser.setPermissions({name: 'notifications'}, 'granted')
+    await getAppToStartingState() // beforeEach a ouvert l'inbox, qui n'a pas la barre basse (menu « Plus »)
+    await PreferencesPage.open()
+    await PreferencesPage.openPushNotificationsSettings()
+    await PreferencesPage.setPushNotifications(true)
+    try {
+      if (!await PreferencesPage.waitForWebPushSubscription()) {
+        // Pas de faux test : sans abonnement Web Push, le serveur n'a aucun destinataire de push à joindre.
+        log.warn("BLOQUÉ — le navigateur piloté n'obtient pas d'abonnement Web Push (pushManager.subscribe) : version système non testable ici")
+        this.skip()
+      }
+
+      step("2. Ouvrir l'inbox puis publier la notification avec push")
+      await getAppToStartingState() // retour à l'Accueil (on est dans les Préférences)
+      await NotificationsInboxPage.openFromHome()
+      await NotificationsInboxPage.assertDisplayed()
+      const title = `AMI-push-${Date.now()}`
+      await publishNotification({title, body: 'Test push — inbox ET notification système', recipientFcHash: user.fcHash, tryPush: true})
+
+      step('3. Reçue dans l\'inbox ET affichée par le navigateur (service worker)')
+      await NotificationsInboxPage.assertNotificationReceived(title)
+      await browser.waitUntil(async () => (await PreferencesPage.webSystemNotificationTitles()).includes(title), {
+        timeout: 30000, interval: 1000, timeoutMsg: `Notification « ${title} » reçue dans l'inbox mais jamais affichée comme notification système après 30000ms`,
+      })
+    } finally {
+      await getAppToStartingState()
+      await PreferencesPage.open()
+      await PreferencesPage.openPushNotificationsSettings()
+      await PreferencesPage.setPushNotifications(false)
+      await browser.setPermissions({name: 'notifications'}, 'prompt')
+    }
   })
 
   it('ouvre le détail de la démarche depuis une notification liée à une démarche', async () => {
