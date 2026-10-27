@@ -416,3 +416,34 @@ Accepté. Non vérifié faute de run GitHub réel au moment de cette révision :
   par défaut (`main`) — invisible tant que la branche de travail n'est pas mergée.
 - Commande de test local de référence (limites ci-dessus comprises) :
   `act workflow_dispatch -W .github/workflows/system-tests-E2E.yml --container-architecture linux/amd64 --input ref_name=staging --input run_android=true`.
+
+## Mise à jour — 2026-10-27 : WDIO 10, JUnit, commentaire de PR maison (note datée, l'historique ci-dessus n'est pas réécrit)
+
+Allure a été retiré (2026-10-08) : tout ce qui précède sur `allure_report`, `allure-action`, `allure-history-*`, `executor.json` et
+`summary.json` est **obsolète**. État actuel (écrit, non vérifié en CI réelle — voir la liste en fin de note) :
+
+- **Reporting** : le reporter JUnit de WDIO 10 produit un JUnit par run, enrichi par `src/helpers/reporting/junit-join.ts`
+  (`platform`, `ami_env`, `outcome`, tentatives, `dump_path`, `context_kind`, `sentry_url`). Un artefact par plateforme
+  (`test-results-<slug>-webapp-run<N>`, `...-android-run<N>`) ; sorties `test_results` (motif), `artifact_webapp`, `artifact_android`, `artifact_ios`.
+- **Le reporting est dans `workflow-e2e-main.yml`** (job `report`), pas dans les appelants : `github.token` et `github.repository` d'un
+  `workflow_call` sont ceux du dépôt APPELANT, donc le job peut créer le check sur le commit testé et commenter la PR d'origine sans jeton
+  cross-dépôt. Les appelants doivent accorder `checks: write` et `pull-requests: write` au job qui appelle (un workflow appelé ne peut pas
+  dépasser les permissions de son appelant). `pr_number` pilote `AMI_ENV` ; `comment_pr_number` permet de commenter une PR sans
+  changer d'environnement (tests Android, toujours sur staging).
+- **Check et annotations** : `mikepenz/action-junit-report` (épinglée par SHA) avec `commit: source_sha` (le déclencheur `on: status` de
+  l'API s'exécute sur la branche par défaut, pas sur le commit testé), `fail_on_failure: false`.
+- **Commentaire** : décision de l'équipe : commentaire maison UNIQUE (action `.github/actions/e2e-pr-comment`, script
+  `.github/scripts/e2e-comment.mjs`), retrouvé par le marqueur `<!-- e2e-report:<dépôt>:pr-<N> -->` en tête de corps, plutôt qu'un commentaire
+  par plateforme ou par outil. Échappement strict des noms de tests et messages (code modifiable dans une PR), taille bornée (< 65 536),
+  ignoré sans erreur pour un fork, sans PR ou si l'écriture est refusée. Lien Sentry seulement pour les échecs en contexte web ; « écran natif,
+  pas de trace web » sinon. Le filtre d'environnements Sentry n'inclut pas les review apps (leur `SENTRY_ENV` n'est pas dans le dépôt de l'API : non confirmé).
+- **Jobs verts** : `|| echo` conservé dans les actions composites ; le résultat se lit dans le check et le commentaire (pas dans le statut du job).
+- **Suites** : `test-suites.ts` ne regroupe plus les specs en un worker (`[[a, b]]` supprimé) ; listes plates équivalentes à `--spec a --spec b`.
+  `CI` devient `mobile_ci`, `short` devient `mobile_short` / `webapp_short` ; l'API lance `webapp_smoke` sur PR. `run_old_device` est remplacé par
+  `android_device` (nom d'AVD), seul input réellement déclaré par `workflow-e2e-main.yml`.
+- `allure-cleanup.yml` est renommé `e2e-artifacts-cleanup.yml` (aucun dépôt frère ne le référençait encore).
+- Actions épinglées par SHA de commit dans les fichiers modifiés ; `permissions` minimales par job. Les prototypes de `.github/workflows-samples/` restent des archives.
+
+À vérifier en CI réelle : voir la liste dans le rapport de mise à jour (check créé sur `source_sha` par mikepenz et sa conclusion avec `fail_on_failure: false` ;
+lecture des `<properties>` de testcase par mikepenz ; résolution de `uses: ./.github/workflows/workflow-e2e-ios.yml` dans un workflow appelé depuis un autre dépôt ;
+`download-artifact` avec `pattern` sans correspondance ; écriture du commentaire avec `github.token` ; script `android-emulator-runner` lisant `$E2E_SUITE`).

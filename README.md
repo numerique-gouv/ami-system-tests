@@ -46,7 +46,8 @@ just test-ios                                        # tous les tests iOS
 just test-webapp                                      # tests webapp, Chrome visible
 just test-webci                                       # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (glob)
-just test-android-suite CI                            # suite nommée (test-suites.ts) — idem test-ios-suite / test-webapp-suite / test-webci-suite
+just test-android-suite mobile_ci                   # suite nommée (test-suites.ts : liste plate de specs) — idem test-ios-suite / test-webapp-suite / test-webci-suite
+just list-suite                                       # specs de chaque suite nommée, sans lancer wdio
 just check-code                                       # lint + typecheck avant commit
 just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
 just clean-install                                    # réinstallation propre (rm node_modules + npm ci)
@@ -115,11 +116,11 @@ dans l'ADR
 
 Un workflow réutilisable orchestre les suites de tests par plateforme (Android, iOS, webapp),
 déclenché depuis les dépôts frères (backend, apps mobiles) sur pull request. Les résultats de
-chaque plateforme (JUnit XML et dumps des échecs) sont publiés en artefact ; le résumé passants/cassés est commenté sur la PR d'origine par le workflow appelant.
+chaque plateforme (JUnit XML enrichi et dumps des échecs) sont publiés en un artefact par plateforme. Le job `report` de `workflow-e2e-main.yml` crée le check « e2e (ami-system-tests) » sur le commit testé et tient à jour UN commentaire sur la PR d'origine : tableau test | résultat | durée | lien Sentry des échecs (« écran natif » pour un échec natif), échecs en premier. Les jobs restent verts même si des tests échouent.
 
 **Relances** : `specFileRetries` vaut 1 en CI (GitHub Actions pose `CI=true`) et 0 partout ailleurs, mesures comprises ; `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer. Un échec rejoué à l'identique en CI est un bug reproductible, un échec qui passe au 2e essai un test instable.
 
-Ce que la CI lance correspond exactement aux suites nommées de `test-suites.ts` (`just
+Ce que la CI lance correspond exactement aux suites nommées de `test-suites.ts` (listes plates de specs ; `webapp_smoke` pour la webapp de l'API, `mobile_ci` pour Android ; `just
 test-android-suite`, `test-ios-suite`, `test-webapp-suite`, `test-webci-suite`) — reproduire
 localement un run CI consiste à lancer la suite du même nom. Détail des workflows et décision
 d'architecture : [`docs/adr/2026-08-04-Integration-continue-Github-Actions.md`](docs/adr/2026-08-04-Integration-continue-Github-Actions.md).
