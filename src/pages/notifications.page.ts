@@ -1,6 +1,6 @@
 import {traced} from '../helpers/reporting/traced'
 import logger from "@wdio/logger";
-import {clickDisplayed, firstDisplayed, hasPageText, waitForHeading} from '../helpers/spa/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, reloadPage, waitForHeading} from '../helpers/spa/spa'
 import {homeContentLocators} from './locators/home.locators'
 import {notificationsLocators} from './locators/notifications.locators'
 import {AssertionError} from "node:assert";
@@ -80,7 +80,7 @@ class NotificationsInboxPage {
 
         log.warn('ANOMALIE (iOS) : notification non reçue par le WebSocket, rechargement de la page — ' +
             'socket probablement zombie, non confirmé.')
-        await driver.execute(() => window.location.reload())
+        await reloadPage()
         // hasPageText attend le rendu de la page rechargée (il réessaie jusqu'à trouver le texte).
         if (await hasPageText(title, 8000)) {
             log.warn('ANOMALIE (iOS) : notification reçue seulement après reload, WebSocket probablement zombie — non confirmé.')

@@ -211,3 +211,15 @@ export async function checkboxStates(): Promise<Record<string, boolean>> {
   }
   return out
 }
+
+/**
+ * Recharge la page courante de la SPA (la session est conservée).
+ * Webapp : `browser.refresh()`. `driver.execute(() => window.location.reload())` y échoue avec « Cannot find context with specified id » :
+ * WDIO 10 exécute le script par BiDi (`script.callFunction`, awaitPromise) et la page est détruite pendant l'appel (20 échecs sur 20 après un
+ * changement de hash, 0 sur 20 avec `browser.refresh()` ; sonde du 2026-10-27 en Chrome 156).
+ * Mobile : `execute` conservé (pas de BiDi ; sur iOS le geste natif peut être bloqué par un UIRefreshControl, cf. appium.adapter.ts).
+ */
+export async function reloadPage(): Promise<void> {
+  if (browser.isMobile) await browser.execute(() => window.location.reload())
+  else await browser.refresh()
+}

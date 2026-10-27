@@ -5,7 +5,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickDisplayed, firstDisplayed, hasPageText, isShown, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
 
 const log = logger('page-object')
 
@@ -47,7 +47,7 @@ class SuiviDemarchesPage {
         try {
             await browser.waitUntil(async () => {
                 attempt++
-                await driver.execute(() => window.location.reload())
+                await reloadPage()
                 // Le reload peut laisser un arbre d'accessibilité WKWebView périmé sur iOS (cf. refreshAxTree()) — no-op sur Android.
                 await platform().refreshAxTree()
                 const present = await hasPageText(title, RELOAD_RENDER_MS)
