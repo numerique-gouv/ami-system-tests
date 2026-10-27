@@ -586,12 +586,12 @@ _debug target spec device="": _require-dotenv
 # Lance un test webapp et le met en pause à son premier échec (session debug-0-0).
 debug-webapp spec: (_debug "webapp" spec)
 
-# Usage : just debug-android src/tests/mobile/profil.usage.test.ts   |   just debug-android src/tests/mobile/profil.usage.test.ts --device pixel_2_api30
+# Usage : just debug-android src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts   |   just debug-android src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts --device pixel_2_api30
 [doc("Test Android en pause au 1er échec · FICHIER [--device AVD]")]
 [arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
 debug-android spec device="": (_debug "android" spec device)
 
-# Usage : just debug-ios src/tests/mobile/profil.usage.test.ts   |   just debug-ios src/tests/mobile/profil.usage.test.ts --device "iPhone 17 Pro"
+# Usage : just debug-ios src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts   |   just debug-ios src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts --device "iPhone 17 Pro"
 [doc("Test iOS en pause au 1er échec · FICHIER [--device NOM]")]
 [arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
 debug-ios spec device="": (_debug "ios" spec device)

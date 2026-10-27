@@ -88,7 +88,7 @@ Android et iOS sont identiques parce que `src/tests/mobile/**` s'exécute sur le
 - **Webapp, écrans jamais visités** : les trois écrans d'onboarding (traversés par des no-op conditionnels, donc non revendiqués) et `ext-partner-demarche`.
 - **Mobile** : 10 écrans sur 35 (connexion, accueil, notifications, suivi et détail, menu Plus, profil et ses 2 formulaires, déconnexion). Navigation, services, agenda, préférences, aide, pages légales et erreurs n'ont aucun scénario mobile.
 - **Exclues par décision documentée** : `edit-address#save` (adresse Caf, COJUR) et `welcome-passkey#add-passkey` (passkey persistante sur le compte partagé, non confirmé). `agenda-event-dialog#delete` ne l'est plus : les specs S10 et S10.2 la cliquent (restauration par la déconnexion, observée le 2026-10-15).
-- **Restaurations `best-effort`** : les 4 scénarios de modification du profil (webapp et mobile) restaurent dans un `after()` qui avale les erreurs. Seuls `deconnexion` et `profil-suppression-a-la-deconnexion.usage` vérifient la restauration.
+- **Restaurations `best-effort`** : les 4 scénarios de modification du profil (webapp et mobile) restaurent dans un `after()` qui avale les erreurs. Seuls `deconnexion` et `profil-et-suppression-a-la-deconnexion.usage` vérifient la restauration.
 
 ## Écarts et doutes à lever
 

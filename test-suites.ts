@@ -85,7 +85,7 @@ export const testSuites: Record<string, string[]> = {
         r('src/tests/mobile/authentification.smoke.test.ts'),
         r('src/tests/mobile/notifications.usage.test.ts'),
         r('src/tests/mobile/demarches.usage.test.ts'),
-        r('src/tests/mobile/profil.usage.test.ts'),
+        r('src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts'),
     ],
 
     /**
@@ -96,9 +96,8 @@ export const testSuites: Record<string, string[]> = {
         r('src/tests/mobile/authentification.smoke.test.ts'),
         r('src/tests/mobile/notifications.usage.test.ts'),
         r('src/tests/mobile/demarches.usage.test.ts'),
-        r('src/tests/mobile/profil.usage.test.ts'),
         r('src/tests/mobile/deconnexion-reconnexion.usage.test.ts'),
-        r('src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts'),
+        r('src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts'),
     ],
 
     /** Authentification + déconnexion/reconnexion (mobile). */

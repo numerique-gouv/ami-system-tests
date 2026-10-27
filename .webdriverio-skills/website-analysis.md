@@ -38,7 +38,7 @@ Menu **Plus** (6 entrées, était 4 le 2026-09-08) — chaque entrée navigue (v
 | Aide et contact | `/help-center` (**nouveau**) |
 | Données personnelles et sécurité | `/page/donnees-personnelles` (**nouveau**) |
 | Accessibilité | `/page/accessibilite` (**nouveau**) |
-| Me déconnecter | non exercé dans cette passe (couvert par `profil-suppression-a-la-deconnexion.usage.test.ts`) |
+| Me déconnecter | non exercé dans cette passe (couvert par `profil-et-suppression-a-la-deconnexion.usage.test.ts`) |
 
 Les pages sans onglet (profil, préférences, aide, contact, notifications, archivés, pages légales, formulaires d'édition) ont un bouton « Retour à la page précédente » et pas de barre basse.
 

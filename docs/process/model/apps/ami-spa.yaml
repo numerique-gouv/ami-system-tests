@@ -558,7 +558,7 @@ screens:
         coverage: excluded
         reason: "L'adresse est remontée de la Caf (limitation légale, en attente d'un COJUR) ; la restauration par autocomplétion BAN n'est pas fiable pour un compte sans adresse."
         risk: [legal, shared-data]
-        source: "src/tests/mobile/profil.usage.test.ts (commentaires)"
+        source: "src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts (commentaires)"
         <<: *live
       cancel: {kind: navigate, label: Annuler, via: button, to: profile, <<: *live}
 

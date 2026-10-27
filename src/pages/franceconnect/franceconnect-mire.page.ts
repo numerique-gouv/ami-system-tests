@@ -217,7 +217,7 @@ class FranceConnectMirePage {
      * Après une déconnexion, la WebView reste sur `/?is_logged_out#/` : page vide, sans bouton
      * FranceConnect — seul un chargement complet de la racine fait rediriger la SPA vers `#/login`
      * (même constat que getAppToStartingState() pour la webapp). Observé 2026-10-06 sur Android
-     * (reconnexion de profil-suppression-a-la-deconnexion.usage.test.ts). Retourne `true` si la racine a été rechargée.
+     * (reconnexion de profil-et-suppression-a-la-deconnexion.usage.test.ts). Retourne `true` si la racine a été rechargée.
      */
     private async reloadSpaRootIfLoggedOut(): Promise<boolean> {
         return await platform().inWebContext(async () => {

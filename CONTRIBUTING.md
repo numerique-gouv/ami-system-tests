@@ -79,7 +79,7 @@ Appelle uniquement des méthodes de Page Object. Le test se lit comme un scénar
 #### Nom des specs : `<périmètre>.<catégorie>.test.ts`
 
 Chaque spec (webapp, `nonreg/` et mobile) porte sa **catégorie** en suffixe, avant `.test.ts` ; le périmètre fonctionnel est en
-kebab-case français (`profil-suppression-a-la-deconnexion.usage.test.ts`). Trois catégories :
+kebab-case français (`profil-et-suppression-a-la-deconnexion.usage.test.ts`). Trois catégories :
 
 | Catégorie | Ce que fait la spec | Exemples |
 |-----------|---------------------|----------|
