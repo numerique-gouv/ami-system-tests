@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import {enrichRunXml, readDumps} from './junit-join'
 
 /**
  * Retire du JUnit XML les lignes brutes `COMMAND: …` / `RESULT: …` (et le séparateur `...command output...`) que le reporter
@@ -32,7 +33,7 @@ export function stripRawCommandLogs(junitDir: string): number {
  * n'ouvre qu'un fichier à la fois et ne montre alors que les tests de cette spec.
  * `results-<run>-<cid>.xml` (un par worker) devient `results-<run>.xml` : un `<testsuite>` par fichier de spec, nommé comme lui
  * (`authentication.test.ts`), qui réunit les tests de tous ses `describe` ; `classname` prend le même nom, `name` reste le titre du `it`.
- * Le titre du `describe` est conservé en propriété `suiteName`. Appelé une fois tous les fichiers écrits (hook `onComplete`).
+ * Le titre du `describe` est conservé en propriété `suiteName`. Chaque testcase reçoit en plus des `<properties>` (junit-join.ts). Appelé une fois tous les fichiers écrits (hook `onComplete`).
  */
 interface SpecSuite {
   name: string
@@ -53,7 +54,7 @@ function escapeAttr(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 }
 
-export function mergeRunReports(junitDir: string, runName: string): string | null {
+export function mergeRunReports(junitDir: string, runName: string, runDir?: string): string | null {
   if (!fs.existsSync(junitDir)) return null
   const escapedRun = runName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const parts = fs.readdirSync(junitDir)
@@ -103,8 +104,12 @@ export function mergeRunReports(junitDir: string, runName: string): string | nul
     '',
   ].join('\n')
 
+  // Propriétés par testcase (plateforme, AMI_ENV, issue, lien Sentry et dump des échecs) : cf. junit-join.ts. Sans dossier de run, pas de dumps à joindre.
+  const dumps = runDir ? readDumps(runDir, path.dirname(junitDir)) : []
+  const enriched = enrichRunXml(out, {runName, dumps, amiEnv: process.env.AMI_ENV ?? null})
+
   const merged = path.join(junitDir, `results-${runName}.xml`)
-  fs.writeFileSync(merged, out)
+  fs.writeFileSync(merged, enriched)
   for (const part of parts) fs.rmSync(path.join(junitDir, part))
   return merged
 }

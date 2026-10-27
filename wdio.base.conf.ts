@@ -145,7 +145,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
     const junitDir = path.resolve(__dirname, 'test-results/junit')
     stripRawCommandLogs(junitDir)
     // Un seul rapport JUnit par run, un testsuite par fichier de spec (cf. helpers/reporting/junit-clean.ts).
-    if (process.env.WDIO_RUN_DIR) mergeRunReports(junitDir, path.basename(process.env.WDIO_RUN_DIR))
+    if (process.env.WDIO_RUN_DIR) mergeRunReports(junitDir, path.basename(process.env.WDIO_RUN_DIR), process.env.WDIO_RUN_DIR)
     // Seulement le dossier de CE run : un autre run en cours écrit peut-être encore dans le sien.
     redactTraces(process.env.WDIO_RUN_DIR ?? path.resolve(__dirname, 'test-results'))
   },
