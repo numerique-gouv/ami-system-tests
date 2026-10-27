@@ -24,7 +24,7 @@ Avant toute tâche de planification de test (`creating-test-structure`) ou d'inv
 
 | Fichier | Rôle |
 |---|---|
-| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms, `specFileRetries` 0, reporters `spec` + `junit` (`outputDir: test-results/junit`) ; hook `afterTest` : dump d'échec dans `test-results/failures/` |
+| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms, `specFileRetries` piloté par l'environnement (0 par défaut/mesures, 1 si `CI`/`GITHUB_ACTIONS`, forçable par `WDIO_SPEC_FILE_RETRIES` ou `--specFileRetries`), reporters `spec` + `junit` (`outputDir: test-results/junit`) ; hook `afterTest` : dump d'échec dans `test-results/failures/` |
 | `wdio.android.conf.ts` | capabilities Android, service Appium port 4723 |
 | `wdio.ios.conf.ts` | capabilities iOS, service Appium port 4724 |
 | `wdio.webapp.conf.ts` | capabilities Chrome, `baseUrl` dérivée de `AMI_ENV` via `resolveEnvironment()`, pas de service Appium |

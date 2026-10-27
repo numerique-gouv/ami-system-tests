@@ -115,6 +115,8 @@ Un workflow réutilisable orchestre les suites de tests par plateforme (Android,
 déclenché depuis les dépôts frères (backend, apps mobiles) sur pull request. Les résultats de
 chaque plateforme (JUnit XML et dumps des échecs) sont publiés en artefact ; le résumé passants/cassés est commenté sur la PR d'origine par le workflow appelant.
 
+**Relances** : `specFileRetries` vaut 1 en CI (GitHub Actions pose `CI=true`) et 0 partout ailleurs, mesures comprises ; `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer. Un échec rejoué à l'identique en CI est un bug reproductible, un échec qui passe au 2e essai un test instable.
+
 Ce que la CI lance correspond exactement aux suites nommées de `test-suites.ts` (`just
 test-android-suite`, `test-ios-suite`, `test-webapp-suite`, `test-webci-suite`) — reproduire
 localement un run CI consiste à lancer la suite du même nom. Détail des workflows et décision

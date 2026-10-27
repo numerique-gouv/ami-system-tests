@@ -319,7 +319,7 @@ Trois niveaux, à ne pas confondre :
 
 - **Ne pas corriger chaque échec temporaire.** Un échec isolé dû à l'infrastructure (bac à sable FranceConnect, émulateur, réseau) ou à un parcours différent parce qu'une session/des cookies traînent d'un tir sur l'autre ne justifie pas un correctif de code. Corriger sur récurrence mesurée (campagne de stabilité), avec une cause établie.
 
-En débogage, mettre `specFileRetries: 0` (voir la vraie cause plutôt que le retry qui la masque).
+**Valeur de `specFileRetries`** (`wdio.base.conf.ts`, fonction `specFileRetriesFromEnv`) : **0 par défaut et pour toute mesure** (poste local, débogage, campagnes de stabilité : on voit la vraie cause, pas le retry qui la masque) ; **1 dans un job de CI** (GitHub Actions pose `CI=true` et `GITHUB_ACTIONS=true`, hérités par les recettes `just`). Pour forcer : `WDIO_SPEC_FILE_RETRIES=N` (entier) ou `--specFileRetries=N` en ligne de commande, qui l'emporte sur la config. Indice de lecture en CI : un échec rejoué à l'identique = bug reproductible ; un échec qui passe au 2e essai = test instable (la trace du premier essai est conservée).
 
 ---
 
@@ -377,8 +377,8 @@ La configuration des reporters est commentée dans `wdio.base.conf.ts`.
 
 - **Observer avant d'écrire un sélecteur** — inspecter l'écran réel (`just explore-webapp|android|ios` puis `just s <cible> snapshot -i`) plutôt que deviner un sélecteur « qui devrait marcher ».
 - **Ne jamais commiter un locator ou un workaround qui n'a pas été validé** en exécution réelle. Un commit de workaround hypothétique casse silencieusement un autre cas. Tester d'abord, puis commiter avec un message qui décrit le **pourquoi** (bug WKRDP, AX tree périmé, etc.), pas seulement le *quoi*.
-- **Toggles de debug** (`logLevel: 'info'`, `specFileRetries: 0`) : tolérés commités tant que la suite est en développement actif, pour faciliter le diagnostic quotidien. `wdio.base.conf.ts` est aujourd'hui à
-  `logLevel: 'warn'` / `specFileRetries: 1` (un échec rejoué à l'identique indique un bug reproductible, un échec qui passe au second essai un test instable).
+- **Toggles de debug** (`logLevel: 'info'`) : tolérés commités tant que la suite est en développement actif, pour faciliter le diagnostic quotidien. `wdio.base.conf.ts` est aujourd'hui à
+  `logLevel: 'warn'`. `specFileRetries` n'est plus un toggle à éditer : 0 en local, 1 en CI, piloté par l'environnement (cf. §7).
 - Avant toute session de débogage approfondie, regarder les dumps d'échec (`just failures-text`) et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
 
 La boucle d'exploration (`wdio session` : `just explore`, `just s`, `just webview`, `just explore-export`, `just debug`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).

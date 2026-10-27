@@ -310,6 +310,7 @@ check-code:
 #   just test-android-suite all              → tous les tests en session partagée (auth une fois)
 #   just test-android-suite CI              → smoke suite (auth + tests critiques)
 
+# Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 # Garde-fou : hors CI, .env.local est obligatoire (AMI_ENV, NOTIF_*).
 # En CI ces variables sont injectées par le workflow via `env:` — pas de fichier requis.
 _require-dotenv:

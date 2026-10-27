@@ -24,6 +24,8 @@ just failures-text                                       # liste les tests en é
 
 > Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits. La webapp ne lance aucun serveur Appium (Chromedriver direct).
 
+**Relances de specs** : `specFileRetries` = 0 par défaut et pour les mesures, 1 en CI (`CI`/`GITHUB_ACTIONS`) ; `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer (cf. CONTRIBUTING.md §7).
+
 ## Skills vs règles du projet
 
 | Type | Emplacement | Usage |

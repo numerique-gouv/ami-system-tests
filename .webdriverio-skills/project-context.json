@@ -17,7 +17,7 @@
       "connectionRetryTimeout": 120000,
       "connectionRetryCount": 3,
       "mochaOptsTimeout": 120000,
-      "specFileRetries": 0
+      "specFileRetries": "0 par défaut ; 1 si CI/GITHUB_ACTIONS ; WDIO_SPEC_FILE_RETRIES ou --specFileRetries pour forcer"
     },
     {
       "file": "wdio.android.conf.ts",
