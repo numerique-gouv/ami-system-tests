@@ -98,7 +98,7 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 | `pages/*.page.ts` (via `traced()`)                              | `page-object` |
 | Hooks globaux `wdio.base.conf.ts`                               | `scenario`    |
 | `tests/*.test.ts`                                               | `test`        |
-| `helpers/*-api.ts` (clients HTTP)                               | `api`         |
+| `helpers/partner-api/*.ts` (clients HTTP)                       | `api`         |
 | `wdio.android.conf.ts` / `wdio.ios.conf.ts` / `wdio.webapp.conf.ts` (`onPrepare`, etc.) | `config`      |
 | Autres `helpers/**/*.ts` appelés en session                        | `helper`      |
 
