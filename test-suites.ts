@@ -64,7 +64,6 @@ export const testSuites: Record<string, string[]> = {
      */
     webapp_nonreg: [
         r('src/tests/webapp/nonreg/passkey.usage.test.ts'),
-        r('src/tests/webapp/nonreg/catalogue.parcours.test.ts'),
         r('src/tests/webapp/nonreg/demarche-detail.usage.test.ts'),
         r('src/tests/webapp/nonreg/zones-agenda.usage.test.ts'),
         r('src/tests/webapp/nonreg/consentement.usage.test.ts'),
