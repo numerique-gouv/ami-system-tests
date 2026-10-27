@@ -52,7 +52,7 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 |---|---|
 | `npx wdio` | `just test-android` / `just test-ios` / `just test-webapp` / `just test-webci` |
 | `npx wdio --spec=<f>` | `just test-android "<glob>"` (idem `test-ios`/`test-webapp`) |
-| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite définie dans `wdio.base.conf.ts` ; appel direct : `npx wdio run wdio.<plateforme>.conf.ts --suite <s>`) |
+| `npx wdio --suite=<s>` | `just test-android --suite <s>` (suite définie dans `wdio.base.conf.ts` ; appel direct : `npx wdio run wdio.<plateforme>.conf.ts --suite <s>`) |
 | `wdio.conf.js` | `wdio.base.conf.ts` (partagé) + `wdio.{android,ios,webapp}.conf.ts` (par plateforme) |
 | lint/typecheck générique | `just check-code` |
 | génération de rapport | `just open-report` (ou `just report` pour régénérer) |

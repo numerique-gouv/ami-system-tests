@@ -14,9 +14,9 @@ const { webappUrl, apiUrl } = resolveEnvironment()
 // donc ici une fois pour toute la session, dès le chargement de la config.
 setBackendUrl(apiUrl)
 
-// WEBAPP_HEADLESS=false (just test-webapp / test-webapp-suite) ouvre un Chrome dédié visible,
+// WEBAPP_HEADLESS=false (just test-webapp) ouvre un Chrome dédié visible,
 // lancé par WDIO/Chromedriver — pratique pour observer le run en local. Par défaut (CI via
-// just test-webci / test-webci-suite), headless.
+// just test-webci), headless.
 const headless = process.env.WEBAPP_HEADLESS !== 'false'
 
 const chromeProfileDir = path.resolve(__dirname, '.cache/chrome-profiles', path.basename(traceRootDir('webapp')))

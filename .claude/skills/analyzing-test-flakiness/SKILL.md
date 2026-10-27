@@ -109,7 +109,7 @@ JUnit reporter and the **failure dumps** written by `src/helpers/reporting/failu
 
 | Generic prescription | AMI equivalent |
 |---|---|
-| Run the suite N times | `just test-android-suite <suite>` / `test-ios-suite` / `test-webci-suite` (headless) / `test-webapp-suite` (visible) |
+| Run the suite N times | `just test-android --suite <suite>` / `test-ios` / `test-webci` (headless) / `test-webapp` (visible), same `--suite` argument |
 | Inspect a run's results | `flaky-runs/<platform>-run-<i>/test-results/junit/*.xml` (summary) and `…/failures/*/` (dump per failed test) |
 | List the failures of one run | `just failures-text flaky-runs/<platform>-run-<i>/test-results/failures` |
 

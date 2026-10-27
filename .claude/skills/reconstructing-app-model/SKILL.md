@@ -69,7 +69,7 @@ Do not skip these even in an otherwise autonomous run — they are the seam betw
 
 Reprise de CLAUDE.md § Documentation, non négociable :
 - Never infer actors or relationships not directly observed; mark them "non confirmé" in a dedicated section instead.
-- Never commit a locator that hasn't been validated live (`just explore` + `snapshot`, or a capture from the disposable script) — a plausible-looking selector derived only from the model is not evidence.
+- Never commit a locator that hasn't been validated live (`just explore-<target>` + `snapshot`, or a capture from the disposable script) — a plausible-looking selector derived only from the model is not evidence.
 - Every claim in the model or the process doc traces to either a screenshot/DOM capture with a date, or an exact file path in the code.
 
 ## Project Command Mapping
@@ -80,7 +80,7 @@ This section is self-contained (works even if `.webdriverio-skills/project-conte
 |---|---|
 | `npx wdio` | `just test-android` / `just test-ios` / `just test-webapp` / `just test-webci` |
 | `npx wdio --spec=<f>` | `just test-android "<glob>"` (idem `test-ios`/`test-webapp`) |
-| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite defined in `wdio.base.conf.ts`, option native `suites`) |
+| `npx wdio --suite=<s>` | `just test-android --suite <s>` (suite defined in `wdio.base.conf.ts`, option native `suites`) |
 | `wdio.conf.js` | `wdio.base.conf.ts` (shared) + `wdio.{android,ios,webapp}.conf.ts` (per platform) |
 | generic lint/typecheck | `just check-code` |
 | report generation | `just open-report` (or `just report` to regenerate) |

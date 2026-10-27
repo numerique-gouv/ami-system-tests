@@ -145,8 +145,7 @@ chaque plateforme (JUnit XML enrichi et dumps des échecs) sont publiés en un a
 
 **Relances** : `specFileRetries` vaut 1 en CI (GitHub Actions pose `CI=true`) et 0 partout ailleurs, mesures comprises ; `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer. Un échec rejoué à l'identique en CI est un bug reproductible, un échec qui passe au 2e essai un test instable.
 
-Ce que la CI lance correspond exactement aux suites nommées de `wdio.base.conf.ts` (option native `suites`, listes plates de specs ; `webapp_usage` + `mobile_all` sur PR, merge et tag, `webapp_short` / `mobile_short` en lancement manuel ; contenu et usage hors CI : CONTRIBUTING.md, « Suites nommées » ; `just
-test-android-suite`, `test-ios-suite`, `test-webapp-suite`, `test-webci-suite`) — reproduire
+Ce que la CI lance correspond exactement aux suites nommées de `wdio.base.conf.ts` (option native `suites`, listes plates de specs ; `webapp_usage` + `mobile_all` sur PR, merge et tag, `webapp_short` / `mobile_short` en lancement manuel ; contenu et usage hors CI : CONTRIBUTING.md, « Suites nommées » ; `just test-android --suite …`, `test-ios`, `test-webapp`, `test-webci` avec le même argument) — reproduire
 localement un run CI consiste à lancer la suite du même nom. Détail des workflows et décision
 d'architecture : [`docs/adr/2026-08-04-Integration-continue-Github-Actions.md`](docs/adr/2026-08-04-Integration-continue-Github-Actions.md).
 
@@ -167,7 +166,7 @@ dans `.env.local` à la racine — non commité. Voir `.env` pour les noms des v
 2. Créer ou compléter les locators dans `src/pages/locators/`
 3. Créer ou compléter le Page Object dans `src/pages/`
 4. Écrire le scénario dans `src/tests/mobile/` ou `src/tests/webapp/` selon la cible
-5. Valider : `just check-code` puis `just test-android "MonTest"`
+5. Valider : `just check-code` puis `just test-android --spec "src/tests/mobile/MonTest*"`
 
 ### Guidelines
 
