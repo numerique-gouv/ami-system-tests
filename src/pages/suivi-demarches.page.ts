@@ -152,6 +152,17 @@ class SuiviDemarchesPage {
   }
 
     /**
+     * Quitte le Suivi pour l'Accueil (barre basse) et attend que la liste ait DISPARU. À appeler avant de sortir du `inWebContext`
+     * d'un scénario qui a affiché le Suivi : le service de trace lit l'arbre NATIF à chaque commande native (changement de contexte), et
+     * celui d'un Suivi chargé de démarches coûte ~25 s par lecture (mesuré le 2026-10-27, iOS : 7 lectures bloquées, 160 s sur 4 min 40) ;
+     * celui de l'Accueil, qui ne liste que les plus récentes, est léger. Même raisonnement que pour l'inbox (notifications.test.ts).
+     */
+    async quitterPourAccueil(): Promise<void> {
+        await NavigationPage.goToTab('Accueil')
+        await $(getSuiviDemarchesLocators().pageTitleH1).waitForDisplayed({reverse: true, timeout: 10000, timeoutMsg: 'Le Suivi est toujours affiché après le clic sur « Accueil »'})
+    }
+
+    /**
      * Revient sur la page Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur
      * la page du lien externe de la démarche. Observé 2026-10-06 (Android, staging) : cette page est une
      * page serveur « Not Found » (404 HTML, hors SPA) — sans bouton de retour, et des `browser.back()`
@@ -163,8 +174,12 @@ class SuiviDemarchesPage {
         const loc = getSuiviDemarchesLocators()
         const pageTitle = loc.pageTitle
         if (await isShown(loc.pageTitleHeading)) return
-        await browser.back()
-        if (await isShown(loc.pageTitleHeading, 4000)) return
+        // iOS : le retour arrière est sans effet à chaque fois (6 runs sur 6, 2026-10-27 : le lien externe s'ouvre dans une seconde WKWebView
+        // restée sur `about:blank`, la page du Suivi n'a pas bougé) : on ne perd pas 4 s à l'attendre.
+        if (!driver.isIOS) {
+            await browser.back()
+            if (await isShown(loc.pageTitleHeading, 4000)) return
+        }
 
         const origin = await driver.execute(() => location.origin) as string
         log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)

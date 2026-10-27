@@ -79,14 +79,15 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
           await SuiviDemarchesPage.ouvreDemarche(titleNew)
           await DemarcheDetailPage.assertLienExterne(urlV1)
           await SuiviDemarchesPage.retourJusquAPageSuivi()
+          await SuiviDemarchesPage.quitterPourAccueil()
         })
     })
 
     it("met à jour l'URL externe de la démarche (statut wip)", async () => {
         let titleUpdate = `${title} 1`
         await platform().inWebContext(async () => {
-          // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
-          // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
+          // Le test précédent a quitté le Suivi pour l'Accueil (quitterPourAccueil) : on rouvre le Suivi.
+          await HomePage.ouvreSuivi()
           step('1. Publier la notification avec la nouvelle URL')
 
           await publishDemarche({
@@ -109,14 +110,14 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
           await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
           await DemarcheDetailPage.assertLienExterne(urlV2)
           await SuiviDemarchesPage.retourJusquAPageSuivi()
+          await SuiviDemarchesPage.quitterPourAccueil()
         })
     })
 
     it("ferme la démarche (statut closed)", async () => {
         let titleClosing = `${title} 2`
         await platform().inWebContext(async () => {
-          // Pas de HomePage.ouvreSuivi() ici : assertLienExterne() du test précédent a déjà
-          // laissé l'app sur la page Suivi (cf. suivi-demarches.page.ts).
+          await HomePage.ouvreSuivi()
           step('1. Publier la notification de clôture')
           await publishDemarche({
               title: titleClosing,
@@ -137,6 +138,7 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
           await SuiviDemarchesPage.ouvreDemarche(titleClosing)
           await DemarcheDetailPage.assertLienExterne(urlV2)
           await SuiviDemarchesPage.retourJusquAPageSuivi()
+          await SuiviDemarchesPage.quitterPourAccueil()
         })
     })
 })
