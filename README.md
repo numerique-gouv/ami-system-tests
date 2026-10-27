@@ -46,8 +46,7 @@ just test-ios                                        # tous les tests iOS
 just test-webapp                                      # tests webapp, Chrome visible
 just test-webci                                       # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (glob)
-just list-suites                                      # noms des suites et leurs motifs de specs (wdio.base.conf.ts : option native `suites`)
-just test-android-suite mobile_all                  # suite nommée (`--suite`) — idem test-ios-suite / test-webapp-suite / test-webci-suite
+just test-android-suite mobile_all                  # suite nommée (`--suite` ; définies dans wdio.base.conf.ts : option native `suites`) — idem test-ios-suite / test-webapp-suite / test-webci-suite
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit
 just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/

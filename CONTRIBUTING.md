@@ -120,7 +120,6 @@ Suites supprimées (2026-10-27) : `all` et `api` (suites maison ; un fichier se 
 Lancer hors CI (mêmes suites, mêmes commandes qu'en local ; `AMI_ENV` choisit l'environnement, cf. `.env.local`) :
 
 ```bash
-just list-suites                                     # liste les suites nommées et leurs motifs (définies dans wdio.base.conf.ts, option `suites`)
 AMI_ENV=staging just test-webci-suite webapp_smoke   # valider un déploiement (webapp)
 just test-android-suite mobile_smoke                 # valider un déploiement (mobile ; idem test-ios-suite)
 AMI_ENV=staging just test-webci-suite webapp_all     # tester un déploiement (webapp)
