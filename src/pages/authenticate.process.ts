@@ -34,6 +34,11 @@ const ONBOARDING_PROBE_MS = 500
 // de l'app une fois. Assez long pour laisser finir une redirection en cours (ex. fin de session FranceConnect : transitions mesurées ≤ 3 s
 // le 2026-10-27, iOS, machine chargée ; 15 s auparavant, dont 15 s perdues sur `#/welcome/notifications` resté blanc).
 const UNRECOGNIZED_BEFORE_ROOT_MS = 8000
+// Page d'accueil de première connexion restée BLANCHE (`#/welcome/notifications`, puis `/notifications-welcome-page` : constaté le 2026-10-27,
+// iOS, quand la permission de notifications est déjà décidée — la feuille native ne vient pas) : seul un rechargement de la racine en sort ;
+// inutile d'attendre autant que pour une page inconnue.
+const WELCOME_BLANK_BEFORE_ROOT_MS = 3000
+const WELCOME_BLANK_ROUTE = /welcome\/notifications|notifications-welcome-page/
 
 type FcScreen = 'review-picker' | 'login' | 'eidas' | 'credentials' | 'home'
 type ConnectionScreen = Exclude<FcScreen, 'home'>
@@ -201,9 +206,11 @@ async function reachHome(user: TestUser): Promise<void> {
         }
 
         unrecognizedSince ??= Date.now()
-        if (!rootOpened && Date.now() - unrecognizedSince > UNRECOGNIZED_BEFORE_ROOT_MS) {
+        const unrecognizedFor = Date.now() - unrecognizedSince
+        const blankWelcome = unrecognizedFor > WELCOME_BLANK_BEFORE_ROOT_MS && WELCOME_BLANK_ROUTE.test(await currentUrlForLog())
+        if (!rootOpened && (blankWelcome || unrecognizedFor > UNRECOGNIZED_BEFORE_ROOT_MS)) {
             rootOpened = true
-            log.warn(`ANOMALIE : page non reconnue depuis ${UNRECOGNIZED_BEFORE_ROOT_MS}ms (${await currentUrlForLog()}), rechargement de la racine de l'app.`)
+            log.warn(`ANOMALIE : page non reconnue depuis ${unrecognizedFor}ms (${await currentUrlForLog()}), rechargement de la racine de l'app.`)
             await openAppRoot().catch((err: unknown) => log.warn('getAppToStartingState: rechargement de la racine impossible', err))
         }
     }
