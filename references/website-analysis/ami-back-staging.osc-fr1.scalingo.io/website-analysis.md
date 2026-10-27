@@ -1,6 +1,6 @@
 # Analyse — AMI webapp (staging)
 
-- **Cible** : `ami-back-staging.osc-fr1.scalingo.io` (URL dérivée de `AMI_ENV`, voir `wdio.webapp.conf.ts` / `src/helpers/environment.ts`)
+- **Cible** : `ami-back-staging.osc-fr1.scalingo.io` (URL dérivée de `AMI_ENV`, voir `wdio.webapp.conf.ts` / `src/helpers/common/environment.ts`)
 - **Dates d'analyse** : webapp **2026-10-02** (reconstruction complète), **mise à jour ciblée du 2026-10-08** (27 routes ré-observées, accès aux zones scolaires vérifiés), puis **mise à jour du 2026-10-15** (34 routes relevées en live, code SPA relu sur `origin/main`), puis **mise à jour du 2026-10-26** (32 routes relevées en live, profil en hub désormais déployé) ; écrans natifs Android/iOS **2026-09-08**, avec des **observations partielles du 2026-10-08** (section natif ci-dessous), le reste non ré-observé
 - **Preuves utilisées** :
   - Exploration live headless de la webapp de staging, compte de test `avec_nom_dusage` (« Pierre DUBOIS », données fixture `yopmail.com`), via un script WDIO jetable (`getAppToStartingState()` puis navigation par hash et clics sur les boutons non mutants, supprimé après usage). Captures dans `.wdio-logs/webapp-explore/` (non versionné). Les URLs enregistrées sont purgées de leur query string (`id_token`/`user_data`) — ne jamais les persister.
