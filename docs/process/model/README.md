@@ -69,7 +69,7 @@ Chiffres de la dernière exécution du script de validation (jetable, retiré du
 
 ## Couverture déclarée (SPA, éléments `live` ou `code`, `coverage: required`)
 
-> **Chiffres du 2026-10-06, NON recalculés.** Aucun outil ne calcule la couverture (spec.md §9). Les 21 scénarios `nonreg/`, la page des zones, `agenda-event-dialog#delete` désormais requis et `deconnexion-reconnexion.usage` désormais actif les rendent périmés ; ne pas les citer sans les recalculer.
+> **Chiffres du 2026-10-06, NON recalculés.** Aucun outil ne calcule la couverture (spec.md §9). Les 21 scénarios `nonreg/`, la page des zones, `agenda-event-dialog#delete` désormais requis les rendent périmés ; ne pas les citer sans les recalculer.
 
 Calcul sur ce que les scénarios `active` **déclarent**, pas sur une exécution mesurée (spec.md §9).
 

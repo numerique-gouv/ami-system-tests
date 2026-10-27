@@ -1,5 +1,5 @@
 # Face B — scénarios de src/tests/mobile/** (cibles android et ios, Appium, WebView).
-# Décrit le code TEL QUE LU le 2026-10-06 (deconnexion-reconnexion.usage revu le 2026-10-15) : la trace est déclarée, pas mesurée (spec.md §9).
+# Décrit le code TEL QUE LU le 2026-10-06 : la trace est déclarée, pas mesurée (spec.md §9).
 x-anchors:
   auth: &auth [ami-spa:$authenticated]
   home: &home [ami-spa:$authenticated, ami-spa:$on-home]
@@ -67,20 +67,6 @@ scenarios:
       - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup-item@external-link", expect: "URL V2"}
     note: "Contrairement à la webapp, l'historique (followup-item@history) n'est pas observé."
-
-  # === deconnexion-reconnexion.usage.test.ts ============================================================
-  - id: mobile.login-logout-login.logout-then-login
-    source: {file: src/tests/mobile/deconnexion-reconnexion.usage.test.ts, describe: "Profil usager — déconnexion suivie d'une reconnexion", it: "log out suivi d un log in"}
-    status: active
-    targets: [android, ios]
-    tags: {feature: "login, logout, login sans fausse route", severity: critical}
-    requires: ["ami-spa:$logged-out"]
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "dans ProfilePage.logout, après une première connexion (getAppToStartingState)"}
-      - {do: "ami-spa:plus-menu#logout", steps: [trigger, arrive]}
-      - {do: "ami-spa:logout-confirm#confirm", steps: [trigger, arrive], note: "arrive = FranceConnectMirePage.waitForLoginScreen"}
-      - {do: "ami-spa:login#start-franceconnect", steps: [trigger], note: "Seconde connexion : getAppToStartingState() ; l'arrivée n'est pas vérifiée dans ce test."}
-    note: "Le test était `it.skip` au 2026-10-06 ; il est actif au 2026-10-15 (modification non commitée, délai du describe porté à 300 s)."
 
   # === notifications.usage.test.ts =================================================================
   - id: mobile.notifications.receive-in-inbox

@@ -89,21 +89,20 @@ export const testSuites: Record<string, string[]> = {
     ],
 
     /**
-     * Non-régression mobile des actions usagers (PR et merge de l'API) : connexion, notifications, démarches, profil, puis les parcours qui
-     * se déconnectent (déconnexion/reconnexion, suppression des modifications du profil à la déconnexion), placés en dernier.
+     * Non-régression mobile des actions usagers (PR et merge de l'API) : connexion, notifications, démarches, profil, puis le parcours qui
+     * se déconnecte (modification du profil, déconnexion/reconnexion, suppression des modifications à la déconnexion), placé en dernier.
      */
     mobile_nonreg: [
         r('src/tests/mobile/authentification.smoke.test.ts'),
         r('src/tests/mobile/notifications.usage.test.ts'),
         r('src/tests/mobile/demarches.usage.test.ts'),
-        r('src/tests/mobile/deconnexion-reconnexion.usage.test.ts'),
         r('src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts'),
     ],
 
-    /** Authentification + déconnexion/reconnexion (mobile). */
+    /** Authentification + déconnexion/reconnexion (mobile) : le cycle est porté par profil-et-suppression-a-la-deconnexion. */
     mobile_auth: [
         r('src/tests/mobile/authentification.smoke.test.ts'),
-        r('src/tests/mobile/deconnexion-reconnexion.usage.test.ts'),
+        r('src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts'),
     ],
 
     /** Authentification + déconnexion/reconnexion (webapp). */
