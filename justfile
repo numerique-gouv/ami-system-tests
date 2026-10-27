@@ -330,59 +330,37 @@ test-webvideo +args:
 # `.claude/skills/wdio-session/SKILL.md` et `docs/process/migration-wdio-10.md` §4.
 
 # Usage : just explore-webapp   |   just explore-webapp "/#/agenda"
-# Ouvre une session d'exploration sur la webapp (Chrome headless) et navigue vers une route (hash de la SPA, entre guillemets).
-explore-webapp route="/": (_explore "webapp" route)
-
-# Usage : just explore-android
-# Ouvre une session d'exploration sur l'app Android (émulateur déjà démarré : just start-android), sans réinitialiser l'app.
-explore-android: (_explore "android" "/")
-
-# Usage : just explore-ios   |   just explore-ios --device "iPhone 17 Pro"
-[doc("Session d'exploration iOS · [--device NOM]")]
-[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
-explore-ios device="": (_explore "ios" "/" device)
-
-# Ouvre une session d'exploration sur une cible : webapp (Chrome), android ou ios.
-# - webapp : pose le cookie `access_key` comme wdio.webapp.conf.ts (valeur de WEB_APP_ACCESS_KEYS, jamais
-#   affichée) puis ouvre la route demandée de la SPA de l'environnement AMI_ENV.
-# - android / ios : l'appareil doit déjà tourner (`just start-android` / `just start-ios`) ; l'app est ouverte
-#   sans réinitialisation (--no-reset) : la connexion en cours est conservée. L'app apparaît d'abord sur
-#   le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView
-#   (`just s <cible> contexts`, puis `exec`). En Android hybride, `snapshot` lit l'arbre natif.
-# La SPA route par hash : la route d'une page est `/#/agenda` (à entourer de guillemets).
-# (Recette privée : on lance explore-webapp, explore-android ou explore-ios.)
-_explore target route device="":
+# Ouvre une session d'exploration sur la webapp (Chrome headless) de l'environnement AMI_ENV et navigue vers une route (hash de la SPA, entre
+# guillemets). Pose d'abord le cookie `access_key` comme wdio.webapp.conf.ts (valeur de WEB_APP_ACCESS_KEYS, jamais affichée).
+explore-webapp route="/":
     #!/usr/bin/env bash
     set -euo pipefail
-    S="npx wdio session -s {{ target }}"
-    mask() { awk -v k="${WEB_APP_ACCESS_KEYS:-}" '{ while (length(k) > 0 && (i = index($0, k)) > 0) $0 = substr($0, 1, i-1) "***" substr($0, i + length(k)); print }'; }
-    case "{{ target }}" in
-      webapp)
-        env="${AMI_ENV:-}"
-        if [[ "$env" =~ [Pp][Rr][Ee][Pp][Rr][Oo][Dd] ]]; then origin="https://preprod.ami.beta.numerique.gouv.fr"; elif [[ "$env" =~ ([0-9]+) ]]; then origin="https://ami-back-staging-pr${BASH_REMATCH[1]}.osc-fr1.scalingo.io"; else origin="https://ami-back-staging.osc-fr1.scalingo.io"; fi
-        [ -n "${WEB_APP_ACCESS_KEYS:-}" ] || { echo "❌ WEB_APP_ACCESS_KEYS absent de .env.local (cf. gabarit .env)"; exit 3; }
-        $S open chrome "$origin/favicon.ico" --replace --no-snapshot --launch-timeout 240000 2>&1 | mask
-        $S exec -e 'await browser.setCookies({name: "access_key", value: process.env.WEB_APP_ACCESS_KEYS, expiry: Math.floor(Date.now() / 1000) + 7 * 24 * 3600})' 2>&1 | mask
-        $S navigate "$origin{{ route }}" 2>&1 | mask
-        ;;
-      android)
-        udid="$("{{ android_sdk }}/platform-tools/adb" devices | awk '/\tdevice$/{print $1; exit}')"
-        [ -n "$udid" ] || { echo "❌ aucun appareil Android : lance « just start-android »"; exit 3; }
-        $S open android --app "${ANDROID_APP_PATH:?ANDROID_APP_PATH absente (gabarit .env)}" --udid "$udid" --no-reset --replace --launch-timeout 240000 < /dev/null 2>&1
-        ;;
-      ios)
-        $S open ios --app "${IOS_APP_PATH:?IOS_APP_PATH absente (gabarit .env)}" --udid "$(just --quiet _ios-udid "$(just --quiet _ios-device "{{ device }}")")" --no-reset --replace --launch-timeout 300000 < /dev/null 2>&1
-        ;;
-      *) echo "cible inconnue « {{ target }} » (webapp | android | ios)"; exit 2 ;;
-    esac
-    echo
-    echo "── Et maintenant (session « {{ target }} ») ──────────────────────────────"
-    echo "  just s {{ target }} snapshot -i          éléments interactifs, avec leurs refs (e1, e2…)"
-    echo "  just s {{ target }} click e3             agir sur une ref ; le diff de la page s'affiche"
-    echo "  just s {{ target }} find \"texte\"         retrouver un élément par son texte"
-    echo "  just s {{ target }} logs --errors        erreurs console causées par la dernière action"
-    echo "  just explore-export <nom> {{ target }}   transformer les étapes en test (exports/<nom>.e2e.ts)"
-    echo "  just explore-close {{ target }}          fermer la session"
+    : "${WEB_APP_ACCESS_KEYS:?WEB_APP_ACCESS_KEYS absente (gabarit .env)}"
+    origin="$(npx ts-node -T --project tsconfig.json -e "console.log(require('./src/helpers/common/environment').resolveEnvironment().webappUrl)")"
+    npx wdio session -s webapp open chrome "$origin/favicon.ico" --replace --no-snapshot --launch-timeout 240000
+    npx wdio session -s webapp exec -e 'await browser.setCookies({name: "access_key", value: process.env.WEB_APP_ACCESS_KEYS, expiry: Math.floor(Date.now() / 1000) + 7 * 24 * 3600})'
+    npx wdio session -s webapp navigate "$origin{{ route }}"
+
+# Usage : just explore-android
+# Ouvre une session d'exploration sur l'app Android de ANDROID_APP_PATH (émulateur déjà démarré : just start-android), sans réinitialiser l'app.
+# L'app apparaît d'abord sur le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView (`just webview android`).
+# En Android hybride, `snapshot` lit l'arbre natif. Appareil précis : ANDROID_UDID.
+explore-android:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    app="${ANDROID_APP_PATH:?ANDROID_APP_PATH absente (gabarit .env)}"
+    npx wdio session -s android open android --app "${app/#\~/$HOME}" ${ANDROID_UDID:+--udid "$ANDROID_UDID"} --no-reset --replace --launch-timeout 240000 < /dev/null
+
+# Usage : just explore-ios   |   just explore-ios --device "iPhone 17 Pro"
+# Ouvre une session d'exploration sur l'app iOS de IOS_APP_PATH (simulateur déjà démarré : just start-ios), sans réinitialiser l'app.
+[doc("Session d'exploration iOS · [--device NOM]")]
+[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
+explore-ios device="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    app="${IOS_APP_PATH:?IOS_APP_PATH absente (gabarit .env)}"
+    udid="${IOS_UDID:-$(just --quiet _ios-udid "$(just --quiet _ios-device "{{ device }}")")}"
+    npx wdio session -s ios open ios --app "${app/#\~/$HOME}" --udid "$udid" --no-reset --replace --launch-timeout 300000 < /dev/null
 
 # Exemples : just s webapp click e3   |   just s webapp fill e4 "Passeport biométrique"   |   just s debug-0-0 snapshot -i
 # Lance une action `wdio session` sur la session d'une cible, ou sur un test en pause (debug-0-0).
@@ -419,30 +397,7 @@ explore-close target="webapp":
 # revient en natif. Sans WebView (sélecteur d'environnement, écran natif), utiliser `just s <cible> snapshot -i`.
 # Liste les éléments interactifs du DOM de la WebView d'une session ouverte avec `just explore-<cible>`.
 webview target="webapp":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    npx wdio session -s {{ target }} exec <<'JS'
-    (async () => {
-      if (browser.isMobile) {
-        const web = (await browser.getContexts()).map(c => typeof c === 'string' ? c : c.id).find(c => c.startsWith('WEBVIEW'))
-        if (!web) { console.log('Aucune WebView : écran natif (just s <cible> snapshot -i).'); return }
-        await browser.switchContext(web)
-      }
-      const rows = await browser.execute(() => {
-        const sel = 'button, a[href], input, select, textarea, [role=button], [role=link], [role=tab], [role=checkbox], [role=radio], [role=switch], [role=menuitem], h1, h2, h3'
-        const seen = new Set()
-        return Array.from(document.querySelectorAll(sel)).filter(el => el.getClientRects().length > 0).map(el => {
-          const labelled = el.getAttribute('aria-labelledby')
-          const name = el.getAttribute('aria-label') || (labelled ? labelled.split(' ').map(i => document.getElementById(i)?.textContent || '').join(' ') : '') || (el.textContent || '').trim() || el.value || el.title || ''
-          const role = el.getAttribute('role') || el.tagName.toLowerCase()
-          return role + '  «' + name.replace(/\s+/g, ' ').trim().slice(0, 70) + '»' + (el.id ? '  #' + el.id : '')
-        }).filter(r => !seen.has(r) && seen.add(r))
-      })
-      console.log(rows.length + ' éléments interactifs ou titres dans la WebView :')
-      for (const r of rows) console.log('  ' + r)
-      if (browser.isMobile) await browser.switchContext('NATIVE_APP')
-    })()
-    JS
+    npx wdio session -s {{ target }} exec < src/scripts/webview-dump.js
 
 # Lance un test et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook
 # (`before all`) ne déclenche pas la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i,
