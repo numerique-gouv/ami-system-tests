@@ -12,7 +12,7 @@ import SystemNotificationsPage from '../../pages/system-notifications.page'
 import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/mobile/ios-notifications'
 
 describe('Notifications', function () {
-  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
+  this.timeout(240000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe (la notification système Android peut mettre 45 à 70 s, attente jusqu'à 150 s)
   const user = getUser('avec_nom_dusage')
 
   before(async function () {

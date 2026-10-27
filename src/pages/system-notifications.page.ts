@@ -25,8 +25,11 @@ class SystemNotificationsPage {
         return await isPostNotificationsGranted()
     }
 
-    /** Attend que le système ait une notification de l'app portant ce titre ET ce texte (dumpsys notification) ; retourne l'enregistrement. */
-    async waitForSystemNotification(title: string, body: string, timeoutMs = 90000): Promise<string> {
+    /**
+     * Attend que le système ait une notification de l'app portant ce titre ET ce texte (dumpsys notification) ; retourne l'enregistrement.
+     * Délai de 150 s : la livraison FCM a été mesurée entre 45 et 70 s sur l'émulateur (5 runs du 2026-10-27, un à 69,7 s), donc 90 s était trop juste.
+     */
+    async waitForSystemNotification(title: string, body: string, timeoutMs = 150000): Promise<string> {
         let found = ''
         await browser.waitUntil(async () => {
             found = (await activeNotificationRecords()).find(r => r.includes(`android.title=String (${title})`)) ?? ''
