@@ -3,9 +3,9 @@ description: Lance la suite E2E Android (émulateur) — exécuté inline dans l
 
 inputs:
   suite:
-    description: "Suite nommée mobile (test-suites.ts), ex: mobile_ci, mobile_short, mobile_all"
+    description: "Suite nommée mobile (test-suites.ts), ex: mobile_short (mise au point), mobile_all (PR/merge/tag), mobile_smoke"
     required: false
-    default: mobile_ci
+    default: mobile_short
   device:
     description: "Nom de l'AVD, au format pixel_<profil>_api<niveau> (ex. pixel_2_api30 = ancien appareil, pixel_8_api36 = récent) : le profil et le niveau d'API de l'AVD en sont déduits."
     required: false
