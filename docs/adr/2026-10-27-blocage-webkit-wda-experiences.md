@@ -18,11 +18,12 @@ Une seule famille : une commande RemoteDebugger est envoyée à une target WebKi
 | `settings[snapshotMaxDepth]=30` | `i2-depth30` (3) | 3 blocages de 17 min |
 | `settings[customSnapshotTimeout]=5` | `i3-snaptimeout5` (3) | aucun changement |
 | `appium:wdaStartupRetries=4` | `i4-wdaretries4` (3) | aucun changement |
+| `waitForIdleTimeout=0` (agent iosdebug, jamais suivi) | `investigations/campagne-2026-10-26/ios-debug/*.md` | aucun effet |
 | service de trace désactivé | `i5-trace-off` (5) | 5 échecs sur 5 |
 | sondage `getUrl` | `i6-urlpoll` (3) | hypothèse réfutée : le blocage précède le clic |
 | `appium:webkitResponseTimeout` (3000 puis 10000) | `i0-baseline` (3000, valeur alors suivie), `i7-webkit10000` (3) | aucun changement ; capability ABSENTE de `appium-xcuitest-driver` 12.12.4 / `appium-remote-debugger` 17.4.2 et de 12.21.0 / 17.7.13 (recherche de la chaîne dans `~/.appium/node_modules/appium-xcuitest-driver`, y compris ses dépendances : aucune occurrence) |
 
-Les vraies options du driver sont `appium:webviewConnectTimeout` et `appium:webviewConnectRetries`. Elles n'ont pas été mesurées. La capability `webkitResponseTimeout` et ses commentaires ont été retirés du code suivi.
+Les vraies options du driver sont `appium:webviewConnectTimeout` et `appium:webviewConnectRetries`. `webviewConnectRetries: 3` a un effet mesuré (A/B de l'agent iosdebug sur `profile` : 4/4 verts à ~42 s contre 3/4 à ~70 s avec le défaut de 20 essais, cf. `investigations/campagne-2026-10-26/ios-debug/*.md`) et est conservé ; `webviewConnectTimeout` n'a pas été mesuré. La capability `webkitResponseTimeout` et ses commentaires ont été retirés du code suivi.
 
 ## Ce qui reste ouvert
 
