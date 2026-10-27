@@ -1,3 +1,4 @@
+import fs, {globSync} from 'fs'
 import path from 'path'
 import logger from '@wdio/logger'
 
@@ -6,118 +7,144 @@ const log = logger('scenario')
 const r = (p: string) => path.resolve(__dirname, p)
 
 /**
- * Suites de tests nommées pour `just test-android-suite <nom>` / `just test-ios-suite <nom>`.
+ * Suites de tests nommées pour `just test-android-suite <nom>` / `just test-ios-suite <nom>` / `just test-webci-suite <nom>`.
  *
- * Chaque suite est un tableau de groupes (tableaux imbriqués WDIO) :
- * les fichiers d'un même groupe partagent une session Appium — l'app est lancée
- * une seule fois et l'état (authentification, données) est conservé entre fichiers.
+ * Chaque suite est une LISTE PLATE de specs (ou de globs), équivalente à `--spec a --spec b` en ligne de commande :
+ * WebdriverIO lance un worker (donc une session WebDriver) par fichier. Les anciens groupes imbriqués (`[[a, b]]`), qui
+ * fusionnaient les specs en un seul worker, ont été retirés : une suite ne change plus la façon dont les specs sont exécutées,
+ * elle ne fait que les désigner. L'ordre est celui de la liste (`maxInstances: 1` : un worker à la fois).
  *
- * authentication.test.ts est toujours listé en premier pour établir l'état
- * authentifié avant les autres specs (WDIO déduplique si le glob le couvre aussi).
+ * L'état de l'app est conservé d'une spec à l'autre sans session partagée : profil Chrome du run (webapp, cf. wdio.webapp.conf.ts)
+ * ou app non redémarrée (Android). Les specs qui exigent une session vierge (authentication, nonreg/passkey) vident ce profil
+ * avant leur démarrage (`beforeSession`).
  *
- * Ajouter une suite : une nouvelle entrée string[][] suffit, sans toucher aux configs WDIO.
+ * Nommage : préfixe `mobile_` (Android et iOS), `webapp_` (Chrome). Les suites ne mélangent jamais les deux familles.
+ * authentication.test.ts est listé en premier pour établir l'état authentifié.
  *
  * Chaque scénario doit être capable de s'authentifier seul pour être lancé en solo.
  * Donc, si vous voulez tester l'authentification dans votre suite, ils doivent être placés en premier :
  * dès qu'un autre fichier de test passe, vous serez déjà authentifié.
  */
-export const testSuites: Record<string, string[][]> = {
-    /** Tous les tests en session partagée — auth une seule fois. */
-    all: [[
+export const testSuites: Record<string, string[]> = {
+    /** Alias de `mobile_all` (historique) : tous les tests mobiles, authentification d'abord. */
+    all: [
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
-    ]],
+    ],
 
-    mobile_all: [[
+    /** Tous les tests mobiles (Android et iOS), authentification d'abord. */
+    mobile_all: [
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
-    ]],
+    ],
 
     /**
-     * Specs webapp de premier niveau en session partagée. Volontairement SANS `nonreg/` : `nonreg/passkey.test.ts` exige une session
-     * vierge, impossible au milieu d'une session déjà connectée (voir `webapp_nonreg`, qui la met dans son propre groupe).
+     * Specs webapp de premier niveau. Volontairement SANS `nonreg/` : `nonreg/passkey.test.ts` exige une session vierge
+     * (voir `webapp_nonreg`, qui la place en premier).
      */
-    webapp_all: [[
+    webapp_all: [
         r('src/tests/webapp/authentication.test.ts'),
         r('src/tests/webapp/*.test.ts'),
-    ]],
+    ],
 
     /**
-     * Smoke webapp (préprod) : « la suite la plus courte qui prouve qu'on ne perdra pas son temps en lançant une campagne manuelle »
-     * (réunion du 2026-10-06) — authentification, puis aucun lien cassé dans le catalogue, les services et l'aide.
-     * Plans : src/tests/webapp/nonreg/catalogue.md.
+     * Smoke webapp (préprod, et webapp de l'API en CI sur PR) : « la suite la plus courte qui prouve qu'on ne perdra pas son temps en
+     * lançant une campagne manuelle » (réunion du 2026-10-06) — authentification, puis aucun lien cassé dans le catalogue, les
+     * services et l'aide. Plans : src/tests/webapp/nonreg/catalogue.md.
      */
-    webapp_smoke: [[
+    webapp_smoke: [
         r('src/tests/webapp/authentication.test.ts'),
         r('src/tests/webapp/nonreg/catalogue.test.ts'),
-    ]],
+    ],
 
     /**
      * Recette webapp automatisée (préprod) : ce qui est pénible à vérifier à la main. Plans : src/tests/webapp/nonreg/*.md.
-     * 1er groupe : le parcours passkey, qui exige une session vierge (`wdio.webapp.conf.ts` supprime le profil avant cette spec).
-     * 2e groupe : les specs en lecture d'abord, puis celles qui modifient le compte (zones, consentements), restaurées en `after()`.
+     * D'abord le parcours passkey, qui exige une session vierge (`wdio.webapp.conf.ts` supprime le profil avant cette spec), puis les
+     * specs en lecture, puis celles qui modifient le compte (zones, consentements), restaurées en `after()`.
      */
     webapp_nonreg: [
-        [r('src/tests/webapp/nonreg/passkey.test.ts')],
-        [
-            r('src/tests/webapp/nonreg/catalogue.test.ts'),
-            r('src/tests/webapp/nonreg/demarche-detail.test.ts'),
-            r('src/tests/webapp/nonreg/zones-agenda.test.ts'),
-            r('src/tests/webapp/nonreg/consentement.test.ts'),
-            r('src/tests/webapp/nonreg/deconnexion-fc.test.ts'), // staging seulement : se saute ailleurs avec un motif (ENV3)
-        ],
+        r('src/tests/webapp/nonreg/passkey.test.ts'),
+        r('src/tests/webapp/nonreg/catalogue.test.ts'),
+        r('src/tests/webapp/nonreg/demarche-detail.test.ts'),
+        r('src/tests/webapp/nonreg/zones-agenda.test.ts'),
+        r('src/tests/webapp/nonreg/consentement.test.ts'),
+        r('src/tests/webapp/nonreg/deconnexion-fc.test.ts'), // staging seulement : se saute ailleurs avec un motif (ENV3)
     ],
 
-    /** Suite courte pour raccourcir le débogage en CI. */
-    short: [[
-        r('src/tests/mobile/authentication.test.ts'),
-    ]],
+    /** Suite webapp courte (fusion/tag en CI, débogage) : authentification seule. */
+    webapp_short: [
+        r('src/tests/webapp/authentication.test.ts'),
+    ],
 
-    /** Smoke suite CI : authentification + scénarios critiques uniquement. */
-    CI: [[
+    /** Suite mobile courte pour raccourcir le débogage : authentification seule. */
+    mobile_short: [
+        r('src/tests/mobile/authentication.test.ts'),
+    ],
+
+    /** Smoke mobile pour la CI (Android) : authentification + scénarios critiques uniquement. */
+    mobile_ci: [
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/notifications.test.ts'),
         r('src/tests/mobile/demarches.test.ts'),
         r('src/tests/mobile/profile.test.ts'),
-    ]],
+    ],
 
     /** Authentification + déconnexion/reconnexion (mobile). */
-    mobile_auth: [[
+    mobile_auth: [
         r('src/tests/mobile/authentication.test.ts'),
         r('src/tests/mobile/login_logout_login.test.ts'),
-    ]],
+    ],
 
     /** Authentification + déconnexion/reconnexion (webapp). */
-    webapp_auth: [[
+    webapp_auth: [
         r('src/tests/webapp/authentication.test.ts'),
         r('src/tests/webapp/deconnexion.test.ts'),
-    ]],
+    ],
 
-    /** Tous les tests d'authentification en session séparée. */
-    auth: [[
+    /** Authentification seule (mobile). */
+    auth: [
         r('src/tests/mobile/authentication.test.ts'),
-    ]],
+    ],
 
-    api: [[
+    /** Scénarios pilotés par l'API partenaires (mobile) : notifications et démarches. */
+    api: [
         r('src/tests/mobile/notifications.test.ts'),
         r('src/tests/mobile/demarches.test.ts'),
-    ]],
+    ],
 }
 
 /**
- * Résout la valeur `specs` d'une config WDIO : suite nommée via WDIO_SUITE si définie,
- * sinon `defaultGlob` propre à la plateforme appelante (mobile ou webapp — chacune a son
- * propre arbre sous src/tests/, cf. CLAUDE.md §Architecture).
+ * Liste plate des specs d'une suite nommée : les globs sont développés (ordre alphabétique pour un même glob), l'ordre des entrées
+ * est conservé et un fichier déjà cité plus haut n'est pas répété. Lève une erreur si la suite est inconnue ou si une entrée ne
+ * désigne aucun fichier.
  */
-export function resolveSpecs(defaultGlob: string): string[] | string[][] {
+export function suiteSpecs(suiteName: string): string[] {
+    const suite = testSuites[suiteName]
+    if (!suite) throw new Error(
+        `Suite inconnue : "${suiteName}". Suites disponibles : ${Object.keys(testSuites).join(', ')}`
+    )
+    const specs: string[] = []
+    for (const entry of suite) {
+        const files = /[*?[{]/.test(entry) ? globSync(entry).sort() : [entry]
+        if (files.length === 0 || (files.length === 1 && !fs.existsSync(files[0]))) {
+            throw new Error(`Suite "${suiteName}" : aucun fichier pour "${entry}"`)
+        }
+        for (const file of files) if (!specs.includes(file)) specs.push(file)
+    }
+    return specs
+}
+
+/**
+ * Résout la valeur `specs` d'une config WDIO : suite nommée via WDIO_SUITE si définie (liste plate : un worker par spec, comme avec
+ * `--spec a --spec b`), sinon `defaultGlob` propre à la plateforme appelante (mobile ou webapp — chacune a son propre arbre sous
+ * src/tests/, cf. CLAUDE.md §Architecture).
+ */
+export function resolveSpecs(defaultGlob: string): string[] {
     const suiteName = process.env.WDIO_SUITE
     if (suiteName) {
-        const suite = testSuites[suiteName]
-        if (!suite) throw new Error(
-            `Suite inconnue : "${suiteName}". Suites disponibles : ${Object.keys(testSuites).join(', ')}`
-        )
-        log.warn(`On utilise la suite ${suiteName}:`, suite)
-        return suite
+        const specs = suiteSpecs(suiteName)
+        log.warn(`On utilise la suite ${suiteName}:`, specs)
+        return specs
     }
     return [defaultGlob]
 }
