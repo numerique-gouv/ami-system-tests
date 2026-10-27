@@ -9,6 +9,8 @@ import { resolveSpecs } from './test-suites'
 const ANDROID_APP_PACKAGE = androidCapabilities['appium:appPackage'] as string
 
 const log = logger('config')
+// Port Appium surchargeable (ANDROID_APPIUM_PORT) pour un second émulateur en parallèle ; défaut 4723.
+const APPIUM_PORT = Number(process.env.ANDROID_APPIUM_PORT ?? 4723)
 
 export const config: Options.Testrunner = {
   ...baseConfig,
@@ -25,13 +27,13 @@ export const config: Options.Testrunner = {
       {
         command: 'appium',
         args: {
-          port: 4723,
+          port: APPIUM_PORT,
           relaxedSecurity: false,
           // Appium 3 : format "<driver>:<feature>" requis pour les features insecure, séparées par des virgules.
           // adb_shell : `mobile: shell` (README appium-uiautomator2-driver) — constater côté système les notifications
           // (dumpsys notification, appops/permission POST_NOTIFICATIONS) ; cf. src/helpers/mobile/android-notifications.ts.
           allowInsecure: 'uiautomator2:chromedriver_autodownload,uiautomator2:adb_shell',
-          log: '.wdio-logs/appium-android.log',
+          log: `.wdio-logs/appium-android${APPIUM_PORT === 4723 ? '' : `-${APPIUM_PORT}`}.log`,
           // debug (et non le défaut info) : nécessaire pour que
           // appium:showChromedriverLog (cf. capabilities.ts) fasse remonter la sortie du
           // process chromedriver dans ce fichier — diagnostic de la boucle SIGTERM en CI.
@@ -42,7 +44,7 @@ export const config: Options.Testrunner = {
     ...traceServices,
   ],
 
-  port: 4723,
+  port: APPIUM_PORT,
 
   // Début de série : sur Android 16 (API 36), un IAccessibilityServiceClient résiduel (run précédent interrompu, Maestro
   // désinstallé) bloque UiAutomation avec "already registered" / "id=-1" : on arrête les packages susceptibles d'en avoir laissé un

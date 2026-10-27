@@ -11,10 +11,10 @@ const preprod = isPreprod()
 //   Android : ./gradlew assemble<Flavor>Debug  (assembleStagingDebug / assemblePreprodDebug)
 //   iOS     : xcodebuild -scheme AMI-Staging|AMI-Preproduction … -derivedDataPath ../build
 const ANDROID_FLAVOR = preprod ? 'preprod' : 'staging'
-const ANDROID_APP_PATH = path.resolve(
-  __dirname,
-  `../../../ami-app-android/app/build/outputs/apk/${ANDROID_FLAVOR}/debug/app-${ANDROID_FLAVOR}-debug.apk`
-)
+// ANDROID_APP_PATH : surcharge du chemin de l'APK (worktree hors de l'arborescence des dépôts frères).
+const ANDROID_APP_PATH =
+  process.env.ANDROID_APP_PATH ??
+  path.resolve(__dirname, `../../../ami-app-android/app/build/outputs/apk/${ANDROID_FLAVOR}/debug/app-${ANDROID_FLAVOR}-debug.apk`)
 
 // Build iOS de référence : celui produit par Xcode (DerivedData), `AMI-xcodegen-*/Build/Products/Debug-iphonesimulator/
 // AMI-Staging.app` (préprod : AMI-Preproduction.app). S'il y en a plusieurs, le plus récent. Repli : le build fait en ligne de
@@ -57,6 +57,10 @@ export const androidCapabilities = {
   // Numéro de série adb de l'appareil visé (posé par les recettes just) : sans lui, Appium prend le premier appareil
   // connecté, qui peut être un téléphone branché à côté de l'émulateur demandé.
   ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
+  // Ports locaux surchargeables (ANDROID_SYSTEM_PORT : serveur UiAutomator2, défaut 8200 ; ANDROID_CHROMEDRIVER_PORT : défaut 9515)
+  // pour un second émulateur en parallèle sans conflit avec celui par défaut.
+  ...(process.env.ANDROID_SYSTEM_PORT ? {'appium:systemPort': Number(process.env.ANDROID_SYSTEM_PORT)} : {}),
+  ...(process.env.ANDROID_CHROMEDRIVER_PORT ? {'appium:chromedriverPort': Number(process.env.ANDROID_CHROMEDRIVER_PORT)} : {}),
   'appium:app': ANDROID_APP_PATH,
   'appium:appPackage': preprod ? 'fr.gouv.ami.preprod' : 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
