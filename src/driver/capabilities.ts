@@ -61,6 +61,15 @@ export const androidCapabilities = {
   // Numéro de série adb de l'appareil visé (posé par les recettes just) : sans lui, Appium prend le premier appareil
   // connecté, qui peut être un téléphone branché à côté de l'émulateur demandé.
   ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
+  // AVD à démarrer par Appium s'il n'est pas déjà lancé (ANDROID_AVD, nom de `emulator -list-avds`) : le driver le lance, attend la fin du
+  // démarrage (délais ci-dessous, généreux pour un démarrage à froid) et retrouve son numéro de série. Sans ANDROID_AVD, l'appareil doit
+  // être déjà connecté (adb). ANDROID_AVD_ARGS : options de `emulator` (ex. `-port 5560 -no-snapshot-save`), séparées par des espaces.
+  ...(process.env.ANDROID_AVD ? {
+    'appium:avd': process.env.ANDROID_AVD,
+    'appium:avdLaunchTimeout': 240000,
+    'appium:avdReadyTimeout': 240000,
+    ...(process.env.ANDROID_AVD_ARGS ? {'appium:avdArgs': process.env.ANDROID_AVD_ARGS} : {}),
+  } : {}),
   // Ports locaux surchargeables (ANDROID_SYSTEM_PORT : serveur UiAutomator2, défaut 8200 ; ANDROID_CHROMEDRIVER_PORT : défaut 9515)
   // pour un second émulateur en parallèle sans conflit avec celui par défaut.
   ...(process.env.ANDROID_SYSTEM_PORT ? {'appium:systemPort': Number(process.env.ANDROID_SYSTEM_PORT)} : {}),
