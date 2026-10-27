@@ -3,7 +3,7 @@
  * Passe par `mobile: shell` du driver UiAutomator2, activé par `uiautomator2:adb_shell` dans wdio.android.conf.ts (README appium-uiautomator2-driver).
  * Android seulement : à n'appeler que si `driver.isAndroid`.
  */
-import {androidCapabilities} from '../driver/capabilities'
+import {androidCapabilities} from '../../driver/capabilities'
 
 export const POST_NOTIFICATIONS = 'android.permission.POST_NOTIFICATIONS'
 

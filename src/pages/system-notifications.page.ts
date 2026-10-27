@@ -2,7 +2,7 @@ import {traced} from '../helpers/reporting/traced'
 import {systemNotificationsLocators as loc} from './locators/system-notifications.locators'
 import {
   activeNotificationRecords, appNotificationsImportance, clearLogcat, focusedWindow, grantPostNotifications, isPostNotificationsGranted, logcatTag, postNotificationAppOps,
-} from '../helpers/android-notifications'
+} from '../helpers/mobile/android-notifications'
 import {AssertionError} from 'node:assert'
 
 /**

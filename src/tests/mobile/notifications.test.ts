@@ -8,7 +8,7 @@ import NavigationPage from '../../pages/navigation.page'
 import HomePage from '../../pages/home.page'
 import PreferencesPage from '../../pages/preferences.page'
 import SystemNotificationsPage from '../../pages/system-notifications.page'
-import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/ios-notifications'
+import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/mobile/ios-notifications'
 
 describe('Notifications', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe

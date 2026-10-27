@@ -4,7 +4,7 @@ import type { Options } from '@wdio/types'
 import logger from '@wdio/logger'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { iosCapabilities } from './src/driver/capabilities'
-import { iosBootedUdid, iosTerminateApp, iosUninstallApp } from './src/helpers/device-app'
+import { iosBootedUdid, iosTerminateApp, iosUninstallApp } from './src/helpers/mobile/device-app'
 import { resolveSpecs } from './test-suites'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
