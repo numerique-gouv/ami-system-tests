@@ -17,7 +17,7 @@ _Template initial généré par `managing-project-customizations` le 2026-09-08.
 
 ## Garde-fous obligatoires
 
-- Les cibles `just` sont **pour les humains** (CLAUDE.md) : un agent peut appeler directement `npm`, `npx wdio …`, `adb`, `xcrun`… — il n'y a plus d'obligation de passer par `just`. Toute commande directe devenue utile aux humains s'ajoute au `justfile`, documentée. Les skills du pack tiers (ex. `running-webdriverio-tests`) prescrivent `npx wdio` : la table de `project-context.md` § Correspondance donne l'équivalent `just` (config `wdio.*.conf.ts` à choisir, suites dans `test-suites.ts`).
+- Les cibles `just` sont **pour les humains** (CLAUDE.md) : un agent peut appeler directement `npm`, `npx wdio …`, `adb`, `xcrun`… — il n'y a plus d'obligation de passer par `just`. Toute commande directe devenue utile aux humains s'ajoute au `justfile`, documentée. Les skills du pack tiers (ex. `running-webdriverio-tests`) prescrivent `npx wdio` : la table de `project-context.md` § Correspondance donne l'équivalent `just` (config `wdio.*.conf.ts` à choisir, suites natives dans `wdio.base.conf.ts`).
 - Jamais de `browser.pause()` comme mécanisme de synchronisation — utiliser `waitUntil`/`waitForDisplayed`/`waitForClickable`.
 - `isVisible()` et équivalents : `try/catch` + `return await` (sans `await`, les rejections ne sont pas interceptées).
 - `platform().inWebContext()` unique pour tout le flow OIDC iOS — sortir du contexte WebView au milieu du flow FranceConnect bloque ~25s.

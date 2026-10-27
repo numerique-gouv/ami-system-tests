@@ -46,8 +46,8 @@ just test-ios                                        # tous les tests iOS
 just test-webapp                                      # tests webapp, Chrome visible
 just test-webci                                       # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (glob)
-just test-android-suite mobile_all                  # suite nommée (test-suites.ts : liste plate de specs) — idem test-ios-suite / test-webapp-suite / test-webci-suite
-just list-suite                                       # specs de chaque suite nommée, sans lancer wdio
+just test-android-suite mobile_all                  # suite nommée (wdio.base.conf.ts : option native `suites`, `--suite`) — idem test-ios-suite / test-webapp-suite / test-webci-suite
+npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit
 just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
 just clean-install                                    # réinstallation propre (rm node_modules + npm ci)
@@ -66,7 +66,6 @@ wdio.base.conf.ts          config partagée (timeouts, reporters spec + JUnit, h
 wdio.android.conf.ts       capabilities Android + service Appium port 4723
 wdio.ios.conf.ts           capabilities iOS + service Appium port 4724
 wdio.webapp.conf.ts        capabilities Chrome (headless ou visible), pas de service Appium
-test-suites.ts             suites nommées (WDIO_SUITE) + resolveSpecs()
 src/
   driver/
     capabilities.ts        androidCapabilities / iosCapabilities
@@ -120,7 +119,7 @@ chaque plateforme (JUnit XML enrichi et dumps des échecs) sont publiés en un a
 
 **Relances** : `specFileRetries` vaut 1 en CI (GitHub Actions pose `CI=true`) et 0 partout ailleurs, mesures comprises ; `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer. Un échec rejoué à l'identique en CI est un bug reproductible, un échec qui passe au 2e essai un test instable.
 
-Ce que la CI lance correspond exactement aux suites nommées de `test-suites.ts` (listes plates de specs ; `webapp_usage` + `mobile_all` sur PR, merge et tag, `webapp_short` / `mobile_short` en lancement manuel ; contenu et usage hors CI : CONTRIBUTING.md, « Suites nommées » ; `just
+Ce que la CI lance correspond exactement aux suites nommées de `wdio.base.conf.ts` (option native `suites`, listes plates de specs ; `webapp_usage` + `mobile_all` sur PR, merge et tag, `webapp_short` / `mobile_short` en lancement manuel ; contenu et usage hors CI : CONTRIBUTING.md, « Suites nommées » ; `just
 test-android-suite`, `test-ios-suite`, `test-webapp-suite`, `test-webci-suite`) — reproduire
 localement un run CI consiste à lancer la suite du même nom. Détail des workflows et décision
 d'architecture : [`docs/adr/2026-08-04-Integration-continue-Github-Actions.md`](docs/adr/2026-08-04-Integration-continue-Github-Actions.md).

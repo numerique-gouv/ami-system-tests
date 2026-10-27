@@ -40,7 +40,7 @@ JUnit reporter and the **failure dumps** written by `src/helpers/reporting/failu
 - Webapp mode: `webci` (headless, default — closer to CI, doesn't steal window focus for ~1h of
   runs) or `webapp` (visible Chrome).
 - Number of repetitions per platform (default: 3).
-- Suite name from `test-suites.ts` to run (default: `all`).
+- Suite name defined in `wdio.base.conf.ts` (`suites`, passed as `--suite <name>`) to run (default: `mobile_all` / `webapp_all`).
 
 ## Workflow
 

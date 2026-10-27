@@ -80,7 +80,7 @@ This section is self-contained (works even if `.webdriverio-skills/project-conte
 |---|---|
 | `npx wdio` | `just test-android` / `just test-ios` / `just test-webapp` / `just test-webci` |
 | `npx wdio --spec=<f>` | `just test-android "<glob>"` (idem `test-ios`/`test-webapp`) |
-| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite defined in `test-suites.ts`, read via `WDIO_SUITE`) |
+| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite defined in `wdio.base.conf.ts`, option native `suites`) |
 | `wdio.conf.js` | `wdio.base.conf.ts` (shared) + `wdio.{android,ios,webapp}.conf.ts` (per platform) |
 | generic lint/typecheck | `just check-code` |
 | report generation | `just open-report` (or `just report` to regenerate) |

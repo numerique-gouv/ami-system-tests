@@ -28,7 +28,7 @@ Avant toute tâche de planification de test (`creating-test-structure`) ou d'inv
 | `wdio.android.conf.ts` | capabilities Android, service Appium port 4723 |
 | `wdio.ios.conf.ts` | capabilities iOS, service Appium port 4724 |
 | `wdio.webapp.conf.ts` | capabilities Chrome, `baseUrl` dérivée de `AMI_ENV` via `resolveEnvironment()`, pas de service Appium |
-| `test-suites.ts` | suites nommées consommées via `WDIO_SUITE` : listes plates de specs (un worker par spec) : `mobile_all`/`all`, `mobile_short`, `mobile_smoke`, `api` (notifications+demarches), `webapp_short`, `webapp_smoke`, `webapp_usage`, `webapp_all` (tableau : CONTRIBUTING.md « Suites nommées ») |
+| `wdio.base.conf.ts` (option `suites`) | suites nommées natives de WDIO, lancées par `--suite <nom>` : listes plates de specs (un worker par spec) : `mobile_all`, `mobile_short`, `mobile_smoke`, `webapp_short`, `webapp_smoke`, `webapp_usage`, `webapp_all` (tableau : CONTRIBUTING.md « Suites nommées ») |
 
 ⚠️ **`test-results/` et `.wdio-logs/*.log` ne sont jamais nettoyés automatiquement avant un run** (pas de `rm -rf` dans le justfile avant `test-*`) — les résultats/captures/logs Appium s'accumulent entre runs et entre plateformes (android/ios/webapp partagent le même `outputDir`). Un rapport Allure généré sans nettoyage préalable peut mélanger plusieurs jours/plateformes. Voir `health-recommendations.md`.
 
@@ -46,13 +46,13 @@ Le `justfile` les encapsule pour les humains (voir CLAUDE.md racine) ; un agent 
 
 ### Correspondance skills du pack tiers → commandes `just`
 
-Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent des commandes génériques (`npx wdio`, `wdio.conf.js`, `--suite=...`) qui ne s'appliquent pas telles quelles ici — ce projet n'impose plus de passer par `just` (CLAUDE.md), mais a 4 configs `wdio.*.conf.ts` + des suites définies dans `test-suites.ts` (pas dans une propriété `suites` de config WDIO). Table de correspondance à utiliser avant d'exécuter une commande suggérée par un skill :
+Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent des commandes génériques (`npx wdio`, `wdio.conf.js`, `--suite=...`) qui ne s'appliquent pas telles quelles ici — ce projet n'impose plus de passer par `just` (CLAUDE.md), mais a 4 configs `wdio.*.conf.ts` + des suites natives (propriété `suites` de `wdio.base.conf.ts`). Table de correspondance à utiliser avant d'exécuter une commande suggérée par un skill :
 
 | Prescription générique du pack | Équivalent AMI |
 |---|---|
 | `npx wdio` | `just test-android` / `just test-ios` / `just test-webapp` / `just test-webci` |
 | `npx wdio --spec=<f>` | `just test-android "<glob>"` (idem `test-ios`/`test-webapp`) |
-| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite définie dans `test-suites.ts`, lue via `WDIO_SUITE`) |
+| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite définie dans `wdio.base.conf.ts` ; appel direct : `npx wdio run wdio.<plateforme>.conf.ts --suite <s>`) |
 | `wdio.conf.js` | `wdio.base.conf.ts` (partagé) + `wdio.{android,ios,webapp}.conf.ts` (par plateforme) |
 | lint/typecheck générique | `just check-code` |
 | génération de rapport | `just open-report` (ou `just report` pour régénérer) |

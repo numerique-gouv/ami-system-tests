@@ -15,7 +15,7 @@ just test-ios                                       # tous les tests iOS
 just test-webapp                                    # tests webapp, Chrome visible
 just test-webci                                     # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*" # un ou plusieurs fichiers (glob)
-just test-android-suite mobile_all                  # suite nommée (mobile_short|smoke|all, webapp_short|smoke|usage|all : tableau « Suites nommées » de CONTRIBUTING.md) (test-suites.ts, liste plate de specs ; `just list-suite` les résout à blanc), idem test-ios-suite / test-webapp-suite / test-webci-suite
+just test-android-suite mobile_all                  # suite nommée (mobile_short|smoke|all, webapp_short|smoke|usage|all : tableau « Suites nommées » de CONTRIBUTING.md) (option native `suites` de wdio.base.conf.ts ; appel direct : `npx wdio run wdio.webapp.conf.ts --suite webapp_smoke`), idem test-ios-suite / test-webapp-suite / test-webci-suite
 just explore-webapp "/#/agenda"                     # session d'exploration (idem explore-android, explore-ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
 just debug-webapp src/tests/webapp/agenda.parcours.test.ts   # test figé à son premier échec (idem debug-android, debug-ios ; session debug-0-0), puis `just s debug-0-0 snapshot -i`
 just doctor                                         # diagnostic de l'environnement (Node, Appium, SDK, simulateurs)
@@ -67,11 +67,10 @@ Les deux familles de tests ne couvrent pas la même chose :
 ## Architecture
 
 ```
-wdio.base.conf.ts          # config partagée (timeouts, reporters spec + JUnit, hooks)
+wdio.base.conf.ts          # config partagée (timeouts, reporters spec + JUnit, hooks) + suites nommées (`suites`, listes plates mobile_*, webapp_*)
 wdio.android.conf.ts       # capabilities Android + service Appium port 4723
 wdio.ios.conf.ts           # capabilities iOS + service Appium port 4724
 wdio.webapp.conf.ts        # capabilities Chrome (headless ou visible), pas de service Appium
-test-suites.ts             # suites nommées (listes plates : mobile_*, webapp_*) + resolveSpecs(), lu via WDIO_SUITE
 src/
   driver/
     capabilities.ts        # androidCapabilities / iosCapabilities (Appium)
@@ -132,11 +131,10 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 
 | Fichier | Rôle |
 |---------|------|
-| `wdio.base.conf.ts` | Config partagée (reporters spec + JUnit, `afterTest` : dump d'échec) |
+| `wdio.base.conf.ts` | Config partagée (reporters spec + JUnit, `afterTest` : dump d'échec) + suites nommées (option native `suites` : `--suite`, consommée par les recettes `just *-suite` et la CI) |
 | `wdio.android.conf.ts` | Capabilities Android, port 4723, `onPrepare` force-stop |
 | `wdio.ios.conf.ts` | Capabilities iOS, port 4724 |
 | `wdio.webapp.conf.ts` | Capabilities Chrome, `baseUrl` dérivée de `AMI_ENV`, pas de service Appium |
-| `test-suites.ts` | Suites nommées (`WDIO_SUITE`) consommées par les recettes `just *-suite` et la CI |
 | `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
 | `src/platform/` | `platform()` / `PlatformAdapter` — abstraction android/ios/webapp |
 | `src/helpers/spa/spa.ts` / `selectors.ts` | `roleSelector()`, `clickButton()`, `waitForHeading()`, `firstDisplayed()`… |
