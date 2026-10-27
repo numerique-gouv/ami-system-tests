@@ -33,12 +33,14 @@ export function parseArgs(argv) {
       case '--artifacts': args.artifacts = value; break
       case '--expect': args.expect = value; break
       case '--sha': args.sha = value; break
+      case '--label': args.label = value; break
       case '--max-chars': args.maxChars = Math.min(Number(value) || 60000, GITHUB_LIMIT - 1000); break
       default: throw new Error(`argument inconnu : ${flag}`)
     }
   }
   if (!/^[\w.-]+\/[\w.-]+$/.test(args.repo ?? '')) throw new Error('--repo doit valoir owner/nom')
   if (!/^[1-9]\d{0,8}$/.test(args.pr ?? '')) throw new Error('--pr doit être un numéro de PR')
+  if (args.label && !/^[A-Za-z0-9_-]{1,30}$/.test(args.label)) throw new Error('--label : lettres, chiffres, - et _ seulement')
   return args
 }
 
@@ -189,7 +191,7 @@ function platformSection(platform, tests, rowsBudget) {
 }
 
 export function buildComment(args, allCases) {
-  const marker = `<!-- e2e-report:${args.repo}:pr-${args.pr} -->`
+  const marker = `<!-- e2e-report:${args.repo}:pr-${args.pr}${args.label ? `:${args.label}` : ''} -->`
   const tests = collapse(allCases)
   const byPlatform = new Map()
   for (const t of tests) byPlatform.set(t.platform, [...(byPlatform.get(t.platform) ?? []), t])
@@ -208,7 +210,7 @@ export function buildComment(args, allCases) {
   const total = counts(tests)
   const header = [
     marker,
-    `## Tests E2E — \`${args.repo}\` PR #${args.pr}`,
+    `## Tests E2E — \`${args.repo}\` PR #${args.pr}${args.label ? ` (${args.label})` : ''}`,
     '',
     tests.length > 0
       ? `**${total.passed} passants, ${total.failed} en échec, ${total.skipped} ignorés, ${total.flaky} instables** sur ${total.total} tests.`

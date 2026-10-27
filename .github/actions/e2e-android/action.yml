@@ -11,6 +11,23 @@ inputs:
     required: false
     default: pixel_2_api30
 
+  apk-run-id:
+    description: "vide = l'APK est l'artefact `apk-artifact` du run COURANT (buildé par le workflow appelant). Renseigné = identifiant du run d'un AUTRE dépôt/run dont on télécharge l'artefact (nécessite apk-repository et apk-token)."
+    required: false
+    default: ''
+  apk-artifact:
+    description: "nom de l'artefact contenant app-staging-debug.apk"
+    required: false
+    default: app-staging-debug
+  apk-repository:
+    description: "owner/nom du dépôt qui a produit l'artefact (utilisé seulement avec apk-run-id)"
+    required: false
+    default: ''
+  apk-token:
+    description: "jeton avec `actions: read` sur apk-repository (dépôt privé : PAT à portée limitée ou GitHub App) ; utilisé seulement avec apk-run-id"
+    required: false
+    default: ''
+
 runs:
   using: composite
   steps:
@@ -67,10 +84,22 @@ runs:
     # $GITHUB_WORKSPACE/ami-app-android/..., le dossier frère que `just start-android`
     # (exécuté depuis ami-system-tests/) attend via `../ami-app-android`.
     - name: Récupérer l'APK buildé par le workflow appelant
+      if: ${{ inputs.apk-run-id == '' }}
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
       with:
-        name: app-staging-debug
+        name: ${{ inputs.apk-artifact }}
         path: ami-app-android/app/build/outputs/apk/staging/debug
+
+    # APK d'un autre run (ex. dernier tag d'ami-app-android, utilisé par les PR/merge d'ami-notifications-api) : même destination.
+    - name: Récupérer l'APK d'un autre run
+      if: ${{ inputs.apk-run-id != '' }}
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      with:
+        name: ${{ inputs.apk-artifact }}
+        path: ami-app-android/app/build/outputs/apk/staging/debug
+        repository: ${{ inputs.apk-repository }}
+        run-id: ${{ inputs.apk-run-id }}
+        github-token: ${{ inputs.apk-token }}
 
     # adb (platform-tools) requis par `just start-android`. Ne pas compter sur un SDK
     # préinstallé sur le runner : cette étape installe et exporte ANDROID_HOME/ANDROID_SDK_ROOT.

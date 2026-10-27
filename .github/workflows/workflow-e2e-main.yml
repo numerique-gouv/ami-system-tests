@@ -29,6 +29,14 @@ on:
         description: "numéro de la PR de source_repo à commenter ; 0 = pas de PR (push/tag) : pas de commentaire"
         type: number
         default: 0
+      apk_source:
+        description: "origine de l'APK Android : `build` = artefact `app-staging-debug` du run appelant (l'appelant l'a buildé : ami-app-android) ; `latest-tag` = APK du dernier tag d'ami-app-android (artefact `app-staging-debug-<tag>`, rétention 90 jours), retrouvé avec le secret AMI_APP_ANDROID_TOKEN (PAT/GitHub App avec actions:read sur ami-app-android)"
+        type: string
+        default: build
+      report_label:
+        description: "étiquette (lettres, chiffres, - _) quand le même appelant lance plusieurs runs e2e pour la même PR (ex. old-device) : distingue les artefacts, le check et le commentaire"
+        type: string
+        default: ''
       comment_pr_number:
         description: "numéro de PR à commenter et clé des artefacts quand il diffère de pr_number (ex. tests Android toujours lancés sur staging avec pr_number 0 mais rattachés à une PR) ; 0 = pr_number"
         type: number
@@ -128,8 +136,10 @@ jobs:
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
           PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
+          LABEL: ${{ inputs.report_label }}
         run: |
-          RAW="${SOURCE_REPO}-pr${PR_NUMBER}"
+          LABEL="${LABEL//[^A-Za-z0-9_-]/}"
+          RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
           echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
@@ -138,11 +148,36 @@ jobs:
         with:
           suite: ${{ inputs.run_webapp }}
 
+      # Dernier APK produit par un TAG d'ami-app-android (job publish-version de son workflow-e2e-shared.yml : artefact de workflow
+      # `app-staging-debug-<tag>` contenant app-staging-debug.apk + version.json, 90 jours, dépôt privé). Les artefacts sont listés du plus récent
+      # au plus ancien (page de 100) ; les expirés sont ignorés. Un échec ici (jeton absent, aucun tag récent) n'arrête pas le job : l'étape Android échouera
+      # visiblement sans APK.
+      - name: trouver l'APK du dernier tag d'ami-app-android
+        id: apk
+        if: ${{ inputs.run_android != '' && inputs.apk_source == 'latest-tag' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.AMI_APP_ANDROID_TOKEN }}
+        run: |
+          set -euo pipefail
+          line=$(gh api "repos/numerique-gouv/ami-app-android/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select((.name | startswith("app-staging-debug-")) and (.expired | not))] | sort_by(.created_at) | last | [.name, .workflow_run.id] | @tsv')
+          [ -n "$line" ] || { echo "::error::aucun artefact app-staging-debug-<tag> non expiré dans ami-app-android"; exit 1; }
+          name=${line%%$'\t'*}
+          run_id=${line##*$'\t'}
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "APK Android utilisé : $name (run $run_id de ami-app-android)" >> "$GITHUB_STEP_SUMMARY"
+
       - if: ${{ inputs.run_android != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-android
         with:
           suite: ${{ inputs.run_android }}
           device: ${{ inputs.android_device }}
+          apk-artifact: ${{ steps.apk.outputs.name || 'app-staging-debug' }}
+          apk-run-id: ${{ steps.apk.outputs.run_id }}
+          apk-repository: numerique-gouv/ami-app-android
+          apk-token: ${{ secrets.AMI_APP_ANDROID_TOKEN }}
 
       # Un artefact par plateforme (JUnit enrichi + dumps des échecs). Les dossiers de run sont nommés
       # <horodatage>_<plateforme>_<suite ou spec> (cf. src/helpers/reporting/run-dir.ts) : le motif `*_webapp_*` ne prend que ceux de la webapp.
@@ -194,12 +229,14 @@ jobs:
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
           PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
+          LABEL: ${{ inputs.report_label }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_WEBAPP: ${{ inputs.run_webapp }}
           RUN_ANDROID: ${{ inputs.run_android }}
           RUN_IOS: ${{ inputs.run_ios }}
         run: |
-          RAW="${SOURCE_REPO}-pr${PR_NUMBER}"
+          LABEL="${LABEL//[^A-Za-z0-9_-]/}"
+          RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
           prefix="test-results-${SLUG}"
           expect=""
@@ -250,7 +287,7 @@ jobs:
         with:
           report_paths: reports/**/junit/results-*.xml
           commit: ${{ inputs.source_sha }}
-          check_name: e2e (ami-system-tests)
+          check_name: e2e (ami-system-tests)${{ inputs.report_label != '' && format(' {0}', inputs.report_label) || '' }}
           job_summary: true
           detailed_summary: true
           fail_on_failure: false
@@ -268,3 +305,4 @@ jobs:
           artifacts: ${{ steps.names.outputs.artifact_webapp }},${{ steps.names.outputs.artifact_android }}
           expect: ${{ steps.names.outputs.expect }}
           sha: ${{ inputs.source_sha }}
+          label: ${{ inputs.report_label }}

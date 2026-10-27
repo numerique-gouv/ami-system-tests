@@ -89,6 +89,19 @@ export const testSuites: Record<string, string[]> = {
         r('src/tests/mobile/profile.test.ts'),
     ],
 
+    /**
+     * Non-régression mobile des actions usagers (PR et merge de l'API) : connexion, notifications, démarches, profil, puis les parcours qui
+     * se déconnectent (déconnexion/reconnexion, suppression des modifications du profil à la déconnexion), placés en dernier.
+     */
+    mobile_nonreg: [
+        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/notifications.test.ts'),
+        r('src/tests/mobile/demarches.test.ts'),
+        r('src/tests/mobile/profile.test.ts'),
+        r('src/tests/mobile/login_logout_login.test.ts'),
+        r('src/tests/mobile/profile_deletion_at_logout.test.ts'),
+    ],
+
     /** Authentification + déconnexion/reconnexion (mobile). */
     mobile_auth: [
         r('src/tests/mobile/authentication.test.ts'),

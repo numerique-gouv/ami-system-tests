@@ -36,6 +36,10 @@ inputs:
     description: "SHA du commit testé (affichage)"
     required: false
     default: ''
+  label:
+    description: "étiquette (lettres, chiffres, - _) quand plusieurs runs e2e rapportent sur la même PR (ex. old-device) : un commentaire distinct par étiquette"
+    required: false
+    default: ''
   script-path:
     description: "Chemin du script e2e-comment.mjs (défaut : celui de ce dépôt d'actions)"
     required: false
@@ -88,11 +92,12 @@ runs:
         ARTIFACTS: ${{ inputs.artifacts }}
         EXPECT: ${{ inputs.expect }}
         SHA: ${{ inputs.sha }}
+        LABEL: ${{ inputs.label }}
       run: |
         set -uo pipefail
         script="${SCRIPT_PATH:-$ACTION_PATH/../../scripts/e2e-comment.mjs}"
         # Un échec du script ne doit pas faire échouer le job (les résultats restent dans le check et l'artefact).
-        if ! node "$script" --junit-dir "$JUNIT_DIR" --repo "$REPO" --pr "$PR" --run-url "$RUN_URL" --artifacts "$ARTIFACTS" --expect "$EXPECT" --sha "$SHA" --out "$RUNNER_TEMP/e2e-comment.md"; then
+        if ! node "$script" --junit-dir "$JUNIT_DIR" --repo "$REPO" --pr "$PR" --run-url "$RUN_URL" --artifacts "$ARTIFACTS" --expect "$EXPECT" --sha "$SHA" ${LABEL:+--label "$LABEL"} --out "$RUNNER_TEMP/e2e-comment.md"; then
           echo "::warning::génération du commentaire impossible."
           rm -f "$RUNNER_TEMP/e2e-comment.md"
           exit 0
@@ -107,11 +112,12 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         REPO: ${{ inputs.repo }}
         PR: ${{ inputs.pr-number }}
+        LABEL: ${{ inputs.label }}
       run: |
         set -uo pipefail
         body="$RUNNER_TEMP/e2e-comment.md"
         [ -f "$body" ] || { echo "Pas de corps de commentaire."; exit 0; }
-        marker="<!-- e2e-report:${REPO}:pr-${PR} -->"
+        marker="<!-- e2e-report:${REPO}:pr-${PR}${LABEL:+:$LABEL} -->"
         export marker
         payload="$RUNNER_TEMP/e2e-comment.json"
         jq -n --rawfile body "$body" '{body: $body}' > "$payload"
