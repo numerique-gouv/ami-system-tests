@@ -94,6 +94,8 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   // UDID du simulateur visé (posé par les recettes just) : sans lui ni platformVersion, XCUITest prend le runtime iOS le plus récent
   // et, s'il ne correspond pas à celui du simulateur nommé, crée un simulateur temporaire jetable (appiumTest-…) très lent à démarrer.
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
+  // Port local de WebDriverAgent surchargeable (IOS_WDA_PORT) pour un second simulateur en parallèle ; défaut du driver : 8100.
+  ...(process.env.IOS_WDA_PORT ? {'appium:wdaLocalPort': Number(process.env.IOS_WDA_PORT)} : {}),
   'appium:app': IOS_APP_PATH,
   'appium:bundleId': preprod ? 'fr.gouv.ami.preproduction' : 'fr.gouv.ami.staging',
   // `noReset: true` laisse le simulateur tel quel (pas de réinstallation à chaque session) et WDA ne termine ni ne relance l'app.

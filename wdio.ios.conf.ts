@@ -9,6 +9,8 @@ import { resolveSpecs } from './test-suites'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
 const log = logger('config')
+// Port Appium surchargeable (IOS_APPIUM_PORT) pour faire tourner un second simulateur en parallèle ; défaut 4724.
+const APPIUM_PORT = Number(process.env.IOS_APPIUM_PORT ?? 4724)
 
 export const config: Options.Testrunner = {
   ...baseConfig,
@@ -25,16 +27,16 @@ export const config: Options.Testrunner = {
       {
         command: 'appium',
         args: {
-          port: 4724, // port différent pour éviter tout conflit avec Android
+          port: APPIUM_PORT, // 4724 par défaut : différent d'Android pour éviter tout conflit
           relaxedSecurity: false,
-          log: '.wdio-logs/appium-ios.log',
+          log: `.wdio-logs/appium-ios${APPIUM_PORT === 4724 ? '' : `-${APPIUM_PORT}`}.log`,
         },
       },
     ],
     ...traceServices,
   ],
 
-  port: 4724,
+  port: APPIUM_PORT,
 
   // Réinitialise la session FranceConnect et désinstalle l'app (donc son conteneur de données) avant chaque run.
   // Logique portée uniquement ici, exécutée une seule fois avant tout worker.
