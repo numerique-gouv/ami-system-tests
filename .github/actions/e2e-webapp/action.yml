@@ -3,7 +3,7 @@ description: Lance la suite E2E webapp (Chrome headless) — exécuté inline da
 
 inputs:
   suite:
-    description: "Suite nommée webapp (test-suites.ts), ex: webapp_short (mise au point), webapp_usage (PR/merge/tag), webapp_smoke, webapp_all"
+    description: "Suite nommée webapp (définie dans wdio.base.conf.ts), ex: webapp_short (mise au point), webapp_usage (PR/merge/tag), webapp_smoke, webapp_all"
     required: false
     default: webapp_short
 

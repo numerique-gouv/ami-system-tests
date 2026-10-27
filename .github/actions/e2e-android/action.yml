@@ -3,7 +3,7 @@ description: Lance la suite E2E Android (émulateur) — exécuté inline dans l
 
 inputs:
   suite:
-    description: "Suite nommée mobile (test-suites.ts), ex: mobile_short (mise au point), mobile_all (PR/merge/tag), mobile_smoke"
+    description: "Suite nommée mobile (définie dans wdio.base.conf.ts), ex: mobile_short (mise au point), mobile_all (PR/merge/tag), mobile_smoke"
     required: false
     default: mobile_short
   device:

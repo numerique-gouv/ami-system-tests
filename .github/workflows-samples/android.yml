@@ -110,7 +110,7 @@ jobs:
           profile: pixel_6
           avd-name: pixel_6_api31
           disable-animations: true
-          script: just test-android-suite all
+          script: just test-android-suite mobile_all
         env:
           ANDROID_DEVICE_NAME: pixel_6_api31
 
@@ -124,7 +124,7 @@ jobs:
           profile: pixel_8
           avd-name: pixel_8_api35
           disable-animations: true
-          script: just test-android-suite all
+          script: just test-android-suite mobile_all
         env:
           ANDROID_DEVICE_NAME: pixel_8_api35
 

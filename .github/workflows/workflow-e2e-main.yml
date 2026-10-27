@@ -3,11 +3,11 @@ on:
   workflow_call:
     inputs:
       run_webapp:
-        description: "nom de la suite webapp à lancer (test-suites.ts : webapp_short = mise au point, webapp_usage = PR/merge/tag, webapp_smoke, webapp_all) — vide = ne pas lancer"
+        description: "nom de la suite webapp à lancer (suite nommée définie dans wdio.base.conf.ts : webapp_short = mise au point, webapp_usage = PR/merge/tag, webapp_smoke, webapp_all) — vide = ne pas lancer"
         type: string
         default: ''
       run_android:
-        description: "nom de la suite android à lancer (test-suites.ts : mobile_short = mise au point, mobile_all = PR/merge/tag, mobile_smoke) — vide = ne pas lancer"
+        description: "nom de la suite android à lancer (suite nommée définie dans wdio.base.conf.ts : mobile_short = mise au point, mobile_all = PR/merge/tag, mobile_smoke) — vide = ne pas lancer"
         type: string
         default: ''
       android_device:
