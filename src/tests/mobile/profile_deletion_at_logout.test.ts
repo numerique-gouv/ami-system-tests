@@ -47,9 +47,6 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
   })
 
   after(async () => {
-    // Aucun test ne termine déconnecté : si le test s'arrête entre la déconnexion et la reconnexion, on rouvre la session
-    // (sans effet quand la reconnexion du test a abouti : la session ouverte est détectée, l'authentification n'est pas refaite).
-    await getAppToStartingState()
     // Restauration best-effort : protège le compte si le test échoue avant le logout.
     // Sans cela, les données modifiées resteraient et pollueraient les runs suivants.
     if (!original) return
