@@ -15,7 +15,7 @@ function adb(): string {
   return sdk ? `${sdk}/platform-tools/adb` : `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`
 }
 
-/** `adb [-s <série>] …` : l'appareil visé par les recettes just (`ANDROID_UDID`), sinon le seul appareil connecté. */
+/** `adb [-s <série>] …` : l'appareil visé par `ANDROID_UDID`, sinon le seul appareil connecté. */
 function runAdb(args: string[]): void {
   const serial = process.env.ANDROID_UDID
   execFileSync(adb(), [...(serial ? ['-s', serial] : []), ...args], {stdio: 'ignore'})
@@ -48,7 +48,7 @@ export function androidUninstallApp(pkg: string): void {
   }
 }
 
-/** UDID du simulateur iOS visé (`IOS_UDID`, posé par les recettes just), sinon le premier simulateur démarré. */
+/** UDID du simulateur iOS visé (`IOS_UDID`), sinon le premier simulateur démarré. */
 export function iosBootedUdid(): string | undefined {
   if (process.env.IOS_UDID) return process.env.IOS_UDID
   return execFileSync('xcrun', ['simctl', 'list', 'devices', 'booted'], {encoding: 'utf-8'})

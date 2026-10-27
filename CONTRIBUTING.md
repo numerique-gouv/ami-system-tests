@@ -349,7 +349,7 @@ Les tests modifient l'état ?
   `specFileRetries` rejoue bien tout le fichier (nouvelle session → `before` rejoué), pas un `it()`
   isolé.
 - **Un test ne fait jamais `xcrun simctl` ni `adb` directement.** Il s'appuie sur l'environnement préparé avant le run
-  (émulateur/simulateur démarré par `just start-android` / `just start-ios`, app installée par Appium à partir de `ANDROID_APP_PATH` / `IOS_APP_PATH` ; côté Android, `onPrepare` de `wdio.android.conf.ts` remet l'état à zéro). Ça garantit la portabilité (CI, machines différentes) et centralise la chaîne de préparation dans les configs WDIO et le `justfile`.
+  (émulateur/simulateur démarré par Android Studio / Xcode, ou par Appium via `ANDROID_AVD` / `IOS_UDID`, app installée par Appium à partir de `ANDROID_APP_PATH` / `IOS_APP_PATH` ; côté Android, `onPrepare` de `wdio.android.conf.ts` remet l'état à zéro). Ça garantit la portabilité (CI, machines différentes) et centralise la chaîne de préparation dans les configs WDIO et le `justfile`.
 - **Idempotence backend** : un test qui publie des données (notification, post) doit utiliser un identifiant/titre unique horodaté (`` `AMI-vanilla-${Date.now()}` ``) — sinon un backend qui fait un
   `get_or_create` sur le payload retourne le record d'un run précédent au lieu d'en créer un nouveau.
 

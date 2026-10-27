@@ -61,7 +61,7 @@ JUnit reporter and the **failure dumps** written by `src/helpers/reporting/failu
    ```
    Archive **immediately after each run**, before the next one starts — this is what lets the
    script trust the directory name as the source of truth for platform and run index. If a run
-   produces no artifacts (e.g. `start-ios` fails because the Simulator app isn't reachable), still
+   produces no artifacts (e.g. the iOS simulator cannot be booted), still
    create the empty `flaky-runs/<platform>-run-<i>/` directory or leave it absent — the script treats
    both as an infrastructure failure for that cell, never silently.
 3. Run the analysis script (stdlib Python 3, no install needed):

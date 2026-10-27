@@ -19,8 +19,11 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 
 **Piège après `npm install` ou `appium driver update`** : les liens symboliques `appium` de `~/.appium/node_modules/appium-*-driver/node_modules` disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall` puis `appium driver install` des deux pilotes (`APPIUM_HOME=~/.appium`), ou `just install-appium-drivers` après les avoir désinstallés ; à refaire après toute mise à jour des pilotes.
 
-Simulateur iOS attendu : **iPhone 17 Pro** (nom dans `IOS_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device "<nom>"` : `just test-ios --device "iPhone 17 Pro"`)
-Émulateur Android : AVD de type Pixel, API 36 — nom dans `ANDROID_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device` : `just test-android --device pixel_2_api30`
+Les recettes `just` ne démarrent ni n'arrêtent aucun appareil, et n'ont aucune option `--device` : l'appareil visé se choisit par variables d'environnement (gabarit `.env`, surcharge ponctuelle `ANDROID_UDID=… just test-android …`).
+
+- **iOS** : simulateur **iPhone 17 Pro**. `IOS_UDID` (colonne entre parenthèses de `xcrun simctl list devices`) le désigne ; XCUITest le démarre lui-même s'il est arrêté (mesuré le 2026-10-27 : démarrage en 6 à 10 s, session prête en 20 à 25 s, il reste démarré après le run). `IOS_DEVICE_NAME` (nom) ne suffit pas quand plusieurs runtimes portent le même nom : sans UDID, Appium peut créer un simulateur temporaire. `appium:shutdownOtherSimulators` n'est PAS activé (les autres simulateurs ne sont jamais arrêtés).
+- **Android** : AVD de type Pixel, API 36. Soit l'émulateur tourne déjà (Android Studio ; `adb devices`) : `ANDROID_UDID` (numéro de série adb, ex. `emulator-5560`) ou `ANDROID_DEVICE_NAME` le désigne s'il y en a plusieurs ; soit `ANDROID_AVD=<nom d'AVD>` (`emulator -list-avds`) fait lancer l'AVD par Appium (mesuré le 2026-10-27 : session prête ~40 s après la demande) — l'émulateur s'arrête alors avec le run (il est enfant d'Appium) et l'app est désinstallée en fin de série. `ANDROID_AVD_ARGS` ajoute des options à `emulator` (ex. `-port 5560 -no-snapshot-save`).
+- Arrêter un appareil : `adb -s <série> emu kill`, `xcrun simctl shutdown <udid>` (ou les IDE).
 
 ### Apps mobiles à tester (variables `ANDROID_APP_PATH` et `IOS_APP_PATH`)
 
@@ -71,7 +74,7 @@ just test-webapp                                     # tests webapp, Chrome visi
 just test-webci                                      # tests webapp, headless (mode CI)
 just test-android --spec "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (`--spec` répétable, glob entre guillemets)
 just test-android --suite mobile_all                 # suite nommée (`--suite` ; définies dans wdio.base.conf.ts : option native `suites`) — idem test-ios / test-webapp / test-webci
-just test-android --device pixel_2_api30 --suite mobile_short   # `--device` (AVD / simulateur) est lu par test-android et test-ios ; tout le reste va à wdio
+ANDROID_UDID=emulator-5560 just test-android --suite mobile_short   # appareil précis par variable d'environnement (ANDROID_UDID/ANDROID_AVD, IOS_UDID : voir Prérequis) ; tout le reste va à wdio
 just test-webvideo --spec src/tests/webapp/agenda.parcours.test.ts   # webapp headless avec vidéo DevTools (au moins un --spec)
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit
@@ -197,7 +200,7 @@ réelle. Les règles de fond (ne jamais commiter un locator non validé, etc.) s
 
 | Je veux… | Commande |
 |---|---|
-| Ouvrir une session sur la webapp, Android ou iOS | `just explore-webapp "/#/agenda"` · `just explore-android` · `just explore-ios` (l'appareil doit déjà tourner : `just start-android` / `just start-ios`) |
+| Ouvrir une session sur la webapp, Android ou iOS | `just explore-webapp "/#/agenda"` · `just explore-android` · `just explore-ios` (l'appareil doit déjà tourner : Android Studio / Xcode) |
 | Lire la page : éléments interactifs, avec refs | `just s <cible> snapshot -i` · `just s <cible> find "texte"` |
 | Agir sur une ref, et voir ce que l'action a changé | `just s <cible> click e3` · `just s <cible> fill e4 "valeur"` |
 | Inspecter le DOM de la WebView (mobile) | les DevTools (Chrome `chrome://inspect` pour Android, Safari > Développement pour iOS) — en Android hybride, `snapshot` lit l'arbre natif et plante après `contexts switch` (WDIO 10.0.1) |

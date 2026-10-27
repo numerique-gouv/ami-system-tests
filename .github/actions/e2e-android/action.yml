@@ -64,8 +64,9 @@ runs:
         DEVICE: ${{ inputs.device }}
       run: |
         # ANDROID_DEVICE_NAME sert à la fois de nom d'AVD (`with: avd-name:` des steps suivants)
-        # et de valeur passée à `just ... --device` (appium:deviceName) — un seul nom pour
-        # les deux usages. Le profil et le niveau d'API sont déduits du nom : n'importe quel
+        # et de valeur lue par src/driver/capabilities.ts (appium:deviceName) — un seul nom pour
+        # les deux usages. L'émulateur est démarré par android-emulator-runner (pas par Appium :
+        # ni ANDROID_AVD ni just start-*) ; il est le seul appareil adb, donc pas d'ANDROID_UDID. Le profil et le niveau d'API sont déduits du nom : n'importe quel
         # appareil `pixel_<profil>_api<niveau>` est accepté, sans liste à maintenir ici.
         if [[ ! "$DEVICE" =~ ^pixel_([0-9]+[a-z_]*)_api([0-9]+)$ ]]; then
           echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_2_api30)"
@@ -101,7 +102,7 @@ runs:
         run-id: ${{ inputs.apk-run-id }}
         github-token: ${{ inputs.apk-token }}
 
-    # adb (platform-tools) requis par `just start-android`. Ne pas compter sur un SDK
+    # adb (platform-tools) requis par `onPrepare` de wdio.android.conf.ts et par Appium. Ne pas compter sur un SDK
     # préinstallé sur le runner : cette étape installe et exporte ANDROID_HOME/ANDROID_SDK_ROOT.
     - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
       with:
@@ -121,7 +122,7 @@ runs:
 
     # packages: 'platform-tools' (au lieu du défaut 'tools platform-tools') — le paquet
     # legacy `tools` dépend d'`emulator`, indisponible pour linux-aarch64, ce qui fait échouer
-    # sdkmanager avec exit code 1. `adb` (seul besoin ici, via `just start-android`) vient de
+    # sdkmanager avec exit code 1. `adb` (seul besoin ici) vient de
     # `platform-tools`. Source : https://github.com/android-actions/setup-android/issues/283
     - if: steps.cache-platform-tools.outputs.cache-hit != 'true'
       uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
@@ -249,7 +250,7 @@ runs:
         disable-animations: true
         working-directory: ami-system-tests
         script: |
-          just test-android --suite "$E2E_SUITE" --device "$ANDROID_DEVICE_NAME" || echo "Test suite has failed"
+          just test-android --suite "$E2E_SUITE" || echo "Test suite has failed"
           echo "::group::Diagnostic logcat (buffer complet, non filtré)"
           adb logcat -d || true
           echo "::endgroup::"

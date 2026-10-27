@@ -56,9 +56,9 @@ export const androidCapabilities = {
   platformName: 'Android',
   'appium:automationName': 'UiAutomator2',
   // platformVersion volontairement absent : Appium détecte la version depuis l'appareil connecté.
-  // Absent sans `--device` : Appium prend alors le premier appareil connecté (émulateur ou physique).
+  // Absent sans ANDROID_DEVICE_NAME : Appium prend alors le premier appareil connecté (émulateur ou physique).
   ...(process.env.ANDROID_DEVICE_NAME ? {'appium:deviceName': process.env.ANDROID_DEVICE_NAME} : {}),
-  // Numéro de série adb de l'appareil visé (posé par les recettes just) : sans lui, Appium prend le premier appareil
+  // Numéro de série adb de l'appareil visé (ANDROID_UDID) : sans lui, Appium prend le premier appareil
   // connecté, qui peut être un téléphone branché à côté de l'émulateur demandé.
   ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
   // AVD à démarrer par Appium s'il n'est pas déjà lancé (ANDROID_AVD, nom de `emulator -list-avds`) : le driver le lance, attend la fin du
@@ -106,9 +106,9 @@ withLazyAppPath(androidCapabilities, 'ANDROID_APP_PATH')
 export const iosCapabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
-  // Nom du simulateur, donné par `--device` (justfile). platformVersion absent : le simulateur est visé par son UDID (ci-dessous).
+  // Nom du simulateur (IOS_DEVICE_NAME). platformVersion absent : le simulateur est visé par son UDID (ci-dessous).
   'appium:deviceName': process.env.IOS_DEVICE_NAME,
-  // UDID du simulateur visé (posé par les recettes just) : sans lui ni platformVersion, XCUITest prend le runtime iOS le plus récent
+  // UDID du simulateur visé (IOS_UDID ; XCUITest le démarre s'il est arrêté) : sans lui ni platformVersion, XCUITest prend le runtime iOS le plus récent
   // et, s'il ne correspond pas à celui du simulateur nommé, crée un simulateur temporaire jetable (appiumTest-…) très lent à démarrer.
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
   // Port local de WebDriverAgent surchargeable (IOS_WDA_PORT) pour un second simulateur en parallèle ; défaut du driver : 8100.
@@ -124,7 +124,7 @@ export const iosCapabilities = {
   // Sans ça, chaque session lance `open -Fn DeviceHub.app` (constaté le 2026-10-15 : 30 instances ouvertes après une campagne). Le
   // driver cherche l'app graphique par l'identifiant de Simulator.app, ne reconnaît pas DeviceHub (Xcode 26+, com.apple.dt.Devices),
   // croit le simulateur « sans fenêtre » et ouvre une nouvelle instance (`-n`) à chaque fois. En mode headless il n'ouvre rien.
-  // La fenêtre pour un humain reste ouverte une fois par `just start-ios`.
+  // La fenêtre pour un humain reste à ouvrir par Xcode (ou Simulator) pour un humain.
   'appium:isHeadless': true,
   'appium:newCommandTimeout': 240,
   'appium:wdaLaunchTimeout': 120000,
