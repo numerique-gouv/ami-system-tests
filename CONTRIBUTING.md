@@ -90,10 +90,42 @@ kebab-case français (`profil-et-suppression-a-la-deconnexion.usage.test.ts`). T
 Trois autres catégories ont été envisagées et NON retenues : `liens` (couvert par `parcours`), `natif` (la frontière natif / WebView
 n'est pas figée : des pages seront promues en natif), `contrat` (pas de spec de contrat d'API dans ce dépôt).
 
-Filtrer par catégorie avec un glob : `just test-webapp "src/tests/webapp/**/*.smoke.test.ts"`. Les suites nommées de `test-suites.ts`
-listent leurs fichiers explicitement (ex. `webapp_smoke` contient `catalogue.parcours.test.ts`) : elles ne dépendent pas des catégories.
+Filtrer par catégorie avec un glob : `just test-webapp "src/tests/webapp/**/*.smoke.test.ts"`. Les suites `*_smoke` et `webapp_usage` de
+`test-suites.ts` reposent sur ces mêmes motifs : la catégorie du nom de fichier fait donc entrer une spec dans une suite (section suivante).
 `wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `passkey.usage.test.ts`) les specs qui exigent un
 profil Chrome vierge : à garder en phase en cas de renommage.
+
+#### Suites nommées (`test-suites.ts`)
+
+Listes plates de specs (un worker par spec), résolues à blanc par `just list-suite [nom]`. Préfixe `mobile_` (Android + iOS) ou
+`webapp_` (Chrome) ; jamais mélangés. Hors `short`, les suites webapp placent `authentification.smoke` puis `nonreg/passkey.usage`
+en premier (session vierge exigée, cf. ci-dessus). Les suites sont définies par motif de catégorie : un nouveau `*.smoke.test.ts`
+ou `*.usage.test.ts` y entre sans modifier `test-suites.ts`.
+
+| Suite | Déclencheur / usage | Contenu | Justification |
+|---|---|---|---|
+| `mobile_short` | CI en mise au point ; défaut des lancements manuels | `authentification.smoke` seule | quelques minutes : déboguer un workflow sans payer une campagne |
+| `webapp_short` | idem | `authentification.smoke` seule | une ou deux minutes, mêmes raisons |
+| `mobile_all` | **PR, merge, tag** (API et app Android) ; hors CI : **tester un déploiement** | tous les tests mobiles, authentification d'abord | la couverture mobile complète est la seule garantie sur les écrans natifs et le natif/WebView |
+| `webapp_usage` | **PR, merge, tag** (API) | tous les `*.smoke` + tous les `*.usage` (nonreg compris) | ce que font les usagers, sans les parcours de navigation exhaustifs (`*.parcours`) |
+| `mobile_smoke` | hors CI : **valider un déploiement** | motif `*.smoke.test.ts` mobile (aujourd'hui : authentification) | le minimum qui prouve que l'app et le backend déployé se parlent |
+| `webapp_smoke` | hors CI : **valider un déploiement** | motif `*.smoke.test.ts` webapp (authentification, accueil) | idem, en quelques minutes ; le contrôle des liens externes (`catalogue.parcours`) n'en fait plus partie |
+| `webapp_all` | hors CI : **tester un déploiement** | tous les tests webapp (smoke, usage, parcours ; nonreg compris) | recette complète d'un déploiement |
+| `api` | débogage | `notifications.usage` + `demarches.usage` (mobile) | scénarios pilotés par l'API partenaires |
+| `all` | alias historique de `mobile_all` | idem | `workflows-samples/`, anciennes docs |
+
+Suites supprimées (2026-10-27) : `mobile_ci` et `mobile_nonreg` (remplacées par `mobile_all`), `webapp_nonreg` (remplacée par
+`webapp_usage`, qui contient en plus les `*.smoke`), `mobile_auth` / `webapp_auth` / `auth` (remplacées par `*_short` ou `*_smoke`).
+
+Lancer hors CI (mêmes suites, mêmes commandes qu'en local ; `AMI_ENV` choisit l'environnement, cf. `.env.local`) :
+
+```bash
+AMI_ENV=staging just test-webci-suite webapp_smoke   # valider un déploiement (webapp)
+just test-android-suite mobile_smoke                 # valider un déploiement (mobile ; idem test-ios-suite)
+AMI_ENV=staging just test-webci-suite webapp_all     # tester un déploiement (webapp)
+just test-android-suite mobile_all                   # tester un déploiement (mobile ; idem test-ios-suite)
+just list-suite webapp_usage                         # voir les specs d'une suite sans lancer wdio
+```
 
 ---
 
@@ -296,9 +328,8 @@ une suite ne fait que désigner des fichiers, elle ne change pas la façon de le
 fusionnaient les specs en un seul worker, sont supprimés). L'état est cependant conservé d'un fichier à l'autre sans session partagée :
 profil Chrome du run en webapp, app non redémarrée sur Android ; seules `authentication` et `nonreg/passkey` repartent d'une session
 vierge. Un test qui modifie l'état global doit en tenir compte : ne pas supposer une session fraîche du seul fait d'être dans un
-nouveau fichier. Nommage : `mobile_*` (Android/iOS) et `webapp_*` (Chrome), jamais mélangés (`mobile_ci` = smoke Android de la CI,
-`webapp_smoke` = smoke webapp de la CI sur PR, `webapp_short` / `mobile_short` = authentification seule). `just list-suite [nom]`
-résout les suites à blanc (liste de specs, sans lancer wdio).
+nouveau fichier. Nommage : `mobile_*` (Android/iOS) et `webapp_*` (Chrome), jamais mélangés ; contenu et usage de chaque suite : tableau « Suites nommées »
+(§ 1). `just list-suite [nom]` résout les suites à blanc (liste de specs, sans lancer wdio).
 
 ```
 Les tests modifient l'état ?
@@ -392,12 +423,15 @@ Allure a été retiré (2026-10-08). Ce qui reste :
 
 | Déclencheur | Webapp | Android | Appareil | APK |
 |---|---|---|---|---|
-| PR (API) | `webapp_nonreg` | `mobile_nonreg`, un seul passage | ancien `pixel_2_api30` | dernier tag d'ami-app-android |
-| merge (API) | `webapp_nonreg` | `mobile_nonreg`, un seul passage | récent `pixel_8_api36` | dernier tag d'ami-app-android |
-| tag (API) | `webapp_short` | — | — | — |
-| PR (app Android) | — | `mobile_nonreg`, un seul passage | ancien `pixel_2_api30` | celui que la PR construit |
-| merge (app Android) | — | `mobile_nonreg`, un seul passage | récent `pixel_8_api36` | celui que le merge construit |
-| tag (app Android) | — | `mobile_ci` | ancien `pixel_2_api30` | construit + publié (`app-staging-debug-<tag>`) |
+| PR (API) | `webapp_usage` | `mobile_all`, un seul passage | ancien `pixel_2_api30` | dernier tag d'ami-app-android |
+| merge (API) | `webapp_usage` | `mobile_all`, un seul passage | récent `pixel_8_api36` | dernier tag d'ami-app-android |
+| tag (API) | `webapp_usage` | `mobile_all`, un seul passage | ancien `pixel_2_api30` (hypothèse : la demande ne précisait pas l'appareil) | dernier tag d'ami-app-android |
+| PR (app Android) | — | `mobile_all`, un seul passage | ancien `pixel_2_api30` | celui que la PR construit |
+| merge (app Android) | — | `mobile_all`, un seul passage | récent `pixel_8_api36` | celui que le merge construit |
+| tag (app Android) | — | `mobile_all` | ancien `pixel_2_api30` | construit + publié (`app-staging-debug-<tag>`) |
+| manuel (`workflow_dispatch`, les deux dépôts) | `webapp_short` | `mobile_short` | `pixel_2_api30` (API) / `pixel_8_api36` (app Android) | choix libre de toute suite (mise au point de la CI) |
+| hors CI : valider un déploiement | `webapp_smoke` | `mobile_smoke` | au choix | `just test-webci-suite` / `just test-android-suite` |
+| hors CI : tester un déploiement | `webapp_all` | `mobile_all` | au choix | idem |
 
 **Secrets et variables GitHub** à créer dans le dépôt appelant (transmis par `secrets: inherit` ; jamais de valeur dans le code) : `NOTIF_PARTNER_ID` et `NOTIF_PARTNER_SECRET` (partenaire AMI), `NOTIF_PARTNER_DINUM_DN_ID` et `NOTIF_PARTNER_DINUM_DN_SECRET` (partenaire `dinum-dn`, consentement activé : scénarios S5, S5.2 et S6.3 de la webapp, SKIPPÉS « BLOQUÉ » s'ils sont absents ; inutiles dans `ami-app-android`, dont les tests mobiles n'utilisent que le partenaire AMI), `WEB_APP_ACCESS_KEYS`, et pour l'APK du dernier tag la variable `AMI_REVIEWAPPS_APP_ID` + le secret `AMI_REVIEWAPPS_PRIVATE_KEY`.
 

@@ -28,7 +28,7 @@ Avant toute tâche de planification de test (`creating-test-structure`) ou d'inv
 | `wdio.android.conf.ts` | capabilities Android, service Appium port 4723 |
 | `wdio.ios.conf.ts` | capabilities iOS, service Appium port 4724 |
 | `wdio.webapp.conf.ts` | capabilities Chrome, `baseUrl` dérivée de `AMI_ENV` via `resolveEnvironment()`, pas de service Appium |
-| `test-suites.ts` | suites nommées consommées via `WDIO_SUITE` : listes plates de specs (un worker par spec) : `mobile_all`/`all`, `mobile_short`, `mobile_ci` (auth+notifications+demarches+profile), `mobile_auth`, `auth`, `api` (notifications+demarches), `webapp_all`, `webapp_smoke`, `webapp_short`, `webapp_nonreg`, `webapp_auth` |
+| `test-suites.ts` | suites nommées consommées via `WDIO_SUITE` : listes plates de specs (un worker par spec) : `mobile_all`/`all`, `mobile_short`, `mobile_smoke`, `api` (notifications+demarches), `webapp_short`, `webapp_smoke`, `webapp_usage`, `webapp_all` (tableau : CONTRIBUTING.md « Suites nommées ») |
 
 ⚠️ **`test-results/` et `.wdio-logs/*.log` ne sont jamais nettoyés automatiquement avant un run** (pas de `rm -rf` dans le justfile avant `test-*`) — les résultats/captures/logs Appium s'accumulent entre runs et entre plateformes (android/ios/webapp partagent le même `outputDir`). Un rapport Allure généré sans nettoyage préalable peut mélanger plusieurs jours/plateformes. Voir `health-recommendations.md`.
 

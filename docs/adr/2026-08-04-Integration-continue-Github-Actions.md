@@ -444,6 +444,13 @@ Allure a été retiré (2026-10-08) : tout ce qui précède sur `allure_report`,
 - `allure-cleanup.yml` est renommé `e2e-artifacts-cleanup.yml` (aucun dépôt frère ne le référençait encore).
 - Actions épinglées par SHA de commit dans les fichiers modifiés ; `permissions` minimales par job. Les prototypes de `.github/workflows-samples/` restent des archives.
 
+**Note du 2026-10-27 (suites par déclencheur, remplace les choix de suites ci-dessus ; l'historique n'est pas réécrit)** : PR, merge et tag lancent `webapp_usage`
+(smoke + usage) et `mobile_all` (API ; l'app Android ne lance que `mobile_all`), un seul passage Android par déclencheur : appareil ANCIEN `pixel_2_api30` sur
+PR et sur tag (hypothèse pour le tag : la demande ne précisait pas l'appareil), RÉCENT `pixel_8_api36` sur merge (vieux contre jeune). Les lancements manuels
+(`workflow_dispatch`) prennent par défaut `webapp_short` / `mobile_short` (authentification seule, mise au point de la CI). Hors CI : `webapp_smoke` +
+`mobile_smoke` pour valider un déploiement, `webapp_all` + `mobile_all` pour le tester. Suites `mobile_ci`, `mobile_nonreg`, `webapp_nonreg`, `mobile_auth`,
+`webapp_auth` et `auth` supprimées. Le préfixe `webapp_` est conservé (convention existante). Tableau suite → usage : CONTRIBUTING.md, « Suites nommées ».
+
 À vérifier en CI réelle : voir la liste dans le rapport de mise à jour (check créé sur `source_sha` par mikepenz et sa conclusion avec `fail_on_failure: false` ;
 lecture des `<properties>` de testcase par mikepenz ; résolution de `uses: ./.github/workflows/workflow-e2e-ios.yml` dans un workflow appelé depuis un autre dépôt ;
 `download-artifact` avec `pattern` sans correspondance ; écriture du commentaire avec `github.token` ; script `android-emulator-runner` lisant `$E2E_SUITE`).

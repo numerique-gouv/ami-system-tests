@@ -8,7 +8,7 @@ Tout a été exploré et exécuté en **préprod** (`AMI_ENV=preprod`), le 2026-
 
 ### ENV1 — Les mêmes specs passent sur staging et sur les branches de staging
 Défi posé par la réunion (27:42) : « les tests soient faisables en staging, sur des branches de staging qui intègrent le staging plus tard, et sur la préprod ».
-Étant donné la suite `webapp_nonreg`
+Étant donné la suite `webapp_usage` (`webapp_nonreg` avant sa suppression le 2026-10-27)
 Quand elle est lancée avec `AMI_ENV=staging`, puis avec `AMI_ENV=<n° de review app>`
 Alors elle passe avec les mêmes assertions
 **Points à vérifier (non confirmés)** :
@@ -16,9 +16,9 @@ Alors elle passe avec les mêmes assertions
 - **S7** suppose une tuile de l'agenda qui cite « Zone B » ; elle se choisit dynamiquement ;
 - **S12.1** (carte « Déclaration de changement d'adresse ») suppose cette carte au catalogue : en staging, **non confirmé** ;
 - l'URL des cibles diffère (`preprod.demarches.service-public.gouv.fr` en préprod) : les assertions ne doivent pas coder un hôte — seul S2.1 contrôle `service-public.gouv.fr`.
-Action : lancer `webapp_nonreg` en staging, relever les écarts, et décider des tests propres à un environnement (tag ou garde explicite — pas de `if` silencieux).
+Action : lancer `webapp_usage` en staging, relever les écarts, et décider des tests propres à un environnement (tag ou garde explicite — pas de `if` silencieux).
 
-**Résultat du premier passage sur staging (2026-10-15, `AMI_ENV=staging`, suite `webapp_nonreg`)** : 13 réussis, 1 suspendu (S11.2), 5 en échec. Aucun n'est une régression de l'application constatée ; trois sont des **écarts d'environnement**, deux des **hypothèses de mes specs trop étroites** :
+**Résultat du premier passage sur staging (2026-10-15, `AMI_ENV=staging`, suite `webapp_nonreg`, devenue `webapp_usage`)** : 13 réussis, 1 suspendu (S11.2), 5 en échec. Aucun n'est une régression de l'application constatée ; trois sont des **écarts d'environnement**, deux des **hypothèses de mes specs trop étroites** :
 
 | Spec | Constat sur staging | Nature |
 |---|---|---|
@@ -52,7 +52,7 @@ Source : 18:21–18:40 (« on a mis déconnexion France Connect pour nous : on s
 
 **Non confirmé** : disponibilité en préprod (le catalogue de préprod, relevé le 2026-10-15, n'a pas cette carte), en production et sur les review apps ; si le retour sur AMI est prévu par la configuration du démonstrateur ; l'effet sur la connexion silencieuse (S12.1) d'une carte partenaire quand la session FranceConnect a été retirée (à vérifier avant d'utiliser cette carte pour la rendre répétable).
 
-**Scénario implémenté** (`deconnexion-fc.usage.test.ts`, suite `webapp_nonreg`, groupe 2 après `consentement.usage.test.ts`) :
+**Scénario implémenté** (`deconnexion-fc.usage.test.ts`, suite `webapp_usage`, groupe 2 après `consentement.usage.test.ts`) :
 Étant donné un usager connecté sur AMI, en staging
 Quand il ouvre la carte « Déconnexion FC », se connecte à FranceConnect depuis le démonstrateur puis clique « Se déconnecter »
 Alors il est sur la page de connexion du démonstrateur

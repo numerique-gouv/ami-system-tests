@@ -287,7 +287,7 @@ Le scénario est identique côté API ; seuls l'accès à l'app et la connexion 
 | Arbre d'accessibilité après une redirection | rien à faire | périmé : à rafraîchir (`refreshAxTree`, via `getPageSource`) |
 | Tirer pour rafraîchir | geste natif vers le bas | le geste peut être bloqué par le `UIRefreshControl` : recharger la page à la place |
 | App gardée ouverte entre deux specs | **oui** (`noReset`) : spec 2 en 34 s au lieu de 118 s | **non** |
-| Stabilité des campagnes | aucune mesure consignée | le test d'authentification a expiré à 120 s dans 2 runs sur 3 (suite `mobile_auth`) |
+| Stabilité des campagnes | aucune mesure consignée | le test d'authentification a expiré à 120 s dans 2 runs sur 3 (suite `mobile_auth`, supprimée depuis : remplacée par `mobile_short`) |
 
 Ce qui **manque sur iOS** (état au 2026-10-12, d'après les notes de session, pas une mesure refaite pour ce tutoriel) :
 

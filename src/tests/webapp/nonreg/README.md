@@ -7,8 +7,8 @@ Cible : **préprod** (`AMI_ENV=preprod`), compte `avec_nom_dusage`, avec restaur
 
 | Niveau | But | Suite |
 |---|---|---|
-| **smoke** | la suite la plus courte qui prouve qu'on ne perdra pas son temps en lançant une campagne manuelle | `webapp_smoke` |
-| **recette** | automatise les vérifications pénibles à la main (consentement, zones, agenda, redirections) | `webapp_nonreg` |
+| **smoke** | la suite la plus courte qui prouve qu'on ne perdra pas son temps en lançant une campagne manuelle (aujourd'hui : authentification et accueil ; le contrôle des liens `catalogue.parcours` est en `webapp_all`) | `webapp_smoke` |
+| **recette** | automatise les vérifications pénibles à la main (consentement, zones, agenda, redirections) | `webapp_usage` (PR/merge/tag), `webapp_all` |
 
 ## Format
 

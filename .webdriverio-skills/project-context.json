@@ -80,10 +80,14 @@
     "source": "test-suites.ts",
     "envVar": "WDIO_SUITE",
     "named": {
-      "all": "authentification.smoke.test.ts + tous les tests mobile, session partagée",
-      "short": "authentification.smoke.test.ts seul",
-      "CI": "authentication + notifications + demarches + profile",
-      "auth": "authentification.smoke.test.ts en session séparée",
+      "all": "alias de mobile_all : authentification.smoke.test.ts + tous les tests mobile",
+      "mobile_short": "authentification.smoke.test.ts seul",
+      "mobile_smoke": "tests mobile *.smoke.test.ts",
+      "mobile_all": "tous les tests mobile",
+      "webapp_short": "authentification.smoke.test.ts seul",
+      "webapp_smoke": "tests webapp *.smoke.test.ts",
+      "webapp_usage": "tests webapp *.smoke + *.usage (nonreg compris)",
+      "webapp_all": "tous les tests webapp",
       "api": "notifications + demarches"
     }
   },
