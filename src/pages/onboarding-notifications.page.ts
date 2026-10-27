@@ -182,15 +182,16 @@ class OnboardingNotificationsPage {
      * (HomeView-ViewModel.swift). Elle peut recouvrir l'accueil : `isHomeDisplayed` est alors vrai alors que la WebView ne
      * répond plus. À appeler une fois l'accueil atteint.
      */
-    async dismissNativeSheet(timeout = 3000): Promise<void> {
-        if (!driver.isIOS) return
+    async dismissNativeSheet(timeout = 3000): Promise<boolean> {
+        if (!driver.isIOS) return false
         const loc = getOnboardingNotifLocators()
         // Permission déjà décidée : l'app ne présente plus la feuille, inutile de l'attendre.
         const authorization = readAuthorizationOrUnknown()
         const undecided = authorization === 'notDetermined' || authorization === 'absente'
-        if (await this.firstNative(loc.title, undecided ? timeout : Math.min(timeout, 500)) === null) return
-        log.info('Feuille native « Activez les notifications » affichée au-dessus de l\'accueil : activation')
+        if (await this.firstNative(loc.title, undecided ? timeout : Math.min(timeout, 500)) === null) return false
+        log.info('Feuille native « Activez les notifications » affichée : activation')
         await this.activateNativeIOS()
+        return true
     }
 
     /**

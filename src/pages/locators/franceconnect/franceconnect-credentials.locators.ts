@@ -14,3 +14,7 @@ export const fcCredentialsLocators = {
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform
+
+/** iOS seulement : les champs du formulaire (Identifiant, Mot de passe…) lus dans l'arbre natif — même usage que `iosEidasLinkNativeAx`. */
+export const iosCredentialsFieldsNativeAx =
+  '-ios predicate string:type == "XCUIElementTypeTextField" OR type == "XCUIElementTypeSecureTextField"'

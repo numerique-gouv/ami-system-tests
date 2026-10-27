@@ -1,9 +1,11 @@
+import {waitForNativeAx} from '../../helpers/mobile/native-ax'
 import {androidFcButton, iosFcButtonNativeAx, webFcButton, webFcButtonAny} from '../locators/franceconnect/franceconnect-mire.locators'
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
-import {firstDisplayed, isShown} from '../../helpers/spa/spa'
+import {allDisplayed, isShown} from '../../helpers/spa/spa'
+import {homeContentLocators} from '../locators/home.locators'
 
 const log = logger('page-object')
 
@@ -147,7 +149,7 @@ class FranceConnectMirePage {
         let tapped = false
         await platform().inWebContext(async () => {
             try {
-                await (await firstDisplayed(webFcButton, {timeout})).click()
+                await (await this.waitForButtonOrHome(timeout)).click()
                 tapped = true
                 log.info('btn web FC trouvé et tap effectif !!!')
             } catch {
@@ -187,7 +189,28 @@ class FranceConnectMirePage {
             // getAppToStartingState().
             throw new AssertionError({message: err.message})
         })
+        // iOS : le clic mène à FranceConnect (autre document, la target WebKit de la page est détruite) : on constate la disparition du bouton
+        // par l'arbre natif avant toute commande suivante (mesuré : 0,8 s). Le bouton NATIF d'Android a son propre chemin.
+        if (tapped && driver.isIOS) await waitForNativeAx(iosFcButtonNativeAx, 'gone', 'Bouton FranceConnect')
         return tapped
+    }
+
+    /**
+     * Attend le bouton FranceConnect OU l'accueil (session encore ouverte : l'app est allée directement à l'accueil, il n'y a pas de bouton à
+     * attendre). Sans cette seconde issue, le test attendait le bouton jusqu'au délai (15 s mesurées le 2026-10-27, iOS, après le choix de
+     * l'environnement). Lance si c'est l'accueil : même échec que l'absence du bouton, mais tout de suite.
+     */
+    private async waitForButtonOrHome(timeout: number): Promise<WebdriverIO.Element> {
+        let button: WebdriverIO.Element | undefined
+        let home = false
+        await browser.waitUntil(async () => {
+            button = (await allDisplayed(webFcButton))[0]
+            if (button) return true
+            home = (await allDisplayed(homeContentLocators.greeting)).length > 0
+            return home
+        }, {timeout, interval: 200, timeoutMsg: `Aucun bouton FranceConnect affiché après ${timeout}ms`})
+        if (!button) throw new AssertionError({message: 'accueil déjà affiché (session ouverte) : pas de bouton FranceConnect à taper'})
+        return button
     }
 
     /**

@@ -11,3 +11,10 @@ export const fcEidasLocators = {
 }
 
 // Pas de getXxxLocators() — un seul jeu cross-platform
+
+/**
+ * iOS seulement : le même bouton lu dans l'arbre d'accessibilité NATIF (XCUITest expose le contenu de la WebView ; type Link, libellé
+ * « Démonstration eIDAS faible », relevé en live le 2026-10-27). Sonde qui ne passe pas par le débogueur WebKit : sert à constater
+ * l'apparition de la page eIDAS et sa disparition après le clic, sans envoyer de commande à une page en cours de remplacement.
+ */
+export const iosEidasLinkNativeAx = '-ios predicate string:label CONTAINS[c] "eidas faible"'

@@ -23,15 +23,17 @@ const NO_PROGRESS_TIMEOUT_MS = 30000
 const AUTHENTICATE_MAX_MS = 300000
 // Une page d'onboarding qui revient après autant de fermetures ne se ferme pas : on échoue clairement.
 const MAX_DISMISSALS_PER_PAGE = 3
-// borne un simple check de présence (doit rester rapide, ré-exécuté à chaque tentative)
-const DETECTION_TIMEOUT_MS = 2000
+// borne un simple check de présence (doit rester rapide, ré-exécuté à chaque tentative). Le sélecteur d'environnement est natif : il est
+// lisible tout de suite quand il est affiché (2 s d'attente par tour de boucle mesurées le 2026-10-27 sur iOS, pour rien : la boucle re-sonde).
+const DETECTION_TIMEOUT_MS = 500
 // Sondes rapides du tour de boucle : l'accueil (« Bonjour ») et chaque page d'onboarding. La sortie normale
 // est l'accueil ; on n'attend donc pas une page qui n'est pas là.
 const HOME_PROBE_MS = 500
 const ONBOARDING_PROBE_MS = 500
 // Rien de reconnu (ni accueil, ni onboarding, ni écran de connexion) pendant ce délai : on recharge la racine
-// de l'app une fois. Assez long pour laisser finir une redirection en cours (ex. fin de session FranceConnect).
-const UNRECOGNIZED_BEFORE_ROOT_MS = 15000
+// de l'app une fois. Assez long pour laisser finir une redirection en cours (ex. fin de session FranceConnect : transitions mesurées ≤ 3 s
+// le 2026-10-27, iOS, machine chargée ; 15 s auparavant, dont 15 s perdues sur `#/welcome/notifications` resté blanc).
+const UNRECOGNIZED_BEFORE_ROOT_MS = 8000
 
 type FcScreen = 'review-picker' | 'login' | 'eidas' | 'credentials' | 'home'
 type ConnectionScreen = Exclude<FcScreen, 'home'>
@@ -162,6 +164,14 @@ async function reachHome(user: TestUser): Promise<void> {
         // Un seul getContexts() par tour (3 à 10 s sur iOS) : sans WebView (sélecteur d'environnement, écran
         // natif), l'accueil et l'onboarding ne peuvent pas être affichés — on ne les sonde pas, sous peine
         // d'attendre un contexte WebView qui n'existe pas (25 s par sonde).
+        // iOS : la feuille native « Activez les notifications » ne dépend pas de la WebView, qui peut ne pas être listée tant qu'elle est
+        // affichée (session FranceConnect ouverte : retour direct à l'app, constaté le 2026-10-27 : « Aucune WebView trouvée après 25000ms »,
+        // feuille visible en capture). On la traite donc avant de sonder le web.
+        if (await OnboardingNotificationsPage.dismissNativeSheet(ONBOARDING_PROBE_MS)) {
+            unrecognizedSince = null
+            lastProgressAt = Date.now()
+            continue
+        }
         if (await platform().isWebContextAvailable()) {
             if (await HomePage.isHomeDisplayed(HOME_PROBE_MS)) {
                 // iOS : la feuille native « Activez les notifications » peut recouvrir l'accueil (session restaurée au relancement).

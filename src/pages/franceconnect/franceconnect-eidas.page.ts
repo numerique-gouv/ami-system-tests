@@ -1,7 +1,9 @@
-import {fcEidasLocators} from '../locators/franceconnect/franceconnect-eidas.locators'
+import {fcEidasLocators, iosEidasLinkNativeAx} from '../locators/franceconnect/franceconnect-eidas.locators'
+import {AssertionError} from 'node:assert'
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import {clickDisplayed, isShown} from '../../helpers/spa/spa'
+import {waitForNativeAx} from '../../helpers/mobile/native-ax'
 
 class FranceConnectEidasPage {
     /**
@@ -20,12 +22,20 @@ class FranceConnectEidasPage {
     }
 
     async selectEidasFaible(): Promise<void> {
+        // iOS : la page eIDAS est attendue par l'arbre natif (la page FranceConnect précédente est en cours de remplacement : aucune commande WebView avant).
+        // Absente : FranceConnect a authentifié directement (session SSO ouverte) — on échoue tout de suite (la boucle de connexion ré-observe)
+        // au lieu d'attendre 10 s de plus le lien dans la WebView.
+        if (!await waitForNativeAx(iosEidasLinkNativeAx, 'present', 'Page eIDAS', 5000)) {
+            throw new AssertionError({message: 'page eIDAS absente (session FranceConnect déjà ouverte ?)'})
+        }
         await platform().inWebContext(async () => {
             // Écran atteint juste après le redirect OIDC login → eIDAS — no-op sur Android,
             // cf. commentaire de refreshAxTree() dans appium.adapter.ts.
             await platform().refreshAxTree()
             await clickDisplayed(fcEidasLocators.eidasFaibleLink, {timeout: 10000})
         })
+        // Le clic mène à la page d'identifiants (autre document) : on constate la disparition de la page eIDAS avant toute commande suivante.
+        await waitForNativeAx(iosEidasLinkNativeAx, 'gone', 'Lien eIDAS faible')
     }
 }
 

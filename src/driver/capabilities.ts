@@ -120,4 +120,8 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   // Sans cette valeur, chaque appel à getContexts() bloque ~10 s, ce qui rend
   // le polling de waitForWebViewContext() inefficace (une seule itération effective).
   'appium:webkitResponseTimeout': 3000,
+  // Sans WebView (sélecteur d'environnement, feuille native, app en relancement), `getContexts()` rejoue la recherche des pages web
+  // 20 fois à 500 ms d'intervalle (défaut du driver) : ~10 s MESURÉS (2026-10-27) à chaque sonde `isWebContextAvailable()`, soit 30 s
+  // perdues par connexion. Nos appelants sondent eux-mêmes en boucle (pickWebView, waitForWebViews) : 3 essais suffisent (~1,5 s).
+  'appium:webviewConnectRetries': 3,
 }
