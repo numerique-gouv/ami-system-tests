@@ -197,6 +197,8 @@ Nouveau target `just generate-report` (`allure generate allure-results --clean -
 sans le `allure open` de `npm run report`, qui bloquerait un job CI en démarrant un serveur) —
 conforme à la règle CLAUDE.md d'encapsulation des appels `npm`/`npx` dans le `justfile`.
 
+> Note du 2026-10-27 : Allure a été retiré (migration WDIO 10) et la recette `just generate-report` n'existe plus ; la règle d'encapsulation dans le `justfile` a été abandonnée (le `CLAUDE.md` actuel autorise `npm`/`npx`/`adb`/`xcrun` directs). Cette section est conservée comme historique.
+
 ## Statut
 
 Accepté pour l'architecture (parent + workflows réutilisables symétriques, injection de secrets

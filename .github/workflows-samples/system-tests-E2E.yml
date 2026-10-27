@@ -186,6 +186,7 @@ jobs:
       - uses: extractions/setup-just@v3
       - run: npm ci
 
+      # Archive : la recette `just generate-report` (Allure) n'existe plus depuis le retrait d'Allure (2026-10-27).
       - name: Générer le rapport Allure
         run: just generate-report
 

@@ -22,6 +22,30 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 Simulateur iOS attendu : **iPhone 17 Pro** (nom dans `IOS_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device "<nom>"` : `just test-ios --device "iPhone 17 Pro"`)
 Émulateur Android : AVD de type Pixel, API 36 — nom dans `ANDROID_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device` : `just test-android --device pixel_2_api30`
 
+### Apps mobiles à tester (variables `ANDROID_APP_PATH` et `IOS_APP_PATH`)
+
+Les tests mobiles ne construisent rien : ils installent l'app que désignent deux variables d'environnement, **seule source du chemin** (le `justfile` n'en calcule aucun). Variable absente, ou chemin inexistant : l'erreur (de `src/driver/capabilities.ts`) nomme la variable.
+
+| Plateforme | Construire l'app | Variable (exemple staging) |
+|---|---|---|
+| Android | Android Studio, ou `./gradlew assembleStagingDebug` dans `../ami-app-android` (préprod : `assemblePreprodDebug`) | `ANDROID_APP_PATH=../ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk` |
+| iOS | Xcode (scheme `AMI-Staging`, destination simulateur), ou `just build-staging` dans `../ami-app-ios` | `IOS_APP_PATH=~/Library/Developer/Xcode/DerivedData/AMI-xcodegen-<suffixe>/Build/Products/Debug-iphonesimulator/AMI-Staging.app` (le `<suffixe>` est propre à chaque poste : `ls ~/Library/Developer/Xcode/DerivedData`) |
+
+Un chemin relatif se lit depuis la racine de ce projet ; `~/` désigne le dossier personnel ; aucun motif (`*`) n'est développé. `AMI_ENV` doit correspondre à l'app visée : il détermine l'identifiant de l'app (package `fr.gouv.ami.staging` ou `fr.gouv.ami.preprod`, bundle `fr.gouv.ami.staging` ou `fr.gouv.ami.preproduction`). Les valeurs d'exemple sont dans le gabarit `.env`.
+
+Ports (facultatifs, utiles pour un second appareil en parallèle) : `ANDROID_APPIUM_PORT` (4723), `IOS_APPIUM_PORT` (4724), `ANDROID_SYSTEM_PORT` (8200), `ANDROID_CHROMEDRIVER_PORT` (9515), `IOS_WDA_PORT` (8100). L'appareil visé précisément : `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `IOS_UDID`, `IOS_DEVICE_NAME`.
+
+### Fichiers d'environnement (`.env.local`, `.env.local.<cible>`)
+
+`.env` est le gabarit commité (valeurs vides, aucun secret) ; chaque poste le copie en `.env.local` (ignoré par git) et le remplit. `just` charge `.env.local` par défaut. Pour une exécution contre un autre environnement, un fichier `.env.local.<cible>` (`.env.local.staging`, `.env.local.preprod`, tous ignorés par git) se choisit avec l'option native de `just` :
+
+```bash
+just -E .env.local.preprod test-ios --suite mobile_short                        # fichier choisi pour cette commande
+AMI_ENV=preprod IOS_APP_PATH=… just -E .env.local.preprod test-ios --suite mobile_short   # + surcharge ponctuelle d'une variable
+```
+
+Un fichier choisi par `-E` doit être **complet** : `.env.local` n'est alors pas relu pour combler ses manques (voir `wdio.base.conf.ts`), pour ne jamais mélanger staging et préprod. Une variable déjà définie dans le shell l'emporte sur les fichiers.
+
 ---
 
 ## Installation

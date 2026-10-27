@@ -3,45 +3,28 @@ import os from 'os'
 import path from 'path'
 import {isPreprod} from '../helpers/common/environment'
 
-// AMI_ENV=preprod → builds préprod (flavor Android `preprod`, cible iOS `AMI-Preproduction`) ; sinon staging
-// (y compris les review apps PR, qui passent par le sélecteur d'environnement du build staging).
+// AMI_ENV=preprod → identifiants d'app préprod (package Android `fr.gouv.ami.preprod`, bundle iOS `fr.gouv.ami.preproduction`) ;
+// sinon staging (y compris les review apps PR, qui passent par le sélecteur d'environnement du build staging).
+// AMI_ENV doit donc correspondre à l'app visée par ANDROID_APP_PATH / IOS_APP_PATH.
 const preprod = isPreprod()
 
-// Chemins vers les apps buildées par les projets mobiles frères
-//   Android : ./gradlew assemble<Flavor>Debug  (assembleStagingDebug / assemblePreprodDebug)
-//   iOS     : xcodebuild -scheme AMI-Staging|AMI-Preproduction … -derivedDataPath ../build
-const ANDROID_FLAVOR = preprod ? 'preprod' : 'staging'
-// ANDROID_APP_PATH : surcharge du chemin de l'APK (worktree hors de l'arborescence des dépôts frères).
-const ANDROID_APP_PATH =
-  process.env.ANDROID_APP_PATH ??
-  path.resolve(__dirname, `../../../ami-app-android/app/build/outputs/apk/${ANDROID_FLAVOR}/debug/app-${ANDROID_FLAVOR}-debug.apk`)
-
-// Build iOS de référence : celui produit par Xcode (DerivedData), `AMI-xcodegen-*/Build/Products/Debug-iphonesimulator/
-// AMI-Staging.app` (préprod : AMI-Preproduction.app). S'il y en a plusieurs, le plus récent. Repli : le build fait en ligne de
-// commande avec `-derivedDataPath ../build` depuis ami-app-ios/ (donc à côté de ami-app-ios/, sous ami/), dont le produit staging
-// s'appelle encore AMI-Production.app (nom historique, bundle fr.gouv.ami.staging). `IOS_APP_PATH` (variable d'environnement)
-// surcharge tout.
-function resolveIosAppPath(): string {
-  if (process.env.IOS_APP_PATH) return process.env.IOS_APP_PATH
-  const derivedData = path.join(os.homedir(), 'Library/Developer/Xcode/DerivedData')
-  const xcodeApp = `${preprod ? 'AMI-Preproduction' : 'AMI-Staging'}.app`
-  let candidates: Array<{path: string, mtimeMs: number}> = []
-  try {
-    candidates = fs.readdirSync(derivedData)
-      .filter(dir => dir.startsWith('AMI-xcodegen-'))
-      .map(dir => path.join(derivedData, dir, 'Build/Products/Debug-iphonesimulator', xcodeApp))
-      .filter(appPath => fs.existsSync(appPath))
-      .map(appPath => ({path: appPath, mtimeMs: fs.statSync(appPath).mtimeMs}))
-  } catch {
-    // DerivedData absent (machine sans Xcode, CI) : repli ci-dessous
+/**
+ * Chemin d'une app mobile buildée, lu dans la variable d'environnement `name` (source unique : aucun chemin par défaut calculé).
+ * Un chemin relatif se lit depuis la racine du projet (`../ami-app-android/…`), `~/` désigne le dossier personnel ; aucun motif (glob).
+ * Absente, ou ne désignant aucun fichier : erreur qui nomme la variable. Valeurs d'exemple dans le gabarit `.env`, construction des
+ * apps dans le README (Prérequis).
+ */
+function appPathFromEnv(name: 'ANDROID_APP_PATH' | 'IOS_APP_PATH'): string {
+  const raw = process.env[name]?.trim()
+  if (!raw) {
+    throw new Error(`${name} est absente : renseigner le chemin de l'app buildée (gabarit .env, README « Prérequis »).`)
   }
-  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)
-  return candidates[0]?.path ?? path.resolve(
-    __dirname,
-    `../../../build/Build/Products/Debug-iphonesimulator/${preprod ? 'AMI-Preproduction' : 'AMI-Production'}.app`
-  )
+  const value = path.resolve(path.resolve(__dirname, '../..'), raw.startsWith('~/') ? path.join(os.homedir(), raw.slice(2)) : raw)
+  if (!fs.existsSync(value)) {
+    throw new Error(`${name} désigne un chemin inexistant : ${value} (app non buildée ? voir README « Prérequis »).`)
+  }
+  return value
 }
-const IOS_APP_PATH = resolveIosAppPath()
 
 // ─── Android ────────────────────────────────────────────────────────────────
 
@@ -61,7 +44,8 @@ export const androidCapabilities = {
   // pour un second émulateur en parallèle sans conflit avec celui par défaut.
   ...(process.env.ANDROID_SYSTEM_PORT ? {'appium:systemPort': Number(process.env.ANDROID_SYSTEM_PORT)} : {}),
   ...(process.env.ANDROID_CHROMEDRIVER_PORT ? {'appium:chromedriverPort': Number(process.env.ANDROID_CHROMEDRIVER_PORT)} : {}),
-  'appium:app': ANDROID_APP_PATH,
+  // Accesseur : la variable n'est exigée que pour un run Android (ce module est aussi chargé côté iOS) ; évalué à la lecture des capabilities.
+  get 'appium:app'(): string { return appPathFromEnv('ANDROID_APP_PATH') },
   'appium:appPackage': preprod ? 'fr.gouv.ami.preprod' : 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
   // L'app reste installée, ouverte et connectée entre deux specs (une session Appium par spec). Avec `noReset: false`, le driver
@@ -90,7 +74,7 @@ export const androidCapabilities = {
 
 // ─── iOS ────────────────────────────────────────────────────────────────────
 
-export const iosCapabilities: WebdriverIO.Capabilities = {
+export const iosCapabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
   // Nom du simulateur, donné par `--device` (justfile). platformVersion absent : le simulateur est visé par son UDID (ci-dessous).
@@ -100,7 +84,8 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
   // Port local de WebDriverAgent surchargeable (IOS_WDA_PORT) pour un second simulateur en parallèle ; défaut du driver : 8100.
   ...(process.env.IOS_WDA_PORT ? {'appium:wdaLocalPort': Number(process.env.IOS_WDA_PORT)} : {}),
-  'appium:app': IOS_APP_PATH,
+  // Accesseur : exigée seulement pour un run iOS (cf. Android).
+  get 'appium:app'(): string { return appPathFromEnv('IOS_APP_PATH') },
   'appium:bundleId': preprod ? 'fr.gouv.ami.preproduction' : 'fr.gouv.ami.staging',
   // `noReset: true` laisse le simulateur tel quel (pas de réinstallation à chaque session) et WDA ne termine ni ne relance l'app.
   // LIMITE (vérifiée le 2026-10-12) : l'app lancée par WDA appartient au processus XCTRunner, que le driver tue à chaque nouvelle
@@ -124,4 +109,4 @@ export const iosCapabilities: WebdriverIO.Capabilities = {
   // 20 fois à 500 ms d'intervalle (défaut du driver) : ~10 s MESURÉS (2026-10-27) à chaque sonde `isWebContextAvailable()`, soit 30 s
   // perdues par connexion. Nos appelants sondent eux-mêmes en boucle (pickWebView, waitForWebViews) : 3 essais suffisent (~1,5 s).
   'appium:webviewConnectRetries': Number(process.env.IOS_WEBVIEW_RETRIES ?? 3),
-}
+} as WebdriverIO.Capabilities

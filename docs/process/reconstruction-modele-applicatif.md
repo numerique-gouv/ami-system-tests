@@ -18,7 +18,7 @@ Relancer ce process quand :
 
 - `.env.local` rempli (`AMI_ENV`, `NOTIF_*`) — ne jamais lire ni afficher son contenu, y compris via un outil.
 - Émulateur/simulateur démarrés : `just start-android` / `just start-ios`.
-- Build à jour : `just build-android` / `just build-ios` (vérifie la présence du binaire, ne le construit pas — le build lui-même se fait dans les dépôts frères `ami-app-android`/`ami-app-ios`).
+- Build à jour : `ANDROID_APP_PATH` / `IOS_APP_PATH` (`.env.local`) désignent l'app à tester ; le build lui-même se fait dans les dépôts frères `ami-app-android` / `ami-app-ios` (Android Studio ou `./gradlew assembleStagingDebug` ; Xcode ; cf. README « Prérequis »).
 - Un compte de test FranceConnect sandbox disponible (`src/helpers/common/test-users.ts`).
 
 ## Étape A — Webapp
@@ -35,7 +35,7 @@ Déléguer au skill `analyze-website` (déjà existant dans `.claude/skills/`) s
 4. Lancer via `just test-android "<chemin>"` / `just test-ios "<chemin>"` (points d'entrée documentés ; `npx wdio run … --spec <chemin>` fonctionne aussi).
 5. **Supprimer le script après avoir lu les captures** — vérifier `git status` pour confirmer qu'aucune trace ne reste avant de continuer.
 
-Le chemin du build iOS a changé au moins une fois (voir Journal ci-dessous) — si `just build-ios`/`just test-ios` échoue à trouver l'app, vérifier d'abord `ios_derived` dans `justfile` et `IOS_APP_PATH` dans `src/driver/capabilities.ts` avant de suspecter autre chose.
+Le chemin du build iOS a changé au moins une fois (voir Journal ci-dessous) — si `just test-ios` échoue à trouver l'app, vérifier d'abord `IOS_APP_PATH` dans `.env.local` (la recette `build-ios` et le calcul de chemin du `justfile` n'existent plus depuis le 2026-10-27 ; l'erreur de `src/driver/capabilities.ts` nomme la variable) avant de suspecter autre chose.
 
 ## Étape C — Consolidation
 

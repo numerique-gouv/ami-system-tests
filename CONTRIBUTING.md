@@ -348,8 +348,8 @@ Les tests modifient l'état ?
   précédent ; vérifier que
   `specFileRetries` rejoue bien tout le fichier (nouvelle session → `before` rejoué), pas un `it()`
   isolé.
-- **Un test ne fait jamais `xcrun simctl` ni `adb` directement.** Il s'appuie sur l'environnement préparé par `just`
-  (émulateur/simulateur démarré, app installée, hook `beforeSession` côté Android). Ça garantit la portabilité (CI, machines différentes) et centralise la chaîne de préparation dans le `justfile`.
+- **Un test ne fait jamais `xcrun simctl` ni `adb` directement.** Il s'appuie sur l'environnement préparé avant le run
+  (émulateur/simulateur démarré par `just start-android` / `just start-ios`, app installée par Appium à partir de `ANDROID_APP_PATH` / `IOS_APP_PATH` ; côté Android, `onPrepare` de `wdio.android.conf.ts` remet l'état à zéro). Ça garantit la portabilité (CI, machines différentes) et centralise la chaîne de préparation dans les configs WDIO et le `justfile`.
 - **Idempotence backend** : un test qui publie des données (notification, post) doit utiliser un identifiant/titre unique horodaté (`` `AMI-vanilla-${Date.now()}` ``) — sinon un backend qui fait un
   `get_or_create` sur le payload retourne le record d'un run précédent au lieu d'en créer un nouveau.
 
@@ -458,4 +458,4 @@ La configuration des reporters est commentée dans `wdio.base.conf.ts`.
   `logLevel: 'warn'`. `specFileRetries` n'est plus un toggle à éditer : 0 en local, 1 en CI, piloté par l'environnement (cf. §7).
 - Avant toute session de débogage approfondie, regarder les dumps d'échec (`just failures-text`) et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
 
-La boucle d'exploration (`wdio session` : `just explore`, `just s`, `just webview`, `just explore-export`, `just debug`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).
+La boucle d'exploration (`wdio session` : `just explore-webapp|android|ios`, `just s`, `just webview`, `just explore-export`, `just debug-webapp`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).
