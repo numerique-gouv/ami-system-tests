@@ -25,7 +25,7 @@ _Template initial généré par `managing-project-customizations` le 2026-09-08.
 
 ## Environnements / réseau
 
-- Tout appel HTTP ajouté dans `src/helpers/*-api.ts` doit avoir un timeout explicite (`AbortSignal.timeout(...)`) — un `fetch()` sans timeout remonte jusqu'au timeout Mocha du hook englobant (120-180s) en cas de coupure réseau. Voir `notifications-api.ts` pour le pattern de référence (`REQUEST_TIMEOUT_MS`).
+- Tout appel HTTP ajouté dans `src/helpers/partner-api/` doit avoir un timeout explicite (`AbortSignal.timeout(...)`) — un `fetch()` sans timeout remonte jusqu'au timeout Mocha du hook englobant (120-180s) en cas de coupure réseau. Voir `src/helpers/partner-api/client.ts` (`REQUEST_TIMEOUT_MS`) et `event.ts` / `consent.ts` pour le pattern de référence.
 
 ## Documentation
 

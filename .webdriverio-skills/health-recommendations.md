@@ -21,8 +21,8 @@ _Générées par `managing-project-customizations` le 2026-09-08._
 - **Pourquoi ça compte** : si ces réglages sont importants pour l'usager (ex. désactivation du suivi par partenaire), une régression y serait actuellement invisible pour la suite de tests.
 - **Piste suggérée** : à confirmer avec l'équipe produit si ces écrans sont business-critical ; si oui, prioriser un scénario `preferences.test.ts` dans `src/tests/mobile/`.
 
-### 3. Appels réseau sans timeout dans les helpers `*-api.ts` (partiellement résolu)
+### 3. Appels réseau sans timeout dans les helpers HTTP `src/helpers/partner-api/` (partiellement résolu)
 
-- **Constat** : `src/helpers/notifications-api.ts` a été corrigé le 2026-09-08 (ajout de `AbortSignal.timeout(15000)` sur `checkConsent`/`grantConsent`/`publishNotification`) suite à une cascade de hooks en échec causée par un `fetch()` sans timeout pendant une coupure réseau.
+- **Constat** : l'ancien `src/helpers/notifications-api.ts` (aujourd'hui éclaté dans `src/helpers/partner-api/`) a été corrigé le 2026-09-08 (ajout de `AbortSignal.timeout(15000)` ; le timeout vit désormais dans `REQUEST_TIMEOUT_MS` de `client.ts`, appliqué par `checkDemarchesConsent`/`grantDemarchesConsent`/`publishEvent`) suite à une cascade de hooks en échec causée par un `fetch()` sans timeout pendant une coupure réseau.
 - **Pourquoi ça compte** : tout futur helper HTTP ajouté au projet risque de reproduire le même problème si le pattern n'est pas documenté.
 - **Piste suggérée** : le pattern est maintenant documenté dans `.webdriverio-skills/custom-rules.md` (§ Environnements / réseau) — vérifier lors des revues de code que tout nouveau `fetch()` dans `src/helpers/` suit ce pattern.

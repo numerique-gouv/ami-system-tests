@@ -89,14 +89,9 @@
   },
   "customCommands": [
     {
-      "name": "tl()",
+      "name": "describeCurrentPage()",
       "file": "src/helpers/spa/webview.ts",
-      "purpose": "Testing Library sur WebView"
-    },
-    {
-      "name": "retourJusquATexteVisible()",
-      "file": "src/helpers/spa/webview.ts",
-      "purpose": "navigation retour répétée jusqu'à sentinel, timeout local 10s indépendant du réseau"
+      "purpose": "décrit l'écran courant (natif ou URL masquée de la SPA) pour les messages d'erreur ; best-effort"
     },
     {
       "name": "getAppToStartingState()",
@@ -111,20 +106,20 @@
   ],
   "apiInterfaces": [
     {
-      "name": "checkConsent",
-      "file": "src/helpers/notifications-api.ts",
+      "name": "checkDemarchesConsent",
+      "file": "src/helpers/partner-api/consent.ts",
       "endpoint": "GET /api/v1/consent/{fc_hash}",
       "timeoutMs": 15000
     },
     {
-      "name": "grantConsent",
-      "file": "src/helpers/notifications-api.ts",
+      "name": "grantDemarchesConsent",
+      "file": "src/helpers/partner-api/consent.ts",
       "endpoint": "POST /api/v1/consent/{fc_hash}",
       "timeoutMs": 15000
     },
     {
-      "name": "publishNotification",
-      "file": "src/helpers/notifications-api.ts",
+      "name": "publishEvent",
+      "file": "src/helpers/partner-api/event.ts",
       "endpoint": "PUT /api/v2/event",
       "timeoutMs": 15000,
       "retries": 5,
