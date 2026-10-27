@@ -10,9 +10,9 @@ const log = logger('page-object')
  * commune. Voir CLAUDE.md §Architecture et docs/adr/2026-07-09-…
  */
 
-// 25 s : chaque appel getContexts() prend ~3 s avec webkitResponseTimeout=3000,
-// soit ~8 tentatives effectives avant timeout.
-const WEBVIEW_WAIT_MS = 25000
+// Une WebView apparaît ~1 s après le choix de l'environnement (mesuré le 2026-10-27, iOS, machine chargée) ; getContexts() coûte ~0,5 s
+// (appium:webviewConnectRetries). 15 s suffisent : l'attente de 25 s d'avant n'était perdue que quand l'app était sur un écran natif.
+const WEBVIEW_WAIT_MS = 15000
 const WEBVIEW_POLL_MS = 500
 // Les métadonnées d'un contexte (titre, URL) retardent de plusieurs secondes sur la page réelle (relevé iOS du 2026-10-14) :
 // on attend un peu le titre visé avant de se rabattre sur la dernière WebView.

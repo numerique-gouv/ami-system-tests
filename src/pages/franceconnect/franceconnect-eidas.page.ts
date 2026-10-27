@@ -18,6 +18,8 @@ class FranceConnectEidasPage {
      * authentifier directement (session SSO déjà ouverte), sans demander eIDAS ni identifiants.
      */
     async waitForEidasTile(timeout = 15000): Promise<boolean> {
+        // iOS : constaté par l'arbre natif (présent ~1 s après le clic FranceConnect). Session SSO ouverte : 15 s d'attente pour rien dans la WebView.
+        if (driver.isIOS) return await waitForNativeAx(iosEidasLinkNativeAx, 'present', 'Page eIDAS', Math.min(timeout, 6000))
         return await this.isEidasVisible(timeout)
     }
 
