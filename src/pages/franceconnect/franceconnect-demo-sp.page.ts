@@ -1,5 +1,5 @@
 import {fcDemoSpLocators} from '../locators/franceconnect/franceconnect-demo-sp.locators'
-import {traced} from '../../helpers/traced'
+import {traced} from '../../helpers/reporting/traced'
 import {clickDisplayed, firstDisplayed, isShown} from '../../helpers/spa'
 import FranceConnectEidasPage from './franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect-credentials.page'

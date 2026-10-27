@@ -1,4 +1,4 @@
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import logger from "@wdio/logger";
 import {clickDisplayed, firstDisplayed, hasPageText, waitForHeading} from '../helpers/spa'
 import {homeContentLocators} from './locators/home.locators'

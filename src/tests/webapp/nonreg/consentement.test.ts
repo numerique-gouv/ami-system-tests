@@ -9,7 +9,7 @@ import {
   publicationOutcome, grantDemarchesConsent, publishDemarche, publishNotification, revokeDemarchesConsent,
 } from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
-import {step} from '../../../helpers/report'
+import {step} from '../../../helpers/reporting/report'
 import {hasPageText} from '../../../helpers/spa'
 import logger from '@wdio/logger'
 

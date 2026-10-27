@@ -6,7 +6,7 @@ import OnboardingZonesPage from '../../pages/onboarding-zones.page'
 import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/test-users'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 
 /**
  * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil, en webapp.

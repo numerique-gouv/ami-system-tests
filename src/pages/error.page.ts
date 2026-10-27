@@ -1,4 +1,4 @@
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {waitForHeading} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 

@@ -1,11 +1,11 @@
 import fs from 'fs'
 import path from 'path'
 import logger from '@wdio/logger'
-import {platform} from '../platform'
+import {platform} from '../../platform'
 import {currentSteps} from './report'
 import {readSentryIds, sentryTraceUrl} from './sentry'
-import {maskSensitiveUrl} from './session'
-import {getBackendUrl} from './partner-api'
+import {maskSensitiveUrl} from '../session'
+import {getBackendUrl} from '../partner-api'
 
 const log = logger('config')
 

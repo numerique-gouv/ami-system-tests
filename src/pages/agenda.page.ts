@@ -1,5 +1,5 @@
 import {agendaLocators} from './locators/agenda.locators'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {allDisplayed, clickButton, clickDisplayed, firstDisplayed, isShown, waitForHeading} from '../helpers/spa'
 import NavigationPage from './navigation.page'
 

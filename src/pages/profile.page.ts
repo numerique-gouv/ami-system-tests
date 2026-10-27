@@ -1,5 +1,5 @@
 import {platform} from '../platform'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {getProfileLocators} from './locators/profile.locators'
 import logger from "@wdio/logger";
 import {clickDisplayed, clickRole, firstDisplayed, isShown, waitForHeading} from '../helpers/spa'

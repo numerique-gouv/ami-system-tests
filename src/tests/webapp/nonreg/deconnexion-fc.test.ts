@@ -5,7 +5,7 @@ import FranceConnectDemoSpPage from '../../../pages/franceconnect/franceconnect-
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {environmentKind} from '../../../helpers/environment'
 import {getUser} from '../../../helpers/test-users'
-import {step} from '../../../helpers/report'
+import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
 

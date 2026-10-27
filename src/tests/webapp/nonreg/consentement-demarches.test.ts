@@ -8,7 +8,7 @@ import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {PARTNER_AMI, PARTNER_DN, getBackendUrl, checkDemarchesConsent, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials, type PartnerId} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/test-users'
-import {step} from '../../../helpers/report'
+import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
 

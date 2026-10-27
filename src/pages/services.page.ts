@@ -1,6 +1,6 @@
 import {servicesLocators} from './locators/services.locators'
 import {stepsListLocators} from './locators/steps-list.locators'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {allDisplayed, checkboxStates, clickButton, clickButtonUntilGone, firstDisplayed, visibleButtonTexts, waitForHeading} from '../helpers/spa'
 import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/link-check'
 import NavigationPage from './navigation.page'

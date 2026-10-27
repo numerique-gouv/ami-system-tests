@@ -4,7 +4,7 @@ import PreferencesPage from '../../pages/preferences.page'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche, publishNotification} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 import logger from '@wdio/logger'
 
 const log = logger('test')

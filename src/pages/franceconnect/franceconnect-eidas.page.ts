@@ -1,5 +1,5 @@
 import {fcEidasLocators} from '../locators/franceconnect/franceconnect-eidas.locators'
-import {traced} from '../../helpers/traced'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import {clickDisplayed, isShown} from '../../helpers/spa'
 

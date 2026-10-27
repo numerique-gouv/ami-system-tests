@@ -1,5 +1,5 @@
 import {getEnvironmentPickerLocators} from '../locators/franceconnect/environment-picker.locators'
-import {traced} from '../../helpers/traced'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import {setBackendUrl} from '../../helpers/partner-api'
 import {backendUrlFor} from '../../helpers/environment'

@@ -4,7 +4,7 @@ import ServicesPage from '../../../pages/services.page'
 import StepsListPage from '../../../pages/steps-list.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, mapWithConcurrency, type DeferredLink, type LinkTarget} from '../../../helpers/link-check'
-import {step} from '../../../helpers/report'
+import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
 

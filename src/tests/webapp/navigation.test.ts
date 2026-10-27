@@ -8,7 +8,7 @@ import ServicesPage from '../../pages/services.page'
 import SuiviDemarchesPage from '../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import type {PlusEntry, TabName} from '../../pages/locators/navigation.locators'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 
 /** Vérification d'arrivée de chaque page « onglet », portée par la page destination. */
 const tabArrival: Record<Exclude<TabName, 'Accueil'>, () => Promise<void>> = {

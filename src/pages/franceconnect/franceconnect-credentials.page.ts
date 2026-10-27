@@ -1,5 +1,5 @@
 import {fcCredentialsLocators} from '../locators/franceconnect/franceconnect-credentials.locators'
-import {traced} from '../../helpers/traced'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import type {TestUser} from '../../helpers/test-users'
 import logger from "@wdio/logger";

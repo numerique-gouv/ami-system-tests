@@ -1,5 +1,5 @@
 import { platform } from '../platform'
-import { traced } from '@helpers/traced'
+import { traced } from '@helpers/reporting/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";

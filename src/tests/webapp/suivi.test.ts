@@ -5,7 +5,7 @@ import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche} from
 import {getUser} from '../../helpers/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import logger from '@wdio/logger'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 
 const log = logger('test')
 

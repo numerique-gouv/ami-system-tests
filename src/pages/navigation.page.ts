@@ -1,7 +1,7 @@
 import {navigationLocators} from './locators/navigation.locators'
 import type {PlusEntry, TabName} from './locators/navigation.locators'
 import {platform} from '../platform'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {clickDisplayed, firstDisplayed} from '../helpers/spa'
 
 /**

@@ -1,5 +1,5 @@
 import {androidFcButton, iosFcButtonNativeAx, webFcButton, webFcButtonAny} from '../locators/franceconnect/franceconnect-mire.locators'
-import {traced} from '../../helpers/traced'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";

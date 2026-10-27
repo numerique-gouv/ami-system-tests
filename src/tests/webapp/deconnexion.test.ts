@@ -1,7 +1,7 @@
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import {getAppToStartingState} from '@pages/authenticate.process'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 
 // Valeur clairement identifiable comme donnée de test. Le logout supprime les données saisies dans
 // l'app (modale « Suppression de vos données ») : la reconnexion doit retrouver les données d'origine.

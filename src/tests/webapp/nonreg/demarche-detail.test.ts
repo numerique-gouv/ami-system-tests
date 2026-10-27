@@ -8,7 +8,7 @@ import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche, publishDemarcheEnfant} from '../../../helpers/partner-api'
 import {describeTarget, isBrokenTarget, isExpectedUnreachable, isLoginWall, toleratedUnreachableWarning} from '../../../helpers/link-check'
 import {getUser} from '../../../helpers/test-users'
-import {step} from '../../../helpers/report'
+import {step} from '../../../helpers/reporting/report'
 import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 

@@ -6,7 +6,7 @@ import OnboardingZonesPage from '../../../pages/onboarding-zones.page'
 import OnboardingNotificationsPage from '../../../pages/onboarding-notifications.page'
 import HomePage from '../../../pages/home.page'
 import {getUser} from '../../../helpers/test-users'
-import {step} from '../../../helpers/report'
+import {step} from '../../../helpers/reporting/report'
 
 /**
  * Onboarding passkey (plan : passkey.md, scénario S11). Réunion du 2026-10-06, 01:12–01:40 : « soit tu ajoutes une clé, soit tu

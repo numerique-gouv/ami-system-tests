@@ -1,4 +1,4 @@
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {systemNotificationsLocators as loc} from './locators/system-notifications.locators'
 import {
   activeNotificationRecords, appNotificationsImportance, clearLogcat, focusedWindow, grantPostNotifications, isPostNotificationsGranted, logcatTag, postNotificationAppOps,

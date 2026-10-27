@@ -1,5 +1,5 @@
 import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {clickDisplayed, isShown} from '../helpers/spa'
 
 /**

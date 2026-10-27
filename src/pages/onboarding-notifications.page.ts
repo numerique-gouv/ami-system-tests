@@ -1,6 +1,6 @@
 import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
 import {platform} from '../platform'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import logger from '@wdio/logger'
 import {clickDisplayed, isShown} from '../helpers/spa'
 

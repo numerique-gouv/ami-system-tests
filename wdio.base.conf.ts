@@ -2,11 +2,11 @@ import type { Options } from '@wdio/types'
 import path from 'path'
 import dotenv from 'dotenv'
 import logger from '@wdio/logger'
-import { dumpFailure } from './src/helpers/failure-dump'
-import { resetSteps } from './src/helpers/report'
-import { mergeRunReports, stripRawCommandLogs } from './src/helpers/junit-clean'
-import { redactTraces } from './src/helpers/trace-redact'
-import { runDirName } from './src/helpers/run-dir'
+import { dumpFailure } from './src/helpers/reporting/failure-dump'
+import { resetSteps } from './src/helpers/reporting/report'
+import { mergeRunReports, stripRawCommandLogs } from './src/helpers/reporting/junit-clean'
+import { redactTraces } from './src/helpers/reporting/trace-redact'
+import { runDirName } from './src/helpers/reporting/run-dir'
 
 const log = logger('scenario')
 

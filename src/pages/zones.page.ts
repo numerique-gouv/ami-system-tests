@@ -1,5 +1,5 @@
 import {zonesLocators} from './locators/zones.locators'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {checkboxStates, clickButton, setCheckbox, waitForButtons, waitForHeading} from '../helpers/spa'
 
 /**

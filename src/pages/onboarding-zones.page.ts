@@ -1,5 +1,5 @@
 import {onboardingZonesLocators} from './locators/onboarding-zones.locators'
-import {traced} from '../helpers/traced'
+import {traced} from '../helpers/reporting/traced'
 import {clickDisplayed, isShown} from '../helpers/spa'
 
 /**

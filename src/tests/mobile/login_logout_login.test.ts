@@ -1,7 +1,7 @@
 import ProfilePage from '@pages/profile.page'
 import FranceConnectMirePage from '@pages/franceconnect/franceconnect-mire.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
 
 describe('Profil usager — déconnexion suivie d\'une reconnexion', function () {

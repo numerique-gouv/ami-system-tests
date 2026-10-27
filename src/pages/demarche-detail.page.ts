@@ -1,4 +1,4 @@
-import { traced } from '@helpers/traced'
+import { traced } from '@helpers/reporting/traced'
 import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
 import {clickDisplayed, hasPageText, isShown, pageText, waitForPageText} from '@helpers/spa'

@@ -1,6 +1,6 @@
 import ProfilePage from '@pages/profile.page'
 import { getAppToStartingState } from '@pages/authenticate.process'
-import {step} from '@helpers/report'
+import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
