@@ -373,11 +373,11 @@ Allure a été retiré (2026-10-08). Ce qui reste :
 
 | Déclencheur | Webapp | Android | Appareil | APK |
 |---|---|---|---|---|
-| PR (API) | `webapp_nonreg` | `mobile_nonreg` | récent `pixel_8_api36` | dernier tag d'ami-app-android |
-| merge (API) | `webapp_nonreg` | `mobile_nonreg`, un seul passage | ancien `pixel_2_api30` | dernier tag d'ami-app-android |
+| PR (API) | `webapp_nonreg` | `mobile_nonreg`, un seul passage | ancien `pixel_2_api30` | dernier tag d'ami-app-android |
+| merge (API) | `webapp_nonreg` | `mobile_nonreg`, un seul passage | récent `pixel_8_api36` | dernier tag d'ami-app-android |
 | tag (API) | `webapp_short` | — | — | — |
-| PR (app Android) | — | `mobile_nonreg` | récent `pixel_8_api36` | celui que la PR construit |
-| merge (app Android) | — | `mobile_nonreg`, un seul passage | ancien `pixel_2_api30` | celui que le merge construit |
+| PR (app Android) | — | `mobile_nonreg`, un seul passage | ancien `pixel_2_api30` | celui que la PR construit |
+| merge (app Android) | — | `mobile_nonreg`, un seul passage | récent `pixel_8_api36` | celui que le merge construit |
 | tag (app Android) | — | `mobile_ci` | ancien `pixel_2_api30` | construit + publié (`app-staging-debug-<tag>`) |
 
 **APK du dernier tag (API)** : `apk_source: latest-tag` de `workflow-e2e-main.yml` retrouve le dernier artefact `app-staging-debug-<tag>` non expiré d'ami-app-android (rétention 90 jours, dépôt privé). Il faut un jeton d'installation de la GitHub App `ami-reviewapps` (déjà utilisée par le backend : `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` côté Scalingo, hors GitHub Actions), généré par `actions/create-github-app-token` limité à `ami-app-android` et `actions: read`. À créer dans le dépôt de l'API (valeurs fournies par l'équipe, jamais dans le code) : variable `AMI_REVIEWAPPS_APP_ID` et secret `AMI_REVIEWAPPS_PRIVATE_KEY` (PEM brut ; le secret Scalingo est en base64, et GitHub interdit les noms commençant par `GITHUB_`). Noms proposés, à valider.
