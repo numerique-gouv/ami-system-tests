@@ -3,7 +3,7 @@
 Suite de tests système mobiles (iOS + Android) et webapp (Chrome) pour l'application AMI.
 Les scénarios couvrent les parcours utilisateurs complets : authentification FranceConnect, notifications push, démarches, etc.
 
-**Stack** : WebdriverIO v9 + Appium 3 + TypeScript
+**Stack** : WebdriverIO 10 + Appium 3 + TypeScript
 
 ---
 
@@ -16,6 +16,8 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 | Android SDK + `adb` | Android Studio → SDK Manager |
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
 | Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `npm run appium:install`, installées sous `~/.appium`) | `just setup` (ou `just install-appium-drivers`) |
+
+**Piège après `npm install` ou `appium driver update`** : les liens symboliques `appium` de `~/.appium/node_modules/appium-*-driver/node_modules` disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall` puis `appium driver install` des deux pilotes (`APPIUM_HOME=~/.appium`), ou `just install-appium-drivers` après les avoir désinstallés ; à refaire après toute mise à jour des pilotes.
 
 Simulateur iOS attendu : **iPhone 17 Pro** (nom dans `IOS_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device "<nom>"` : `just test-ios --device "iPhone 17 Pro"`)
 Émulateur Android : AVD de type Pixel, API 36 — nom dans `ANDROID_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device` : `just test-android --device pixel_2_api30`

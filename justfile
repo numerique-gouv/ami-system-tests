@@ -68,6 +68,9 @@ check:
 # Passer par cette recette (plutôt que `npm run appium:install` en direct) garantit que l'install et le
 # `just test-android`/`test-ios` qui suivra utilisent le même APPIUM_HOME.
 # Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus).
+# Piège : après `npm install` ou `appium driver update`, les liens symboliques `appium` dans ~/.appium/node_modules/appium-*-driver/node_modules
+# disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall`
+# puis `install` des deux pilotes (APPIUM_HOME=~/.appium), donc cette recette après désinstallation ; à refaire après toute mise à jour des pilotes.
 install-appium-drivers:
     @echo "📥 Installation des drivers Appium…"
     npm run appium:install || true

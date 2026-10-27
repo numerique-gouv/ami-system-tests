@@ -1,7 +1,7 @@
 # CLAUDE.md — WebdriverIO / Appium
 
 Tests E2E mobiles (iOS + Android) et webapp (Chrome) pour l'application AMI.
-Stack : WebdriverIO v9 + Appium 3 + TypeScript.
+Stack : WebdriverIO 10 + Appium 3 + TypeScript.
 
 Les apps cibles sont dans les dépôts frères `../ami-app-android` et `../ami-app-ios`.
 
