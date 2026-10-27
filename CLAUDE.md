@@ -16,7 +16,7 @@ just test-webapp                                    # tests webapp, Chrome visib
 just test-webci                                     # tests webapp, headless (mode CI)
 just test-android --spec "src/tests/mobile/notifications*" # un ou plusieurs fichiers (`--spec` répétable ; glob entre guillemets)
 just test-android --suite mobile_all                 # suite nommée (mobile_short|smoke|all, webapp_short|smoke|usage|all : tableau « Suites nommées » de CONTRIBUTING.md) (option native `suites` de wdio.base.conf.ts ; appel direct : `npx wdio run wdio.webapp.conf.ts --suite webapp_smoke`), idem test-ios / test-webapp / test-webci ; `--device` est lu par test-android et test-ios, le reste va à wdio
-just explore-webapp "/#/agenda"                     # session d'exploration (idem explore-android, explore-ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
+just explore-webapp "/#/agenda"                     # session d'exploration (idem explore-android, explore-ios), puis `just s <cible> snapshot -i` (DOM d'une WebView mobile : DevTools)
 just debug-webapp src/tests/webapp/agenda.parcours.test.ts   # test figé à son premier échec (mobile : `npx wdio run wdio.android.conf.ts --spec … --debug=agent` ; session debug-0-0), puis `just s debug-0-0 snapshot -i`
 just doctor                                         # diagnostic de l'environnement (Node, Appium, SDK, simulateurs)
 just failures-text                                       # liste les tests en échec du dernier run (étapes, erreur, identifiants Sentry, chemin du transcript.md de la trace) ; `just failures-ui` ouvre la trace dans le lecteur DevTools

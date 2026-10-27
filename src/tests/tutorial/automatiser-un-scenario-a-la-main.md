@@ -283,7 +283,7 @@ Le scénario est identique côté API ; seuls l'accès à l'app et la connexion 
 | Locators natifs | `resource-id` | `accessibility id` |
 | Locators de la WebView | rôle ARIA, identiques | rôle ARIA, identiques |
 | Bouton FranceConnect | natif | dans la WebView (DOM) |
-| `snapshot` dans l'app hybride | lit l'arbre natif et plante après `contexts switch` (constaté le 2026-10-08) : utiliser `just webview android` | non vérifié dans ce dépôt |
+| `snapshot` dans l'app hybride | lit l'arbre natif et plante après `contexts switch` (constaté le 2026-10-08) : inspecter la WebView avec les DevTools | non vérifié dans ce dépôt |
 | Arbre d'accessibilité après une redirection | rien à faire | périmé : à rafraîchir (`refreshAxTree`, via `getPageSource`) |
 | Tirer pour rafraîchir | geste natif vers le bas | le geste peut être bloqué par le `UIRefreshControl` : recharger la page à la place |
 | App gardée ouverte entre deux specs | **oui** (`noReset`) : spec 2 en 34 s au lieu de 118 s | **non** |

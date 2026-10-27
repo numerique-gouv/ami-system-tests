@@ -344,8 +344,8 @@ explore-webapp route="/":
 
 # Usage : just explore-android
 # Ouvre une session d'exploration sur l'app Android de ANDROID_APP_PATH (émulateur déjà démarré : just start-android), sans réinitialiser l'app.
-# L'app apparaît d'abord sur le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView (`just webview android`).
-# En Android hybride, `snapshot` lit l'arbre natif. Appareil précis : ANDROID_UDID.
+# L'app apparaît d'abord sur le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView (à inspecter avec les DevTools).
+# En Android hybride, `snapshot` lit l'arbre natif (et plante après `contexts switch`, WDIO 10.0.1) : DevTools pour le DOM de la WebView. Appareil précis : ANDROID_UDID.
 [doc("Session d'exploration Android (app de ANDROID_APP_PATH)")]
 explore-android:
     #!/usr/bin/env bash
@@ -389,14 +389,6 @@ explore-export name target="webapp" page_objects="":
 # Ferme la session d'une cible.
 explore-close target="webapp":
     npx wdio session -s {{ target }} close
-
-# Sert surtout sur mobile : en Android hybride, `snapshot` lit l'arbre natif et plante après `contexts switch`
-# (constaté le 2026-10-08, WDIO 10.0.1), alors que `exec` lit bien le DOM. Bascule seule sur la WebView, puis
-# revient en natif. Sans WebView (sélecteur d'environnement, écran natif), utiliser `just s <cible> snapshot -i`.
-# Liste les éléments interactifs du DOM de la WebView d'une session ouverte avec `just explore-<cible>`.
-[doc("DOM de la WebView d'une session ouverte · [CIBLE]")]
-webview target="webapp":
-    npx wdio session -s {{ target }} exec < src/scripts/webview-dump.js
 
 # Usage : just debug-webapp src/tests/webapp/agenda.parcours.test.ts
 # Lance un test webapp et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook (`before all`) ne déclenche pas

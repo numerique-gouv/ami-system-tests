@@ -458,4 +458,4 @@ La configuration des reporters est commentée dans `wdio.base.conf.ts`.
   `logLevel: 'warn'`. `specFileRetries` n'est plus un toggle à éditer : 0 en local, 1 en CI, piloté par l'environnement (cf. §7).
 - Avant toute session de débogage approfondie, regarder les dumps d'échec (`just failures-text`) et les logs Appium (`.wdio-logs/`) — souvent suffisant pour identifier la commande qui a échoué sans avoir à relancer en `logLevel: 'debug'`.
 
-La boucle d'exploration (`wdio session` : `just explore-webapp|android|ios`, `just s`, `just webview`, `just explore-export`, `just debug-webapp`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).
+La boucle d'exploration (`wdio session` : `just explore-webapp|android|ios`, `just s`, `just explore-export`, `just debug-webapp`) et le détail des commandes `just` sont documentés dans le [README](README.md#explorer-et-déboguer-avec-wdio-session-webdriverio-10).

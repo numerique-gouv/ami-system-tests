@@ -56,7 +56,7 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 | `wdio.conf.js` | `wdio.base.conf.ts` (partagé) + `wdio.{android,ios,webapp}.conf.ts` (par plateforme) |
 | lint/typecheck générique | `just check-code` |
 | génération de rapport | `just open-report` (ou `just report` pour régénérer) |
-| exploration DOM/inspection | `just explore-<cible>` puis `just s <cible> snapshot -i` · `just webview <cible>` |
+| exploration DOM/inspection | `just explore-<cible>` puis `just s <cible> snapshot -i` · DevTools (WebView) |
 
 ## Conventions de code (lint)
 
