@@ -10,6 +10,7 @@
     "test:android:staging": "APP_ENV=staging wdio run wdio.android.conf.ts",
     "test:ios:staging": "APP_ENV=staging wdio run wdio.ios.conf.ts",
     "test:unit": "node --require ts-node/register --test \"src/helpers/**/*.test.ts\"",
+    "test:unit:ci": "node --test .github/scripts/e2e-comment.test.mjs",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
