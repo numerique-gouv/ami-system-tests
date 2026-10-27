@@ -29,6 +29,10 @@ on:
         description: "numéro de la PR de source_repo à commenter ; 0 = pas de PR (push/tag) : pas de commentaire"
         type: number
         default: 0
+      comment_pr_number:
+        description: "numéro de PR à commenter et clé des artefacts quand il diffère de pr_number (ex. tests Android toujours lancés sur staging avec pr_number 0 mais rattachés à une PR) ; 0 = pr_number"
+        type: number
+        default: 0
       checkout_ref:
         description: "ref (branche/tag/sha) d'ami-system-tests à checkout — doit correspondre au ref utilisé dans le uses: qui pointe vers ce workflow"
         type: string
@@ -123,7 +127,7 @@ jobs:
         if: ${{ always() }}
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
-          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
         run: |
           RAW="${SOURCE_REPO}-pr${PR_NUMBER}"
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
@@ -189,7 +193,7 @@ jobs:
         id: names
         env:
           SOURCE_REPO: ${{ inputs.source_repo }}
-          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_WEBAPP: ${{ inputs.run_webapp }}
           RUN_ANDROID: ${{ inputs.run_android }}
@@ -258,7 +262,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           repo: ${{ inputs.source_repo }}
-          pr-number: ${{ inputs.pr_number }}
+          pr-number: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
           junit-dir: reports
           run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           artifacts: ${{ steps.names.outputs.artifact_webapp }},${{ steps.names.outputs.artifact_android }}
