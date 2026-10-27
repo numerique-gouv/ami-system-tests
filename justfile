@@ -312,7 +312,8 @@ check-code:
 #   just test-android-grep Notifications     → filtre par describe/it (grep Mocha, regex JS)
 #   just test-android-suite mobile_all       → tous les tests mobiles (liste plate de specs : un worker par spec, comme --spec a --spec b)
 #   just test-android-suite mobile_smoke     → smoke mobile (valider un déploiement) ; mobile_short = authentification seule
-#   (appel natif, sans just : npx wdio run wdio.webapp.conf.ts --suite webapp_smoke ; suites définies dans wdio.base.conf.ts)
+#   just list-suites                         → liste les suites nommées et leurs motifs de specs (définies dans l'option `suites` de wdio.base.conf.ts)
+#   (appel natif, sans just : npx wdio run wdio.webapp.conf.ts --suite webapp_smoke)
 
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 # Garde-fou : hors CI, .env.local est obligatoire (AMI_ENV, NOTIF_*).
@@ -366,7 +367,7 @@ test-ios device="" *globs="": _require-dotenv (start-ios device)
     fi
 
 # Exemple : just test-android-suite mobile_all   |   just test-android-suite mobile_short --device pixel_2_api30
-[doc("Tests E2E Android, suite nommée · SUITE [--device AVD]")]
+[doc("Tests E2E Android, suite nommée (mobile_short | mobile_smoke | mobile_all ; just list-suites) · SUITE [--device AVD]")]
 [arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
 test-android-suite suite device="": _require-dotenv (start-android device)
     #!/usr/bin/env bash
@@ -376,7 +377,7 @@ test-android-suite suite device="": _require-dotenv (start-android device)
     npm run test:android -- --suite {{suite}}
 
 # Exemple : just test-ios-suite mobile_smoke   |   just test-ios-suite mobile_all --device "iPhone 17 Pro"
-[doc("Tests E2E iOS, suite nommée · SUITE [--device NOM]")]
+[doc("Tests E2E iOS, suite nommée (mobile_short | mobile_smoke | mobile_all ; just list-suites) · SUITE [--device NOM]")]
 [arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
 test-ios-suite suite device="": _require-dotenv (start-ios device)
     #!/usr/bin/env bash
@@ -402,7 +403,7 @@ test-webci *globs="": _require-dotenv
     fi
 
 # Exemple : AMI_ENV=staging just test-webci-suite webapp_smoke   (valider un déploiement)   |   just test-webci-suite webapp_all   (tester un déploiement)
-# Lancer les tests E2E webapp (CI) avec une suite nommée (webapp_*, liste plate de specs : un worker par spec)
+# Lancer les tests E2E webapp (CI) avec une suite nommée : webapp_short | webapp_smoke | webapp_usage | webapp_all (définies dans wdio.base.conf.ts, option `suites` ; `just list-suites` les affiche)
 test-webci-suite suite: _require-dotenv
     npm run test:webapp -- --suite {{suite}}
 
@@ -445,9 +446,14 @@ test-webvideo *globs: _require-dotenv
     exit "${status:-0}"
 
 # Exemple : just test-webapp-suite webapp_usage
-# Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (webapp_*, liste plate de specs : un worker par spec)
+# Lancer les tests E2E webapp (Chrome visible) avec une suite nommée : webapp_short | webapp_smoke | webapp_usage | webapp_all (définies dans wdio.base.conf.ts, option `suites` ; `just list-suites` les affiche)
 test-webapp-suite suite: _require-dotenv
     WEBAPP_HEADLESS=false npm run test:webapp -- --suite {{suite}}
+
+# Exemple : just list-suites
+# Liste les suites nommées (option `suites` de wdio.base.conf.ts) avec leurs motifs de specs, sans lancer wdio
+list-suites:
+    npx ts-node --project tsconfig.json -e "import {baseConfig} from './wdio.base.conf'; for (const [name, patterns] of Object.entries(baseConfig.suites ?? {})) console.log(name.padEnd(14), (patterns as string[]).map(p => p.replace(process.cwd() + '/', '')).join('   +   '))"
 
 # ─── Exploration et débogage (wdio session, WebdriverIO 10) ─────────────────
 # Une session `wdio session` survit à la commande qui l'a ouverte (arrêt après 30 min d'inactivité) : on enchaîne

@@ -15,6 +15,7 @@ just test-ios                                       # tous les tests iOS
 just test-webapp                                    # tests webapp, Chrome visible
 just test-webci                                     # tests webapp, headless (mode CI)
 just test-android "src/tests/mobile/notifications*" # un ou plusieurs fichiers (glob)
+just list-suites                                    # noms des suites et leurs motifs de specs (wdio.base.conf.ts : option native `suites`)
 just test-android-suite mobile_all                  # suite nommée (mobile_short|smoke|all, webapp_short|smoke|usage|all : tableau « Suites nommées » de CONTRIBUTING.md) (option native `suites` de wdio.base.conf.ts ; appel direct : `npx wdio run wdio.webapp.conf.ts --suite webapp_smoke`), idem test-ios-suite / test-webapp-suite / test-webci-suite
 just explore-webapp "/#/agenda"                     # session d'exploration (idem explore-android, explore-ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
 just debug-webapp src/tests/webapp/agenda.parcours.test.ts   # test figé à son premier échec (idem debug-android, debug-ios ; session debug-0-0), puis `just s debug-0-0 snapshot -i`
