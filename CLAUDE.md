@@ -35,8 +35,8 @@ just failures-text                                       # liste les tests en é
 | **Cas particuliers** | commentaires dans le fichier de code concerné | non documentés dans un fichier séparé. |
 
 La plupart des skills sous `.claude/skills/` viennent du pack tiers `klamping/webdriverio-skills`,
-réinstallé par `just setup-claude` (`npx skills add klamping/webdriverio-skills`) — une édition
-in-place d'un de ces `SKILL.md` est **écrasée au prochain `just setup-claude`**. Le skill
+réinstallé par la commande directe `npx skills add klamping/webdriverio-skills` — une édition
+in-place d'un de ces `SKILL.md` est **écrasée à la réinstallation du pack**. Le skill
 `reconstructing-app-model` est propre à ce projet (pas issu du pack) et doit être préservé.
 
 Dès que la webapp, l'app Android ou l'app iOS a changé, mettre à jour les tests en repartant du

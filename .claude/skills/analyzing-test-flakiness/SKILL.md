@@ -13,8 +13,8 @@ This skill is an orchestration layer around a purpose-built script. It does not 
 JUnit XML or debug a single test — it owns the campaign loop, the archiving contract the script
 depends on, and the fan-out to diagnostic agents.
 
-Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — `just setup-claude`
-does not overwrite it. Since 2026-10-08 the script reads the **JUnit XML** produced by WebdriverIO's
+Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — reinstalling the pack
+(`npx skills add klamping/webdriverio-skills`) does not overwrite it. Since 2026-10-08 the script reads the **JUnit XML** produced by WebdriverIO's
 JUnit reporter and the **failure dumps** written by `src/helpers/reporting/failure-dump.ts` (Allure was removed).
 
 ## When to Use

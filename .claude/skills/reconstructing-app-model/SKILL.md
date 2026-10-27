@@ -9,7 +9,7 @@ Orchestrate the recurring cycle: re-derive the app model from live evidence, aud
 
 This skill is an orchestration layer. It does not itself explore the webapp or write test implementations — it delegates those to existing skills, and it owns the native-screen capture step and the mandatory user checkpoints that tie the whole cycle together.
 
-Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — `just setup-claude` does not overwrite it.
+Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — reinstalling the pack (`npx skills add klamping/webdriverio-skills`) does not overwrite it.
 
 ## Delegation Contract
 
@@ -104,7 +104,7 @@ A complete run may touch: `references/website-analysis/<target>/website-analysis
 
 - Duplicating the model's content into the process doc instead of pointing to `website-analysis.md`.
 - Inventing a locator from the model without live validation.
-- Editing a pack-vendored SKILL.md without realizing `just setup-claude` will overwrite it — prefer reinforcing `.webdriverio-skills/project-context.md`/`custom-rules.md` first (see Project Command Mapping).
+- Editing a pack-vendored SKILL.md without realizing that reinstalling the pack (`npx skills add klamping/webdriverio-skills`) will overwrite it — prefer reinforcing `.webdriverio-skills/project-context.md`/`custom-rules.md` first (see Project Command Mapping).
 - Attributing an observed anomaly to a known bug without evidence (e.g. an iOS screen reappearing is not automatically "the OIDC concurrency bug" just because that bug is known to exist).
 - Scaffolding every coverage gap without asking the user to prioritize — the model's importance levels are not confirmed business judgment.
 - Re-running the full webapp exploration when the cached model is still valid — check staleness first.
