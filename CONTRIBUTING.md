@@ -380,6 +380,8 @@ Allure a été retiré (2026-10-08). Ce qui reste :
 | merge (app Android) | — | `mobile_nonreg`, un seul passage | récent `pixel_8_api36` | celui que le merge construit |
 | tag (app Android) | — | `mobile_ci` | ancien `pixel_2_api30` | construit + publié (`app-staging-debug-<tag>`) |
 
+**Secrets et variables GitHub** à créer dans le dépôt appelant (transmis par `secrets: inherit` ; jamais de valeur dans le code) : `NOTIF_PARTNER_ID` et `NOTIF_PARTNER_SECRET` (partenaire AMI), `NOTIF_PARTNER_DINUM_DN_ID` et `NOTIF_PARTNER_DINUM_DN_SECRET` (partenaire `dinum-dn`, consentement activé : scénarios S5, S5.2 et S6.3 de la webapp, SKIPPÉS « BLOQUÉ » s'ils sont absents ; inutiles dans `ami-app-android`, dont les tests mobiles n'utilisent que le partenaire AMI), `WEB_APP_ACCESS_KEYS`, et pour l'APK du dernier tag la variable `AMI_REVIEWAPPS_APP_ID` + le secret `AMI_REVIEWAPPS_PRIVATE_KEY`.
+
 **APK du dernier tag (API)** : `apk_source: latest-tag` de `workflow-e2e-main.yml` retrouve le dernier artefact `app-staging-debug-<tag>` non expiré d'ami-app-android (rétention 90 jours, dépôt privé). Il faut un jeton d'installation de la GitHub App `ami-reviewapps` (déjà utilisée par le backend : `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` côté Scalingo, hors GitHub Actions), généré par `actions/create-github-app-token` limité à `ami-app-android` et `actions: read`. À créer dans le dépôt de l'API (valeurs fournies par l'équipe, jamais dans le code) : variable `AMI_REVIEWAPPS_APP_ID` et secret `AMI_REVIEWAPPS_PRIVATE_KEY` (PEM brut ; le secret Scalingo est en base64, et GitHub interdit les noms commençant par `GITHUB_`). Noms proposés, à valider.
 
 Texte prêt à coller pour la demande administrative :

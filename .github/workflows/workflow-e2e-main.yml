@@ -70,10 +70,38 @@ permissions:
 # Les jobs RESTENT VERTS quand des tests échouent (garde `|| echo` des actions composites e2e-webapp / e2e-android, étape de rapport
 # avec fail_on_failure: false) : le résultat se lit dans le check « e2e (ami-system-tests) », le résumé du run et le commentaire de la PR.
 jobs:
+  # Calcul UNIQUE de la PR effective et de la clé d'isolation, partagé par les jobs e2e et report (ils ne partagent pas leurs étapes :
+  # le job report est séparé pour que checks/pull-requests: write n'existent pas dans le job qui exécute le code des tests).
+  # Même règle de nommage dans e2e-artifacts-cleanup.yml (workflow à part, ne peut pas lire ces sorties).
+  prepare:
+    if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
+    name: clé d'isolation
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      pr_number: ${{ steps.keys.outputs.pr_number }}
+      slug: ${{ steps.keys.outputs.slug }}
+    steps:
+      - name: calculer la PR effective et la clé d'isolation
+        id: keys
+        env:
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
+          LABEL: ${{ inputs.report_label }}
+        run: |
+          LABEL="${LABEL//[^A-Za-z0-9_-]/}"
+          RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
+          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
+          {
+            echo "pr_number=$PR_NUMBER"
+            echo "slug=$SLUG"
+          } >> "$GITHUB_OUTPUT"
+
   # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même dossier test-results)
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
+    needs: [prepare]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -81,6 +109,9 @@ jobs:
       AMI_ENV: ${{ inputs.pr_number != 0 && inputs.pr_number || 'staging' }}
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
+      # Second partenaire (consentement activé) des scénarios S5, S5.2 et S6.3 de la webapp ; absents, ces scénarios sont SKIPPÉS (« BLOQUÉ »).
+      NOTIF_PARTNER_DINUM_DN_ID: ${{ secrets.NOTIF_PARTNER_DINUM_DN_ID }}
+      NOTIF_PARTNER_DINUM_DN_SECRET: ${{ secrets.NOTIF_PARTNER_DINUM_DN_SECRET }}
       WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
     steps:
       # checkout_ref porte le nom de branche de source_repo (ex. notifications-api),
@@ -113,21 +144,6 @@ jobs:
         run: npm ci
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-
-      # source_repo (contient "/") + pr_number → identifiant utilisable comme nom d'artifact (même calcul dans le job `report`
-      # et dans e2e-artifacts-cleanup.yml : les trois doivent rester identiques).
-      - name: calculer la clé d'isolation (slug)
-        id: slug
-        if: ${{ always() }}
-        env:
-          SOURCE_REPO: ${{ inputs.source_repo }}
-          PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
-          LABEL: ${{ inputs.report_label }}
-        run: |
-          LABEL="${LABEL//[^A-Za-z0-9_-]/}"
-          RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
-          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
-          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
       - if: ${{ inputs.run_webapp != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-webapp
@@ -187,7 +203,7 @@ jobs:
         if: ${{ always() && inputs.run_webapp != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-results-${{ steps.slug.outputs.slug }}-webapp-run${{ github.run_number }}
+          name: test-results-${{ needs.prepare.outputs.slug }}-webapp-run${{ github.run_number }}
           path: |
             ami-system-tests/test-results/junit/results-*_webapp_*.xml
             ami-system-tests/test-results/traces/*_webapp_*
@@ -199,7 +215,7 @@ jobs:
         if: ${{ always() && inputs.run_android != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-results-${{ steps.slug.outputs.slug }}-android-run${{ github.run_number }}
+          name: test-results-${{ needs.prepare.outputs.slug }}-android-run${{ github.run_number }}
           path: |
             ami-system-tests/test-results/junit/results-*_android_*.xml
             ami-system-tests/test-results/traces/*_android_*
@@ -212,7 +228,7 @@ jobs:
   # Le job reste vert même si des tests échouent ou si le commentaire est refusé (fork, jeton en lecture seule).
   report:
     name: rapport (check + commentaire de PR)
-    needs: [e2e]
+    needs: [prepare, e2e]
     if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '') }}
     runs-on: ubuntu-latest
     permissions:
@@ -227,16 +243,11 @@ jobs:
       - name: noms des artefacts
         id: names
         env:
-          SOURCE_REPO: ${{ inputs.source_repo }}
-          PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
-          LABEL: ${{ inputs.report_label }}
+          SLUG: ${{ needs.prepare.outputs.slug }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_WEBAPP: ${{ inputs.run_webapp }}
           RUN_ANDROID: ${{ inputs.run_android }}
         run: |
-          LABEL="${LABEL//[^A-Za-z0-9_-]/}"
-          RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
-          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
           prefix="test-results-${SLUG}"
           expect=""
           {
@@ -297,7 +308,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           repo: ${{ inputs.source_repo }}
-          pr-number: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
+          pr-number: ${{ needs.prepare.outputs.pr_number }}
           junit-dir: reports
           run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           artifacts: ${{ steps.names.outputs.artifact_webapp }},${{ steps.names.outputs.artifact_android }}
