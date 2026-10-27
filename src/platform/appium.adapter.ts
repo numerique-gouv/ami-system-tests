@@ -1,4 +1,5 @@
 import logger from '@wdio/logger'
+import {isUnambiguous, lastVisible} from '../helpers/spa/webview-choice'
 import type { PlatformAdapter, WebViewTarget } from './types'
 
 const log = logger('page-object')
@@ -59,26 +60,33 @@ async function waitForWebViews(ready: (webviews: WebViewInfo[]) => boolean, time
 }
 
 /**
- * La dernière WebView de la liste, sauf sur iOS quand il y en a plusieurs : le clic sur une notification native y ouvre `/#/notifications` dans
- * une WebView SUPPLÉMENTAIRE qui reste listée (sans titre distinct) mais passe en `document.visibilityState === 'hidden'` ensuite, alors que la
- * page d'accueil d'origine est au premier plan (constaté le 2026-10-27) : on prend alors la dernière WebView réellement visible
- * (sinon la dernière). Une seule WebView : aucune commande supplémentaire.
+ * La dernière WebView de la liste, sauf quand il y en a plusieurs : on prend alors la dernière WebView réellement visible (sinon la dernière),
+ * sur iOS comme sur Android (le multi-WebView arrive aussi côté Android ; non exercé tant qu'aucun build n'en ouvre plusieurs).
+ *
+ * Pourquoi : sur iOS, le clic sur une notification native ouvre `/#/notifications` dans une WebView SUPPLÉMENTAIRE qui reste listée (sans titre
+ * distinct) mais passe en `document.visibilityState === 'hidden'` ensuite, alors que la page d'accueil d'origine est au premier plan (constaté le
+ * 2026-10-27). Le driver iOS n'expose aucune visibilité : on la lit dans la page (`document.visibilityState`, après `switchContext`).
+ *
+ * Android : le driver UiAutomator2 expose déjà, par page, `attached` et `visible` (champ `description` des cibles DevTools, restitué par WDIO
+ * dans `androidWebviewData`) et `listWebViews` ne garde que les pages attachées ET visibles. Il peut en rester plusieurs (WebViews empilées,
+ * toutes « visibles » pour le système) : la même lecture de `document.visibilityState` les départage, après `switchToWebView` (contexte du
+ * package puis page `webviewPageId`, car l'`id` Android n'est pas unique). Une seule WebView : aucune commande supplémentaire.
+ * Le choix pur est dans `lastVisible` (src/helpers/spa/webview-choice.ts, testé par `npm run test:unit`).
  */
 async function lastVisibleWebView(webviews: WebViewInfo[]): Promise<WebViewInfo> {
-  const last = webviews[webviews.length - 1]
-  if (!driver.isIOS || webviews.length < 2) return last
-  const visibleOnes = async (): Promise<WebViewInfo[]> => {
-    const visible: WebViewInfo[] = []
+  if (webviews.length < 2) return webviews[webviews.length - 1]
+  const readVisibilities = async (): Promise<boolean[]> => {
+    const visibilities: boolean[] = []
     for (const webview of webviews) {
-      await driver.switchContext(webview.id)
-      if (await browser.execute(() => document.visibilityState).catch(() => 'visible') === 'visible') visible.push(webview)
+      await switchToWebView(webview)
+      visibilities.push(await browser.execute(() => document.visibilityState).catch(() => 'visible') === 'visible')
     }
-    return visible
+    return visibilities
   }
   // Juste après le tap, l'app revient d'arrière-plan : aucune WebView n'est encore `visible`, puis (parfois) deux : on attend qu'il n'en reste qu'une.
-  let visible = await visibleOnes()
-  await browser.waitUntil(async () => (visible = await visibleOnes()).length === 1, {timeout: 8000, interval: 500}).catch(() => undefined)
-  return visible[visible.length - 1] ?? last
+  let visibilities = await readVisibilities()
+  await browser.waitUntil(async () => isUnambiguous(visibilities = await readVisibilities()), {timeout: 8000, interval: 500}).catch(() => undefined)
+  return lastVisible(webviews, visibilities) as WebViewInfo
 }
 
 /**
