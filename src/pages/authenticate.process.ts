@@ -113,8 +113,13 @@ async function detectCurrentScreen(): Promise<FcScreen | null> {
  */
 async function runConnectionFrom(startScreen: ConnectionScreen, user: TestUser): Promise<void> {
     const startIndex = CONNECTION_SEQUENCE.findIndex(([screen]) => screen === startScreen)
-    for (const [, run] of CONNECTION_SEQUENCE.slice(startIndex)) {
+    for (const [screen, run] of CONNECTION_SEQUENCE.slice(startIndex)) {
         await run(user)
+        // Après le choix de l'environnement, l'app peut s'ouvrir DIRECTEMENT sur l'accueil (session conservée d'un démarrage à l'autre :
+        // cookie `token` du WKWebsiteDataStore sur iOS) : on rend la main à la boucle, qui réobserve (accueil, onboarding, écran de
+        // connexion) avant toute authentification FranceConnect. Mesuré le 2026-10-27 : enchaîner le choix et l'authentification sans
+        // réobserver gaspillait ~35 s (« eIDAS faible » introuvable 10 s, « bouton FranceConnect » introuvable 15 s) avant l'accueil.
+        if (screen === 'review-picker') return
     }
 }
 
@@ -203,6 +208,7 @@ async function reachHome(user: TestUser): Promise<void> {
  * n'est pas touché : les scénarios qui publient le donnent explicitement (grantDemarchesConsent). Chaque test
  * (sauf l'authentification) commence par là : le test précédent a pu s'arrêter n'importe où dans l'app.
  *
+ * 0. Accueil déjà affiché (le test précédent s'est terminé connecté) → fini, rien n'est rechargé ni refait.
  * 1. Cookie de session présent → chargement de la racine de l'app (la SPA route vers l'accueil).
  * 2. Absent → rien n'est touché : la boucle déroule la connexion (sélecteur d'environnement, FranceConnect,
  *    eIDAS, identifiants) à partir de l'écran affiché.
@@ -211,6 +217,14 @@ async function reachHome(user: TestUser): Promise<void> {
  */
 export async function getAppToStartingState(): Promise<void> {
     const user = getUser('avec_nom_dusage')
+
+    // 0. Déjà connecté ET sur l'accueil (cas du test précédent qui s'est terminé connecté) : rien à faire, ni rechargement
+    //    ni authentification. L'accueil n'est lisible que session ouverte.
+    if (await platform().isWebContextAvailable() && await HomePage.isHomeDisplayed(HOME_PROBE_MS)) {
+        await OnboardingNotificationsPage.dismissNativeSheet()
+        log.info(`getAppToStartingState: déjà connecté, accueil affiché, aucune authentification (${await currentUrlForLog()})`)
+        return
+    }
 
     if (await hasSessionToken()) {
         log.info('getAppToStartingState: session ouverte, chargement de la racine de l\'app')

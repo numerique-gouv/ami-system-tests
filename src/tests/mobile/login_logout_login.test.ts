@@ -8,6 +8,12 @@ describe('Profil usager — déconnexion suivie d\'une reconnexion', function ()
   this.timeout(300000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   // Deux connexions complètes et une déconnexion dans un seul `it` : de ~65 s (machine rapide) à ~125 s (machine lente),
   // donc à cheval sur le délai Mocha global de 120 s (campagne du 2026-10-15 : 0/4 sur Android, toujours par timeout).
+  // Aucun test ne termine déconnecté : si le test s'arrête entre la déconnexion et la reconnexion, on rouvre la session pour le suivant.
+  // Sans effet quand la reconnexion du test a abouti (session ouverte détectée, pas d'authentification refaite).
+  after(async function () {
+    await getAppToStartingState()
+  })
+
   it('log out suivi d un log in', async function () {
     await getAppToStartingState()
 

@@ -22,6 +22,9 @@ describe('Déconnexion', function () {
   })
 
   after(async () => {
+    // Aucun test ne termine déconnecté : si le test s'arrête entre la déconnexion et la reconnexion, on rouvre la session
+    // (sans effet quand la reconnexion du test a abouti : la session ouverte est détectée, l'authentification n'est pas refaite).
+    await getAppToStartingState()
     // Protège le compte si le test échoue avant le logout.
     if (!original) return
     await ProfilePage.restore(original)
