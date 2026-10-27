@@ -63,7 +63,7 @@ class OnboardingNotificationsPage {
         }
         // iOS : on ACTIVE les notifications (décision utilisateur 2026-10-26) : elles pourront s'afficher en bannière pendant les
         // tests, sans qu'on clique dessus. Android natif : « plus tard » pour l'instant ; point d'extension : appeler ici le helper
-        // `grantPostNotifications` d'`src/helpers/android-notifications.ts` quand l'agent Android l'aura validé.
+        // `grantPostNotifications` d'`src/helpers/mobile/android-notifications.ts` quand l'agent Android l'aura validé.
         if (driver.isIOS) await this.activateNativeIOS()
         else await this.dismissNative()
     }

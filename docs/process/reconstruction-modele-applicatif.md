@@ -19,7 +19,7 @@ Relancer ce process quand :
 - `.env.local` rempli (`AMI_ENV`, `NOTIF_*`) — ne jamais lire ni afficher son contenu, y compris via un outil.
 - Émulateur/simulateur démarrés : `just start-android` / `just start-ios`.
 - Build à jour : `just build-android` / `just build-ios` (vérifie la présence du binaire, ne le construit pas — le build lui-même se fait dans les dépôts frères `ami-app-android`/`ami-app-ios`).
-- Un compte de test FranceConnect sandbox disponible (`src/helpers/test-users.ts`).
+- Un compte de test FranceConnect sandbox disponible (`src/helpers/common/test-users.ts`).
 
 ## Étape A — Webapp
 

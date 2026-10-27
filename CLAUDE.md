@@ -79,9 +79,12 @@ src/
     appium.adapter.ts       # implémentation mobile (Appium)
     browser.adapter.ts      # implémentation webapp (Chrome)
   helpers/
-    spa.ts, selectors.ts   # aides au-dessus des sélecteurs natifs WDIO 10 (role/…, tag*=…) ; roleSelector()
-    webview.ts             # describeCurrentPage()
-    partner-api/         # publishEvent() bas niveau (retry 5xx) + publishNotification/Demarche/DemarcheEnfant
+    spa/                   # DOM de la SPA (webapp ET WebView mobile) : spa.ts, selectors.ts (roleSelector()), webview.ts (describeCurrentPage())
+    partner-api/           # publishEvent() bas niveau (retry 5xx) + publishNotification/Demarche/DemarcheEnfant
+    reporting/             # step() (report), failure-dump, sentry, traced, trace-redact, junit-clean, run-dir
+    common/                # environment (AMI_ENV), test-users, fc-hash, session (maskSensitiveUrl)
+    webapp/                # access-code (cookie access_key), link-check
+    mobile/                # device-app (adb/simctl), android-notifications, ios-notifications
   pages/
     *.page.ts              # Page Objects — actions métier, sans sélecteurs directs
     locators/
@@ -95,7 +98,7 @@ src/
 
 ### Pattern locators
 
-L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les sélecteurs natifs de WDIO 10 (`role/button[name=…]`, `button*=texte`, CSS ; cf. `src/helpers/selectors.ts` et `spa.ts`) sont donc identiques sur les deux plateformes.
+L'application étant une SPA Svelte dans une WebView, **la grande majorité des locators sont partagés** : iOS (XCUITest → WebKit Remote Debugging) et Android (UIAutomator2 → Chromedriver) exposent tous deux le DOM via le protocole W3C WebDriver standard. Les sélecteurs natifs de WDIO 10 (`role/button[name=…]`, `button*=texte`, CSS ; cf. `src/helpers/spa/selectors.ts` et `spa.ts`) sont donc identiques sur les deux plateformes.
 
 Le dispatch `getXxxLocators()` n'est nécessaire que pour les **éléments natifs** (hors WebView) :
 - `androidXxxLocators` — resource-id (`fr.gouv.ami.staging:id/<name>`)
@@ -109,7 +112,7 @@ Le dispatch de **comportement d'interaction** (pas de sélecteur) passe par `pla
 
 Les Pages Objects (`*.page.ts`) ne contiennent **aucun sélecteur** : ils appellent `getXxxLocators()` à chaque méthode. Cela permet de tester la même page sur les deux plateformes sans duplication.
 
-Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'XxxPage')` (voir `src/helpers/traced.ts`).
+Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'XxxPage')` (voir `src/helpers/reporting/traced.ts`).
 
 ## Patterns critiques (résumé)
 
@@ -134,9 +137,10 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 | `test-suites.ts` | Suites nommées (`WDIO_SUITE`) consommées par les recettes `just *-suite` et la CI |
 | `src/driver/capabilities.ts` | `androidCapabilities` / `iosCapabilities` |
 | `src/platform/` | `platform()` / `PlatformAdapter` — abstraction android/ios/webapp |
-| `src/helpers/spa.ts` / `selectors.ts` | `roleSelector()`, `clickButton()`, `waitForHeading()`, `firstDisplayed()`… |
-| `src/helpers/webview.ts` | `describeCurrentPage()` |
+| `src/helpers/spa/spa.ts` / `selectors.ts` | `roleSelector()`, `clickButton()`, `waitForHeading()`, `firstDisplayed()`… |
+| `src/helpers/spa/webview.ts` | `describeCurrentPage()` |
 | `src/helpers/partner-api/` | `publishEvent()` bas niveau (retry 5xx), `publishNotification()`, `publishDemarche()`, `publishDemarcheEnfant()`, consentement |
+| `src/helpers/{reporting,common,webapp,mobile}/` | un sous-dossier par périmètre : reporting (step, dump d'échec, JUnit, traces), commun (environnement, utilisateurs de test, session), webapp (code d'accès, contrôle de liens), mobile (cycle de vie de l'app, notifications natives) ; pas de baril `index.ts` global |
 | `src/pages/locators/` | Un fichier par écran, `getXxxLocators()` dispatch plateforme |
 
 ## Prérequis locaux

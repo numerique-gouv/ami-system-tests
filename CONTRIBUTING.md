@@ -62,7 +62,7 @@ Quand une page est entièrement en WebView avec un DOM identique iOS/Android, ex
 ### Niveau 2 — `pages/*.page.ts`
 
 - **Aucun sélecteur direct** — appel à `getXxxLocators()` à chaque méthode.
-- Les éléments de la SPA (WebView/webapp) s'atteignent par les **sélecteurs natifs de WDIO 10 définis dans le fichier `locators/` de la page** (`roleSelector()`, `tag*=texte`, CSS : cf. §2) et par les aides de `src/helpers/spa.ts` (`clickDisplayed`, `waitForHeading`, `isShown`…), appelées dans le Page Object. Le Page Object ne contient aucune chaîne de sélecteur (rôle + nom accessible n'ont de sens qu'en WebView : ils n'existent donc que dans les locators SPA).
+- Les éléments de la SPA (WebView/webapp) s'atteignent par les **sélecteurs natifs de WDIO 10 définis dans le fichier `locators/` de la page** (`roleSelector()`, `tag*=texte`, CSS : cf. §2) et par les aides de `src/helpers/spa/spa.ts` (`clickDisplayed`, `waitForHeading`, `isShown`…), appelées dans le Page Object. Le Page Object ne contient aucune chaîne de sélecteur (rôle + nom accessible n'ont de sens qu'en WebView : ils n'existent donc que dans les locators SPA).
 - Exporté comme singleton tracé : `export default traced(new XxxPage(), 'XxxPage')`.
 - `if (driver.isIOS)` acceptable **seulement** quand le *comportement d'interaction* diffère vraiment (pas juste le sélecteur) — ex. submit de formulaire OIDC (fallback `driver.execute` sur iOS pour le bug WKRDP, inutile sur Android), clic JS vs pointer events, attente post-redirect.
 - **Avant d'écrire un branchement plateforme**, chercher si un signal DOM/WebView commun couvre déjà les deux cas (ex. la disparition d'une modale de confirmation est un événement observable identiquement sur iOS et Android — pas besoin de détecter la fin d'un logout différemment par plateforme).
@@ -100,7 +100,7 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 | `tests/*.test.ts`                                               | `test`        |
 | `helpers/*-api.ts` (clients HTTP)                               | `api`         |
 | `wdio.android.conf.ts` / `wdio.ios.conf.ts` / `wdio.webapp.conf.ts` (`onPrepare`, etc.) | `config`      |
-| Autres `helpers/*.ts` appelés en session                        | `helper`      |
+| Autres `helpers/**/*.ts` appelés en session                        | `helper`      |
 
 **Exception : scripts CLI hors session de test.** `src/scripts/*.ts` (lancés via `just` en dehors d'une suite WDIO, ex. `push-notification.ts`) restent en `console.*` : `@wdio/logger` n'apporte rien hors du flux WDIO, et cette sortie est un affichage terminal direct, pas un log de scénario.
 
@@ -114,13 +114,13 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 
   | Besoin | Sélecteur |
   |---|---|
-  | élément par rôle et nom accessible **exact** | `role/button[name="Suivi"]`, construit par `roleSelector()` (`src/helpers/selectors.ts`) |
+  | élément par rôle et nom accessible **exact** | `role/button[name="Suivi"]`, construit par `roleSelector()` (`src/helpers/spa/selectors.ts`) |
   | texte visible qui **contient** (fragment sans apostrophe) | `button*=Voir les notifications` ; insensible à la casse : `button.*=valider` |
   | champ de formulaire | attribut stable (`input[name="login"]`) ; `aria/<libellé>` si le libellé suffit |
   | élément sans nom accessible stable | `[data-testid="x"]` (dernier recours, cf. plus bas) |
   | dans un conteneur | chaînage `$(conteneur).$(élément)` (ou l'option `within` des aides) |
 
-  Les aides de `src/helpers/spa.ts` s'appellent dans le `inWebContext` de l'appelant mobile (seules `isShown` et `clickDisplayed` ouvrent aussi le contexte elles-mêmes, pour les flows mixtes) : `waitForHeading`, `waitForRole`, `clickRole`, `clickButton`, `waitForButtons`, `waitForPageText` (attendent), `isShown`, `hasPageText` (sondes), `firstDisplayed` / `allDisplayed` (retournent un élément : à utiliser DANS un `inWebContext`), `clickDisplayed`, `visibleButtonTexts`, `checkboxStates`.
+  Les aides de `src/helpers/spa/spa.ts` s'appellent dans le `inWebContext` de l'appelant mobile (seules `isShown` et `clickDisplayed` ouvrent aussi le contexte elles-mêmes, pour les flows mixtes) : `waitForHeading`, `waitForRole`, `clickRole`, `clickButton`, `waitForButtons`, `waitForPageText` (attendent), `isShown`, `hasPageText` (sondes), `firstDisplayed` / `allDisplayed` (retournent un élément : à utiliser DANS un `inWebContext`), `clickDisplayed`, `visibleButtonTexts`, `checkboxStates`.
 - **Natif** (hors WebView) — `accessibility id` (`~xxx`) de préférence à un XPath par texte ou un resource-id brut.
 
 ### Ordre de préférence
@@ -132,7 +132,7 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 - **Testing Library (`tl()`) est retiré du projet**, et `src/helpers/dom-query.ts` (son portage, 296 lignes) aussi : `@testing-library/webdriverio` n'est plus maintenu, et WDIO 10 fournit `role/…`, `aria/…`, `tag*=…` et `expect(…)` avec attente. Ne plus importer `setupBrowser`, ne plus écrire `tl()`, `findBy*`, `getBy*`, `queryBy*`, `within()`, `findRole` ni `queryRole`.
 - **Sondes** (savoir sur quel écran l'on est) : `isShown(sélecteur, timeout)` / `hasPageText`. Un `$$(sélecteur)` ne lève jamais de violation « strict » ; un `.catch(() => false)` sur un `$()` l'avalerait (cf. `EnvironmentPickerPage`, le seul endroit où elle est volontairement relancée).
 - **Agrégats** (liste de textes, états de cases à cocher) : `visibleButtonTexts`, `checkboxStates`.
-- Besoin non couvert : **ajouter une aide dans `src/helpers/spa.ts`** et le sélecteur dans le fichier `locators/` de la page.
+- Besoin non couvert : **ajouter une aide dans `src/helpers/spa/spa.ts`** et le sélecteur dans le fichier `locators/` de la page.
 
 ### Pièges établis (relevés le 2026-10-13, webapp, Android, iOS)
 
@@ -361,13 +361,13 @@ throw new Error(
 
 Allure a été retiré (2026-10-08). Ce qui reste :
 
-- **`step('…')`** (`src/helpers/report.ts`) pour découper un scénario long en étapes métier : l'étape est journalisée et mémorisée, puis écrite dans le dump d'un test en échec (« où le scénario s'est arrêté »). Les annotations `feature` / `severity` / `epic` / `story` / `tag` d'Allure n'existent plus : les titres de `describe` et de `it` portent la fonctionnalité.
-- **Résumé passants/cassés** : reporter JUnit, **un seul rapport par run** : `test-results/junit/results-<horodatage>_<plateforme>_<suite ou spec>.xml`, avec un `<testsuite>` par fichier de spec (nommé comme lui, ex. `authentication.test.ts`), un `<testcase>` par `it()` et `classname` = le fichier de spec (le titre du `describe` reste en propriété `suiteName`). Le reporter écrit un fichier par worker ; `onComplete` les fusionne (`src/helpers/junit-clean.ts`), publié en artefact de CI et commenté sur la PR par le workflow appelant. Le `<system-out>` de chaque test contient la console du scénario (logs `-> it`, appels de Page Objects, `step`, avertissements) ; les lignes brutes `COMMAND`/`RESULT` du reporter en sont retirées (`src/helpers/junit-clean.ts`) : les commandes WebDriver restent dans `.wdio-logs/`.
-- **Contexte d'un test en échec** (`src/helpers/failure-dump.ts`, appelé par le hook `afterTest`) dans `test-results/traces/<run>/failures/<test>__<horodatage>/context.json` (même dossier de run que les traces) : test, étapes, erreur, plateforme, appareil, backend, URL aux jetons masqués, horodatage UTC, identifiants Sentry de la SPA et lien vers la trace Sentry. Lister les échecs : `just failures-text`.
-- **Trace d'un test en échec** (service DevTools, mode trace, cf. `traceServices` dans `wdio.base.conf.ts`) : `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/` — un dossier par run, donc deux runs du même test ne s'écrasent pas (`src/helpers/run-dir.ts`) — qui contient `<spec>_test-<test>-…/trace/` (`transcript.md` à lire en premier, captures, arbre de l'écran et éléments avec leurs locators, réseau aux cookies et jetons masqués par `src/helpers/trace-redact.ts`), la capture `screenshot-<test>-….png` et l'index `devtools-artifacts-*.json` (test, état, chemin de la trace). L'ouvrir : `just failures-ui`.
+- **`step('…')`** (`src/helpers/reporting/report.ts`) pour découper un scénario long en étapes métier : l'étape est journalisée et mémorisée, puis écrite dans le dump d'un test en échec (« où le scénario s'est arrêté »). Les annotations `feature` / `severity` / `epic` / `story` / `tag` d'Allure n'existent plus : les titres de `describe` et de `it` portent la fonctionnalité.
+- **Résumé passants/cassés** : reporter JUnit, **un seul rapport par run** : `test-results/junit/results-<horodatage>_<plateforme>_<suite ou spec>.xml`, avec un `<testsuite>` par fichier de spec (nommé comme lui, ex. `authentication.test.ts`), un `<testcase>` par `it()` et `classname` = le fichier de spec (le titre du `describe` reste en propriété `suiteName`). Le reporter écrit un fichier par worker ; `onComplete` les fusionne (`src/helpers/reporting/junit-clean.ts`), publié en artefact de CI et commenté sur la PR par le workflow appelant. Le `<system-out>` de chaque test contient la console du scénario (logs `-> it`, appels de Page Objects, `step`, avertissements) ; les lignes brutes `COMMAND`/`RESULT` du reporter en sont retirées (`src/helpers/reporting/junit-clean.ts`) : les commandes WebDriver restent dans `.wdio-logs/`.
+- **Contexte d'un test en échec** (`src/helpers/reporting/failure-dump.ts`, appelé par le hook `afterTest`) dans `test-results/traces/<run>/failures/<test>__<horodatage>/context.json` (même dossier de run que les traces) : test, étapes, erreur, plateforme, appareil, backend, URL aux jetons masqués, horodatage UTC, identifiants Sentry de la SPA et lien vers la trace Sentry. Lister les échecs : `just failures-text`.
+- **Trace d'un test en échec** (service DevTools, mode trace, cf. `traceServices` dans `wdio.base.conf.ts`) : `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/` — un dossier par run, donc deux runs du même test ne s'écrasent pas (`src/helpers/reporting/run-dir.ts`) — qui contient `<spec>_test-<test>-…/trace/` (`transcript.md` à lire en premier, captures, arbre de l'écran et éléments avec leurs locators, réseau aux cookies et jetons masqués par `src/helpers/reporting/trace-redact.ts`), la capture `screenshot-<test>-….png` et l'index `devtools-artifacts-*.json` (test, état, chemin de la trace). L'ouvrir : `just failures-ui`.
 - **Page lourde sur iOS** : en contexte natif, le service DevTools demande à Appium, après chaque action, l'arbre d'accessibilité natif de toute l'app (WDA `/source`). Sur une page qui en compte des centaines d'éléments (l'inbox du compte de test), il ne revient pas en ~2 min et bloque la file de commandes d'Appium (timeout Mocha de 120 s). Parade : rester **dans la WebView** pendant tout l'épisode concerné (un seul `platform().inWebContext(…)` autour des étapes du scénario, cf. `src/tests/mobile/notifications.test.ts`) ; la trace est alors conservée, le service lit le DOM. Un journal Appium en `debug` (`logLevel` du service Appium de `wdio.ios.conf.ts`, à ne pas commiter) montre le blocage : `Scheduling the 'execute' command … 1 queue item is already waiting`.
-- **Sentry** : on journalise le trace id et le dernier identifiant d'événement lus dans la SPA (`src/helpers/sentry.ts`). Le trace id change à chaque chargement de page et `lastEventId` vaut `null` sans erreur capturée ; les apps natives n'ont pas d'intégration Sentry.
-- **Ne jamais écrire de secret ni de jeton** dans un dump ou un log : les URL passent par `maskSensitiveUrl` (`src/helpers/session.ts`).
+- **Sentry** : on journalise le trace id et le dernier identifiant d'événement lus dans la SPA (`src/helpers/reporting/sentry.ts`). Le trace id change à chaque chargement de page et `lastEventId` vaut `null` sans erreur capturée ; les apps natives n'ont pas d'intégration Sentry.
+- **Ne jamais écrire de secret ni de jeton** dans un dump ou un log : les URL passent par `maskSensitiveUrl` (`src/helpers/common/session.ts`).
 
 La configuration des reporters est commentée dans `wdio.base.conf.ts`.
 

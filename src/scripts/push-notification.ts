@@ -17,7 +17,7 @@ const [,, login, title] = process.argv
 
 if (!login) {
   console.error('Usage : just push-notification <login> [titre]')
-  console.error('Logins disponibles : voir src/helpers/test-users.ts')
+  console.error('Logins disponibles : voir src/helpers/common/test-users.ts')
   process.exit(1)
 }
 

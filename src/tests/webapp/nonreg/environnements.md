@@ -4,7 +4,7 @@ Source : réunion du 2026-10-06 (transcript 27:42–29:32 et 18:21–18:40). **S
 
 ## Où les specs tournent aujourd'hui
 
-Tout a été exploré et exécuté en **préprod** (`AMI_ENV=preprod`), le 2026-10-15. **Rien n'a été exécuté en staging ni en production.** L'environnement est choisi par `AMI_ENV` (`src/helpers/environment.ts` : préprod, review app `<n>`, sinon staging).
+Tout a été exploré et exécuté en **préprod** (`AMI_ENV=preprod`), le 2026-10-15. **Rien n'a été exécuté en staging ni en production.** L'environnement est choisi par `AMI_ENV` (`src/helpers/common/environment.ts` : préprod, review app `<n>`, sinon staging).
 
 ### ENV1 — Les mêmes specs passent sur staging et sur les branches de staging
 Défi posé par la réunion (27:42) : « les tests soient faisables en staging, sur des branches de staging qui intègrent le staging plus tard, et sur la préprod ».
@@ -29,7 +29,7 @@ Action : lancer `webapp_nonreg` en staging, relever les écarts, et décider des
 
 Tous les autres scénarios passent sur staging (S1.2, S2.1, S9.1–S9.3, S13.1, S7, S8.1, S10.1, S4.1, S4.2, S5.1, S6.1, S11.1). Le catalogue y est différent (17 cartes contre 20) : S1.1 n'a pas de nombre codé en dur.
 
-**Décisions du 2026-10-15** : (1) `qualif.demarches.service-public.gouv.fr` est ajouté aux hôtes tolérés en avertissement, comme la gendarmerie (S1.1 et S12 sur staging) ; (2) un scénario propre à un environnement se saute avec une **garde explicite** : `environmentKind()` (`preprod` / `staging` / `review`, `src/helpers/environment.ts`), `log.warn` du motif puis `this.skip()` — jamais un `if` silencieux, jamais de suite séparée par environnement.
+**Décisions du 2026-10-15** : (1) `qualif.demarches.service-public.gouv.fr` est ajouté aux hôtes tolérés en avertissement, comme la gendarmerie (S1.1 et S12 sur staging) ; (2) un scénario propre à un environnement se saute avec une **garde explicite** : `environmentKind()` (`preprod` / `staging` / `review`, `src/helpers/common/environment.ts`), `log.warn` du motif puis `this.skip()` — jamais un `if` silencieux, jamais de suite séparée par environnement.
 
 ### ENV2 — Smoke de production avec un utilisateur de test FranceConnect
 Source : 27:55–29:32 (« Darty lance un tunnel d'achat avec sa carte bleue à lui à chaque mise en prod… »).

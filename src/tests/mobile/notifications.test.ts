@@ -68,7 +68,7 @@ describe('Notifications', function () {
    * consenti, on reçoit EN PLUS la notification système.
    *   - Android : notification système (permission POST_NOTIFICATIONS accordée, volet des notifications ouvert) ;
    *   - iOS : push APNs réel = APPAREIL PHYSIQUE (hors périmètre) ; sur simulateur, `xcrun simctl push` simule la notification
-   *     localement (src/helpers/ios-notifications.ts) : on constate la bannière, on la clique et on vérifie que l'app ouvre /#/notifications.
+   *     localement (src/helpers/mobile/ios-notifications.ts) : on constate la bannière, on la clique et on vérifie que l'app ouvre /#/notifications.
    */
   it("avec push consenti : reçue dans l'inbox ET en notification système (Android ; iOS : push simulé)", async function() {
     if (driver.isIOS) {
@@ -85,7 +85,7 @@ describe('Notifications', function () {
     // Android (constats en live le 2026-10-26, émulateur API 36, staging) : l'app ne poste la notification système (FirebaseService) que si
     // POST_NOTIFICATIONS est accordée ; elle arrive ~20 s après la publication (FCM), id fixe (une nouvelle remplace la précédente) ;
     // son clic démarre MainActivity avec les extras sender/app_url/title/message (onNewIntent : visibles dans logcat ; titre = celui de la 1re notification, PendingIntent réutilisé). Constats par adb_shell
-    // (`mobile: shell`, cf. helpers/android-notifications.ts). Le WebView n'est pas rechargé par ce clic quand l'app est déjà ouverte.
+    // (`mobile: shell`, cf. helpers/mobile/android-notifications.ts). Le WebView n'est pas rechargé par ce clic quand l'app est déjà ouverte.
     step('1. Accorder la permission de notifications système à l\'app (pm grant) et partir de l\'accueil')
     await SystemNotificationsPage.grantPermission()
     await platform().inWebContext(async () => {

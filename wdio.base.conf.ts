@@ -12,7 +12,7 @@ const log = logger('scenario')
 
 /**
  * `rootDir` de ce run, propre à chaque exécution : le service DevTools écrit ses traces sous `<rootDir>/test-results/`, donc dans
- * `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/` (cf. helpers/run-dir.ts). Calculé une seule fois par le
+ * `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/` (cf. helpers/reporting/run-dir.ts). Calculé une seule fois par le
  * lanceur ; les workers, qui relisent la config avec d'autres arguments, héritent la valeur par l'environnement.
  * `rootDir` ne sert à WDIO qu'à résoudre des chemins relatifs de specs : les nôtres sont absolus.
  */
@@ -28,7 +28,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
 // (failure-dump.ts n'écrit plus que le contexte). Toutes les options sont écrites, même à leur
 // valeur par défaut. Une trace par test, gardée si ce test échoue ou est rejoué (un échec dans un hook `before` n'a pas de
 // frontière de test : le service retombe alors sur une trace de session) ; contenu : transcript.md, captures et arbre de l'écran à chaque action, locators des éléments, réseau (masqué
-// par helpers/trace-redact.ts en fin de run).
+// par helpers/reporting/trace-redact.ts en fin de run).
 export const traceServices: NonNullable<Options.Testrunner['services']> = [
   ['devtools', {
     mode: 'trace',
@@ -122,12 +122,12 @@ export const baseConfig: Partial<Options.Testrunner> = {
     log.info(`-> describe : ${suite.title}`)
   },
 
-  // Une fois tous les fichiers JUnit et toutes les traces écrits : retire les lignes brutes COMMAND/RESULT (cf. helpers/junit-clean.ts)
-  // et masque cookies, jetons et secrets des traces DevTools (cf. helpers/trace-redact.ts).
+  // Une fois tous les fichiers JUnit et toutes les traces écrits : retire les lignes brutes COMMAND/RESULT (cf. helpers/reporting/junit-clean.ts)
+  // et masque cookies, jetons et secrets des traces DevTools (cf. helpers/reporting/trace-redact.ts).
   onComplete: (): void => {
     const junitDir = path.resolve(__dirname, 'test-results/junit')
     stripRawCommandLogs(junitDir)
-    // Un seul rapport JUnit par run, un testsuite par fichier de spec (cf. helpers/junit-clean.ts).
+    // Un seul rapport JUnit par run, un testsuite par fichier de spec (cf. helpers/reporting/junit-clean.ts).
     if (process.env.WDIO_RUN_DIR) mergeRunReports(junitDir, path.basename(process.env.WDIO_RUN_DIR))
     // Seulement le dossier de CE run : un autre run en cours écrit peut-être encore dans le sien.
     redactTraces(process.env.WDIO_RUN_DIR ?? path.resolve(__dirname, 'test-results'))
@@ -146,7 +146,7 @@ export const baseConfig: Partial<Options.Testrunner> = {
     resetSteps()
   },
 
-  // Contexte d'un test en échec (étapes, erreur, appareil, lien Sentry) : voir helpers/failure-dump.ts. Captures et réseau : service DevTools.
+  // Contexte d'un test en échec (étapes, erreur, appareil, lien Sentry) : voir helpers/reporting/failure-dump.ts. Captures et réseau : service DevTools.
   afterTest: async (test, _context, result): Promise<void> => {
     if (result.passed) return
     await dumpFailure(test, result.error)

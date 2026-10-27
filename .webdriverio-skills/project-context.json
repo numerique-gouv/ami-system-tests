@@ -90,12 +90,12 @@
   "customCommands": [
     {
       "name": "tl()",
-      "file": "src/helpers/webview.ts",
+      "file": "src/helpers/spa/webview.ts",
       "purpose": "Testing Library sur WebView"
     },
     {
       "name": "retourJusquATexteVisible()",
-      "file": "src/helpers/webview.ts",
+      "file": "src/helpers/spa/webview.ts",
       "purpose": "navigation retour répétée jusqu'à sentinel, timeout local 10s indépendant du réseau"
     },
     {
@@ -105,7 +105,7 @@
     },
     {
       "name": "traced()",
-      "file": "src/helpers/traced.ts",
+      "file": "src/helpers/reporting/traced.ts",
       "purpose": "wrap les singletons Page Object pour tracing"
     }
   ],

@@ -15,7 +15,7 @@ depends on, and the fan-out to diagnostic agents.
 
 Project-specific skill (not part of the `klamping/webdriverio-skills` pack) — `just setup-claude`
 does not overwrite it. Since 2026-10-08 the script reads the **JUnit XML** produced by WebdriverIO's
-JUnit reporter and the **failure dumps** written by `src/helpers/failure-dump.ts` (Allure was removed).
+JUnit reporter and the **failure dumps** written by `src/helpers/reporting/failure-dump.ts` (Allure was removed).
 
 ## When to Use
 

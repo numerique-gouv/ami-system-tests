@@ -66,9 +66,9 @@ Les libellés entre « » sont ceux de l'UI ; ils sont vérifiés à l'explorati
 
 | Décision | Effet |
 |---|---|
-| Le lien de la gendarmerie n'est joignable que depuis un réseau privé | avertissement, pas d'échec (`PRIVATE_NETWORK_HOSTS`, `src/helpers/link-check.ts`) |
+| Le lien de la gendarmerie n'est joignable que depuis un réseau privé | avertissement, pas d'échec (`PRIVATE_NETWORK_HOSTS`, `src/helpers/webapp/link-check.ts`) |
 | `qualif.demarches.service-public.gouv.fr` (staging) : même règle | ajouté à la même liste |
-| Scénarios propres à un environnement | **garde explicite + `this.skip()` motivé** via `environmentKind()` (`src/helpers/environment.ts`) — pas de suites séparées par environnement |
+| Scénarios propres à un environnement | **garde explicite + `this.skip()` motivé** via `environmentKind()` (`src/helpers/common/environment.ts`) — pas de suites séparées par environnement |
 | Modèle YAML | modèle YAML à jour au 2026-10-15 ; `check-model` retiré sur décision de l'équipe |
 | Hygiène du dépôt | `this.timeout()` déplacés au `describe` ; `pageLoadStrategy: 'eager'` pour la webapp (à valider par un rejeu complet, repli si régression) |
 | **Un seul run navigateur à la fois** | la machine de test sature (charge > 15) : deux runs lancés ensemble ont échoué sans rapport avec l'application |

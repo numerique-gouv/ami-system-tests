@@ -54,7 +54,7 @@ Les étapes 3 à 5 se répètent **pour chaque page**, puis on passe à la suiva
 
 | Besoin | Déjà en place | Où |
 |---|---|---|
-| Code d'accès de la webapp de staging (fenêtre `window.prompt` de la SPA) | un cookie `access_key` est posé **avant** d'ouvrir la SPA, valable 7 jours ; sa valeur n'est jamais affichée | `handleAccessKeyCookie` dans le hook `before` de `wdio.webapp.conf.ts` (`src/helpers/access-code.ts`) |
+| Code d'accès de la webapp de staging (fenêtre `window.prompt` de la SPA) | un cookie `access_key` est posé **avant** d'ouvrir la SPA, valable 7 jours ; sa valeur n'est jamais affichée | `handleAccessKeyCookie` dans le hook `before` de `wdio.webapp.conf.ts` (`src/helpers/webapp/access-code.ts`) |
 | Connexion FranceConnect (eIDAS, identifiants) et onboarding (clé d'accès, zones, notifications) | automatisés, et repartent de l'état courant de l'app | `getAppToStartingState()` dans `src/pages/authenticate.process.ts` |
 | Appels API (consentement, notification, démarche) | helpers | `src/helpers/partner-api/` : `checkDemarchesConsent`, `grantDemarchesConsent`, `revokeDemarchesConsent` (consentement du partenaire, passé explicitement : `PARTNER_AMI`), `publishEvent`, `publishNotification`, `publishDemarche`, `publishDemarcheEnfant` |
 

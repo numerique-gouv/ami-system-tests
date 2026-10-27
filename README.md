@@ -32,7 +32,7 @@ just check                   # vérifier que les outils sont présents
 
 Hors CI, `.env.local` est obligatoire (garde-fou `_require-dotenv` dans le `justfile`) — en CI, les
 variables viennent du workflow GitHub Actions. Les comptes de test FranceConnect (maquette publique, sans secret) sont dans
-`src/helpers/test-users.ts` ; leur `fcHash` est calculé (`src/helpers/fc-hash.ts`).
+`src/helpers/common/test-users.ts` ; leur `fcHash` est calculé (`src/helpers/common/fc-hash.ts`).
 
 ---
 
@@ -70,9 +70,12 @@ src/
   platform/
     index.ts               platform() : PlatformAdapter — dispatch android/ios/webapp
   helpers/
-    spa.ts / selectors.ts  roleSelector(), clickButton(), waitForHeading()… (sélecteurs natifs WDIO 10)
-    webview.ts             describeCurrentPage()
-    partner-api/         publishEvent() (retry 5xx), publishNotification/Demarche()
+    spa/                   spa.ts, selectors.ts, webview.ts : roleSelector(), clickButton(), waitForHeading()… (sélecteurs natifs WDIO 10)
+    partner-api/           publishEvent() (retry 5xx), publishNotification/Demarche()
+    reporting/             step(), failure-dump, sentry, traced, trace-redact, junit-clean, run-dir
+    common/                environment, test-users, fc-hash, session
+    webapp/                access-code, link-check
+    mobile/                device-app, android-notifications, ios-notifications
   pages/
     *.page.ts              Page Objects — actions métier, sans sélecteurs
     locators/
@@ -95,7 +98,7 @@ un utilisateur les perçoit (rôle ARIA, texte visible, `accessibility id` en na
 ```
 test (scénario)
   └── Page Object ("ouvrir l'inbox")
-        └── clickButton / waitForHeading… (src/helpers/spa.ts)  — sélecteurs natifs WDIO 10 (role/…, tag*=texte)
+        └── clickButton / waitForHeading… (src/helpers/spa/spa.ts)  — sélecteurs natifs WDIO 10 (role/…, tag*=texte)
 ```
 
 Le détail des conventions (POM 3 niveaux, sélecteurs natifs WDIO 10 vs `driver.execute()`, WebView

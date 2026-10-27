@@ -7,7 +7,7 @@ import {AssertionError} from 'node:assert'
 
 /**
  * Notifications côté SYSTÈME Android (Android seulement) : permission POST_NOTIFICATIONS, notification poussée (FCM) affichée par le système,
- * écran natif « Paramètres » d'AMI et réglages système de l'app. Constats via `mobile: shell` (cf. helpers/android-notifications.ts).
+ * écran natif « Paramètres » d'AMI et réglages système de l'app. Constats via `mobile: shell` (cf. helpers/mobile/android-notifications.ts).
  *
  * Faits relevés en live le 2026-10-26 (émulateur API 36, staging) :
  *   - la notification n'est postée par l'app (FirebaseService.onMessageReceived) QUE si POST_NOTIFICATIONS est accordée ; elle arrive ~20 s

@@ -5,7 +5,7 @@ const log = logger('page-object')
 
 /**
  * Implémentation mobile (Android/iOS) de PlatformAdapter — logique historiquement
- * dans src/helpers/webview.ts, déplacée ici pour isoler tous les appels Appium
+ * dans src/helpers/spa/webview.ts, déplacée ici pour isoler tous les appels Appium
  * (`driver.switchContext`, `driver.getContexts`, gestes natifs) derrière l'interface
  * commune. Voir CLAUDE.md §Architecture et docs/adr/2026-07-09-…
  */

@@ -248,7 +248,7 @@ Livré par cette version : la spec, les deux schémas, la description des apps (
 **Non livré** (à ne pas supposer) :
 
 - aucune recette `just` ne valide les fichiers ni ne calcule la couverture ;
-- aucune mesure à l'exécution : les scénarios décrivent le code **tel que lu**. La trace réelle viendrait de `traced()` (`src/helpers/traced.ts`), qui journalise déjà chaque appel de Page Object. Comparer trace mesurée et trace déclarée est l'extension naturelle ;
+- aucune mesure à l'exécution : les scénarios décrivent le code **tel que lu**. La trace réelle viendrait de `traced()` (`src/helpers/reporting/traced.ts`), qui journalise déjà chaque appel de Page Object. Comparer trace mesurée et trace déclarée est l'extension naturelle ;
 - la liste des observables est partielle (§ 3.4) ;
 - les contrats de réponse d'API (`operations.*.responses`, ex. 401 sur Basic Auth invalide) sont décrits mais rattachés à aucune unité de couverture ;
 - une arête n'a qu'une destination : les variantes (session FranceConnect déjà ouverte qui saute eIDAS) ne sont pas modélisables et vont en `note` ;
