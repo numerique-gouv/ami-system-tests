@@ -261,7 +261,7 @@ test-android *args:
     device=""; wdio_args=()
     while [ $# -gt 0 ]; do
         case "$1" in
-            --device) device="${2:?--device demande un nom d'AVD}"; shift 2 ;;
+            --device) device="${2:?--device demande un AVD}"; shift 2 ;;
             --device=*) device="${1#--device=}"; shift ;;
             *) wdio_args+=("$1"); shift ;;
         esac
@@ -332,6 +332,7 @@ test-webvideo +args:
 # Usage : just explore-webapp   |   just explore-webapp "/#/agenda"
 # Ouvre une session d'exploration sur la webapp (Chrome headless) de l'environnement AMI_ENV et navigue vers une route (hash de la SPA, entre
 # guillemets). Pose d'abord le cookie `access_key` comme wdio.webapp.conf.ts (valeur de WEB_APP_ACCESS_KEYS, jamais affichée).
+[doc("Session d'exploration webapp (Chrome headless) · [ROUTE]")]
 explore-webapp route="/":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -345,6 +346,7 @@ explore-webapp route="/":
 # Ouvre une session d'exploration sur l'app Android de ANDROID_APP_PATH (émulateur déjà démarré : just start-android), sans réinitialiser l'app.
 # L'app apparaît d'abord sur le sélecteur d'environnement (écran natif, sans WebView) ; la SPA est ensuite dans une WebView (`just webview android`).
 # En Android hybride, `snapshot` lit l'arbre natif. Appareil précis : ANDROID_UDID.
+[doc("Session d'exploration Android (app de ANDROID_APP_PATH)")]
 explore-android:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -392,6 +394,7 @@ explore-close target="webapp":
 # (constaté le 2026-10-08, WDIO 10.0.1), alors que `exec` lit bien le DOM. Bascule seule sur la WebView, puis
 # revient en natif. Sans WebView (sélecteur d'environnement, écran natif), utiliser `just s <cible> snapshot -i`.
 # Liste les éléments interactifs du DOM de la WebView d'une session ouverte avec `just explore-<cible>`.
+[doc("DOM de la WebView d'une session ouverte · [CIBLE]")]
 webview target="webapp":
     npx wdio session -s {{ target }} exec < src/scripts/webview-dump.js
 
@@ -399,6 +402,7 @@ webview target="webapp":
 # Lance un test webapp et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook (`before all`) ne déclenche pas
 # la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i, just s debug-0-0 screenshot, just s debug-0-0 resume.
 # Mobile : npx wdio run wdio.android.conf.ts --spec <fichier> --debug=agent (idem wdio.ios.conf.ts, avec l'appareil démarré) ; sessions ouvertes : npx wdio session list.
+[doc("Test webapp en pause au premier échec (session debug-0-0) · FICHIER")]
 debug-webapp spec:
     npx wdio run wdio.webapp.conf.ts --spec {{ spec }} --debug=agent
 

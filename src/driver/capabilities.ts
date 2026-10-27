@@ -26,6 +26,27 @@ function appPathFromEnv(name: 'ANDROID_APP_PATH' | 'IOS_APP_PATH'): string {
   return value
 }
 
+/**
+ * Ajoute `appium:app` à `caps` comme propriété paresseuse : la variable n'est exigée (et le fichier cherché) qu'à la première lecture, donc
+ * seulement pour un run de cette plateforme (ce module est chargé par les configs Android et iOS). Une écriture ultérieure
+ * (wdio complète les capabilities) la remplace par une propriété ordinaire.
+ */
+function withLazyAppPath(caps: WebdriverIO.Capabilities, name: 'ANDROID_APP_PATH' | 'IOS_APP_PATH'): void {
+  const plain = (value: string): PropertyDescriptor => ({value, enumerable: true, writable: true, configurable: true})
+  Object.defineProperty(caps, 'appium:app', {
+    enumerable: true,
+    configurable: true,
+    get(): string {
+      const value = appPathFromEnv(name)
+      Object.defineProperty(caps, 'appium:app', plain(value))
+      return value
+    },
+    set(value: string) {
+      Object.defineProperty(caps, 'appium:app', plain(value))
+    },
+  })
+}
+
 // ─── Android ────────────────────────────────────────────────────────────────
 
 // `as WebdriverIO.Capabilities` plutôt qu'annotation `: WebdriverIO.Capabilities` —
@@ -44,8 +65,6 @@ export const androidCapabilities = {
   // pour un second émulateur en parallèle sans conflit avec celui par défaut.
   ...(process.env.ANDROID_SYSTEM_PORT ? {'appium:systemPort': Number(process.env.ANDROID_SYSTEM_PORT)} : {}),
   ...(process.env.ANDROID_CHROMEDRIVER_PORT ? {'appium:chromedriverPort': Number(process.env.ANDROID_CHROMEDRIVER_PORT)} : {}),
-  // Accesseur : la variable n'est exigée que pour un run Android (ce module est aussi chargé côté iOS) ; évalué à la lecture des capabilities.
-  get 'appium:app'(): string { return appPathFromEnv('ANDROID_APP_PATH') },
   'appium:appPackage': preprod ? 'fr.gouv.ami.preprod' : 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
   // L'app reste installée, ouverte et connectée entre deux specs (une session Appium par spec). Avec `noReset: false`, le driver
@@ -71,6 +90,7 @@ export const androidCapabilities = {
   'appium:uiautomator2ServerLaunchTimeout': 60000,
   'appium:uiautomator2ServerInstallTimeout': 60000,
 } as WebdriverIO.Capabilities
+withLazyAppPath(androidCapabilities, 'ANDROID_APP_PATH')
 
 // ─── iOS ────────────────────────────────────────────────────────────────────
 
@@ -84,8 +104,6 @@ export const iosCapabilities = {
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
   // Port local de WebDriverAgent surchargeable (IOS_WDA_PORT) pour un second simulateur en parallèle ; défaut du driver : 8100.
   ...(process.env.IOS_WDA_PORT ? {'appium:wdaLocalPort': Number(process.env.IOS_WDA_PORT)} : {}),
-  // Accesseur : exigée seulement pour un run iOS (cf. Android).
-  get 'appium:app'(): string { return appPathFromEnv('IOS_APP_PATH') },
   'appium:bundleId': preprod ? 'fr.gouv.ami.preproduction' : 'fr.gouv.ami.staging',
   // `noReset: true` laisse le simulateur tel quel (pas de réinstallation à chaque session) et WDA ne termine ni ne relance l'app.
   // LIMITE (vérifiée le 2026-10-12) : l'app lancée par WDA appartient au processus XCTRunner, que le driver tue à chaque nouvelle
@@ -110,3 +128,4 @@ export const iosCapabilities = {
   // perdues par connexion. Nos appelants sondent eux-mêmes en boucle (pickWebView, waitForWebViews) : 3 essais suffisent (~1,5 s).
   'appium:webviewConnectRetries': Number(process.env.IOS_WEBVIEW_RETRIES ?? 3),
 } as WebdriverIO.Capabilities
+withLazyAppPath(iosCapabilities, 'IOS_APP_PATH')
