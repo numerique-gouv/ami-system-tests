@@ -292,7 +292,7 @@ Le scénario est identique côté API ; seuls l'accès à l'app et la connexion 
 Ce qui **manque sur iOS** (état au 2026-10-12, d'après les notes de session, pas une mesure refaite pour ce tutoriel) :
 
 - **L'app ne reste pas ouverte entre deux specs.** L'app lancée par WDA appartient au processus XCTRunner, que le pilote tue à chaque nouvelle session : le sélecteur d'environnement revient à chaque spec et la connexion est à refaire. `simctl launch` avec `autoLaunch: false` a été essayé puis abandonné (la WebView n'est plus trouvée). Piste non essayée : un WDA persistant (`appium:webDriverAgentUrl`).
-- **Blocage WebKit.** Une cible WebKit « provisoire » créée au changement de domaine n'est jamais confirmée ; les commandes restent sans réponse jusqu'au délai de 120 s. La cause est inconnue ; après un timeout, le contexte se désynchronise.
+- **Blocage WebKit.** Une cible WebKit « provisoire » créée au changement de domaine n'est jamais confirmée ; les commandes restent sans réponse jusqu'au délai de 120 s. Après un timeout, le contexte se désynchronise. Mécanismes observés et réglages essayés sans effet : `docs/adr/2026-10-27-blocage-webkit-wda-experiences.md`.
 - **Pas de mesure de fiabilité durable.** Les campagnes iOS ont donné 1 à 3 runs verts sur 3 selon le jour ; il faudrait au moins 5 runs sur le même code pour séparer la dégradation du simulateur d'un défaut de code.
 - **`snapshot` dans l'app hybride** et le squelette de test : jamais essayés sur iOS.
 

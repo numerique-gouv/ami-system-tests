@@ -68,7 +68,7 @@ async function pickWebView(target?: WebViewTarget): Promise<WebViewInfo> {
   if (webviews.length === 0) {
     throw new Error(
       `Aucune WebView trouvée après ${WEBVIEW_WAIT_MS}ms. Vérifier appium:chromedriverAutodownload (Android) ou ` +
-      'appium:webkitResponseTimeout / isInspectable=true (iOS).'
+      'isInspectable=true (iOS).'
     )
   }
   const title = target?.title
