@@ -1,164 +1,151 @@
+import logger from '@wdio/logger'
 import NotificationsInboxPage from '../../pages/notifications.page'
-import { PARTNER_AMI, getBackendUrl, grantDemarchesConsent, publishNotification } from '../../helpers/partner-api'
-import { getUser } from '../../helpers/common/test-users'
-import { getAppToStartingState } from '../../pages/authenticate.process'
+import {publishNotification} from '../../helpers/partner-api'
+import {getUser} from '../../helpers/common/test-users'
+import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
-import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import NavigationPage from '../../pages/navigation.page'
 import HomePage from '../../pages/home.page'
 import PreferencesPage from '../../pages/preferences.page'
 import SystemNotificationsPage from '../../pages/system-notifications.page'
-import {pushAndTapBanner, waitForNotificationAuthorization, waitForNotificationsRoute} from '../../helpers/mobile/ios-notifications'
 
+const log = logger('test')
+
+/**
+ * Notifications mobiles (Android + iOS), SANS consentement de démarche : on teste les notifications.
+ *
+ * A. Notifications ACCEPTÉES : la notification publiée au backend arrive dans le centre de notifications de l'app ET en notification
+ *    native (push), qu'on clique ; on constate la page d'arrivée.
+ * B. Notifications REFUSÉES : la même chose, sauf que le push natif n'arrive PAS (attendu 3 fois le délai du push mesuré en A) ;
+ *    la notification est quand même dans le centre de notifications.
+ *
+ * Le push natif : Android = FCM du backend (`tryPush`) ; iOS simulateur = `xcrun simctl push` avec un titre « AMI-cli-… » (pas d'APNs
+ * réel) EN PLUS de la publication au backend ; iOS appareil physique = le backend produit la vraie notification (non exercé ici).
+ * Ordre : le centre de notifications est constaté dès la publication (l'inbox doit être ouverte pour mesurer son délai et recevoir la
+ * notification par WebSocket), puis on le quitte avant les opérations natives, et on le rouvre à la fin (étape 6) pour constater que la
+ * notification y est restée. Le détail technique est dans SystemNotificationsPage et helpers/mobile/*-notifications.ts.
+ */
 describe('Notifications', function () {
-  this.timeout(240000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe (la notification système Android peut mettre 45 à 70 s, attente jusqu'à 150 s)
+  // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe. B attend 3 × le délai du push (Android : FCM 45 à 70 s
+  // mesurés le 2026-10-27, donc jusqu'à ~210 s d'attente négative) en plus des réglages et du centre de notifications.
+  this.timeout(480000)
   const user = getUser('avec_nom_dusage')
+
+  /** Délai du push natif mesuré en A, réutilisé par B. */
+  let measuredPushDelayMs: number | undefined
+  /** Repli si A n'a pas tourné : plus grand délai observé (Android : FCM ≤ 70 s le 2026-10-27 ; iOS simulateur : `simctl push` ≈ quelques secondes). */
+  const fallbackPushDelayMs = (): number => driver.isIOS ? 5000 : 70000
+  /** Plancher et plafond de l'attente négative (le plafond reste sous le délai Mocha). */
+  const NEGATIVE_WAIT_MIN_MS = 15000
+  const NEGATIVE_WAIT_MAX_MS = 240000
+  /** Bornes d'assertion fondées sur les mesures (cf. rapport de l'agent). */
+  const MAX_CENTER_DELAY_MS = 30000
+  const maxPushDelayMs = (): number => driver.isIOS ? 20000 : 120000
 
   before(async function () {
     await getAppToStartingState()
-    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
   })
 
-  /**
-   * Scénario vanilla : notification reçue dans l'inbox in-app malgré refus OS.
-   *
-   * Portage de maestro/flows/notifications/receive_vanilla_notification.yaml.
-   * La permission push n'est pas accordée (onboarding dismissed) — on valide que
-   * l'inbox in-app reçoit quand même la notification via l'API partenaire.
-   *
-   * Pré-requis :
-   *   - Variables NOTIF_* dans .env (voir .env.example)
-   *   - App installée avec fullReset (la SPA doit afficher la mire FC au lancement)
-   *   - Sur iOS : nettoyage SFSafariViewController + WKWebView via `just test-ios`
-   */
-  it("reçoit une notification publiée dans l'inbox in-app", async function() {
-    // La livraison WebSocket Android (~22 s) reste dans le timeout Mocha global (120 s)
-    // Tout le corps reste dans la WebView. En contexte natif, le service de trace (devtools) demande à Appium, après chaque
-    // action, le « page source » de TOUTE l'app (arbre d'accessibilité natif, calculé par WDA). Avec l'inbox ouverte (des
-    // centaines de notifications, non paginées) ce cliché ne revient pas en ~2 min et, Appium exécutant les commandes une à
-    // une, bloque la file : timeout de 120 s sur iOS (5 échecs sur 5 le 2026-10-15). En WebView, le service lit le DOM.
-    await platform().inWebContext(async () => {
-      step("1. Ouvrir l'inbox notifications")
-      await NotificationsInboxPage.openFromHome()
-      // Avant de publier : l'inbox ouvre son WebSocket au montage, une notification publiée plus tôt serait perdue.
-      await NotificationsInboxPage.assertDisplayed()
-
-      step("2. Publier la notification via l'API partenaire")
-      const title = `AMI-vanilla-${Date.now()}`
-      await publishNotification({
-        title,
-        body: "Test vanilla — push OS non autorisé, doit apparaître dans l'inbox",
-        recipientFcHash: user.fcHash,
-      })
-
-      step('3. Vérifier la réception dans l\'inbox et vérifier son titre')
-      await NotificationsInboxPage.assertNotificationReceived(title)
-
-      step('4. Ouvrir la notification')
-      await NotificationsInboxPage.clickNotification(title)
-
-      // Quitter l'inbox AVANT la fin de l'enveloppe : au test suivant, le service de trace lit le « page source » natif de ce qui est
-      // affiché ; avec l'inbox (des centaines de notifications) il bloque la file d'Appium ~2 min (cf. commentaire ci-dessus).
-      await NavigationPage.goToRoute('/')
-    })
-  })
-
-  /**
-   * Règle (utilisateur, 2026-10-26) : notification consentie ou non, elle est reçue dans le CENTRE DE NOTIFICATIONS ; si le push est
-   * consenti, on reçoit EN PLUS la notification système.
-   *   - Android : notification système (permission POST_NOTIFICATIONS accordée, volet des notifications ouvert) ;
-   *   - iOS : push APNs réel = APPAREIL PHYSIQUE (hors périmètre) ; sur simulateur, `xcrun simctl push` simule la notification
-   *     localement (src/helpers/mobile/ios-notifications.ts) : on constate la bannière, on la clique et on vérifie que l'app ouvre /#/notifications.
-   */
-  it("avec push consenti : reçue dans l'inbox ET en notification système (Android ; iOS : push simulé)", async function() {
-    if (driver.isIOS) {
-      // Simulation LOCALE (xcrun simctl push) : le push APNs réel sur appareil physique reste HORS PÉRIMÈTRE (jeton APNs, backend, Firebase non exercés).
-      step('iOS : l\'autorisation système des notifications a été accordée (parcours d\'authentification par défaut)')
-      await waitForNotificationAuthorization('authorized')
-      step('iOS : pousser une notification simulée (simctl push), cliquer sa bannière SpringBoard')
-      const title = `AMI-push-${Date.now()}`
-      await pushAndTapBanner({title, body: 'Test push simulé — bannière système', appUrl: getBackendUrl()})
-      // Le tap ramène l'app au premier plan : elle peut re-présenter la feuille native « Activez les notifications » (permission pourtant
-      // accordée), qui recouvre la page (constaté en capture : 20 s d'attente puis échec « aucune WebView n'affiche /#/notifications »).
-      await OnboardingNotificationsPage.dismissNativeSheet(2000)
-      step('iOS : le tap ouvre la page Notifications de l\'app (app_url)')
-      await waitForNotificationsRoute()
-      return
-    }
-    // Android (constats en live le 2026-10-26, émulateur API 36, staging) : l'app ne poste la notification système (FirebaseService) que si
-    // POST_NOTIFICATIONS est accordée ; elle arrive ~20 s après la publication (FCM), id fixe (une nouvelle remplace la précédente) ;
-    // son clic démarre MainActivity avec les extras sender/app_url/title/message (onNewIntent : visibles dans logcat ; titre = celui de la 1re notification, PendingIntent réutilisé). Constats par adb_shell
-    // (`mobile: shell`, cf. helpers/mobile/android-notifications.ts). Le WebView n'est pas rechargé par ce clic quand l'app est déjà ouverte.
-    step('1. Accorder la permission de notifications système à l\'app (pm grant) et partir de l\'accueil')
-    await SystemNotificationsPage.grantPermission()
+  /** Préférences > Notifications (écran natif « Paramètres ») : accepte ou refuse, puis ferme l'écran. */
+  async function setNotifications(on: boolean): Promise<void> {
     await platform().inWebContext(async () => {
       await NavigationPage.goToRoute('/')
       await HomePage.assertHomeVisible()
-    })
-
-    const title = `AMI-push-${Date.now()}`
-    const body = 'Test push — inbox ET notification système'
-    await platform().inWebContext(async () => {
-      step("2. Ouvrir l'inbox puis publier la notification avec push")
-      await NotificationsInboxPage.openFromHome()
-      await NotificationsInboxPage.assertDisplayed()
-      await publishNotification({title, body, recipientFcHash: user.fcHash, tryPush: true})
-      step("3. Reçue dans l'inbox")
-      await NotificationsInboxPage.assertNotificationReceived(title)
-      // Quitter l'inbox : même raison que dans le test précédent (service de trace, « page source » natif).
-      await NavigationPage.goToRoute('/')
-    })
-
-    step('4. Reçue par le système (dumpsys notification : titre et texte)')
-    await SystemNotificationsPage.waitForSystemNotification(title, body)
-
-    step('5. Visible dans le volet des notifications ; le clic ramène dans l\'app avec l\'intent de la notification')
-    await SystemNotificationsPage.openShadeAndTap(title)
-    await SystemNotificationsPage.assertTapOpenedApp()
-  })
-
-  /**
-   * Réglage « notifications » d'AMI sur Android : la page Préférences > Notifications est PROMUE EN NATIF (écran « Paramètres », un interrupteur
-   * qui reflète la permission système POST_NOTIFICATIONS). Permission accordée, taper l'interrupteur n'efface pas la permission : l'app
-   * ouvre les réglages SYSTÈME de ses notifications, où « All AMI … notifications » coupe/rétablit l'importance du canal et le mode appops
-   * POST_NOTIFICATION (constaté par dumpsys). Le test rétablit l'état d'origine. (Le sens inverse, permission refusée -> boîte de dialogue
-   * système, n'est pas exercé : révoquer la permission tue l'app.)
-   */
-  it('réglage Préférences > Notifications (Android) : interrupteur natif et réglages système', async function() {
-    if (driver.isIOS) this.skip()
-    await SystemNotificationsPage.grantPermission()
-    await platform().inWebContext(async () => {
-      await NavigationPage.goToRoute('/')
-      await HomePage.assertHomeVisible()
-    })
-    step('1. Préférences > Notifications ouvre l\'écran natif « Paramètres », interrupteur actif (permission accordée)')
-    await platform().inWebContext(async () => {
       await PreferencesPage.open()
       await PreferencesPage.openPushNotificationsSettings()
     })
     expect(await SystemNotificationsPage.isAmiSettingsDisplayed()).toBe(true)
-    expect(await SystemNotificationsPage.amiSettingsSwitchChecked()).toBe(true)
-
-    step('2. Taper l\'interrupteur ouvre les réglages système des notifications de l\'app')
-    await SystemNotificationsPage.tapAmiSettingsSwitch()
-    expect(await SystemNotificationsPage.isOsAppNotificationSettingsFocused()).toBe(true)
-    try {
-      step('3. Couper les notifications dans les réglages système : importance NONE et appops « ignore »')
-      await SystemNotificationsPage.setOsAppNotifications(false)
-      const off = await SystemNotificationsPage.osState()
-      expect(off.importance).toBe('NONE')
-      expect(off.appOps).toContain('ignore')
-    } finally {
-      step('4. Rétablir : importance par défaut et appops non « ignore »')
-      await SystemNotificationsPage.setOsAppNotifications(true)
-    }
-    const on = await SystemNotificationsPage.osState()
-    expect(on.importance).not.toBe('NONE')
-    expect(on.appOps).not.toContain('ignore')
-    await SystemNotificationsPage.backToApp()
-    await SystemNotificationsPage.grantPermission() // filet : permission accordée pour la suite de la série
-    await driver.pressKeyCode(4) // BACK : quitte l'écran natif « Paramètres »
+    const result = await SystemNotificationsPage.setNotificationsFromAppSettings(on)
+    log.info(`notifications ${on ? 'acceptées' : 'refusées'} dans les réglages de l'app (${result})`)
+    await SystemNotificationsPage.closeAppSettings()
     await platform().inWebContext(() => NavigationPage.goToRoute('/'))
+  }
+
+  /** Ouvre le centre de notifications, publie (avec push) et retourne les instants utiles ; le centre reste ouvert jusqu'à l'arrivée. */
+  async function publishAndWaitInCenter(title: string, body: string): Promise<{publishedAt: number, centerDelayMs: number}> {
+    return await platform().inWebContext(async () => {
+      await NavigationPage.goToRoute('/')
+      await HomePage.assertHomeVisible()
+      await NotificationsInboxPage.openFromHome()
+      // Avant de publier : l'inbox ouvre son WebSocket au montage, une notification publiée plus tôt serait perdue.
+      await NotificationsInboxPage.assertDisplayed()
+      const publishedAt = Date.now()
+      // Pas de consentement de démarche ici : on teste les notifications. La garde du helper (consentement du partenaire aux démarches) est levée ;
+      // le partenaire AMI est un partenaire système, le backend n'exige pas son consentement (201 constaté sur staging, cf. TODO A1).
+      await publishNotification({title, body, recipientFcHash: user.fcHash, tryPush: true, verifyPartnerConsent: false})
+      await NotificationsInboxPage.assertNotificationReceived(title)
+      const centerDelayMs = Date.now() - publishedAt
+      // Quitter l'inbox : au geste natif suivant, le service de trace lit le « page source » natif ; avec l'inbox (des centaines de
+      // notifications) il bloquerait la file d'Appium ~2 min sur iOS.
+      await NavigationPage.goToRoute('/')
+      return {publishedAt, centerDelayMs}
+    })
+  }
+
+  async function assertStillInCenter(title: string): Promise<void> {
+    await platform().inWebContext(async () => {
+      await NavigationPage.goToRoute('/')
+      await NotificationsInboxPage.openFromHome()
+      await NotificationsInboxPage.assertDisplayed()
+      await NotificationsInboxPage.assertNotificationReceived(title)
+      await NavigationPage.goToRoute('/')
+    })
+  }
+
+  it("A. notifications acceptées : push natif reçu et cliqué, notification dans le centre de notifications", async function () {
+    step("A1. Accepter les notifications dans les réglages de l'app et constater la prise en compte système")
+    await setNotifications(true)
+
+    const title = `AMI-notif-A-${Date.now()}`
+    const body = 'Test notifications acceptées'
+    step("A2-3. Ouvrir le centre de notifications, publier la notification au backend (avec push) et la voir arriver dans le centre")
+    const {publishedAt, centerDelayMs} = await publishAndWaitInCenter(title, body)
+    log.info(`A : centre de notifications : ${centerDelayMs} ms après la publication`)
+    step(`A6. Centre de notifications : notification reçue en ${(centerDelayMs / 1000).toFixed(1)} s`)
+    expect(centerDelayMs).toBeLessThan(MAX_CENTER_DELAY_MS)
+
+    step('A4. Déclencher le push natif (iOS simulateur : simctl push, titre AMI-cli-… ; Android : FCM du backend)')
+    const {title: nativeTitle, sentAt} = await SystemNotificationsPage.triggerNativePush(title, body, publishedAt)
+
+    step('A5. Le push natif arrive')
+    await SystemNotificationsPage.waitForNativePush(nativeTitle, body, maxPushDelayMs() * 1.25)
+    measuredPushDelayMs = Date.now() - sentAt
+    log.info(`A : push natif : ${measuredPushDelayMs} ms (depuis ${driver.isIOS ? 'simctl push' : 'la publication au backend'})`)
+    step(`A5. Push natif reçu en ${(measuredPushDelayMs / 1000).toFixed(1)} s`)
+    expect(measuredPushDelayMs).toBeLessThan(maxPushDelayMs())
+
+    step('A5. Cliquer la notification native et constater la page d\'arrivée')
+    await SystemNotificationsPage.tapNativePush(nativeTitle)
+    await SystemNotificationsPage.assertPushArrival()
+    await SystemNotificationsPage.leavePushArrival()
+  })
+
+  it("B. notifications refusées : aucun push natif, notification quand même dans le centre de notifications", async function () {
+    step("B1. Refuser les notifications dans les réglages de l'app et constater la prise en compte système")
+    await setNotifications(false)
+    try {
+      const title = `AMI-notif-B-${Date.now()}`
+      const body = 'Test notifications refusées'
+      step('B2-3. Ouvrir le centre de notifications et publier une NOUVELLE notification au backend (avec push)')
+      const {publishedAt, centerDelayMs} = await publishAndWaitInCenter(title, body)
+      log.info(`B : centre de notifications : ${centerDelayMs} ms après la publication`)
+      expect(centerDelayMs).toBeLessThan(MAX_CENTER_DELAY_MS)
+
+      step('B4. Déclencher le push natif (iOS simulateur : simctl push ; Android : FCM du backend)')
+      const {title: nativeTitle} = await SystemNotificationsPage.triggerNativePush(title, body, publishedAt)
+
+      const reference = measuredPushDelayMs ?? fallbackPushDelayMs()
+      const waitMs = Math.min(NEGATIVE_WAIT_MAX_MS, Math.max(NEGATIVE_WAIT_MIN_MS, 3 * reference))
+      log.info(`B : attente négative ${waitMs} ms = 3 × ${reference} ms (${measuredPushDelayMs === undefined ? 'repli : A n\'a pas tourné' : 'délai mesuré en A'})`)
+      step(`B5. Aucun push natif pendant ${(waitMs / 1000).toFixed(0)} s (3 × le délai du push mesuré en A)`)
+      await SystemNotificationsPage.assertNoNativePush(nativeTitle, waitMs)
+
+      step('B6. La notification est bien dans le centre de notifications')
+      await assertStillInCenter(title)
+    } finally {
+      step('Rétablir : notifications acceptées')
+      await setNotifications(true)
+    }
   })
 })
