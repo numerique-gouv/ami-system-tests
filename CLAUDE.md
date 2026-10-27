@@ -149,7 +149,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 - `just` (`brew install just`)
 - Android SDK + `adb` dans le PATH
 - Xcode + `xcodegen` (`brew install xcodegen`)
-- `appium` global (`npm i -g appium`)
+- Appium 3.8 (devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` sous `~/.appium` (`just install-appium-drivers`, versions dans `package.json` `appium:install`)
 - Simulateur iOS "iPhone 17 Pro" (nom dans `IOS_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device "<nom>"` sur les cibles `just`)
 - Émulateur Android : AVD de type Pixel, API 36 (nom dans `ANDROID_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device` sur les cibles `just`)
 

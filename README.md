@@ -15,7 +15,7 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 | `just` | `brew install just` |
 | Android SDK + `adb` | Android Studio → SDK Manager |
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
-| Appium (global) | `npm i -g appium` |
+| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `npm run appium:install`, installées sous `~/.appium`) | `just setup` (ou `just install-appium-drivers`) |
 
 Simulateur iOS attendu : **iPhone 17 Pro** (nom dans `IOS_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device "<nom>"` : `just test-ios --device "iPhone 17 Pro"`)
 Émulateur Android : AVD de type Pixel, API 36 — nom dans `ANDROID_DEVICE_NAME_DEFAULT` de `.env.local`, ou `--device` : `just test-android --device pixel_2_api30`
