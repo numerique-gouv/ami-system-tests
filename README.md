@@ -205,7 +205,8 @@ réelle. Les règles de fond (ne jamais commiter un locator non validé, etc.) s
 | Voir les contextes, basculer | `just s <cible> contexts` · `just s <cible> contexts switch WEBVIEW_…` |
 | Lire les erreurs console ou les appels réseau (web) | `just s <cible> logs --errors` · `just s <cible> requests` |
 | Transformer les étapes en test | `just explore-export <nom> <cible>` → `exports/<nom>.e2e.ts` (à ranger dans un Page Object) |
-| Figer un test à son échec et l'inspecter | `just debug-webapp|android|ios <spec>` puis `just s debug-0-0 snapshot -i`, `screenshot`, `resume` |
+| Figer un test à son échec et l'inspecter | `just debug-webapp <spec>` (mobile : `npx wdio run wdio.android.conf.ts --spec <spec> --debug=agent`, idem iOS) puis `just s debug-0-0 snapshot -i`, `screenshot`, `resume` |
+| Lister les sessions ouvertes (dont un test en pause : `debug-0-0`) | `npx wdio session list` |
 | Diagnostiquer la machine | `just doctor` (les ✖ cloud et desktop sont sans objet) |
 | Fermer | `just explore-close <cible>` |
 
@@ -213,7 +214,7 @@ Points à connaître :
 - **Natif d'abord.** Après `just explore-android` ou `just explore-ios`, l'app est sur le sélecteur d'environnement
   (écran natif, sans WebView). Il faut choisir une tuile (`just s <cible> snapshot`, puis un clic)
   pour charger la SPA ; `contexts` échoue tant qu'il n'existe aucune WebView.
-- **`just debug`** se met en pause au premier échec d'un *test* ; un échec de *hook* (`before all`)
+- **`just debug-webapp`** (ou `--debug=agent` sur mobile) se met en pause au premier échec d'un *test* ; un échec de *hook* (`before all`)
   ne déclenche pas la pause.
 - **Webapp** : la route d'une page est `/#/agenda` (hash). Le cookie d'accès est posé sans jamais
   afficher la clé.

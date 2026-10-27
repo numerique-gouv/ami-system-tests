@@ -371,10 +371,6 @@ s target *args:
     t="$1"; shift
     npx wdio session -s "$t" "$@"
 
-# Liste les sessions ouvertes (dont un test en pause : debug-0-0).
-sessions:
-    npx wdio session list
-
 # À relire puis ranger dans un Page Object et src/tests/<domaine>/ (cf. CONTRIBUTING.md).
 # Exemples : just explore-export agenda-evenements webapp   →   exports/agenda-evenements.e2e.ts
 #            just explore-export agenda-evenements webapp --page-objects   →   + exports/pageobjects/*.page.ts
@@ -399,32 +395,12 @@ explore-close target="webapp":
 webview target="webapp":
     npx wdio session -s {{ target }} exec < src/scripts/webview-dump.js
 
-# Lance un test et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook
-# (`before all`) ne déclenche pas la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i,
-# just s debug-0-0 screenshot, just s debug-0-0 resume.
-# (Recette privée : on lance debug-webapp, debug-android ou debug-ios.)
-_debug target spec device="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    case "{{ target }}" in
-      android) [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"; export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")" ;;
-      ios) export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"; export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")" ;;
-    esac
-    npx wdio run wdio.{{ target }}.conf.ts --spec {{ spec }} --debug=agent
-
 # Usage : just debug-webapp src/tests/webapp/agenda.parcours.test.ts
-# Lance un test webapp et le met en pause à son premier échec (session debug-0-0).
-debug-webapp spec: (_debug "webapp" spec)
-
-# Usage : just debug-android src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts   |   just debug-android src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts --device pixel_2_api30
-[doc("Test Android en pause au 1er échec · FICHIER [--device AVD]")]
-[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
-debug-android spec device="": (_debug "android" spec device)
-
-# Usage : just debug-ios src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts   |   just debug-ios src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts --device "iPhone 17 Pro"
-[doc("Test iOS en pause au 1er échec · FICHIER [--device NOM]")]
-[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
-debug-ios spec device="": (_debug "ios" spec device)
+# Lance un test webapp et le MET EN PAUSE à son premier échec de test (session « debug-0-0 »). Un échec de hook (`before all`) ne déclenche pas
+# la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i, just s debug-0-0 screenshot, just s debug-0-0 resume.
+# Mobile : npx wdio run wdio.android.conf.ts --spec <fichier> --debug=agent (idem wdio.ios.conf.ts, avec l'appareil démarré) ; sessions ouvertes : npx wdio session list.
+debug-webapp spec:
+    npx wdio run wdio.webapp.conf.ts --spec {{ spec }} --debug=agent
 
 # Les croix « cloud » (BrowserStack…) et « desktop » (windows, mac2) ne nous concernent pas.
 # Exemples : just doctor   |   just doctor android

@@ -93,7 +93,7 @@ Sortie observée au lancement (la connexion a pris 17 s ; le fichier de l'essai 
 Paused in <fichier> › <titre du it>. Inspect with `wdio session -s debug-0-0 snapshot`, continue with `wdio session -s debug-0-0 resume`.
 ```
 
-`just sessions` liste les sessions ouvertes (`debug-0-0   wdio run (…)`). Le premier `snapshot -i` montre la barre basse `Accueil` (`e1`), `Agenda` (`e2`), `Services` (`e3`), `Suivi` (`e4`), `Plus` (`e5`) et `Voir les notifications(…)` (`e6`). Les refs **repartent de `e1`** dans chaque session : relisez toujours le snapshot avant d'agir.
+`npx wdio session list` liste les sessions ouvertes (`debug-0-0   wdio run (…)`). Le premier `snapshot -i` montre la barre basse `Accueil` (`e1`), `Agenda` (`e2`), `Services` (`e3`), `Suivi` (`e4`), `Plus` (`e5`) et `Voir les notifications(…)` (`e6`). Les refs **repartent de `e1`** dans chaque session : relisez toujours le snapshot avant d'agir.
 
 À savoir :
 
@@ -252,7 +252,7 @@ Où `publish` est un petit helper local qui appelle `publishDemarche` avec `item
 
 ## Étape 7 — Itérer, comparer attendu et observé
 
-`just test-webapp "src/tests/webapp/<scenario>.test.ts"` (Chrome visible) ou `just test-webci …` (headless). Si le test échoue : `just failures-text`, puis `just failures-ui` ; pour figer le test à son échec et l'inspecter avec les mêmes commandes qu'à l'étape 3, `just debug-webapp <fichier>` puis `just s debug-0-0 snapshot -i`.
+`just test-webapp --spec "src/tests/webapp/<scenario>.test.ts"` (Chrome visible) ou `just test-webci …` (headless). Si le test échoue : `just failures-text`, puis `just failures-ui` ; pour figer le test à son échec et l'inspecter avec les mêmes commandes qu'à l'étape 3, `just debug-webapp <fichier>` puis `just s debug-0-0 snapshot -i`.
 
 ### Ce que le scénario a donné sur le staging (2026-10-12, run `TUTO2-223235`)
 
@@ -277,7 +277,7 @@ Le scénario est identique côté API ; seuls l'accès à l'app et la connexion 
 |---|---|---|
 | Démarrer l'appareil | `just start-android` (émulateur) | `just start-ios` (simulateur) |
 | Session d'exploration | `just explore-android` | `just explore-ios` (option `--device`) |
-| Test mis en pause | `just debug-android <fichier>` | `just debug-ios <fichier>` |
+| Test mis en pause | `npx wdio run wdio.android.conf.ts --spec <fichier> --debug=agent` | `npx wdio run wdio.ios.conf.ts --spec <fichier> --debug=agent` |
 | Serveur Appium | port 4723 | port 4724 |
 | Pilotes | UiAutomator2, et Chromedriver pour la WebView | XCUITest, et WebKit Remote Debugging pour la WebView |
 | Locators natifs | `resource-id` | `accessibility id` |
