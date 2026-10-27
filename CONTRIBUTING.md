@@ -205,7 +205,7 @@ Les classes du design system État (`fr-tile__content`, `fr-badge`, `fr-tabs__ta
 
 ### Apostrophes : fragment sans apostrophe, ou caractère copié du DOM
 
-Le contenu FR (DSFR, Svelte) utilise souvent l'apostrophe typographique `’` (U+2019) ; la taper à la main en `'` (U+0027) casse le test au runtime. Pour un texte « contient », choisir un fragment **sans apostrophe** (`button*=Votre démarche n`). Pour un nom exact (`roleSelector`), copier l'apostrophe depuis le DOM ou les sources de la SPA (`just webview <cible>`, `just s <cible> find`), jamais la retaper, et la documenter en commentaire du locator.
+Le contenu FR (DSFR, Svelte) utilise souvent l'apostrophe typographique `’` (U+2019) ; la taper à la main en `'` (U+0027) casse le test au runtime. Pour un texte « contient », choisir un fragment **sans apostrophe** (`button*=Votre démarche n`). Pour un nom exact (`roleSelector`), copier l'apostrophe depuis le DOM ou les sources de la SPA (DevTools, `just s <cible> find`), jamais la retaper, et la documenter en commentaire du locator.
 
 ### Écran natif
 
