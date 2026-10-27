@@ -16,15 +16,16 @@ function slug(text: string): string {
   return text.replace(/[^a-z0-9+.-]/gi, '_').replace(/_+/g, '_').slice(0, 60)
 }
 
-/** Suite nommée (`WDIO_SUITE`), sinon les fichiers de spec passés avec `--spec` (le premier, puis `+N`), sinon `all`. */
-export function runScope(env: NodeJS.ProcessEnv, argv: string[]): string {
-  if (env.WDIO_SUITE) return slug(env.WDIO_SUITE)
+/** Suite nommée (`--suite NOM` ou `--suite=NOM`, option native de WDIO ; la première), sinon les fichiers de spec passés avec `--spec` (le premier, puis `+N`), sinon `all`. */
+export function runScope(argv: string[]): string {
+  const suite = argv.flatMap((arg, i) => arg === '--suite' && argv[i + 1] ? [argv[i + 1]] : arg.startsWith('--suite=') ? [arg.slice(8)] : [])[0]
+  if (suite) return slug(suite)
   const specs = argv.flatMap((arg, i) => arg === '--spec' && argv[i + 1] ? [argv[i + 1]] : arg.startsWith('--spec=') ? [arg.slice(7)] : [])
   if (specs.length === 0) return 'all'
   const first = path.basename(specs[0]).replace(/\.(test|e2e)\.[cm]?[jt]s$|\.[cm]?[jt]s$/, '')
   return slug(specs.length > 1 ? `${first}+${specs.length - 1}` : first)
 }
 
-export function runDirName(platform: 'android' | 'ios' | 'webapp', startedAtMs: number, env: NodeJS.ProcessEnv, argv: string[]): string {
-  return `${runTimestamp(startedAtMs)}_${platform}_${runScope(env, argv)}`
+export function runDirName(platform: 'android' | 'ios' | 'webapp', startedAtMs: number, argv: string[]): string {
+  return `${runTimestamp(startedAtMs)}_${platform}_${runScope(argv)}`
 }

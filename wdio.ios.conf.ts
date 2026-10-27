@@ -5,7 +5,6 @@ import logger from '@wdio/logger'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { iosCapabilities } from './src/driver/capabilities'
 import { iosBootedUdid, iosTerminateApp, iosUninstallApp } from './src/helpers/mobile/device-app'
-import { resolveSpecs } from './test-suites'
 
 const APP_ID = iosCapabilities['appium:bundleId'] as string
 const log = logger('config')
@@ -17,7 +16,7 @@ export const config: Options.Testrunner = {
 
   rootDir: traceRootDir('ios'),
 
-  specs: resolveSpecs(path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')),
+  specs: [path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')],
 
   capabilities: [iosCapabilities],
 

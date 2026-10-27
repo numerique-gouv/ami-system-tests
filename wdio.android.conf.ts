@@ -4,7 +4,6 @@ import logger from '@wdio/logger'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { androidCapabilities } from './src/driver/capabilities'
 import { androidForceStop, androidUninstallApp } from './src/helpers/mobile/device-app'
-import { resolveSpecs } from './test-suites'
 
 const ANDROID_APP_PACKAGE = androidCapabilities['appium:appPackage'] as string
 
@@ -17,7 +16,7 @@ export const config: Options.Testrunner = {
 
   rootDir: traceRootDir('android'),
 
-  specs: resolveSpecs(path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')),
+  specs: [path.resolve(__dirname, 'src/tests/mobile/**/*.test.ts')],
 
   capabilities: [androidCapabilities],
 

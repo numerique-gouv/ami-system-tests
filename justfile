@@ -312,7 +312,7 @@ check-code:
 #   just test-android-grep Notifications     → filtre par describe/it (grep Mocha, regex JS)
 #   just test-android-suite mobile_all       → tous les tests mobiles (liste plate de specs : un worker par spec, comme --spec a --spec b)
 #   just test-android-suite mobile_smoke     → smoke mobile (valider un déploiement) ; mobile_short = authentification seule
-#   just list-suite [NOM]                    → affiche les specs de chaque suite nommée (résolution à blanc, sans lancer wdio)
+#   (appel natif, sans just : npx wdio run wdio.webapp.conf.ts --suite webapp_smoke ; suites définies dans wdio.base.conf.ts)
 
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 # Garde-fou : hors CI, .env.local est obligatoire (AMI_ENV, NOTIF_*).
@@ -373,7 +373,7 @@ test-android-suite suite device="": _require-dotenv (start-android device)
     set -euo pipefail
     [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
     export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")"
-    WDIO_SUITE={{suite}} npm run test:android
+    npm run test:android -- --suite {{suite}}
 
 # Exemple : just test-ios-suite mobile_smoke   |   just test-ios-suite mobile_all --device "iPhone 17 Pro"
 [doc("Tests E2E iOS, suite nommée · SUITE [--device NOM]")]
@@ -383,7 +383,7 @@ test-ios-suite suite device="": _require-dotenv (start-ios device)
     set -euo pipefail
     export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
     export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")"
-    WDIO_SUITE={{suite}} npm run test:ios
+    npm run test:ios -- --suite {{suite}}
 
 # Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
 # Lancer les tests E2E webapp (CI) — Chrome headless, pas d'émulateur/simulateur à démarrer
@@ -404,7 +404,7 @@ test-webci *globs="": _require-dotenv
 # Exemple : AMI_ENV=staging just test-webci-suite webapp_smoke   (valider un déploiement)   |   just test-webci-suite webapp_all   (tester un déploiement)
 # Lancer les tests E2E webapp (CI) avec une suite nommée (webapp_*, liste plate de specs : un worker par spec)
 test-webci-suite suite: _require-dotenv
-    WDIO_SUITE={{suite}} npm run test:webapp
+    npm run test:webapp -- --suite {{suite}}
 
 # ATTENTION : ne pas ouvrir le panneau DevTools (F12 / Cmd+Opt+I) sur l'onglet de l'app pendant
 # le run — si un breakpoint est actif ou "Pause on exceptions" activé, le débogueur JS suspend
@@ -447,7 +447,7 @@ test-webvideo *globs: _require-dotenv
 # Exemple : just test-webapp-suite webapp_usage
 # Lancer les tests E2E webapp (Chrome visible) avec une suite nommée (webapp_*, liste plate de specs : un worker par spec)
 test-webapp-suite suite: _require-dotenv
-    WEBAPP_HEADLESS=false WDIO_SUITE={{suite}} npm run test:webapp
+    WEBAPP_HEADLESS=false npm run test:webapp -- --suite {{suite}}
 
 # ─── Exploration et débogage (wdio session, WebdriverIO 10) ─────────────────
 # Une session `wdio session` survit à la commande qui l'a ouverte (arrêt après 30 min d'inactivité) : on enchaîne
@@ -709,13 +709,6 @@ clean-tests-data:
 # Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
 push-notification login title="": _require-dotenv
     npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
-
-# Résolution à blanc des suites nommées (test-suites.ts) : liste plate de specs de chaque suite, ou de NOM ; échoue si une suite est vide ou mélange mobile et webapp.
-# Suites : mobile_short|smoke|all, webapp_short|smoke|usage|all (tableau suite → déclencheur : CONTRIBUTING.md, « Suites nommées »).
-# Exemples : just list-suite   |   just list-suite webapp_smoke
-[doc("Lister les specs des suites nommées, sans lancer wdio · [NOM…]")]
-list-suite *names:
-    npx ts-node --project tsconfig.json src/scripts/list-suite.ts {{names}}
 
 # ─── Aide ───────────────────────────────────────────────────────────────────
 

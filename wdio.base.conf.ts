@@ -17,7 +17,7 @@ const log = logger('scenario')
  * `rootDir` ne sert à WDIO qu'à résoudre des chemins relatifs de specs : les nôtres sont absolus.
  */
 export function traceRootDir(platform: 'android' | 'ios' | 'webapp'): string {
-  process.env.WDIO_RUN_DIR ??= path.resolve(__dirname, 'test-results/traces', runDirName(platform, Date.now(), process.env, process.argv))
+  process.env.WDIO_RUN_DIR ??= path.resolve(__dirname, 'test-results/traces', runDirName(platform, Date.now(), process.argv))
   return process.env.WDIO_RUN_DIR
 }
 
@@ -59,11 +59,72 @@ export const traceServices: NonNullable<Options.Testrunner['services']> = [
   }],
 ]
 
-// `specs` n'est PAS définie ici : chaque config de plateforme (wdio.android.conf.ts,
-// wdio.ios.conf.ts, wdio.webapp.conf.ts) appelle resolveSpecs() de test-suites.ts avec
-// son propre glob par défaut — mobile et webapp n'ont pas le même arbre sous src/tests/.
+/**
+ * Suites nommées : option native `suites` de WDIO, lancées par `npx wdio run wdio.<plateforme>.conf.ts --suite <nom>` (ou
+ * `just test-*-suite <nom>`). Les NOMS sont le contrat des workflows CI (ami-system-tests, ami-notifications-api, ami-app-android).
+ *
+ * Objet partagé : chaque config de plateforme ne lance que ses suites (`mobile_*` pour Android et iOS, `webapp_*` pour Chrome).
+ * Chaque suite est une LISTE PLATE : une chaîne (spec ou motif) par entrée, jamais de tableau imbriqué, qui regrouperait des specs
+ * dans un seul worker. Équivalent de `--spec a --spec b` : un worker (une session WebDriver) par fichier, dans l'ordre de la liste
+ * (`maxInstances: 1`). WDIO développe les motifs (ordre alphabétique) et dédoublonne en gardant la 1re occurrence : une suite « smoke
+ * d'abord, puis tout » ne rejoue pas les smoke. Aucun ordre particulier n'est requis entre specs : chaque spec s'authentifie seule,
+ * et wdio.webapp.conf.ts vide le profil Chrome avant authentification et passkey d'après leur nom de fichier.
+ *
+ * Nommage : `short` (authentification seule), `smoke` (catégorie smoke), `usage` (smoke + usage) ou `all` (tout) ; schéma des fichiers
+ * `<périmètre>.<catégorie>.test.ts` (CONTRIBUTING.md). Tableau suite → déclencheur : CONTRIBUTING.md, section « Suites nommées ».
+ */
+const r = (p: string) => path.resolve(__dirname, p)
+
+export const suites: Record<string, string[]> = {
+  // ─── Mobile (Android + iOS) ───────────────────────────────────────────────────────────────────────────────────────────
+
+  /** CI, mise au point : authentification seule (quelques minutes) ; valeur par défaut des lancements manuels (workflow_dispatch). */
+  mobile_short: [
+    r('src/tests/mobile/authentification.smoke.test.ts'),
+  ],
+
+  /** Hors CI, « valider un déploiement » : tous les tests mobiles smoke (aujourd'hui l'authentification seule, quelques minutes). */
+  mobile_smoke: [
+    r('src/tests/mobile/**/*.smoke.test.ts'),
+  ],
+
+  /** PR, merge et tag (API et app Android) ; hors CI, « tester un déploiement » : TOUS les tests mobiles, smoke d'abord (quelques dizaines de minutes). */
+  mobile_all: [
+    r('src/tests/mobile/**/*.smoke.test.ts'),
+    r('src/tests/mobile/**/*.test.ts'),
+  ],
+
+  // ─── Webapp (Chrome) ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** CI, mise au point : authentification seule (une minute ou deux) ; valeur par défaut des lancements manuels. */
+  webapp_short: [
+    r('src/tests/webapp/authentification.smoke.test.ts'),
+  ],
+
+  /** Hors CI, « valider un déploiement » : tous les tests webapp smoke (authentification, accueil ; quelques minutes). */
+  webapp_smoke: [
+    r('src/tests/webapp/**/*.smoke.test.ts'),
+  ],
+
+  /** PR, merge et tag : smoke puis usage (nonreg compris, `**`), sans les parcours de navigation exhaustifs (dix à vingt minutes). */
+  webapp_usage: [
+    r('src/tests/webapp/**/*.smoke.test.ts'),
+    r('src/tests/webapp/**/*.usage.test.ts'),
+  ],
+
+  /** Hors CI, « tester un déploiement » : TOUS les tests webapp (smoke, usage, parcours ; nonreg compris), smoke d'abord. */
+  webapp_all: [
+    r('src/tests/webapp/**/*.smoke.test.ts'),
+    r('src/tests/webapp/**/*.test.ts'),
+  ],
+}
+
+// `specs` (valeur par défaut, sans --suite ni --spec) est définie par chaque config de plateforme : mobile et webapp n'ont pas le
+// même arbre sous src/tests/.
 export const baseConfig: Partial<Options.Testrunner> = {
   runner: 'local',
+
+  suites,
 
   exclude: [],
 

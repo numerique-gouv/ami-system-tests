@@ -3,7 +3,6 @@ import type { Options } from '@wdio/types'
 import fs from 'fs'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/common/environment'
-import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { handleAccessKeyCookie } from './src/helpers/webapp/access-code'
 import { setBackendUrl } from './src/helpers/partner-api'
@@ -35,7 +34,7 @@ export const config: Options.Testrunner = {
 
   rootDir: traceRootDir('webapp'),
 
-  specs: resolveSpecs(path.resolve(__dirname, 'src/tests/webapp/**/*.test.ts')),
+  specs: [path.resolve(__dirname, 'src/tests/webapp/**/*.test.ts')],
 
   baseUrl: webappUrl,
 
