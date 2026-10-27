@@ -120,10 +120,10 @@ Suites supprimées (2026-10-27) : `all` et `api` (suites maison ; un fichier se 
 Lancer hors CI (mêmes suites, mêmes commandes qu'en local ; `AMI_ENV` choisit l'environnement, cf. `.env.local`) :
 
 ```bash
-AMI_ENV=staging just test-webci-suite webapp_smoke   # valider un déploiement (webapp)
-just test-android-suite mobile_smoke                 # valider un déploiement (mobile ; idem test-ios-suite)
-AMI_ENV=staging just test-webci-suite webapp_all     # tester un déploiement (webapp)
-just test-android-suite mobile_all                   # tester un déploiement (mobile ; idem test-ios-suite)
+AMI_ENV=staging just test-webci --suite webapp_smoke   # valider un déploiement (webapp)
+just test-android --suite mobile_smoke                 # valider un déploiement (mobile ; idem test-ios)
+AMI_ENV=staging just test-webci --suite webapp_all     # tester un déploiement (webapp)
+just test-android --suite mobile_all                   # tester un déploiement (mobile ; idem test-ios)
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif, sans just (idem wdio.android.conf.ts / wdio.ios.conf.ts)
 ```
 
@@ -321,8 +321,8 @@ Deux niveaux d'isolation : entre fichiers de spec et entre `it()` d'un même fic
 `beforeEach`, à choisir).
 
 L'isolation entre fichiers de spec dépend du mode de lancement. Avec `just test-android`/`test-ios`/
-`test-webapp` (globs) ou hors suite nommée, chaque fichier obtient une session fraîche, automatiquement.
-Les suites nommées (`just test-android-suite <nom>` ou `npx wdio run <config> --suite <nom>`, voir `wdio.base.conf.ts`) sont des **listes plates de
+`test-webapp` (`--spec`) ou hors suite nommée, chaque fichier obtient une session fraîche, automatiquement.
+Les suites nommées (`just test-android --suite <nom>` ou `npx wdio run <config> --suite <nom>`, voir `wdio.base.conf.ts`) sont des **listes plates de
 specs**, équivalentes à `--spec a --spec b` : un worker (une session WebDriver) par fichier, exactement comme en ligne de commande —
 une suite ne fait que désigner des fichiers, elle ne change pas la façon de les exécuter (les anciens groupes `[[a, b]]`, qui
 fusionnaient les specs en un seul worker, sont supprimés). L'état est cependant conservé d'un fichier à l'autre sans session partagée :
@@ -430,7 +430,7 @@ Allure a été retiré (2026-10-08). Ce qui reste :
 | merge (app Android) | — | `mobile_all`, un seul passage | récent `pixel_8_api36` | celui que le merge construit |
 | tag (app Android) | — | `mobile_all` | ancien `pixel_2_api30` | construit + publié (`app-staging-debug-<tag>`) |
 | manuel (`workflow_dispatch`, les deux dépôts) | `webapp_short` | `mobile_short` | `pixel_2_api30` (API) / `pixel_8_api36` (app Android) | choix libre de toute suite (mise au point de la CI) |
-| hors CI : valider un déploiement | `webapp_smoke` | `mobile_smoke` | au choix | `just test-webci-suite` / `just test-android-suite` |
+| hors CI : valider un déploiement | `webapp_smoke` | `mobile_smoke` | au choix | `just test-webci --suite …` / `just test-android --suite …` |
 | hors CI : tester un déploiement | `webapp_all` | `mobile_all` | au choix | idem |
 
 **Secrets et variables GitHub** à créer dans le dépôt appelant (transmis par `secrets: inherit` ; jamais de valeur dans le code) : `NOTIF_PARTNER_ID` et `NOTIF_PARTNER_SECRET` (partenaire AMI), `NOTIF_PARTNER_DINUM_DN_ID` et `NOTIF_PARTNER_DINUM_DN_SECRET` (partenaire `dinum-dn`, consentement activé : scénarios S5, S5.2 et S6.3 de la webapp, SKIPPÉS « BLOQUÉ » s'ils sont absents ; inutiles dans `ami-app-android`, dont les tests mobiles n'utilisent que le partenaire AMI), `WEB_APP_ACCESS_KEYS`, et pour l'APK du dernier tag la variable `AMI_REVIEWAPPS_APP_ID` + le secret `AMI_REVIEWAPPS_PRIVATE_KEY`.

@@ -15,4 +15,4 @@ runs:
       working-directory: ami-system-tests
       env:
         E2E_SUITE: ${{ inputs.suite }}
-      run: just test-webci-suite "$E2E_SUITE" || echo "Test suite has failed"
+      run: just test-webci --suite "$E2E_SUITE" || echo "Test suite has failed"

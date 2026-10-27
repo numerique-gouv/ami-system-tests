@@ -8,7 +8,7 @@ name: Notification API — Android
 # "Unable to get the ACTIONS_RUNTIME_TOKEN env variable" — act n'expose l'API Actions Runtime
 # (ACTIONS_RUNTIME_URL/TOKEN) que si on lui fournit un serveur d'artefacts local à cet effet.
 # Workflow réutilisable, appelé par system-tests-E2E.yml.
-# Stub pour l'instant : la vraie suite Android (via `just test-android-suite`,
+# Stub pour l'instant : la vraie suite Android (via `just test-android --suite …`,
 # émulateur Pixel_modern) sera branchée dans un ticket ultérieur.
 on:
   workflow_call:
@@ -110,7 +110,7 @@ jobs:
           profile: pixel_6
           avd-name: pixel_6_api31
           disable-animations: true
-          script: just test-android-suite mobile_all
+          script: just test-android --suite mobile_all
         env:
           ANDROID_DEVICE_NAME: pixel_6_api31
 
@@ -124,7 +124,7 @@ jobs:
           profile: pixel_8
           avd-name: pixel_8_api35
           disable-animations: true
-          script: just test-android-suite mobile_all
+          script: just test-android --suite mobile_all
         env:
           ANDROID_DEVICE_NAME: pixel_8_api35
 

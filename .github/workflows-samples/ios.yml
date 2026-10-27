@@ -1,7 +1,7 @@
 name: Notification API — iOS
 
 # Workflow réutilisable, appelé par system-tests-E2E.yml.
-# Stub pour l'instant : la vraie suite iOS (via `just test-ios-suite`,
+# Stub pour l'instant : la vraie suite iOS (via `just test-ios --suite …`,
 # simulateur "iPhone 17 Pro") sera branchée dans un ticket ultérieur.
 #
 # ⚠️ Runner macOS : requis à terme pour le simulateur iOS (xcrun simctl), mais ~10× plus cher

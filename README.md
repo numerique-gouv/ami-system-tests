@@ -67,10 +67,12 @@ variables viennent du workflow GitHub Actions. Les comptes de test FranceConnect
 ```bash
 just test-android                                    # tous les tests Android
 just test-ios                                        # tous les tests iOS
-just test-webapp                                      # tests webapp, Chrome visible
-just test-webci                                       # tests webapp, headless (mode CI)
-just test-android "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (glob)
-just test-android-suite mobile_all                  # suite nommée (`--suite` ; définies dans wdio.base.conf.ts : option native `suites`) — idem test-ios-suite / test-webapp-suite / test-webci-suite
+just test-webapp                                     # tests webapp, Chrome visible
+just test-webci                                      # tests webapp, headless (mode CI)
+just test-android --spec "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (`--spec` répétable, glob entre guillemets)
+just test-android --suite mobile_all                 # suite nommée (`--suite` ; définies dans wdio.base.conf.ts : option native `suites`) — idem test-ios / test-webapp / test-webci
+just test-android --device pixel_2_api30 --suite mobile_short   # `--device` (AVD / simulateur) est lu par test-android et test-ios ; tout le reste va à wdio
+just test-webvideo --spec src/tests/webapp/agenda.parcours.test.ts   # webapp headless avec vidéo DevTools (au moins un --spec)
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit
 just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/

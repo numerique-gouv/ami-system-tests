@@ -81,8 +81,8 @@ runs:
     # actions/download-artifact relatif à $GITHUB_WORKSPACE (racine du checkout du repo
     # appelant, ex. ami-app-android) et non à `ami-system-tests/` — `working-directory` n'a
     # aucun effet sur un step `uses:`. Le chemin doit donc placer l'APK dans
-    # $GITHUB_WORKSPACE/ami-app-android/..., le dossier frère que `just start-android`
-    # (exécuté depuis ami-system-tests/) attend via `../ami-app-android`.
+    # $GITHUB_WORKSPACE/ami-app-android/..., le dossier frère que ANDROID_APP_PATH
+    # (step « Tests E2E » plus bas) désigne.
     - name: Récupérer l'APK buildé par le workflow appelant
       if: ${{ inputs.apk-run-id == '' }}
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -159,7 +159,7 @@ runs:
         key: ${{ runner.os }}-appium-drivers-${{ hashFiles('ami-system-tests/package.json') }}
 
     # `just` (pas `npm run appium:install` en direct) pour que cette installation utilise le
-    # même APPIUM_HOME que `just test-android-suite` plus bas — sinon Appium (devDependency
+    # même APPIUM_HOME que `just test-android` plus bas — sinon Appium (devDependency
     # locale) bascule en mode "APPIUM_HOME projet" (node_modules/.cache/appium) à l'install,
     # et les tests cherchent les drivers dans ~/.appium : "Could not find a driver for
     # automationName 'UiAutomator2'" alors que le driver est bien installé, juste ailleurs.
@@ -234,8 +234,11 @@ runs:
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
       # La suite passe par l'environnement (pas d'interpolation ${{ }} dans le script, qui s'exécute dans un shell). Le script est lu par
       # android-emulator-runner ligne par ligne (chaque ligne = une commande `sh -c`) : variables et `||` restent valides ligne à ligne.
+      # ANDROID_APP_PATH : l'APK téléchargé plus haut (même chemin que `path:` des deux steps de téléchargement) ; source unique lue par
+      # src/driver/capabilities.ts (le justfile ne calcule plus aucun chemin d'app).
       env:
         E2E_SUITE: ${{ inputs.suite }}
+        ANDROID_APP_PATH: ${{ github.workspace }}/ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk
       with:
         api-level: ${{ env.ANDROID_API_LEVEL }}
         target: ${{ env.ANDROID_TARGET }}
@@ -246,7 +249,7 @@ runs:
         disable-animations: true
         working-directory: ami-system-tests
         script: |
-          just test-android-suite "$E2E_SUITE" --device "$ANDROID_DEVICE_NAME" || echo "Test suite has failed"
+          just test-android --suite "$E2E_SUITE" --device "$ANDROID_DEVICE_NAME" || echo "Test suite has failed"
           echo "::group::Diagnostic logcat (buffer complet, non filtré)"
           adb logcat -d || true
           echo "::endgroup::"

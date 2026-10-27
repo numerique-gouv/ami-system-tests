@@ -267,16 +267,17 @@ check-code:
     npm run typecheck
 
 # ─── Tests ──────────────────────────────────────────────────────────────────
-# Usage :
-#   just test-android                        → tous les tests (session par fichier)
-#   just test-android "src/tests/home*"      → un ou plusieurs globs de fichiers
-#   just test-android-grep Notifications     → filtre par describe/it (grep Mocha, regex JS)
-#   just test-android-suite mobile_all       → tous les tests mobiles (liste plate de specs : un worker par spec, comme --spec a --spec b)
-#   just test-android-suite mobile_smoke     → smoke mobile (valider un déploiement) ; mobile_short = authentification seule
-#   Les suites nommées (mobile_*, webapp_*) sont définies dans l'option `suites` de wdio.base.conf.ts
-#   (appel natif, sans just : npx wdio run wdio.webapp.conf.ts --suite webapp_smoke)
-
+# Les recettes de test sont fines : tout ce qu'elles ne lisent pas est transmis tel quel à wdio.
+#   just test-android                                        → tous les tests (une session par fichier)
+#   just test-android --suite mobile_smoke                   → suite nommée (mobile_short = authentification seule, mobile_smoke, mobile_all)
+#   just test-android --spec "src/tests/mobile/home*"        → un ou plusieurs fichiers (--spec répétable)
+#   just test-android --device pixel_2_api30 --suite mobile_all
+#   just test-webci --suite webapp_smoke                     → idem webapp (webapp_short | webapp_smoke | webapp_usage | webapp_all)
+# Les suites nommées sont définies dans l'option native `suites` de wdio.base.conf.ts (appel sans just :
+# npx wdio run wdio.webapp.conf.ts --suite webapp_smoke). Les apps mobiles testées sont celles de ANDROID_APP_PATH / IOS_APP_PATH
+# (gabarit .env). Le fichier d'environnement est .env.local, ou `just -E .env.local.preprod test-… ` (cf. README).
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
+
 # Garde-fou : hors CI, .env.local est obligatoire (AMI_ENV, NOTIF_*).
 # En CI ces variables sont injectées par le workflow via `env:` — pas de fichier requis.
 _require-dotenv:
@@ -287,129 +288,79 @@ _require-dotenv:
         exit 1
     fi
 
-# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
-# Exemple : just test-android --device pixel_2_api30 "src/tests/mobile/notifications*"
-[doc("Tests E2E Android · [--device AVD] [GLOB…]")]
-[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
-test-android device="" *globs="": _require-dotenv (start-android device)
+# Tout ce qui n'est pas --device est transmis à wdio (--suite NOM, --spec GLOB…). Une variable ANDROID_UDID / ANDROID_DEVICE_NAME déjà
+# définie dans le shell vise précisément un appareil (second émulateur en parallèle).
+# Exemple : just test-android --device pixel_2_api30 --spec "src/tests/mobile/notifications*"
+[doc("Tests E2E Android · [--device AVD] [--suite NOM | --spec GLOB…] (le reste va à wdio)")]
+[positional-arguments]
+test-android *args: _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
-    [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
-    export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")"
+    device=""; wdio_args=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --device) device="${2:?--device demande un nom d'AVD}"; shift 2 ;;
+            --device=*) device="${1#--device=}"; shift ;;
+            *) wdio_args+=("$1"); shift ;;
+        esac
+    done
+    just start-android --device "$device"
+    [ -z "$device" ] || export ANDROID_DEVICE_NAME="$device"
+    export ANDROID_UDID="${ANDROID_UDID:-$(just --quiet _android-udid "$device")}"
     echo "🤖 Tests E2E Android…"
-    if [ -n "{{globs}}" ]; then
-        SPEC_ARGS=""
-        for glob in {{globs}}; do
-            SPEC_ARGS="$SPEC_ARGS --spec $glob"
-        done
-        npm run test:android -- $SPEC_ARGS
-    else
-        npm run test:android
-    fi
+    npm run test:android -- ${wdio_args[@]+"${wdio_args[@]}"}
 
-# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
-# Exemple : just test-ios --device "iPhone 17 Pro" "src/tests/mobile/notifications*"
-[doc("Tests E2E iOS · [--device NOM] [GLOB…]")]
-[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
-test-ios device="" *globs="": _require-dotenv (start-ios device)
+# Tout ce qui n'est pas --device est transmis à wdio (--suite NOM, --spec GLOB…).
+# Exemple : just test-ios --device "iPhone 17 Pro" --suite mobile_smoke
+[doc("Tests E2E iOS · [--device NOM] [--suite NOM | --spec GLOB…] (le reste va à wdio)")]
+[positional-arguments]
+test-ios *args: _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
-    export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
-    export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")"
+    device=""; wdio_args=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --device) device="${2:?--device demande un nom de simulateur}"; shift 2 ;;
+            --device=*) device="${1#--device=}"; shift ;;
+            *) wdio_args+=("$1"); shift ;;
+        esac
+    done
+    just start-ios --device "$device"
+    export IOS_DEVICE_NAME="$(just --quiet _ios-device "$device")"
+    export IOS_UDID="${IOS_UDID:-$(just --quiet _ios-udid "$IOS_DEVICE_NAME")}"
     echo "🍎 Tests E2E iOS…"
-    if [ -n "{{globs}}" ]; then
-        SPEC_ARGS=""
-        for glob in {{globs}}; do
-            SPEC_ARGS="$SPEC_ARGS --spec $glob"
-        done
-        npm run test:ios -- $SPEC_ARGS
-    else
-        npm run test:ios
-    fi
+    npm run test:ios -- ${wdio_args[@]+"${wdio_args[@]}"}
 
-# Exemple : just test-android-suite mobile_all   |   just test-android-suite mobile_short --device pixel_2_api30
-[doc("Tests E2E Android, suite nommée (mobile_short | mobile_smoke | mobile_all : définies dans wdio.base.conf.ts, option `suites`) · SUITE [--device AVD]")]
-[arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
-test-android-suite suite device="": _require-dotenv (start-android device)
-    #!/usr/bin/env bash
-    set -euo pipefail
-    [ -z "{{ device }}" ] || export ANDROID_DEVICE_NAME="{{ device }}"
-    export ANDROID_UDID="$(just --quiet _android-udid "{{ device }}")"
-    npm run test:android -- --suite {{suite}}
-
-# Exemple : just test-ios-suite mobile_smoke   |   just test-ios-suite mobile_all --device "iPhone 17 Pro"
-[doc("Tests E2E iOS, suite nommée (mobile_short | mobile_smoke | mobile_all : définies dans wdio.base.conf.ts, option `suites`) · SUITE [--device NOM]")]
-[arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
-test-ios-suite suite device="": _require-dotenv (start-ios device)
-    #!/usr/bin/env bash
-    set -euo pipefail
-    export IOS_DEVICE_NAME="$(just --quiet _ios-device "{{ device }}")"
-    export IOS_UDID="$(just --quiet _ios-udid "$IOS_DEVICE_NAME")"
-    npm run test:ios -- --suite {{suite}}
-
-# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
-# Lancer les tests E2E webapp (CI) — Chrome headless, pas d'émulateur/simulateur à démarrer
-test-webci *globs="": _require-dotenv
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "🌐 Tests E2E webapp (headless)…"
-    if [ -n "{{globs}}" ]; then
-        SPEC_ARGS=""
-        for glob in {{globs}}; do
-            SPEC_ARGS="$SPEC_ARGS --spec $glob"
-        done
-        npm run test:webapp -- $SPEC_ARGS
-    else
-        npm run test:webapp
-    fi
-
-# Exemple : AMI_ENV=staging just test-webci-suite webapp_smoke   (valider un déploiement)   |   just test-webci-suite webapp_all   (tester un déploiement)
-# Lancer les tests E2E webapp (CI) avec une suite nommée : webapp_short | webapp_smoke | webapp_usage | webapp_all (définies dans wdio.base.conf.ts, option `suites`)
-test-webci-suite suite: _require-dotenv
-    npm run test:webapp -- --suite {{suite}}
+# Exemple : AMI_ENV=staging just test-webci --suite webapp_smoke   |   just test-webci --spec "src/tests/webapp/agenda*"
+# Tests E2E webapp (CI) : Chrome headless, pas d'émulateur/simulateur ; les arguments (--suite, --spec) vont à wdio.
+[positional-arguments]
+test-webci *args: _require-dotenv
+    npm run test:webapp -- "$@"
 
 # ATTENTION : ne pas ouvrir le panneau DevTools (F12 / Cmd+Opt+I) sur l'onglet de l'app pendant
 # le run — si un breakpoint est actif ou "Pause on exceptions" activé, le débogueur JS suspend
 # réellement l'exécution de la page, ce qui bloque toute commande WebDriver (échoue au bout de
 # 20s avec un message explicite plutôt qu'un hang silencieux, cf. ENSURE_APP_WINDOW_TIMEOUT_MS
 # dans src/platform/browser.adapter.ts).
-# Les globs sont optionnels (aucun = tous les tests) ; plusieurs globs possibles.
-# Lancer les tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver
-test-webapp *globs="": _require-dotenv
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "🌐 Tests E2E webapp (Chrome visible)…"
-    if [ -n "{{globs}}" ]; then
-        SPEC_ARGS=""
-        for glob in {{globs}}; do
-            SPEC_ARGS="$SPEC_ARGS --spec $glob"
-        done
-        WEBAPP_HEADLESS=false npm run test:webapp -- $SPEC_ARGS
-    else
-        WEBAPP_HEADLESS=false npm run test:webapp
-    fi
+# Exemple : just test-webapp --spec "src/tests/webapp/agenda*"   |   just test-webapp --suite webapp_usage
+# Tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver ; les arguments (--suite, --spec) vont à wdio.
+[positional-arguments]
+test-webapp *args: _require-dotenv
+    WEBAPP_HEADLESS=false npm run test:webapp -- "$@"
 
-# Exemple : just test-webvideo src/tests/webapp/nonreg/consentement-demarches.usage.test.ts
-# Lancer des tests webapp (headless) avec la config DevTools « vidéo » (wdio.webapp.with_video.conf.ts) : une vidéo .webm par test, réussi ou non,
-# plus la trace rejouable avec `just failures-ui <dossier>`. Les fichiers sont dans test-results/traces/<horodatage>_webapp_<spec>/test-results/ (le chemin est affiché à la fin).
-# Les globs sont obligatoires (la vidéo ralentit le run : on ne filme pas toute la suite).
-[doc("Lancer des tests webapp avec la config DevTools vidéo · GLOBS")]
-test-webvideo *globs: _require-dotenv
+# Exemple : just test-webvideo --spec src/tests/webapp/nonreg/consentement-demarches.usage.test.ts
+# Tests webapp (headless) avec la config DevTools « vidéo » (wdio.webapp.with_video.conf.ts) : une vidéo .webm par test, réussi ou non,
+# plus la trace rejouable avec `npx show-trace` (cf. README). Fichiers dans test-results/traces/<horodatage>_webapp_<spec>/test-results/
+# (chemin affiché à la fin). Au moins un argument est exigé (--spec GLOB) : la vidéo ralentit le run, on ne filme pas toute la suite.
+[doc("Tests webapp avec la config DevTools vidéo · --spec GLOB… (le reste va à wdio)")]
+[positional-arguments]
+test-webvideo +args: _require-dotenv
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🎬 Tests E2E webapp (headless, vidéo DevTools)…"
-    SPEC_ARGS=""
-    for glob in {{globs}}; do
-        SPEC_ARGS="$SPEC_ARGS --spec $glob"
-    done
-    WEBAPP_HEADLESS=true npx wdio run wdio.webapp.with_video.conf.ts $SPEC_ARGS || status=$?
+    WEBAPP_HEADLESS=true npx wdio run wdio.webapp.with_video.conf.ts "$@" || status=$?
     echo "📼 Vidéos :"; find test-results/traces -name 'video-*.webm' -newermt '-1 hour' 2>/dev/null | sort | tail -5
     exit "${status:-0}"
-
-# Exemple : just test-webapp-suite webapp_usage
-# Lancer les tests E2E webapp (Chrome visible) avec une suite nommée : webapp_short | webapp_smoke | webapp_usage | webapp_all (définies dans wdio.base.conf.ts, option `suites`)
-test-webapp-suite suite: _require-dotenv
-    WEBAPP_HEADLESS=false npm run test:webapp -- --suite {{suite}}
 
 # ─── Exploration et débogage (wdio session, WebdriverIO 10) ─────────────────
 # Une session `wdio session` survit à la commande qui l'a ouverte (arrêt après 30 min d'inactivité) : on enchaîne
