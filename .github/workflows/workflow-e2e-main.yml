@@ -3,11 +3,11 @@ on:
   workflow_call:
     inputs:
       run_webapp:
-        description: "nom de la suite webapp à lancer (test-suites.ts, ex: short, CI, all) — vide = ne pas lancer"
+        description: "nom de la suite webapp à lancer (test-suites.ts : webapp_smoke, webapp_short, webapp_all, webapp_nonreg…) — vide = ne pas lancer"
         type: string
         default: ''
       run_android:
-        description: "nom de la suite android à lancer (test-suites.ts) — vide = ne pas lancer"
+        description: "nom de la suite android à lancer (test-suites.ts : mobile_ci, mobile_short, mobile_all…) — vide = ne pas lancer"
         type: string
         default: ''
       android_device:
@@ -15,7 +15,7 @@ on:
         type: string
         default: pixel_2_api30
       run_ios:
-        description: "nom de la suite ios à lancer (test-suites.ts) — vide = ne pas lancer"
+        description: "nom de la suite ios à lancer (test-suites.ts : mobile_*) — vide = ne pas lancer (job iOS encore factice)"
         type: string
         default: ''
       source_repo:
@@ -26,6 +26,7 @@ on:
         type: string
         required: true
       pr_number:
+        description: "numéro de la PR de source_repo à commenter ; 0 = pas de PR (push/tag) : pas de commentaire"
         type: number
         default: 0
       checkout_ref:
@@ -34,8 +35,17 @@ on:
         required: true
     outputs:
       test_results:
-        description: "nom de l'artefact des résultats de tests (JUnit XML dans junit/, dumps des échecs dans failures/), à télécharger par le workflow appelant pour commenter la PR"
-        value: ${{ jobs.e2e.outputs.test_results }}
+        description: "motif (glob) des artefacts de résultats de ce run : test-results-<slug>-*-run<N>, utilisable comme `pattern:` de actions/download-artifact. Chaque artefact contient junit/ (JUnit XML enrichi) et traces/<run>/failures/ (dumps des échecs)."
+        value: ${{ jobs.report.outputs.test_results }}
+      artifact_webapp:
+        description: "nom de l'artefact des résultats webapp (vide si run_webapp est vide)"
+        value: ${{ jobs.report.outputs.artifact_webapp }}
+      artifact_android:
+        description: "nom de l'artefact des résultats Android (vide si run_android est vide)"
+        value: ${{ jobs.report.outputs.artifact_android }}
+      artifact_ios:
+        description: "nom de l'artefact des résultats iOS (vide si run_ios est vide ; le job iOS est encore factice et n'en publie pas)"
+        value: ${{ jobs.report.outputs.artifact_ios }}
 
 # Un groupe par PR (source_repo + pr_number) : sérialise les runs d'une même PR, qui partagent le même
 # environnement Scalingo de review. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
@@ -43,6 +53,13 @@ concurrency:
   group: e2e-${{ inputs.source_repo }}-${{ inputs.pr_number }}
   cancel-in-progress: false
 
+# Permissions minimales par défaut ; le job `report` ajoute checks/pull-requests. Un workflow appelé ne peut pas dépasser les permissions
+# que lui donne son appelant (le workflow appelant doit donc accorder checks: write et pull-requests: write).
+permissions:
+  contents: read
+
+# Les jobs RESTENT VERTS quand des tests échouent (garde `|| echo` des actions composites e2e-webapp / e2e-android, étape de rapport
+# avec fail_on_failure: false) : le résultat se lit dans le check « e2e (ami-system-tests) », le résumé du run et le commentaire de la PR.
 jobs:
   # iOS reste isolé : reusable workflow classique → job/VM macOS dédié (pas de partage de
   # disque avec webapp/android), tant que la CI macOS est en pause.
@@ -60,21 +77,21 @@ jobs:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       AMI_ENV: ${{ inputs.pr_number != 0 && inputs.pr_number || 'staging' }}
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
       WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
-    outputs:
-      test_results: ${{ steps.publish-results.outputs.test_results }}
     steps:
       # checkout_ref porte le nom de branche de source_repo (ex. notifications-api),
-      # On tente d'abord la ref demandée ; si elle n'existe pas, actions/checkout 
+      # On tente d'abord la ref demandée ; si elle n'existe pas, actions/checkout
       # échoue et le step suivant (déclenché par outcome == 'failure') retombe sur main.
       - name: checkout ami-system-tests (ref demandée)
         id: checkout-ref
         continue-on-error: true
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: numerique-gouv/ami-system-tests
           ref: ${{ inputs.checkout_ref }}
@@ -82,13 +99,13 @@ jobs:
 
       - name: checkout ami-system-tests (fallback main)
         if: steps.checkout-ref.outcome == 'failure'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: numerique-gouv/ami-system-tests
           ref: main
           path: ami-system-tests
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -97,7 +114,20 @@ jobs:
       - working-directory: ami-system-tests
         run: npm ci
 
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      # source_repo (contient "/") + pr_number → identifiant utilisable comme nom d'artifact (même calcul dans le job `report`
+      # et dans e2e-artifacts-cleanup.yml : les trois doivent rester identiques).
+      - name: calculer la clé d'isolation (slug)
+        id: slug
+        if: ${{ always() }}
+        env:
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          RAW="${SOURCE_REPO}-pr${PR_NUMBER}"
+          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
       - if: ${{ inputs.run_webapp != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-webapp
@@ -110,47 +140,127 @@ jobs:
           suite: ${{ inputs.run_android }}
           device: ${{ inputs.android_device }}
 
-      - if: ${{ inputs.run_ios != '' }}
-        name: download iOS test results
-        run: echo TODO télécharger l'artefact de résultats iOS (JUnit et dumps) dans ami-system-tests/test-results
+      # Un artefact par plateforme (JUnit enrichi + dumps des échecs). Les dossiers de run sont nommés
+      # <horodatage>_<plateforme>_<suite ou spec> (cf. src/helpers/reporting/run-dir.ts) : le motif `*_webapp_*` ne prend que ceux de la webapp.
+      # La racine commune des deux chemins est test-results/ : l'artefact contient donc junit/ et traces/, comme le JUnit l'indique (dump_path).
+      - name: publier les résultats webapp
+        if: ${{ always() && inputs.run_webapp != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ steps.slug.outputs.slug }}-webapp-run${{ github.run_number }}
+          path: |
+            ami-system-tests/test-results/junit/results-*_webapp_*.xml
+            ami-system-tests/test-results/traces/*_webapp_*
+          retention-days: 14
+          overwrite: true
+          if-no-files-found: warn
 
-      # source_repo (contient "/") + pr_number → identifiant utilisable comme nom d'artifact
-      - name: calculer la clé d'isolation (slug)
-        id: slug
-        if: ${{ always() }}
+      - name: publier les résultats Android
+        if: ${{ always() && inputs.run_android != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ steps.slug.outputs.slug }}-android-run${{ github.run_number }}
+          path: |
+            ami-system-tests/test-results/junit/results-*_android_*.xml
+            ami-system-tests/test-results/traces/*_android_*
+          retention-days: 14
+          overwrite: true
+          if-no-files-found: warn
+
+  # Rapport : check GitHub + annotations (mikepenz/action-junit-report) et commentaire UNIQUE de PR (composite e2e-pr-comment).
+  # Ce workflow est appelé : github.token et github.repository sont ceux du dépôt APPELANT (source_repo), c'est donc bien sur sa PR que l'on commente.
+  # Le job reste vert même si des tests échouent ou si le commentaire est refusé (fork, jeton en lecture seule).
+  report:
+    name: rapport (check + commentaire de PR)
+    needs: [e2e, ios]
+    if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '' || inputs.run_ios != '') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    outputs:
+      test_results: ${{ steps.names.outputs.test_results }}
+      artifact_webapp: ${{ steps.names.outputs.artifact_webapp }}
+      artifact_android: ${{ steps.names.outputs.artifact_android }}
+      artifact_ios: ${{ steps.names.outputs.artifact_ios }}
+    steps:
+      - name: noms des artefacts
+        id: names
+        env:
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_WEBAPP: ${{ inputs.run_webapp }}
+          RUN_ANDROID: ${{ inputs.run_android }}
+          RUN_IOS: ${{ inputs.run_ios }}
         run: |
-          RAW="${{ inputs.source_repo }}-pr${{ inputs.pr_number }}"
+          RAW="${SOURCE_REPO}-pr${PR_NUMBER}"
           SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
-          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+          prefix="test-results-${SLUG}"
+          expect=""
+          {
+            echo "test_results=${prefix}-*-run${RUN_NUMBER}"
+            [ -n "$RUN_WEBAPP" ] && { echo "artifact_webapp=${prefix}-webapp-run${RUN_NUMBER}"; expect="${expect}webapp,"; }
+            [ -n "$RUN_ANDROID" ] && { echo "artifact_android=${prefix}-android-run${RUN_NUMBER}"; expect="${expect}android,"; }
+            [ -n "$RUN_IOS" ] && { echo "artifact_ios=${prefix}-ios-run${RUN_NUMBER}"; expect="${expect}ios,"; }
+            echo "expect=${expect%,}"
+          } >> "$GITHUB_OUTPUT"
 
-      # Résumé passants/cassés dans la page du run. `annotate_only` : pas de check run (donc pas de `checks: write`) et
-      # `job_summary` pour le tableau. Le commentaire sur la PR d'origine est posté par le workflow APPELANT (cf.
-      # workflow-e2e-main.yml appelé depuis ami-notifications-api) : ce token n'a pas de droit sur l'autre dépôt.
-      # Action tierce épinglée par SHA de commit (mikepenz/action-junit-report v6.6.0, Apache-2.0) : ne jamais la
-      # référencer par tag. Non vérifiée en CI réelle depuis la migration (testée seulement en lecture de sa doc).
-      - name: résumé des tests (JUnit)
+      # Seuls .github/ (actions et script de rapport) sont nécessaires.
+      - name: checkout ami-system-tests (ref demandée)
+        id: checkout-ref
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: numerique-gouv/ami-system-tests
+          ref: ${{ inputs.checkout_ref }}
+          path: ami-system-tests
+          sparse-checkout: .github
+
+      - name: checkout ami-system-tests (fallback main)
+        if: steps.checkout-ref.outcome == 'failure'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: numerique-gouv/ami-system-tests
+          ref: main
+          path: ami-system-tests
+          sparse-checkout: .github
+
+      # Un sous-dossier par artefact (reports/<nom de l'artefact>/junit/results-*.xml). Aucun artefact (job e2e en échec avant les tests) n'est pas une erreur.
+      - name: télécharger les résultats
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: ${{ steps.names.outputs.test_results }}
+          path: reports
+
+      # Check « e2e (ami-system-tests) » rattaché au commit testé (le déclencheur `on: status` du dépôt appelant s'exécute sur la branche
+      # par défaut, pas sur ce commit) + annotations + résumé dans la page du run. Action tierce épinglée par SHA de commit
+      # (mikepenz/action-junit-report v6.6.0, Apache-2.0) : ne jamais la référencer par tag. Le résultat du check (échec si des tests échouent)
+      # n'est pas une erreur du job : fail_on_failure: false. Non vérifié en CI réelle : voir docs/adr/2026-08-04-Integration-continue-Github-Actions.md.
+      - name: check et annotations (JUnit)
         if: ${{ always() }}
         uses: mikepenz/action-junit-report@b7b80d7ac5b1da46d6aaff9fb57ad50d8453bcb3 # v6.6.0
         with:
-          report_paths: ami-system-tests/test-results/junit/*.xml
-          annotate_only: true
+          report_paths: reports/**/junit/results-*.xml
+          commit: ${{ inputs.source_sha }}
+          check_name: e2e (ami-system-tests)
           job_summary: true
           detailed_summary: true
           fail_on_failure: false
           require_tests: false
 
-      # JUnit XML (résumé) et dumps des échecs (capture, DOM ou arbre natif, identifiants Sentry) : un seul artefact.
-      - name: publier les résultats de tests
+      - name: commentaire de PR
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: ./ami-system-tests/.github/actions/e2e-pr-comment
         with:
-          name: test-results-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
-          path: ami-system-tests/test-results
-          retention-days: 14
-          if-no-files-found: warn
-
-      # Nom de l'artefact exposé en output `test_results` — à télécharger côté appelant, qui commente la PR d'origine.
-      - name: nom de l'artefact des résultats
-        id: publish-results
-        if: ${{ always() }}
-        run: echo "test_results=test-results-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          github-token: ${{ github.token }}
+          repo: ${{ inputs.source_repo }}
+          pr-number: ${{ inputs.pr_number }}
+          junit-dir: reports
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          artifacts: ${{ steps.names.outputs.artifact_webapp }},${{ steps.names.outputs.artifact_android }}
+          expect: ${{ steps.names.outputs.expect }}
+          sha: ${{ inputs.source_sha }}

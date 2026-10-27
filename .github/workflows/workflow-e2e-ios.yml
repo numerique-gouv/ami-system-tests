@@ -11,8 +11,13 @@ on:
         type: string
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   sample:
     runs-on: macos-latest
     steps:
-      - run: echo "hello world of iOS — suite ${{ inputs.suite }}"
+      - env:
+          SUITE: ${{ inputs.suite }}
+        run: echo "hello world of iOS — suite $SUITE"
