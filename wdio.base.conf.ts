@@ -36,8 +36,13 @@ export function specFileRetriesFromEnv(env: NodeJS.ProcessEnv): number {
   return isCi ? 1 : 0
 }
 
-// Les variables déjà définies dans le shell ne sont pas écrasées (override: false).
-dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
+// Fichier d'environnement : sous `just`, c'est just qui charge `.env.local` ou le fichier choisi par `just -E <fichier>` ; il pose
+// DOTENV_LOADED_BY_JUST (cf. justfile). Relire alors `.env.local` ici compléterait en silence un fichier `.env.local.preprod` par les
+// valeurs staging de `.env.local` : on ne le charge que hors `just` (`npx wdio …` direct). Les variables déjà définies dans le shell
+// ne sont pas écrasées (override: false).
+if (!process.env.DOTENV_LOADED_BY_JUST) {
+  dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
+}
 
 // Service DevTools en mode trace, écrit dans test-results/ : captures, arbre de l'écran, éléments et réseau d'un test en échec
 // (failure-dump.ts n'écrit plus que le contexte). Toutes les options sont écrites, même à leur

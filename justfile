@@ -11,11 +11,14 @@
 # (lisibles dans ce fichier : `just --show` les masque dès qu'un `[doc]` est présent) et le détail des arguments est dans
 # `just --usage <recette>` (rappelé par `just help`).
 
+# Fichier d'environnement : `.env.local` par défaut, ou celui choisi par l'option native `just -E <fichier>` (`--dotenv-path`),
+# ex. `just -E .env.local.preprod test-ios --suite mobile_short` (convention `.env.local.<cible>`, tous ignorés par git ; README, « Prérequis »).
+# Absent, le fichier est simplement ignoré (CI : variables injectées par le workflow ; erreurs explicites du code si une variable manque).
 set dotenv-path := ".env.local"
-# `just` interdit les settings booléens calculés (voir doc `set`), donc ce flag ne peut pas
-# être conditionné sur CI/GITHUB_ACTIONS ici. Le caractère obligatoire de .env.local en dev
-# local est réimplémenté par la recette de garde `_require-dotenv` ci-dessous.
-set dotenv-required := false
+
+# Marque que just a chargé le fichier d'environnement : wdio.base.conf.ts ne relit alors pas `.env.local` (pas de mélange staging/préprod
+# avec `just -E`). Hors just (`npx wdio …`), wdio charge `.env.local` lui-même.
+export DOTENV_LOADED_BY_JUST := "1"
 
 # ─── Variables ──────────────────────────────────────────────────────────────
 
