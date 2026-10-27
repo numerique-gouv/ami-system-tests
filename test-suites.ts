@@ -19,7 +19,7 @@ const r = (p: string) => path.resolve(__dirname, p)
  * avant leur démarrage (`beforeSession`).
  *
  * Nommage : préfixe `mobile_` (Android et iOS), `webapp_` (Chrome). Les suites ne mélangent jamais les deux familles.
- * authentication.test.ts est listé en premier pour établir l'état authentifié.
+ * authentification.smoke.test.ts est listé en premier pour établir l'état authentifié.
  *
  * Chaque scénario doit être capable de s'authentifier seul pour être lancé en solo.
  * Donc, si vous voulez tester l'authentification dans votre suite, ils doivent être placés en premier :
@@ -28,22 +28,22 @@ const r = (p: string) => path.resolve(__dirname, p)
 export const testSuites: Record<string, string[]> = {
     /** Alias de `mobile_all` (historique) : tous les tests mobiles, authentification d'abord. */
     all: [
-        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
     ],
 
     /** Tous les tests mobiles (Android et iOS), authentification d'abord. */
     mobile_all: [
-        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
         r('src/tests/mobile/**/*.test.ts'),
     ],
 
     /**
-     * Specs webapp de premier niveau. Volontairement SANS `nonreg/` : `nonreg/passkey.test.ts` exige une session vierge
+     * Specs webapp de premier niveau. Volontairement SANS `nonreg/` : `nonreg/passkey.usage.test.ts` exige une session vierge
      * (voir `webapp_nonreg`, qui la place en premier).
      */
     webapp_all: [
-        r('src/tests/webapp/authentication.test.ts'),
+        r('src/tests/webapp/authentification.smoke.test.ts'),
         r('src/tests/webapp/*.test.ts'),
     ],
 
@@ -53,8 +53,8 @@ export const testSuites: Record<string, string[]> = {
      * services et l'aide. Plans : src/tests/webapp/nonreg/catalogue.md.
      */
     webapp_smoke: [
-        r('src/tests/webapp/authentication.test.ts'),
-        r('src/tests/webapp/nonreg/catalogue.test.ts'),
+        r('src/tests/webapp/authentification.smoke.test.ts'),
+        r('src/tests/webapp/nonreg/catalogue.parcours.test.ts'),
     ],
 
     /**
@@ -63,30 +63,30 @@ export const testSuites: Record<string, string[]> = {
      * specs en lecture, puis celles qui modifient le compte (zones, consentements), restaurées en `after()`.
      */
     webapp_nonreg: [
-        r('src/tests/webapp/nonreg/passkey.test.ts'),
-        r('src/tests/webapp/nonreg/catalogue.test.ts'),
-        r('src/tests/webapp/nonreg/demarche-detail.test.ts'),
-        r('src/tests/webapp/nonreg/zones-agenda.test.ts'),
-        r('src/tests/webapp/nonreg/consentement.test.ts'),
-        r('src/tests/webapp/nonreg/deconnexion-fc.test.ts'), // staging seulement : se saute ailleurs avec un motif (ENV3)
+        r('src/tests/webapp/nonreg/passkey.usage.test.ts'),
+        r('src/tests/webapp/nonreg/catalogue.parcours.test.ts'),
+        r('src/tests/webapp/nonreg/demarche-detail.usage.test.ts'),
+        r('src/tests/webapp/nonreg/zones-agenda.usage.test.ts'),
+        r('src/tests/webapp/nonreg/consentement.usage.test.ts'),
+        r('src/tests/webapp/nonreg/deconnexion-fc.usage.test.ts'), // staging seulement : se saute ailleurs avec un motif (ENV3)
     ],
 
     /** Suite webapp courte (fusion/tag en CI, débogage) : authentification seule. */
     webapp_short: [
-        r('src/tests/webapp/authentication.test.ts'),
+        r('src/tests/webapp/authentification.smoke.test.ts'),
     ],
 
     /** Suite mobile courte pour raccourcir le débogage : authentification seule. */
     mobile_short: [
-        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
     ],
 
     /** Smoke mobile pour la CI (Android) : authentification + scénarios critiques uniquement. */
     mobile_ci: [
-        r('src/tests/mobile/authentication.test.ts'),
-        r('src/tests/mobile/notifications.test.ts'),
-        r('src/tests/mobile/demarches.test.ts'),
-        r('src/tests/mobile/profile.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
+        r('src/tests/mobile/notifications.usage.test.ts'),
+        r('src/tests/mobile/demarches.usage.test.ts'),
+        r('src/tests/mobile/profil.usage.test.ts'),
     ],
 
     /**
@@ -94,35 +94,35 @@ export const testSuites: Record<string, string[]> = {
      * se déconnectent (déconnexion/reconnexion, suppression des modifications du profil à la déconnexion), placés en dernier.
      */
     mobile_nonreg: [
-        r('src/tests/mobile/authentication.test.ts'),
-        r('src/tests/mobile/notifications.test.ts'),
-        r('src/tests/mobile/demarches.test.ts'),
-        r('src/tests/mobile/profile.test.ts'),
-        r('src/tests/mobile/login_logout_login.test.ts'),
-        r('src/tests/mobile/profile_deletion_at_logout.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
+        r('src/tests/mobile/notifications.usage.test.ts'),
+        r('src/tests/mobile/demarches.usage.test.ts'),
+        r('src/tests/mobile/profil.usage.test.ts'),
+        r('src/tests/mobile/deconnexion-reconnexion.usage.test.ts'),
+        r('src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts'),
     ],
 
     /** Authentification + déconnexion/reconnexion (mobile). */
     mobile_auth: [
-        r('src/tests/mobile/authentication.test.ts'),
-        r('src/tests/mobile/login_logout_login.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
+        r('src/tests/mobile/deconnexion-reconnexion.usage.test.ts'),
     ],
 
     /** Authentification + déconnexion/reconnexion (webapp). */
     webapp_auth: [
-        r('src/tests/webapp/authentication.test.ts'),
-        r('src/tests/webapp/deconnexion.test.ts'),
+        r('src/tests/webapp/authentification.smoke.test.ts'),
+        r('src/tests/webapp/deconnexion.usage.test.ts'),
     ],
 
     /** Authentification seule (mobile). */
     auth: [
-        r('src/tests/mobile/authentication.test.ts'),
+        r('src/tests/mobile/authentification.smoke.test.ts'),
     ],
 
     /** Scénarios pilotés par l'API partenaires (mobile) : notifications et démarches. */
     api: [
-        r('src/tests/mobile/notifications.test.ts'),
-        r('src/tests/mobile/demarches.test.ts'),
+        r('src/tests/mobile/notifications.usage.test.ts'),
+        r('src/tests/mobile/demarches.usage.test.ts'),
     ],
 }
 

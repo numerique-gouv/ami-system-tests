@@ -11,7 +11,7 @@
 describe('Zones scolaires › recherche d\'une commune', () => {
   before(async function () {
     this.timeout(180000)
-    // getAppToStartingState() — connexion si besoin (cf. src/tests/webapp/agenda.test.ts)
+    // getAppToStartingState() — connexion si besoin (cf. src/tests/webapp/agenda.parcours.test.ts)
   })
 
   beforeEach(async function () {

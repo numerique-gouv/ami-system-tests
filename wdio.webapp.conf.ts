@@ -123,10 +123,10 @@ export const config: Options.Testrunner = {
     await captureAppWindow()
   },
 
-  // authentication.test.ts et nonreg/passkey.test.ts supposent une session vierge (la webapp démarre sur l'écran de connexion) : le
+  // authentification.smoke.test.ts et nonreg/passkey.usage.test.ts supposent une session vierge (la webapp démarre sur l'écran de connexion) : le
   // profil Chrome conservé, qui porte la session ouverte par les specs précédentes, est supprimé avant le démarrage du navigateur.
   beforeSession: (_config, _capabilities, specs): void => {
-    if (specs.some(spec => spec.endsWith('authentication.test.ts') || spec.endsWith('passkey.test.ts'))) removeChromeProfile()
+    if (specs.some(spec => spec.endsWith('authentification.smoke.test.ts') || spec.endsWith('passkey.usage.test.ts'))) removeChromeProfile()
   },
 
   // Début et fin de série : le profil Chrome de ce run est supprimé (début : état propre, fin : il contient les cookies de session).

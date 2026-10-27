@@ -10,7 +10,7 @@ const log = logger('test')
 
 /**
  * DÉMONSTRATION (pas un test de non-régression) : « un usager donne son consentement et reçoit alors une notification arrivée AVANT
- * qu'il l'ait donné » (constat ANOMALIE ? de S5, consentement.test.ts). Le consentement est piloté PAR L'INTERFACE (case « AMI » de
+ * qu'il l'ait donné » (constat ANOMALIE ? de S5, consentement.usage.test.ts). Le consentement est piloté PAR L'INTERFACE (case « AMI » de
  * Préférences › Suivi des démarches) pour être visible à l'écran, et chaque état est tenu ~2 s pour être lisible dans la vidéo.
  *
  * Extension `.demo.ts` : hors des globs `**\/*.test.ts` des suites. Lancement (préprod, vidéo gardée même en cas de réussite) :
@@ -107,7 +107,7 @@ describe('Démonstration — notification reçue avant le consentement, visible 
     await NotificationsInboxPage.assertNotificationReceived(n2)
     await marquer()
 
-    // Constat, pas assertion : S5 de consentement.test.ts le journalise sans bloquer (attente à confirmer avec Édouard).
+    // Constat, pas assertion : S5 de consentement.usage.test.ts le journalise sans bloquer (attente à confirmer avec Édouard).
     if (visibleApres && !visibleAvant) log.warn('ANOMALIE ? N1, publiée sans consentement, est visible une fois le consentement donné')
   })
 })

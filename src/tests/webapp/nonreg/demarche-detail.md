@@ -45,9 +45,9 @@ Alors « E » n'y figure pas
 
 | Sujet de la réunion | Couvert par |
 |---|---|
-| « Voir toutes mes démarches » mène à la liste, « Voir tous mes évènements » à l'agenda (12:32–12:46) | `src/tests/webapp/accueil.test.ts` (ces deux boutons) — **à rejouer** : j'ai durci `SuiviDemarchesPage.assertDisplayed()` (h1) après la dernière exécution de cette spec |
-| Un message envoyé s'affiche dans la démarche, dans l'ordre (26:23) | `src/tests/webapp/suivi.test.ts` (`assertDetail` : messages dans l'ordre chronologique) |
-| Cycle de vie d'une démarche new → wip → closed (05:54–06:07) | `src/tests/webapp/suivi.test.ts` |
+| « Voir toutes mes démarches » mène à la liste, « Voir tous mes évènements » à l'agenda (12:32–12:46) | `src/tests/webapp/accueil.smoke.test.ts` (ces deux boutons) — **à rejouer** : j'ai durci `SuiviDemarchesPage.assertDisplayed()` (h1) après la dernière exécution de cette spec |
+| Un message envoyé s'affiche dans la démarche, dans l'ordre (26:23) | `src/tests/webapp/suivi.usage.test.ts` (`assertDetail` : messages dans l'ordre chronologique) |
+| Cycle de vie d'une démarche new → wip → closed (05:54–06:07) | `src/tests/webapp/suivi.usage.test.ts` |
 
 ## Hors scénario (remarques d'UX de la réunion)
 

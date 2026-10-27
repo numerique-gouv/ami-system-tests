@@ -60,7 +60,7 @@ Et la liste des entrées cassées est rapportée **en une fois**, avec l'hôte e
 - ~~« Accéder à l’annuaire » recouvert par la barre de navigation basse~~ : **constat retiré le 2026-10-15**. Il venait du défilement de WDIO (qui replie sur un mode laissant le bouton sous la barre quand l'API Actions refuse), pas de l'application : avec un `scrollIntoView` natif, le bouton est au milieu de l'écran, entièrement dégagé (mesuré sur préprod et staging). Ne pas le remonter comme défaut d'espacement.
 - Durée : ~5 min 40 s. Une cible injoignable coûte le délai de connexion du navigateur (~2 min), et `service-public.gouv.fr/contact` bloque les commandes ~1 min (ressources tierces lentes) — remède possible : `pageLoadStrategy: 'eager'` pour la webapp, **non fait** car global.
 
-### S1.4 — Listes d'étapes : chaque lien fonctionne  (✅ implémenté dans `liste-etapes.test.ts`, résultat ci-dessous)
+### S1.4 — Listes d'étapes : chaque lien fonctionne  (✅ implémenté dans `liste-etapes.parcours.test.ts`, résultat ci-dessous)
 Source : transcript 20:40–21:51 et 22:02–22:41. Une liste d'étapes (ex. CNMSS, générée depuis un XML) contient des sections, des items ; un item à **1 lien** mène directement à la page externe, un item à **plusieurs liens** affiche une **page intermédiaire** listant ses liens. Kevin : « est-ce qu'on peut tester que chaque lien fonctionne ? au moins ça ».
 **Point d'entrée trouvé (2026-10-15)** : les « Comment faire si… » de Services > « Trouver de l’aide » (`data-testid` des boutons préfixé `service-steps-`). Ce sont ces 5 listes en préprod :
 

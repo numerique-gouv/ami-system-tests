@@ -21,7 +21,7 @@ const log = logger('test')
  * Restauration : la session FranceConnect est rouverte par le test (connexion complète depuis le démonstrateur), puis retour sur AMI.
  */
 describe('Non-régression — déconnexion FranceConnect (staging)', function () {
-  // Délai posé ICI : un `this.timeout()` dans un it ou un hook arrive trop tard (voir catalogue.test.ts).
+  // Délai posé ICI : un `this.timeout()` dans un it ou un hook arrive trop tard (voir catalogue.parcours.test.ts).
   this.timeout(300000)
 
   before(async function () {

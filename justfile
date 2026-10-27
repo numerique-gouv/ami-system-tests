@@ -427,7 +427,7 @@ test-webapp *globs="": _require-dotenv
         WEBAPP_HEADLESS=false npm run test:webapp
     fi
 
-# Exemple : just test-webvideo src/tests/webapp/nonreg/consentement-demarches.test.ts
+# Exemple : just test-webvideo src/tests/webapp/nonreg/consentement-demarches.usage.test.ts
 # Lancer des tests webapp (headless) avec la config DevTools « vidéo » (wdio.webapp.with_video.conf.ts) : une vidéo .webm par test, réussi ou non,
 # plus la trace rejouable avec `just failures-ui <dossier>`. Les fichiers sont dans test-results/traces/<horodatage>_webapp_<spec>/test-results/ (le chemin est affiché à la fin).
 # Les globs sont obligatoires (la vidéo ralentit le run : on ne filme pas toute la suite).
@@ -582,16 +582,16 @@ _debug target spec device="": _require-dotenv
     esac
     npx wdio run wdio.{{ target }}.conf.ts --spec {{ spec }} --debug=agent
 
-# Usage : just debug-webapp src/tests/webapp/agenda.test.ts
+# Usage : just debug-webapp src/tests/webapp/agenda.parcours.test.ts
 # Lance un test webapp et le met en pause à son premier échec (session debug-0-0).
 debug-webapp spec: (_debug "webapp" spec)
 
-# Usage : just debug-android src/tests/mobile/profile.test.ts   |   just debug-android src/tests/mobile/profile.test.ts --device pixel_2_api30
+# Usage : just debug-android src/tests/mobile/profil.usage.test.ts   |   just debug-android src/tests/mobile/profil.usage.test.ts --device pixel_2_api30
 [doc("Test Android en pause au 1er échec · FICHIER [--device AVD]")]
 [arg("device", long="device", help="AVD visé. Défaut : l'appareil Android connecté (adb), sinon ANDROID_DEVICE_NAME_DEFAULT (.env.local)")]
 debug-android spec device="": (_debug "android" spec device)
 
-# Usage : just debug-ios src/tests/mobile/profile.test.ts   |   just debug-ios src/tests/mobile/profile.test.ts --device "iPhone 17 Pro"
+# Usage : just debug-ios src/tests/mobile/profil.usage.test.ts   |   just debug-ios src/tests/mobile/profil.usage.test.ts --device "iPhone 17 Pro"
 [doc("Test iOS en pause au 1er échec · FICHIER [--device NOM]")]
 [arg("device", long="device", help="Simulateur visé (nom exact). Défaut : le simulateur démarré, sinon IOS_DEVICE_NAME_DEFAULT (.env.local)")]
 debug-ios spec device="": (_debug "ios" spec device)

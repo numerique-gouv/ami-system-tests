@@ -155,7 +155,7 @@ class SuiviDemarchesPage {
      * Quitte le Suivi pour l'Accueil (barre basse) et attend que la liste ait DISPARU. À appeler avant de sortir du `inWebContext`
      * d'un scénario qui a affiché le Suivi : le service de trace lit l'arbre NATIF à chaque commande native (changement de contexte), et
      * celui d'un Suivi chargé de démarches coûte ~25 s par lecture (mesuré le 2026-10-27, iOS : 7 lectures bloquées, 160 s sur 4 min 40) ;
-     * celui de l'Accueil, qui ne liste que les plus récentes, est léger. Même raisonnement que pour l'inbox (notifications.test.ts).
+     * celui de l'Accueil, qui ne liste que les plus récentes, est léger. Même raisonnement que pour l'inbox (notifications.usage.test.ts).
      */
     async quitterPourAccueil(): Promise<void> {
         await NavigationPage.goToTab('Accueil')

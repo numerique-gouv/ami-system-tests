@@ -36,7 +36,7 @@ import {
 describe.skip('Mon scénario', () => {
   const user = getUser('avec_nom_dusage')
 
-  // `before` standard des tests webapp (cf. src/tests/webapp/aide-contact.test.ts) : connecte l'app si besoin.
+  // `before` standard des tests webapp (cf. src/tests/webapp/aide-contact.parcours.test.ts) : connecte l'app si besoin.
   before(async function () {
     this.timeout(180000)
     await getAppToStartingState()

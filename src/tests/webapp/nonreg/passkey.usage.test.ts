@@ -12,7 +12,7 @@ import {step} from '../../../helpers/reporting/report'
  * Onboarding passkey (plan : passkey.md, scénario S11). Réunion du 2026-10-06, 01:12–01:40 : « soit tu ajoutes une clé, soit tu
  * cliques sur peut-être plus tard et ça t'amène à la suite ».
  *
- * Part d'une session VIERGE : `wdio.webapp.conf.ts` supprime le profil Chrome avant cette spec (comme pour authentication.test.ts).
+ * Part d'une session VIERGE : `wdio.webapp.conf.ts` supprime le profil Chrome avant cette spec (comme pour authentification.smoke.test.ts).
  */
 describe('Non-régression — onboarding passkey', function () {
   // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter

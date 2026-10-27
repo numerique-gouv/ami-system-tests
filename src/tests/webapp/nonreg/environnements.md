@@ -52,7 +52,7 @@ Source : 18:21–18:40 (« on a mis déconnexion France Connect pour nous : on s
 
 **Non confirmé** : disponibilité en préprod (le catalogue de préprod, relevé le 2026-10-15, n'a pas cette carte), en production et sur les review apps ; si le retour sur AMI est prévu par la configuration du démonstrateur ; l'effet sur la connexion silencieuse (S12.1) d'une carte partenaire quand la session FranceConnect a été retirée (à vérifier avant d'utiliser cette carte pour la rendre répétable).
 
-**Scénario implémenté** (`deconnexion-fc.test.ts`, suite `webapp_nonreg`, groupe 2 après `consentement.test.ts`) :
+**Scénario implémenté** (`deconnexion-fc.usage.test.ts`, suite `webapp_nonreg`, groupe 2 après `consentement.usage.test.ts`) :
 Étant donné un usager connecté sur AMI, en staging
 Quand il ouvre la carte « Déconnexion FC », se connecte à FranceConnect depuis le démonstrateur puis clique « Se déconnecter »
 Alors il est sur la page de connexion du démonstrateur

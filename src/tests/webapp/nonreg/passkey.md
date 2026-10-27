@@ -1,7 +1,7 @@
 # Onboarding passkey (recette)
 
 Réunion 01:12–01:40. L'authentificateur virtuel WebAuthn est déjà monté dans `before` de `wdio.webapp.conf.ts`.
-Le parcours doit partir d'une session vierge (comme `authentication.test.ts`, dont le profil Chrome est supprimé avant la spec).
+Le parcours doit partir d'une session vierge (comme `authentification.smoke.test.ts`, dont le profil Chrome est supprimé avant la spec).
 
 ### S11.1 — « Peut-être plus tard » passe à la suite
 Étant donné un usager qui vient de s'authentifier via FranceConnect et arrive sur l'onboarding passkey

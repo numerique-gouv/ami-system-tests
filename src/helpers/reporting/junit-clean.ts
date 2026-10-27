@@ -32,7 +32,7 @@ export function stripRawCommandLogs(junitDir: string): number {
  * par spec hors suite nommée) et nomme `testsuite` et `classname` d'après le titre du `describe`. Un lecteur comme celui d'IntelliJ
  * n'ouvre qu'un fichier à la fois et ne montre alors que les tests de cette spec.
  * `results-<run>-<cid>.xml` (un par worker) devient `results-<run>.xml` : un `<testsuite>` par fichier de spec, nommé comme lui
- * (`authentication.test.ts`), qui réunit les tests de tous ses `describe` ; `classname` prend le même nom, `name` reste le titre du `it`.
+ * (`authentification.smoke.test.ts`), qui réunit les tests de tous ses `describe` ; `classname` prend le même nom, `name` reste le titre du `it`.
  * Le titre du `describe` est conservé en propriété `suiteName`. Chaque testcase reçoit en plus des `<properties>` (junit-join.ts). Appelé une fois tous les fichiers écrits (hook `onComplete`).
  */
 interface SpecSuite {
