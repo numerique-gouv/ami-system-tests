@@ -49,6 +49,8 @@ export const webOnboardingNotifLocators = {
   /** Identité de l'écran (titre <h1>) : le bouton « plus tard » existe aussi sur l'écran passkey. */
   heading: 'h1*=Activez les notifications',
   laterButton: 'button*=plus tard',
+  /** « Activer » : sur iOS, ouvre l'alerte système si la permission n'est pas décidée, sinon est sans effet (mesuré 2026-10-27). */
+  activateButton: 'button=Activer',
 }
 
 export function getOnboardingNotifLocators(): OnboardingNotifLocators {

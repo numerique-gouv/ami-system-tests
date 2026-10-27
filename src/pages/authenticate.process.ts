@@ -49,6 +49,9 @@ const CONNECTION_SEQUENCE: Array<[ConnectionScreen, (user: TestUser) => Promise<
 // Les pages d'onboarding connues. Chacune : une sonde rapide et sa fermeture. Sur mobile, l'écran
 // « notifications » peut être natif (feuille SwiftUI) : sa page le gère.
 const ONBOARDING_PAGES: Array<{name: string, isVisible: () => Promise<boolean>, dismiss: () => Promise<void>}> = [
+    // iOS : la feuille native des notifications, SEULE (sans la page de la SPA derrière), se traite avant les pages de la SPA
+    // (au-dessus de la page « clé d'accès » juste après la connexion, son bouton « Activer » est unique).
+    {name: 'notifications (feuille native)', isVisible: () => OnboardingNotificationsPage.isNativeSheetAlone(ONBOARDING_PROBE_MS), dismiss: () => OnboardingNotificationsPage.dismissNativeSheet()},
     {name: 'passkey', isVisible: () => OnboardingPasskeyPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingPasskeyPage.dismiss()},
     {name: 'zones', isVisible: () => OnboardingZonesPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingZonesPage.dismiss()},
     {name: 'notifications', isVisible: () => OnboardingNotificationsPage.isOnboardingVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingNotificationsPage.dismiss()},

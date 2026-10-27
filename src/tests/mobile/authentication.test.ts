@@ -9,6 +9,7 @@ import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
+import {waitForNotificationAuthorization} from '../../helpers/mobile/ios-notifications'
 
 /**
  * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
@@ -39,7 +40,10 @@ describe('Authentification', function () {
       step('(session FranceConnect déjà ouverte : eIDAS et identifiants non demandés)')
     }
 
-    step('2. Passer la proposition de clé d\'accès, le choix des zones puis l\'onboarding des notifications')
+    step('2. Accepter la feuille native des notifications (iOS), passer la clé d\'accès, le choix des zones puis l\'onboarding')
+    // iOS : la feuille native « Activez les notifications » apparaît juste après la connexion, AU-DESSUS de la page « clé d'accès » de la
+    // SPA : son bouton « Activer » est alors le seul de l'arbre natif. Elle se traite d'abord (Activer, alerte système, Autoriser).
+    await OnboardingNotificationsPage.dismissNativeSheet(10000)
     await OnboardingPasskeyPage.dismiss()
     await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
@@ -47,6 +51,12 @@ describe('Authentification', function () {
 
     step('3. Vérifier l\'arrivée sur la page d\'accueil')
     await platform().inWebContext(() => HomePage.assertHomeVisible(30000))
+
+    // iOS : l'onboarding ACCEPTE les notifications (« Activer » puis « Autoriser ») ; on le constate dans le simulateur (base BulletinBoard).
+    if (driver.isIOS) {
+      step('4. Vérifier que les notifications sont autorisées (réglage système du simulateur)')
+      await waitForNotificationAuthorization('authorized')
+    }
   })
 
 })
