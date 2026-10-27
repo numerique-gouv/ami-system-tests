@@ -4,7 +4,7 @@ description: >-
   (cf. .github/scripts/e2e-comment.mjs). Le commentaire est retrouvé par son marqueur `<!-- e2e-report:<repo>:pr-<N> -->`.
   Ignoré proprement (sans erreur) s'il n'y a pas de PR, si la PR vient d'un fork, ou si l'écriture est refusée (jeton en lecture seule).
   Prérequis du job appelant : `permissions: pull-requests: write` et un `actions/checkout` d'ami-system-tests (le script y est lu) ; Node est
-  préinstallé sur les runners GitHub-hosted. Toutes les entrées passent par `env:` — jamais d'interpolation `${{ }}` dans un `run:`.
+  préinstallé sur les runners GitHub-hosted. Toutes les entrées passent par `env:` — jamais d'expression GitHub interpolée dans un `run:`.
 
 inputs:
   github-token:
