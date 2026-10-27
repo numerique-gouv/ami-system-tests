@@ -59,6 +59,29 @@ async function waitForWebViews(ready: (webviews: WebViewInfo[]) => boolean, time
 }
 
 /**
+ * La dernière WebView de la liste, sauf sur iOS quand il y en a plusieurs : le clic sur une notification native y ouvre `/#/notifications` dans
+ * une WebView SUPPLÉMENTAIRE qui reste listée (sans titre distinct) mais passe en `document.visibilityState === 'hidden'` ensuite, alors que la
+ * page d'accueil d'origine est au premier plan (constaté le 2026-10-27) : on prend alors la dernière WebView réellement visible
+ * (sinon la dernière). Une seule WebView : aucune commande supplémentaire.
+ */
+async function lastVisibleWebView(webviews: WebViewInfo[]): Promise<WebViewInfo> {
+  const last = webviews[webviews.length - 1]
+  if (!driver.isIOS || webviews.length < 2) return last
+  const visibleOnes = async (): Promise<WebViewInfo[]> => {
+    const visible: WebViewInfo[] = []
+    for (const webview of webviews) {
+      await driver.switchContext(webview.id)
+      if (await browser.execute(() => document.visibilityState).catch(() => 'visible') === 'visible') visible.push(webview)
+    }
+    return visible
+  }
+  // Juste après le tap, l'app revient d'arrière-plan : aucune WebView n'est encore `visible`, puis (parfois) deux : on attend qu'il n'en reste qu'une.
+  let visible = await visibleOnes()
+  await browser.waitUntil(async () => (visible = await visibleOnes()).length === 1, {timeout: 8000, interval: 500}).catch(() => undefined)
+  return visible[visible.length - 1] ?? last
+}
+
+/**
  * Choisit la WebView à utiliser. Avec un titre : la première dont le titre correspond ; sinon (ou sans cible) la DERNIÈRE de
  * la liste hors workers (la plus récente, donc la plus probablement au premier plan), avec un `log.warn` si un titre était
  * demandé. Lance une erreur technique s'il n'y a aucune WebView.
@@ -72,7 +95,7 @@ async function pickWebView(target?: WebViewTarget): Promise<WebViewInfo> {
     )
   }
   const title = target?.title
-  if (title === undefined) return webviews[webviews.length - 1]
+  if (title === undefined) return await lastVisibleWebView(webviews)
 
   webviews = await waitForWebViews((list) => list.some((w) => titleMatches(w, title)), WEBVIEW_TITLE_WAIT_MS)
   const found = webviews.find((w) => titleMatches(w, title))
@@ -143,7 +166,10 @@ async function inWebContext<T>(targetOrCallback: WebViewTarget | (() => Promise<
     // Android : `switchToWebView` a déjà ciblé la page (`webviewPageId`).
     if (driver.isIOS) {
       const handles = await browser.getWindowHandles()
-      if (handles.length > 0) await browser.switchToWindow(handles[handles.length - 1])
+      // Plusieurs pages (le tap sur une notification en ouvre une seconde, cachée) : les handles listent TOUTES les pages (`<pid>.<n>`, comme
+      // l'identifiant du contexte) ; on garde celui de la WebView choisie, et seulement à défaut le dernier.
+      const wanted = webview.id.replace(/^WEBVIEW_/, '')
+      if (handles.length > 0) await browser.switchToWindow(handles.includes(wanted) ? wanted : handles[handles.length - 1])
     }
     return await callback()
   } catch (err) {
