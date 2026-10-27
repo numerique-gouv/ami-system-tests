@@ -4,6 +4,7 @@ import { getUser } from '../../helpers/common/test-users'
 import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
+import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import NavigationPage from '../../pages/navigation.page'
 import HomePage from '../../pages/home.page'
 import PreferencesPage from '../../pages/preferences.page'
@@ -78,6 +79,9 @@ describe('Notifications', function () {
       step('iOS : pousser une notification simulée (simctl push), cliquer sa bannière SpringBoard')
       const title = `AMI-push-${Date.now()}`
       await pushAndTapBanner({title, body: 'Test push simulé — bannière système', appUrl: getBackendUrl()})
+      // Le tap ramène l'app au premier plan : elle peut re-présenter la feuille native « Activez les notifications » (permission pourtant
+      // accordée), qui recouvre la page (constaté en capture : 20 s d'attente puis échec « aucune WebView n'affiche /#/notifications »).
+      await OnboardingNotificationsPage.dismissNativeSheet(2000)
       step('iOS : le tap ouvre la page Notifications de l\'app (app_url)')
       await waitForNotificationsRoute()
       return

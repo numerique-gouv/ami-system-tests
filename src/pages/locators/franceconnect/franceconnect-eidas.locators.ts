@@ -18,3 +18,10 @@ export const fcEidasLocators = {
  * l'apparition de la page eIDAS et sa disparition après le clic, sans envoyer de commande à une page en cours de remplacement.
  */
 export const iosEidasLinkNativeAx = '-ios predicate string:label CONTAINS[c] "eidas faible"'
+
+/**
+ * iOS seulement : la page eIDAS OU la feuille native « Activez les notifications » (si une session FranceConnect est déjà ouverte, l'app
+ * revient directement sur la feuille : aucune page eIDAS à attendre, constaté le 2026-10-27). Un seul constat pour les deux issues.
+ */
+export const iosEidasOrNotificationSheetNativeAx =
+  '-ios predicate string:label CONTAINS[c] "eidas faible" OR label CONTAINS[c] "notifications pour suivre"'

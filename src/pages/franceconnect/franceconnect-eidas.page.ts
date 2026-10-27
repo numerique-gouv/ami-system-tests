@@ -1,4 +1,4 @@
-import {fcEidasLocators, iosEidasLinkNativeAx} from '../locators/franceconnect/franceconnect-eidas.locators'
+import {fcEidasLocators, iosEidasLinkNativeAx, iosEidasOrNotificationSheetNativeAx} from '../locators/franceconnect/franceconnect-eidas.locators'
 import {AssertionError} from 'node:assert'
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
@@ -19,15 +19,21 @@ class FranceConnectEidasPage {
      */
     async waitForEidasTile(timeout = 15000): Promise<boolean> {
         // iOS : constaté par l'arbre natif (présent ~1 s après le clic FranceConnect). Session SSO ouverte : 15 s d'attente pour rien dans la WebView.
-        if (driver.isIOS) return await waitForNativeAx(iosEidasLinkNativeAx, 'present', 'Page eIDAS', Math.min(timeout, 6000))
+        if (driver.isIOS) return await this.waitForNativeEidas(timeout)
         return await this.isEidasVisible(timeout)
+    }
+
+    /** iOS : la page eIDAS (vrai) ou, à sa place, la feuille de notifications d'une session déjà ouverte (faux, tout de suite) ; faux aussi au délai. */
+    private async waitForNativeEidas(timeout: number): Promise<boolean> {
+        await waitForNativeAx(iosEidasOrNotificationSheetNativeAx, 'present', 'Page eIDAS ou feuille de notifications', Math.min(timeout, 6000))
+        return (await $$(iosEidasLinkNativeAx)).length > 0
     }
 
     async selectEidasFaible(): Promise<void> {
         // iOS : la page eIDAS est attendue par l'arbre natif (la page FranceConnect précédente est en cours de remplacement : aucune commande WebView avant).
         // Absente : FranceConnect a authentifié directement (session SSO ouverte) — on échoue tout de suite (la boucle de connexion ré-observe)
         // au lieu d'attendre 10 s de plus le lien dans la WebView.
-        if (!await waitForNativeAx(iosEidasLinkNativeAx, 'present', 'Page eIDAS', 5000)) {
+        if (!await this.waitForNativeEidas(5000)) {
             throw new AssertionError({message: 'page eIDAS absente (session FranceConnect déjà ouverte ?)'})
         }
         await platform().inWebContext(async () => {
