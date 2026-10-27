@@ -25,6 +25,9 @@ class FranceConnectEidasPage {
 
     /** iOS : la page eIDAS (vrai) ou, à sa place, la feuille de notifications d'une session déjà ouverte (faux, tout de suite) ; faux aussi au délai. */
     private async waitForNativeEidas(timeout: number): Promise<boolean> {
+        // Hors iOS (Android, webapp) : pas d'arbre natif XCUITest (`-ios predicate string` y est refusé) ni de course de targets WebKit :
+        // rien à constater ici, la page eIDAS est attendue par le clic dans la WebView.
+        if (!driver.isIOS) return true
         await waitForNativeAx(iosEidasOrNotificationSheetNativeAx, 'present', 'Page eIDAS ou feuille de notifications', Math.min(timeout, 6000))
         return (await $$(iosEidasLinkNativeAx)).length > 0
     }
