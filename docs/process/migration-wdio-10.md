@@ -1,5 +1,8 @@
 # Migration vers WebdriverIO 10 — plan
 
+> **Note historique (2026-10-27).** Plan rédigé le 2026-10-08. Les helpers `src/helpers/inspect.ts`, `src/helpers/repl.ts` (remplacés par `wdio session`) et `src/helpers/strict.ts` (`rethrowStrictViolation`, aujourd'hui une fonction locale de `src/pages/franceconnect/environment-picker.page.ts`) n'existent plus sous ces chemins ; les helpers sont rangés dans `src/helpers/{spa,partner-api,reporting,common,webapp,mobile}/`. Les chemins cités plus bas sont ceux de l'époque.
+
+
 Branche : `77-migre-vers-wdio-10`. Rédigé le 2026-10-08 à partir de la page officielle
 [From v9 to v10](https://webdriver.io/docs/v10-migration), du billet de
 [sortie](https://webdriver.io/blog/2026/10/05/webdriverio-v10-release), de la page

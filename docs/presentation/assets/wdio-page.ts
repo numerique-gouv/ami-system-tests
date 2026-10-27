@@ -1,3 +1,5 @@
+// Extrait illustratif historique (présentation d'avant WDIO 10) : `tl()` et `withWebView` n'existent plus ;
+// aujourd'hui : sélecteurs natifs (`src/helpers/spa/selectors.ts`) et `platform().inWebContext()`.
 class NotificationsInboxPage {
   async openFromHome(): Promise<void> {
     await withWebView(async () => {

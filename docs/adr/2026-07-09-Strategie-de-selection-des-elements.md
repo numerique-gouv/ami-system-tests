@@ -1,5 +1,8 @@
 # Stratégie de sélection des éléments (tl() / $() / driver.execute())
 
+> **Note historique (2026-10-27).** Cet ADR décrit l'état du 2026-07-09. `tl()` et `src/helpers/dom-query.ts` ont depuis été supprimés au profit des sélecteurs natifs WDIO 10 (`role/…`, `tag*=…`) : voir CONTRIBUTING.md §2 et `src/helpers/spa/selectors.ts` / `spa.ts`. Les mentions de `tl()` ci-dessous ne sont plus applicables.
+
+
 ## Problème
 
 Trois API concurrentes existent pour interagir avec la WebView SPA AMI (`tl()`, `$()`/`$$()`,
