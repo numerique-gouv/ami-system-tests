@@ -21,6 +21,21 @@ export function traceRootDir(platform: 'android' | 'ios' | 'webapp'): string {
   return process.env.WDIO_RUN_DIR
 }
 
+/**
+ * Nombre de relances d'un fichier de spec en échec : `WDIO_SPEC_FILE_RETRIES` (entier ≥ 0) s'il est défini, sinon 1 dans un job de CI
+ * (`CI` ou `GITHUB_ACTIONS` non vide et différent de « false »/« 0 »), sinon 0 (poste local, mesures).
+ */
+export function specFileRetriesFromEnv(env: NodeJS.ProcessEnv): number {
+  const explicit = env.WDIO_SPEC_FILE_RETRIES?.trim()
+  if (explicit) {
+    const n = Number(explicit)
+    if (!Number.isInteger(n) || n < 0) throw new Error(`WDIO_SPEC_FILE_RETRIES doit être un entier >= 0 (reçu « ${explicit} »)`)
+    return n
+  }
+  const isCi = [env.CI, env.GITHUB_ACTIONS].some((v) => v !== undefined && !['', 'false', '0'].includes(v.toLowerCase()))
+  return isCi ? 1 : 0
+}
+
 // Les variables déjà définies dans le shell ne sont pas écrasées (override: false).
 dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: false })
 
@@ -107,9 +122,11 @@ export const baseConfig: Partial<Options.Testrunner> = {
   // specFileRetries relance le fichier de spec entier dans un nouveau processus Appium
   // (session fraîche, logs propres par tentative) contrairement à mochaOpts.retries
   // qui réutilise la même session et répète les logs dans le même flux de sortie.
-  // 1 : un fichier de spec en échec est rejoué une fois (la trace du premier essai est gardée : tracePolicy
-  // 'retain-on-failure-and-retries'). 0 pour désactiver, ou --specFileRetries=N en ligne de commande.
-  specFileRetries: 1,
+  // Valeur pilotée par l'environnement (specFileRetriesFromEnv) : 0 par défaut et pour les mesures (campagnes de stabilité, poste local),
+  // 1 dans un job de CI (GitHub Actions pose CI=true). Forçable par WDIO_SPEC_FILE_RETRIES=N, et --specFileRetries=N en ligne de commande
+  // l'emporte sur la config. Un échec rejoué à l'identique = bug reproductible ; passé au 2e essai = test instable.
+  // La trace du premier essai est gardée (tracePolicy 'retain-on-failure-and-retries').
+  specFileRetries: specFileRetriesFromEnv(process.env),
   specFileRetriesDelay: 0,
 
   mochaOpts: {
