@@ -67,7 +67,6 @@ describe('Non-régression — zones scolaires et agenda', function () {
   })
 
   after(async function () {
-    await getAppToStartingState()
     await openZones()
     await ZonesPage.restoreZones(originalZones)
   })

@@ -4,10 +4,7 @@ import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/common/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import logger from '@wdio/logger'
 import {step} from '@helpers/reporting/report'
-
-const log = logger('test')
 
 /**
  * Suivi des démarches en webapp : cycle de vie d'une démarche partenaire, détail et historique,
@@ -35,10 +32,6 @@ describe('Suivi des démarches', function () {
     urlV2 = `${domainUrl}/demarches/${itemId}/v2`
     await getAppToStartingState()
     await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
-  })
-
-  after(async () => {
-    try { await getAppToStartingState() } catch (err) { log.warn('after : retour accueil impossible (session déjà terminée ?)', err) }
   })
 
   it('crée une démarche visible dans le suivi (statut new)', async () => {

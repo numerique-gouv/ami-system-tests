@@ -4,11 +4,8 @@ import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../helpers/partner-api'
 import {getUser} from '../../helpers/common/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import logger from '@wdio/logger'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
-
-const log = logger('test')
 
 /**
  * Cycle de vie d'une démarche partenaire dans l'app AMI.
@@ -29,14 +26,6 @@ describe("Démarches — cycle de vie via notifications partenaire", () => {
     let title: string
     let urlV1: string
     let urlV2: string
-
-    after(async () => {
-        try {
-            await getAppToStartingState()
-        } catch (err) { // session déjà terminée ?
-            log.warn('after : retour accueil impossible (session déjà terminée ?)', err)
-        }
-    })
 
     before(async function () {
         this.timeout(180000)

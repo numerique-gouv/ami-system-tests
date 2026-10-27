@@ -32,11 +32,6 @@ describe('Non-régression — déconnexion FranceConnect (staging)', function ()
     await getAppToStartingState()
   })
 
-  // Quel que soit le résultat : retour sur AMI avec la session AMI d'origine.
-  after(async function () {
-    await getAppToStartingState()
-  })
-
   it('ENV3 — la carte « Déconnexion FC » déconnecte de FranceConnect sans déconnecter d’AMI', async function () {
     step('1. Ouvrir la carte « Déconnexion FC » du catalogue')
     await ServicesPage.open()

@@ -53,7 +53,6 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   })
 
   after(async function () {
-    await getAppToStartingState()
     await openDemarchesConsents()
     await PreferencesPage.restoreDemarchesConsents(original)
     // Le consentement AMI se rétablit aussi côté API : un test a pu le révoquer sans passer par la case.
