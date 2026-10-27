@@ -6,7 +6,7 @@ import NavigationPage from '../../../pages/navigation.page'
 import DemarcheDetailPage from '../../../pages/demarche-detail.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../../helpers/partner-api'
-import {getUser} from '../../../helpers/test-users'
+import {getUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 import logger from '@wdio/logger'
 

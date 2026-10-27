@@ -1,5 +1,5 @@
 import { platform } from '../platform'
-import { maskSensitiveUrl } from './session'
+import { maskSensitiveUrl } from './common/session'
 
 /**
  * Décrit l'écran courant pour enrichir les messages d'erreur (ex. échec de navigation) —

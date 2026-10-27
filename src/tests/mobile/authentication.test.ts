@@ -6,7 +6,7 @@ import OnboardingPasskeyPage from '../../pages/onboarding-passkey.page'
 import OnboardingZonesPage from '../../pages/onboarding-zones.page'
 import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
-import {getUser} from '../../helpers/test-users'
+import {getUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
 

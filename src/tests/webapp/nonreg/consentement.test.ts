@@ -8,7 +8,7 @@ import {
   PARTNER_AMI, PARTNER_DN, checkDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials,
   publicationOutcome, grantDemarchesConsent, publishDemarche, publishNotification, revokeDemarchesConsent,
 } from '../../../helpers/partner-api'
-import {getUser} from '../../../helpers/test-users'
+import {getUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 import {hasPageText} from '../../../helpers/spa'
 import logger from '@wdio/logger'

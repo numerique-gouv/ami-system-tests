@@ -9,9 +9,9 @@
  * Pré-requis : NOTIF_PARTNER_ID et NOTIF_PARTNER_SECRET dans .env.local.
  */
 
-import { getUser, type FcLogin } from '../helpers/test-users'
+import { getUser, type FcLogin } from '../helpers/common/test-users'
 import { publishNotification, setBackendUrl } from '../helpers/partner-api'
-import { backendUrlFor } from '../helpers/environment'
+import { backendUrlFor } from '../helpers/common/environment'
 
 const [,, login, title] = process.argv
 

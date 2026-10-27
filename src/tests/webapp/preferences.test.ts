@@ -3,7 +3,7 @@ import ZonesPage from '../../pages/zones.page'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {PARTNER_AMI, grantDemarchesConsent} from '../../helpers/partner-api'
-import {getUser} from '../../helpers/test-users'
+import {getUser} from '../../helpers/common/test-users'
 
 /**
  * Préférences : suivi des démarches par partenaire (consentements), notifications, zones scolaires.

@@ -1,7 +1,7 @@
 import {fcCredentialsLocators} from '../locators/franceconnect/franceconnect-credentials.locators'
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
-import type {TestUser} from '../../helpers/test-users'
+import type {TestUser} from '../../helpers/common/test-users'
 import logger from "@wdio/logger";
 import {clickDisplayed, firstDisplayed} from '../../helpers/spa'
 

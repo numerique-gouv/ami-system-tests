@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import {isPreprod} from '../helpers/environment'
+import {isPreprod} from '../helpers/common/environment'
 
 // AMI_ENV=preprod → builds préprod (flavor Android `preprod`, cible iOS `AMI-Preproduction`) ; sinon staging
 // (y compris les review apps PR, qui passent par le sélecteur d'environnement du build staging).

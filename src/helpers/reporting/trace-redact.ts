@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import logger from '@wdio/logger'
-import {maskSensitiveUrl} from '../session'
+import {maskSensitiveUrl} from '../common/session'
 
 const log = logger('config')
 

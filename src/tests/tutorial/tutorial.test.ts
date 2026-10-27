@@ -28,7 +28,7 @@
  * Un identifiant unique par exécution (`TUTO-${Date.now()}`) retrouve ses données parmi celles des autres runs.
  */
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import {getUser} from '../../helpers/test-users'
+import {getUser} from '../../helpers/common/test-users'
 import {
   PARTNER_AMI, checkDemarchesConsent, grantDemarchesConsent, revokeDemarchesConsent, publishDemarche, publishDemarcheEnfant, publishNotification,
 } from '../../helpers/partner-api'

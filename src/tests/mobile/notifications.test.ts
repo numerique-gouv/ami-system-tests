@@ -1,6 +1,6 @@
 import NotificationsInboxPage from '../../pages/notifications.page'
 import { PARTNER_AMI, getBackendUrl, grantDemarchesConsent, publishNotification } from '../../helpers/partner-api'
-import { getUser } from '../../helpers/test-users'
+import { getUser } from '../../helpers/common/test-users'
 import { getAppToStartingState } from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'

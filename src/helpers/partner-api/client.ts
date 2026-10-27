@@ -15,7 +15,7 @@
  * depuis le titre de l'item cliqué dans le picker ; en webapp, depuis resolveEnvironment() (AMI_ENV).
  */
 
-import {backendUrlFor} from '../environment'
+import {backendUrlFor} from '../common/environment'
 
 // Sans timeout, un fetch() sur une connexion coupée reste pendu jusqu'au timeout Mocha du
 // hook/test appelant (120-180s) au lieu d'échouer vite avec un message clair.

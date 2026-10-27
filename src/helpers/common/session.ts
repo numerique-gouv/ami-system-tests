@@ -1,5 +1,5 @@
-import {platform} from '../platform'
-import {getBackendUrl} from './partner-api'
+import {platform} from '../../platform'
+import {getBackendUrl} from '../partner-api'
 import logger from '@wdio/logger'
 
 const log = logger('helper')

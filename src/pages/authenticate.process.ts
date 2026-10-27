@@ -8,9 +8,9 @@ import OnboardingNotificationsPage from './onboarding-notifications.page'
 import HomePage from './home.page'
 import ProfilePage from './profile.page'
 import {platform} from '../platform'
-import type {TestUser} from '../helpers/test-users'
-import {getUser} from '../helpers/test-users'
-import {currentUrlForLog, hasSessionToken, openAppRoot} from '../helpers/session'
+import type {TestUser} from '../helpers/common/test-users'
+import {getUser} from '../helpers/common/test-users'
+import {currentUrlForLog, hasSessionToken, openAppRoot} from '../helpers/common/session'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
 

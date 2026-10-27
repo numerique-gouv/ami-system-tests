@@ -2,7 +2,7 @@ import {getEnvironmentPickerLocators} from '../locators/franceconnect/environmen
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import {setBackendUrl} from '../../helpers/partner-api'
-import {backendUrlFor} from '../../helpers/environment'
+import {backendUrlFor} from '../../helpers/common/environment'
 
 /**
  * SEUL endroit du dépôt où le mode strict de `$()` (WDIO 10) est contourné : la tuile « Staging » du picker

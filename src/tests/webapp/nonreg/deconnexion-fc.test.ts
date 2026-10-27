@@ -3,8 +3,8 @@ import ServicesPage from '../../../pages/services.page'
 import HomePage from '../../../pages/home.page'
 import FranceConnectDemoSpPage from '../../../pages/franceconnect/franceconnect-demo-sp.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {environmentKind} from '../../../helpers/environment'
-import {getUser} from '../../../helpers/test-users'
+import {environmentKind} from '../../../helpers/common/environment'
+import {getUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
