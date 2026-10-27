@@ -78,7 +78,6 @@ just check-code                                       # lint + typecheck avant c
 just failures-text                                         # tests en échec du dernier run (dumps d'échec, chemin du transcript.md de la trace) ; le résumé JUnit est dans test-results/junit/
 just failures-ui                                           # ouvre dans le lecteur DevTools la trace d'un test en échec (CIBLE et FILTRE facultatifs)
 just clean-tests-data                                 # supprime .wdio, .wdio-logs et test-results/* (plusieurs Go)
-just --command npx ts-node --project tsconfig.json src/scripts/push-notification.ts <login> [titre]   # publie une notification de test via l'API (`just --command` charge .env.local ou le fichier de `-E`)
 ```
 
 > Les commandes utiles aux humains sont des cibles `just` documentées (`just --list`). Les outils sous-jacents (`npm`, `npx wdio`, `adb`, `xcrun`…) peuvent aussi être lancés directement.
@@ -109,7 +108,7 @@ src/
     locators/
       *.locators.ts        sélecteurs par plateforme + getXxxLocators()
   scripts/
-    *.ts                   scripts CLI (push-notification, failures-text…)
+    *.ts                   scripts CLI (failures-text, failures-ui)
   tests/
     mobile/*.test.ts        scénarios Mocha Android + iOS
     webapp/*.test.ts        scénarios Mocha webapp

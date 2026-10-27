@@ -153,7 +153,7 @@ Un namespace par couche, tous activés à `'info'` dans `logLevels` (`wdio.base.
 | `wdio.android.conf.ts` / `wdio.ios.conf.ts` / `wdio.webapp.conf.ts` (`onPrepare`, etc.) | `config`      |
 | Autres `helpers/**/*.ts` appelés en session                        | `helper`      |
 
-**Exception : scripts CLI hors session de test.** `src/scripts/*.ts` (lancés en dehors d'une suite WDIO, ex. `push-notification.ts`) restent en `console.*` : `@wdio/logger` n'apporte rien hors du flux WDIO, et cette sortie est un affichage terminal direct, pas un log de scénario.
+**Exception : scripts CLI hors session de test.** `src/scripts/*.ts` (lancés en dehors d'une suite WDIO, ex. `failures-text.ts`) restent en `console.*` : `@wdio/logger` n'apporte rien hors du flux WDIO, et cette sortie est un affichage terminal direct, pas un log de scénario.
 
 ---
 

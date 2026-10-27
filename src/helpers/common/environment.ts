@@ -1,9 +1,8 @@
 /**
  * Résolution de l'environnement cible pour la webapp — pas de picker natif pour
  * sélectionner l'environnement (contrairement au mobile, cf. EnvironmentPickerPage.reviewEnvironmentPicker),
- * donc l'URL est dérivée directement de AMI_ENV. Même logique de dérivation que
- * resolveBackendUrl() dans src/scripts/push-notification.ts, dupliquée ici volontairement plutôt
- * que factorisée avec le mobile : la source d'alimentation se dédouble sans que
+ * donc l'URL est dérivée directement de AMI_ENV. Cette dérivation est volontairement
+ * séparée de celle du mobile : la source d'alimentation se dédouble sans que
  * setBackendUrl()/getBackendUrl() changent.
  */
 

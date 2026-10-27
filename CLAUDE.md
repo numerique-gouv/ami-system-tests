@@ -91,7 +91,7 @@ src/
     locators/
       *.locators.ts        # sélecteurs par plateforme + fonction getXxxLocators()
   scripts/
-    *.ts                   # scripts CLI (push-notification : `just --command npx ts-node --project tsconfig.json src/scripts/push-notification.ts <login>`)
+    *.ts                   # scripts CLI (failures-text, failures-ui : `just failures-text`, `just failures-ui`)
   tests/
     mobile/*.test.ts        # scénarios Mocha Android + iOS
     webapp/*.test.ts        # scénarios Mocha webapp
