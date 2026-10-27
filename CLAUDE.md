@@ -155,7 +155,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 
 ## Secrets
 
-Variables `AMI_ENV` (environnement backend, pilote aussi le picker mobile et `resolveEnvironment()` webapp) et `NOTIF_*` dans `.env.local` à la racine (non commité, gabarit dans `.env`). Ne jamais écrire leurs valeurs dans du code ou du cache.
+Variables `AMI_ENV` (environnement backend, pilote aussi le picker mobile et `resolveEnvironment()` webapp) et `NOTIF_*` dans `.env.local` à la racine (non commité, gabarit dans `.env`). `ANDROID_APP_PATH` / `IOS_APP_PATH` désignent l'app mobile à tester (seule source du chemin, README « Prérequis »). Autre fichier pour une commande : `just -E .env.local.preprod …` (convention `.env.local.<cible>`, tous ignorés par git ; sous `just`, wdio ne relit pas `.env.local`). Ne jamais écrire leurs valeurs dans du code ou du cache.
 Dans les permissions, tu ne dois pas avoir le droit de lire `.env.local`, les commande shell s'en servent comme WDIO, scalingo, mais tu ne doit jamais utiliser d'outil pour l'afficher.
 
 ## Section Documentation
