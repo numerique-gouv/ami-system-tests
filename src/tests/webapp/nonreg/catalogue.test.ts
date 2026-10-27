@@ -3,7 +3,7 @@ import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import AideContactPage from '../../../pages/aide-contact.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isInternalErrorRoute, isLoginWall, mapWithConcurrency, statusOf, titleMentionsCard, type DeferredLink, type LinkTarget} from '../../../helpers/link-check'
+import {describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isInternalErrorRoute, isLoginWall, mapWithConcurrency, statusOf, titleMentionsCard, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')

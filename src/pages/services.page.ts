@@ -2,7 +2,7 @@ import {servicesLocators} from './locators/services.locators'
 import {stepsListLocators} from './locators/steps-list.locators'
 import {traced} from '../helpers/reporting/traced'
 import {allDisplayed, checkboxStates, clickButton, clickButtonUntilGone, firstDisplayed, visibleButtonTexts, waitForHeading} from '../helpers/spa/spa'
-import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/link-check'
+import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/webapp/link-check'
 import NavigationPage from './navigation.page'
 
 /** Page Object de Services : onglets, checklists éditoriales, fiche d'un service partenaire. */

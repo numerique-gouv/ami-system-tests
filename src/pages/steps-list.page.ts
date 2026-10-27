@@ -1,7 +1,7 @@
 import {stepsListLocators} from './locators/steps-list.locators'
 import {traced} from '../helpers/reporting/traced'
 import {allDisplayed, firstDisplayed} from '../helpers/spa/spa'
-import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/link-check'
+import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/webapp/link-check'
 
 export type StepsLinkKind = 'direct' | 'page'
 

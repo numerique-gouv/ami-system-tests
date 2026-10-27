@@ -5,7 +5,7 @@ import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/common/environment'
 import { resolveSpecs } from './test-suites'
 import { captureAppWindow } from './src/platform/browser.adapter'
-import { handleAccessKeyCookie } from './src/helpers/access-code'
+import { handleAccessKeyCookie } from './src/helpers/webapp/access-code'
 import { setBackendUrl } from './src/helpers/partner-api'
 
 const { webappUrl, apiUrl } = resolveEnvironment()
