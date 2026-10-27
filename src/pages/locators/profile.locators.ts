@@ -1,5 +1,5 @@
 import type { Locator } from './types'
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Sélecteurs WebView du profil (SPA Svelte) : un **hub** `/#/profile` (menu latéral « Mon identité », « Mes coordonnées »,

@@ -2,7 +2,7 @@ import {navigationLocators} from './locators/navigation.locators'
 import type {PlusEntry, TabName} from './locators/navigation.locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/reporting/traced'
-import {clickDisplayed, firstDisplayed} from '../helpers/spa'
+import {clickDisplayed, firstDisplayed} from '../helpers/spa/spa'
 
 /**
  * Navigation principale de la SPA : barre basse (Accueil, Agenda, Services, Suivi), menu « Plus »

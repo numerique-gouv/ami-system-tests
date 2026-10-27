@@ -1,4 +1,4 @@
-import {roleSelector} from '../../../helpers/selectors'
+import {roleSelector} from '../../../helpers/spa/selectors'
 
 /**
  * Sélecteurs du fournisseur de service de démonstration FranceConnect (« Mock Service Provider », bac à sable), atteint depuis la

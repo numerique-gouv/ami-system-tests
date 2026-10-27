@@ -1,4 +1,4 @@
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Contenu de l'accueil rendu par la SPA (WebView/webapp, DOM identique), vérifié en live le 2026-10-02.

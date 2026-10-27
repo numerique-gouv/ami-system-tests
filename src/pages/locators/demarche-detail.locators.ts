@@ -1,4 +1,4 @@
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Sélecteurs WebView de la page de détail d'une démarche.

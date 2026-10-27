@@ -1,6 +1,6 @@
 import {traced} from '../helpers/reporting/traced'
 import logger from "@wdio/logger";
-import {clickDisplayed, firstDisplayed, hasPageText, waitForHeading} from '../helpers/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, waitForHeading} from '../helpers/spa/spa'
 import {homeContentLocators} from './locators/home.locators'
 import {notificationsLocators} from './locators/notifications.locators'
 import {AssertionError} from "node:assert";

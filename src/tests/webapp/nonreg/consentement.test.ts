@@ -10,7 +10,7 @@ import {
 } from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
-import {hasPageText} from '../../../helpers/spa'
+import {hasPageText} from '../../../helpers/spa/spa'
 import logger from '@wdio/logger'
 
 const log = logger('test')

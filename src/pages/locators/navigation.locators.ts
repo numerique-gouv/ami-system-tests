@@ -1,4 +1,4 @@
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Sélecteurs de la navigation principale de la SPA (barre basse + menu « Plus »).

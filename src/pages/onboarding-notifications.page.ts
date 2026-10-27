@@ -2,7 +2,7 @@ import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators
 import {platform} from '../platform'
 import {traced} from '../helpers/reporting/traced'
 import logger from '@wdio/logger'
-import {clickDisplayed, isShown} from '../helpers/spa'
+import {clickDisplayed, isShown} from '../helpers/spa/spa'
 
 /**
  * Page Object pour l'écran d'onboarding des notifications.

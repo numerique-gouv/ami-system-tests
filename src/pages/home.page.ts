@@ -1,6 +1,6 @@
 import {homeContentLocators} from './locators/home.locators'
-import {describeCurrentPage} from '../helpers/webview';
-import {clickDisplayed, firstDisplayed, isShown, pageText} from '../helpers/spa'
+import {describeCurrentPage} from '../helpers/spa/webview';
+import {clickDisplayed, firstDisplayed, isShown, pageText} from '../helpers/spa/spa'
 import {traced} from '../helpers/reporting/traced'
 import NavigationPage from './navigation.page'
 import {AssertionError} from "node:assert";

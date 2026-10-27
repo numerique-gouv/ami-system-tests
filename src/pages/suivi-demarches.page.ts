@@ -5,7 +5,7 @@ import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
 import {scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickDisplayed, firstDisplayed, hasPageText, isShown, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, isShown, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
 
 const log = logger('page-object')
 

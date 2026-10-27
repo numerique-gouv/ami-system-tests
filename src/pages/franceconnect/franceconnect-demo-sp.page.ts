@@ -1,6 +1,6 @@
 import {fcDemoSpLocators} from '../locators/franceconnect/franceconnect-demo-sp.locators'
 import {traced} from '../../helpers/reporting/traced'
-import {clickDisplayed, firstDisplayed, isShown} from '../../helpers/spa'
+import {clickDisplayed, firstDisplayed, isShown} from '../../helpers/spa/spa'
 import FranceConnectEidasPage from './franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect-credentials.page'
 import type {TestUser} from '../../helpers/common/test-users'

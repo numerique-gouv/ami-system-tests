@@ -1,6 +1,6 @@
 import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
 import {traced} from '../helpers/reporting/traced'
-import {clickDisplayed, isShown} from '../helpers/spa'
+import {clickDisplayed, isShown} from '../helpers/spa/spa'
 
 /**
  * Page Object pour l'écran de proposition de création de clé d'accès (passkey).

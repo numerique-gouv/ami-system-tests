@@ -1,6 +1,6 @@
 import {agendaLocators} from './locators/agenda.locators'
 import {traced} from '../helpers/reporting/traced'
-import {allDisplayed, clickButton, clickDisplayed, firstDisplayed, isShown, waitForHeading} from '../helpers/spa'
+import {allDisplayed, clickButton, clickDisplayed, firstDisplayed, isShown, waitForHeading} from '../helpers/spa/spa'
 import NavigationPage from './navigation.page'
 
 /** Page Object de l'Agenda (`/#/agenda`) : liste des évènements et accès aux zones scolaires (page `ZonesPage`). */

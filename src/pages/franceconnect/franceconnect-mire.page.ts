@@ -3,7 +3,7 @@ import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import logger from "@wdio/logger";
 import {AssertionError} from "node:assert";
-import {firstDisplayed, isShown} from '../../helpers/spa'
+import {firstDisplayed, isShown} from '../../helpers/spa/spa'
 
 const log = logger('page-object')
 

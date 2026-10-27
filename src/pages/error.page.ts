@@ -1,5 +1,5 @@
 import {traced} from '../helpers/reporting/traced'
-import {waitForHeading} from '../helpers/spa'
+import {waitForHeading} from '../helpers/spa/spa'
 import NavigationPage from './navigation.page'
 
 /** Pages d'erreur de la SPA (`/network-error`, `/technical-error`, `/forbidden`), ouvertes par leur route. */

@@ -1,4 +1,4 @@
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Sélecteurs de Services (`/#/services`), des checklists (`/#/checklist/{id}`) et de la fiche

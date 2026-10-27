@@ -1,6 +1,6 @@
 import {aideContactLocators} from './locators/aide-contact.locators'
 import {traced} from '../helpers/reporting/traced'
-import {clickButton, visibleButtonTexts, waitForHeading, waitForRole} from '../helpers/spa'
+import {clickButton, visibleButtonTexts, waitForHeading, waitForRole} from '../helpers/spa/spa'
 import {followAndDescribe, type LinkTarget} from '../helpers/link-check'
 import NavigationPage from './navigation.page'
 

@@ -1,6 +1,6 @@
 import {onboardingZonesLocators} from './locators/onboarding-zones.locators'
 import {traced} from '../helpers/reporting/traced'
-import {clickDisplayed, isShown} from '../helpers/spa'
+import {clickDisplayed, isShown} from '../helpers/spa/spa'
 
 /**
  * Page Object de l'écran d'onboarding « Zones scolaires » (`/#/welcome/zones`).

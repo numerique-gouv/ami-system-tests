@@ -1,4 +1,4 @@
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Sélecteurs de l'inbox notifications (`/#/notifications`), 100 % WebView SPA (pas de sélecteur natif).

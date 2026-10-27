@@ -1,6 +1,6 @@
 import {zonesLocators} from './locators/zones.locators'
 import {traced} from '../helpers/reporting/traced'
-import {checkboxStates, clickButton, setCheckbox, waitForButtons, waitForHeading} from '../helpers/spa'
+import {checkboxStates, clickButton, setCheckbox, waitForButtons, waitForHeading} from '../helpers/spa/spa'
 
 /**
  * Page Object de la page des zones scolaires (`/#/preferences/zones`), atteinte depuis l'Agenda et depuis les Préférences.

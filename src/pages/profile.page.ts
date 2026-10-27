@@ -2,7 +2,7 @@ import {platform} from '../platform'
 import {traced} from '../helpers/reporting/traced'
 import {getProfileLocators} from './locators/profile.locators'
 import logger from "@wdio/logger";
-import {clickDisplayed, clickRole, firstDisplayed, isShown, waitForHeading} from '../helpers/spa'
+import {clickDisplayed, clickRole, firstDisplayed, isShown, waitForHeading} from '../helpers/spa/spa'
 import NavigationPage from './navigation.page'
 
 const log = logger('page-object')

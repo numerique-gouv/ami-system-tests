@@ -1,7 +1,7 @@
 import {fcEidasLocators} from '../locators/franceconnect/franceconnect-eidas.locators'
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
-import {clickDisplayed, isShown} from '../../helpers/spa'
+import {clickDisplayed, isShown} from '../../helpers/spa/spa'
 
 class FranceConnectEidasPage {
     /**

@@ -1,6 +1,6 @@
 import logger from '@wdio/logger'
 import {AssertionError} from 'node:assert'
-import {platform} from '../platform'
+import {platform} from '../../platform'
 import {roleSelector} from './selectors'
 
 /**

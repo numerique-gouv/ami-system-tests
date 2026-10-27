@@ -1,6 +1,6 @@
 import {preferencesLocators} from './locators/preferences.locators'
 import {traced} from '../helpers/reporting/traced'
-import {checkboxStates, clickButton, pageText, setCheckbox, visibleButtonTexts, waitForHeading, waitForPageText} from '../helpers/spa'
+import {checkboxStates, clickButton, pageText, setCheckbox, visibleButtonTexts, waitForHeading, waitForPageText} from '../helpers/spa/spa'
 import NavigationPage from './navigation.page'
 import type {PartnerId} from '../helpers/partner-api'
 

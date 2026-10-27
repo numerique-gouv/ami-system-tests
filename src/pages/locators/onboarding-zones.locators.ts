@@ -1,4 +1,4 @@
-import {roleSelector} from '../../helpers/selectors'
+import {roleSelector} from '../../helpers/spa/selectors'
 
 /**
  * Sélecteurs de l'écran d'onboarding « Zones scolaires » (SPA Svelte, route `/#/welcome/zones`).
