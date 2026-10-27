@@ -232,7 +232,7 @@
 // Vidéo MP4 en backup si problème (wifi, simulateur, mauvais build).
 // À préparer AVANT la présentation, pas le matin même.
 //
-// Ce que la démo montre (notifications.test.ts) :
+// Ce que la démo montre (notifications.usage.test.ts) :
 //   1. L'app s'ouvre toute seule sur le simulateur.
 //   2. FranceConnect s'authentifie automatiquement.
 //   3. Une notification est émise depuis le terminal.

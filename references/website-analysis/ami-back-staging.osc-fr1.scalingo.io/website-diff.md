@@ -14,7 +14,7 @@ Preuves : relevé live de 34 routes (compte `avec_nom_dusage`, Chrome headless, 
 - **Nouvelle route `/preferences/zones/city`** (« Rechercher une commune », champ `city-input`), atteinte par « Ajouter des communes » de `/preferences/zones` ; « Retour à la page précédente » → `/preferences/zones`. Aucun test ni locator ne la couvre (`grep` sur `src` : 0 occurrence).
 
 ### significant — à venir (code `origin/main`, **non déployé** sur staging le 2026-10-15)
-- **Profil en hub** : `/profile` → `/profile/identity` et `/profile/addresses`, `edit-*` déplacés sous ces routes (`/profile/identity/edit-preferred-username`, `/profile/addresses/edit-email`, `/profile/addresses/edit-address`). Live : ces 5 routes affichent la page d'erreur ; l'ancien profil et les routes racine `/edit-*` répondent encore. Impact attendu : `ProfilePage`, `profile.test.ts`, tests mobiles de profil.
+- **Profil en hub** : `/profile` → `/profile/identity` et `/profile/addresses`, `edit-*` déplacés sous ces routes (`/profile/identity/edit-preferred-username`, `/profile/addresses/edit-email`, `/profile/addresses/edit-address`). Live : ces 5 routes affichent la page d'erreur ; l'ancien profil et les routes racine `/edit-*` répondent encore. Impact attendu : `ProfilePage`, `profil.usage.test.ts`, tests mobiles de profil.
 - **Agenda** : bouton vers `/agenda/themes` (« Thèmes »), évènements refondus. Live : pas de bouton, `/agenda/themes` = page d'erreur. Impact attendu : `AgendaPage`.
 
 ### minor (live)

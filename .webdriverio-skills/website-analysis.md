@@ -38,7 +38,7 @@ Menu **Plus** (6 entrées, était 4 le 2026-09-08) — chaque entrée navigue (v
 | Aide et contact | `/help-center` (**nouveau**) |
 | Données personnelles et sécurité | `/page/donnees-personnelles` (**nouveau**) |
 | Accessibilité | `/page/accessibilite` (**nouveau**) |
-| Me déconnecter | non exercé dans cette passe (couvert par `profile_deletion_at_logout.test.ts`) |
+| Me déconnecter | non exercé dans cette passe (couvert par `profil-suppression-a-la-deconnexion.usage.test.ts`) |
 
 Les pages sans onglet (profil, préférences, aide, contact, notifications, archivés, pages légales, formulaires d'édition) ont un bouton « Retour à la page précédente » et pas de barre basse.
 
@@ -62,7 +62,7 @@ Titre `h1` « Mon agenda » (relevé 2026-10-15). Liste « Prochainement » puis
 `/checklist/{id}` liste les sections (« Cas général 0/7 », « Avant mon départ 0/10 »…, compteur fait/total) ; une section ouvre `/checklist/{id}/checks/{slug}/` avec une case à cocher `checkboxes-small-{hash}` par action. La route d'item `…/item/{id}` existe dans le code, non observée.
 
 ### Suivi (`/followup`) et détail
-Liste « Mes démarches » : titre, libellé libre, badge de statut, horodatage. Bouton « Sous-menu » (rôle **non confirmé**, aucun dialogue observé). Détail (`/followup/item/{partner}/{type}/{id}`) : badge de statut, titre, partenaire (« AMI »), « référence dossier », « Accéder à ma démarche » (lien externe, vers `demarches/{id}/vN` en staging), « Messages : » = historique chronologique (cycle `new → wip → closed` du test `demarches.test.ts`).
+Liste « Mes démarches » : titre, libellé libre, badge de statut, horodatage. Bouton « Sous-menu » (rôle **non confirmé**, aucun dialogue observé). Détail (`/followup/item/{partner}/{type}/{id}`) : badge de statut, titre, partenaire (« AMI »), « référence dossier », « Accéder à ma démarche » (lien externe, vers `demarches/{id}/vN` en staging), « Messages : » = historique chronologique (cycle `new → wip → closed` du test `demarches.usage.test.ts`).
 
 ### Démarches archivées (`/followup/archived`, nouveau)
 « Démarches archivées » + encart accordéon « Votre démarche n'apparaît pas ? » (**déplié au chargement depuis le 2026-10-26**, `aria-expanded="true"` ; il était fermé avant) listant les partenaires suivis (AMI, Démarche Numérique, RDV Service Public, Service Public, Test, Tets partenaire) et « Je veux suivre mes démarches ». Le chemin d'accès depuis le Suivi est **non confirmé** (l'action « Archiver » du dialogue d'une démarche est la piste, non exercée car mutante).
@@ -137,7 +137,7 @@ Même méthode que pour Android (script WDIO/Appium temporaire, supprimé après
 | 3 | **Mire FCP-LOW** (identifiant/mot de passe/acr_values) | page web tierce (fournisseur d'identité de démonstration), wrappée dans le même conteneur natif "◀ AMI" | capture live |
 | 4 | **Activez les notifications** | **sheet modale SwiftUI** (glisse depuis le bas, bouton "Fermer" en haut à droite) plutôt qu'un écran plein comme sur Android — même texte/boutons "Activer"/"Peut-être plus tard" | capture live, `settings/OnboardingNotificationScreen` équivalent iOS (`Presentation/Onboarding/OnboardingView.swift`) |
 
-**Anomalie observée en live** : après `dismiss()` de l'onboarding puis le 2ᵉ appel à `tapFranceConnect()` (celui documenté comme "best effort, peut échouer" dans `franceconnect-mire.page.ts`), la capture finale montre la **sheet d'onboarding encore affichée** au lieu de la home. Le test-échantillon ne fait pas planter le scénario (cet appel est marqué `isOkToFail`), mais confirme qu'un état intermédiaire imprévu peut persister à l'écran à ce point du flow sur iOS. **Non confirmé** : lien exact avec le bug de concurrence OIDC mentionné par l'utilisateur — il peut aussi s'agir d'un artefact du script d'exploration (`dismiss()` suivi immédiatement d'un screenshot sans attente de la fin d'animation de la sheet). À creuser si le phénomène se reproduit dans les tests réels (`authentication.test.ts` sur iOS).
+**Anomalie observée en live** : après `dismiss()` de l'onboarding puis le 2ᵉ appel à `tapFranceConnect()` (celui documenté comme "best effort, peut échouer" dans `franceconnect-mire.page.ts`), la capture finale montre la **sheet d'onboarding encore affichée** au lieu de la home. Le test-échantillon ne fait pas planter le scénario (cet appel est marqué `isOkToFail`), mais confirme qu'un état intermédiaire imprévu peut persister à l'écran à ce point du flow sur iOS. **Non confirmé** : lien exact avec le bug de concurrence OIDC mentionné par l'utilisateur — il peut aussi s'agir d'un artefact du script d'exploration (`dismiss()` suivi immédiatement d'un screenshot sans attente de la fin d'animation de la sheet). À creuser si le phénomène se reproduit dans les tests réels (`authentification.smoke.test.ts` sur iOS).
 
 Point à noter (précisé par l'utilisateur, confirmé indépendamment par `docs/adr/2026-06-04-Outils-tests-E2E.md` : *"la mire FC qui revient à cause d'un bug OIDC"*) : le bug de concurrence qui fait parfois réafficher un écran FranceConnect déjà passé sur iOS est **implémenté par une autre équipe dans le flow OIDC FranceConnect lui-même** — il ne se trouve donc pas dans le code AMI (confirmé : rien trouvé dans `HomeView-SpecialPages.swift` ni les fichiers WebView explorés, ce qui est cohérent avec cette explication plutôt qu'un signe d'exploration incomplète).
 
@@ -158,7 +158,7 @@ Non couvert par cette exploration : `Presentation/Settings/SettingsView.swift`, 
 | Menu « Plus » | dialogue modal global (`dialog#modal-main-nav-plus-…`, DSFR) | accès profil/préférences/aide/pages légales/déconnexion | ouvert/fermé ; reste parfois ouvert après login (cf. `HomePage.closeOpenNavPlusMenu`) | — |
 | Carrousel d'accueil | Accueil | raccourcis (adresse, OTV) | slide 1..N | données profil (adresse vide → carte « Renseignez votre adresse ») |
 | Dialogue d'élément | Accueil, Agenda, Suivi | actions Supprimer / Archiver | ouvert/fermé | — |
-| Carte démarche (liste) | Accueil, Suivi | résumé d'une démarche | `TERMINÉ` ; `Brouillon`/`En cours` par `demarches.test.ts` | API partenaire |
+| Carte démarche (liste) | Accueil, Suivi | résumé d'une démarche | `TERMINÉ` ; `Brouillon`/`En cours` par `demarches.usage.test.ts` | API partenaire |
 | Timeline de démarche | Suivi > détail | historique des mises à jour | liste chronologique | idem |
 | Liste inbox | Notifications | notifications in-app | Lu / Non lu | API notifications + WebSocket |
 | Cases de consentement | Préférences > Suivi des démarches | suivre/ne plus suivre un partenaire | coché/décoché (AMI coché après `grantConsent`) | API consentement |
@@ -190,7 +190,7 @@ Preuves : relevé live de 32 routes (compte `avec_nom_dusage`, Chrome headless, 
 
 | Impact | Changement | Preuve |
 |---|---|---|
-| **breaking** | **Profil en hub déployé** : `/profile` → `/profile/identity` et `/profile/addresses` ; `edit-*` sous ces routes ; routes `/edit-*` racine = page d'erreur. `aria/<libellé>` ne trouve plus les champs d'édition (libellé + indice). `ProfilePage`/locators adaptés (menu latéral, `openSection`, champs en data-testid). | live 2026-10-26 + échec puis succès de `profil.test.ts` |
+| **breaking** | **Profil en hub déployé** : `/profile` → `/profile/identity` et `/profile/addresses` ; `edit-*` sous ces routes ; routes `/edit-*` racine = page d'erreur. `aria/<libellé>` ne trouve plus les champs d'édition (libellé + indice). `ProfilePage`/locators adaptés (menu latéral, `openSection`, champs en data-testid). | live 2026-10-26 + échec puis succès de `profil.usage.test.ts` |
 | **significant (anomalie app, non corrigée côté test)** | La carte d'accueil « Renseignez votre adresse » mène à `/#/edit-address` = page d'erreur (le code `origin/main` pointe toujours dessus). Le test webapp « Accueil › la carte … ouvre le formulaire d'adresse » échoue à raison. | `context.json` du test (URL `#/edit-address`) ; `lib/auto-promo.ts` |
 | **significant (à valider)** | Le nom d'usage modifié n'est plus affiché dans « Mon identité » (affiche le nom FranceConnect) ; lisible seulement dans le champ du formulaire. Tests adaptés (`ProfilePage.getPreferredUsernameField`). | live 2026-10-26 (relevés après enregistrement et rechargement) |
 | **significant** | Suivi › archivés : l'accordéon « Votre démarche n'apparaît pas ? » est **déplié au chargement** ; cliquer le refermait (test « archivés » en échec). `SuiviDemarchesPage.archivedPartners` ne clique plus que s'il est replié. | live (`aria-expanded="true"`) + test repassé |
@@ -201,8 +201,8 @@ Preuves : relevé live de 32 routes (compte `avec_nom_dusage`, Chrome headless, 
 
 | Impact | Changement | Preuve |
 |---|---|---|
-| **significant** | **Nouvelle route `/preferences/zones/city`** (« Rechercher une commune ») atteinte par « Ajouter des communes » de `/preferences/zones`. Le test `preferences.test.ts`/`ZonesPage` ne la couvre pas. | live 2026-10-15 (hash, `h1`, retour → `/preferences/zones`) + `routes/preferences/zones/city/+page.svelte` (origin/main) |
-| **significant (à venir, non déployé)** | Refonte du profil dans le code : `/profile` devient un hub, `/profile/identity` et `/profile/addresses` (+ `edit-*` déplacés dessous). Quand staging la déploiera : `ProfilePage`, `profile.test.ts`, tests mobiles de profil à reprendre. | code `origin/main` (29bf4e55, 6745672a) ; **live 2026-10-15 : ces routes affichent la page d'erreur, l'ancien profil est servi** |
+| **significant** | **Nouvelle route `/preferences/zones/city`** (« Rechercher une commune ») atteinte par « Ajouter des communes » de `/preferences/zones`. Le test `preferences.parcours.test.ts`/`ZonesPage` ne la couvre pas. | live 2026-10-15 (hash, `h1`, retour → `/preferences/zones`) + `routes/preferences/zones/city/+page.svelte` (origin/main) |
+| **significant (à venir, non déployé)** | Refonte du profil dans le code : `/profile` devient un hub, `/profile/identity` et `/profile/addresses` (+ `edit-*` déplacés dessous). Quand staging la déploiera : `ProfilePage`, `profil.usage.test.ts`, tests mobiles de profil à reprendre. | code `origin/main` (29bf4e55, 6745672a) ; **live 2026-10-15 : ces routes affichent la page d'erreur, l'ancien profil est servi** |
 | **significant (à venir, non déployé)** | Agenda : bouton vers `/agenda/themes` (« Thèmes »), évènements refondus (fr-card, style passé). Quand déployé : `AgendaPage` à revoir. | code `origin/main` (fbde751f, a744e6d5, c895e5d9) ; **live 2026-10-15 : pas de bouton Thèmes, `/agenda/themes` = page d'erreur** |
 | minor | Préférences › Suivi des démarches : 4 cases (`dinum-ami`, `dinum-dn`, `dinum-rdvsp`, `psl`) au lieu de 6 (`Test`, `test-test` absentes) | live 2026-10-15 |
 | minor | Agenda : `h1` « Mon agenda », jours en `h3` `fr-sr-only` | live 2026-10-15 |

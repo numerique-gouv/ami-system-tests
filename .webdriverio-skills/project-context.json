@@ -80,10 +80,10 @@
     "source": "test-suites.ts",
     "envVar": "WDIO_SUITE",
     "named": {
-      "all": "authentication.test.ts + tous les tests mobile, session partagée",
-      "short": "authentication.test.ts seul",
+      "all": "authentification.smoke.test.ts + tous les tests mobile, session partagée",
+      "short": "authentification.smoke.test.ts seul",
       "CI": "authentication + notifications + demarches + profile",
-      "auth": "authentication.test.ts en session séparée",
+      "auth": "authentification.smoke.test.ts en session séparée",
       "api": "notifications + demarches"
     }
   },

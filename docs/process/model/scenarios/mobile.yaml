@@ -1,5 +1,5 @@
 # Face B — scénarios de src/tests/mobile/** (cibles android et ios, Appium, WebView).
-# Décrit le code TEL QUE LU le 2026-10-06 (login_logout_login revu le 2026-10-15) : la trace est déclarée, pas mesurée (spec.md §9).
+# Décrit le code TEL QUE LU le 2026-10-06 (deconnexion-reconnexion.usage revu le 2026-10-15) : la trace est déclarée, pas mesurée (spec.md §9).
 x-anchors:
   auth: &auth [ami-spa:$authenticated]
   home: &home [ami-spa:$authenticated, ami-spa:$on-home]
@@ -12,9 +12,9 @@ suite:
   note: "Chaque scénario s'exécute sur android et sur ios ; la couverture est calculée par cible."
 
 scenarios:
-  # === authentication.test.ts ================================================================
+  # === authentification.smoke.test.ts ================================================================
   - id: mobile.authentication.franceconnect-to-home
-    source: {file: src/tests/mobile/authentication.test.ts, describe: Authentification, it: "s'authentifie via FranceConnect et arrive sur la page d'accueil"}
+    source: {file: src/tests/mobile/authentification.smoke.test.ts, describe: Authentification, it: "s'authentifie via FranceConnect et arrive sur la page d'accueil"}
     status: active
     targets: [android, ios]
     tags: {epic: Authentification, feature: Authentification, severity: critical, other: [franceconnect]}
@@ -30,9 +30,9 @@ scenarios:
       - {visit: "ami-spa:home", note: "HomePage.assertHomeVisible, après un second FranceConnectMirePage.tapFranceConnect(true) dont le rôle n'est pas documenté (non confirmé)."}
     note: "Le test mobile n'observe pas la salutation, contrairement à la version webapp."
 
-  # === demarches.test.ts =====================================================================
+  # === demarches.usage.test.ts =====================================================================
   - id: mobile.demarches.demarche-new
-    source: {file: src/tests/mobile/demarches.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "crée une démarche visible dans le suivi (statut new)"}
+    source: {file: src/tests/mobile/demarches.usage.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "crée une démarche visible dans le suivi (statut new)"}
     status: active
     targets: [android, ios]
     tags: {epic: Démarches, feature: Démarches, severity: critical, other: [api-notifications]}
@@ -45,7 +45,7 @@ scenarios:
       - {observe: "ami-spa:followup-item@external-link", expect: "URL V1"}
     note: "Les 3 it() partagent un itemId : exception documentée à l'isolation (CONTRIBUTING.md §6)."
   - id: mobile.demarches.demarche-wip
-    source: {file: src/tests/mobile/demarches.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "met à jour l'URL externe de la démarche (statut wip)"}
+    source: {file: src/tests/mobile/demarches.usage.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "met à jour l'URL externe de la démarche (statut wip)"}
     status: active
     targets: [android, ios]
     tags: {epic: Démarches, feature: Démarches, severity: critical, other: [api-notifications]}
@@ -56,7 +56,7 @@ scenarios:
       - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup-item@external-link", expect: "URL V2"}
   - id: mobile.demarches.demarche-closed
-    source: {file: src/tests/mobile/demarches.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "ferme la démarche (statut closed)"}
+    source: {file: src/tests/mobile/demarches.usage.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "ferme la démarche (statut closed)"}
     status: active
     targets: [android, ios]
     tags: {epic: Démarches, feature: Démarches, severity: critical, other: [api-notifications]}
@@ -68,9 +68,9 @@ scenarios:
       - {observe: "ami-spa:followup-item@external-link", expect: "URL V2"}
     note: "Contrairement à la webapp, l'historique (followup-item@history) n'est pas observé."
 
-  # === login_logout_login.test.ts ============================================================
+  # === deconnexion-reconnexion.usage.test.ts ============================================================
   - id: mobile.login-logout-login.logout-then-login
-    source: {file: src/tests/mobile/login_logout_login.test.ts, describe: "Profil usager — déconnexion suivie d'une reconnexion", it: "log out suivi d un log in"}
+    source: {file: src/tests/mobile/deconnexion-reconnexion.usage.test.ts, describe: "Profil usager — déconnexion suivie d'une reconnexion", it: "log out suivi d un log in"}
     status: active
     targets: [android, ios]
     tags: {feature: "login, logout, login sans fausse route", severity: critical}
@@ -82,9 +82,9 @@ scenarios:
       - {do: "ami-spa:login#start-franceconnect", steps: [trigger], note: "Seconde connexion : getAppToStartingState() ; l'arrivée n'est pas vérifiée dans ce test."}
     note: "Le test était `it.skip` au 2026-10-06 ; il est actif au 2026-10-15 (modification non commitée, délai du describe porté à 300 s)."
 
-  # === notifications.test.ts =================================================================
+  # === notifications.usage.test.ts =================================================================
   - id: mobile.notifications.receive-in-inbox
-    source: {file: src/tests/mobile/notifications.test.ts, describe: Notifications, it: "reçoit une notification publiée dans l'inbox in-app"}
+    source: {file: src/tests/mobile/notifications.usage.test.ts, describe: Notifications, it: "reçoit une notification publiée dans l'inbox in-app"}
     status: active
     targets: [android, ios]
     tags: {epic: Notifications, feature: Notifications, severity: critical, other: [api-notifications]}
@@ -96,9 +96,9 @@ scenarios:
       - {do: "ami-spa:notifications#open-notification", steps: [trigger], note: "Notification simple : la destination n'est pas vérifiée."}
     note: "Livraison WebSocket Android ~22 s dans le timeout du test."
 
-  # === profile.test.ts =======================================================================
+  # === profil.usage.test.ts =======================================================================
   - id: mobile.profile.edit-preferred-username
-    source: {file: src/tests/mobile/profile.test.ts, describe: "Profil usager — vérification des données (Mon profil)", it: "permet de modifier le nom d'usage dans le bloc \"Mon identité\""}
+    source: {file: src/tests/mobile/profil.usage.test.ts, describe: "Profil usager — vérification des données (Mon profil)", it: "permet de modifier le nom d'usage dans le bloc \"Mon identité\""}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: Profil usager, severity: normal}
@@ -110,7 +110,7 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@identity", by: after-hook, assured: best-effort, note: "after() : try/catch silencieux."}
   - id: mobile.profile.edit-address
-    source: {file: src/tests/mobile/profile.test.ts, describe: "Profil usager — vérification des données (Mon profil)", it: "permet de modifier l'adresse dans le bloc \"Mon adresse\""}
+    source: {file: src/tests/mobile/profil.usage.test.ts, describe: "Profil usager — vérification des données (Mon profil)", it: "permet de modifier l'adresse dans le bloc \"Mon adresse\""}
     status: skipped
     reason: "it.skip : adresse remontée de la Caf, limitation légale en attente d'un COJUR (commentaire du fichier)."
     targets: [android, ios]
@@ -118,7 +118,7 @@ scenarios:
     intends: ["ami-spa:edit-address#save"]
     note: "Le modèle marque cette action `coverage: excluded`."
   - id: mobile.profile.edit-email
-    source: {file: src/tests/mobile/profile.test.ts, describe: "Profil usager — vérification des données (Mon profil)", it: "permet de modifier l'email dans le bloc \"Contact\""}
+    source: {file: src/tests/mobile/profil.usage.test.ts, describe: "Profil usager — vérification des données (Mon profil)", it: "permet de modifier l'email dans le bloc \"Contact\""}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: Profil usager, severity: normal}
@@ -129,11 +129,11 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@contact", by: after-hook, assured: best-effort, note: "after() : try/catch silencieux."}
 
-  # === profile_deletion_at_logout.test.ts ====================================================
+  # === profil-suppression-a-la-deconnexion.usage.test.ts ====================================================
   # Les 8 it() forment une histoire séquentielle (état partagé) : modifier, se déconnecter,
   # se reconnecter, relire. Le protocole `mutate` est donc réparti sur plusieurs scénarios.
   - id: mobile.profile-deletion.modify-preferred-username
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie le nom d'usage"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie le nom d'usage"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -144,7 +144,7 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@identity", by: after-hook, assured: best-effort, note: "Filet si le test échoue avant la déconnexion."}
   - id: mobile.profile-deletion.modify-email
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie l'email"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie l'email"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -155,13 +155,13 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@contact", by: after-hook, assured: best-effort}
   - id: mobile.profile-deletion.modify-address
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie l'adresse"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie l'adresse"}
     status: skipped
-    reason: "it.skip : même raison que profile.test.ts (adresse Caf, COJUR)."
+    reason: "it.skip : même raison que profil.usage.test.ts (adresse Caf, COJUR)."
     targets: [android, ios]
     intends: ["ami-spa:edit-address#save"]
   - id: mobile.profile-deletion.logout
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "se déconnecte via le menu plus"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "se déconnecte via le menu plus"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -171,7 +171,7 @@ scenarios:
       - {do: "ami-spa:plus-menu#logout", steps: [trigger, arrive]}
       - {do: "ami-spa:logout-confirm#confirm", steps: [trigger], note: "L'arrivée sur l'écran de connexion n'est pas vérifiée dans ce it()."}
   - id: mobile.profile-deletion.relogin
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "se reconnecte avec le même compte"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "se reconnecte avec le même compte"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -180,7 +180,7 @@ scenarios:
       - {visit: "ami-spa:home", note: "getAppToStartingState({grantConsent: false})"}
       - {visit: "ami-spa:profile"}
   - id: mobile.profile-deletion.original-identity-restored
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche les données d'identité originales (pas les valeurs modifiées)"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche les données d'identité originales (pas les valeurs modifiées)"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -191,7 +191,7 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@identity", by: logout, assured: asserted}
   - id: mobile.profile-deletion.original-email-restored
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche l'email original (pas la valeur modifiée)"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche l'email original (pas la valeur modifiée)"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -202,8 +202,8 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@contact", by: logout, assured: asserted}
   - id: mobile.profile-deletion.original-address-restored
-    source: {file: src/tests/mobile/profile_deletion_at_logout.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche l'adresse originale (pas la valeur modifiée)"}
+    source: {file: src/tests/mobile/profil-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche l'adresse originale (pas la valeur modifiée)"}
     status: skipped
-    reason: "it.skip : même raison que profile.test.ts (adresse Caf, COJUR)."
+    reason: "it.skip : même raison que profil.usage.test.ts (adresse Caf, COJUR)."
     targets: [android, ios]
     intends: ["ami-spa:profile@address"]

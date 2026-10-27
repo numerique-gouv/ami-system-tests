@@ -20,7 +20,7 @@ screens:
     page-object: EnvironmentPickerPage
     identity: {note: "EnvironmentPickerPage.reviewEnvironmentPicker() — présent dans les builds de review uniquement"}
     <<: *code
-    source: src/tests/mobile/authentication.test.ts
+    source: src/tests/mobile/authentification.smoke.test.ts
     actions:
       select-review-environment:
         kind: navigate

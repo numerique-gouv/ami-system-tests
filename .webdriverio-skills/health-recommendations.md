@@ -19,7 +19,7 @@ _Générées par `managing-project-customizations` le 2026-09-08._
 
 - **Constat** : le modèle de site (`references/website-analysis/ami-back-staging.osc-fr1.scalingo.io/website-analysis.md`) montre 3 sous-écrans sous Préférences (`Suivi des démarches`, `Notifications`, `Zones scolaires`) ; aucun test dans `src/tests/mobile/` ne semble cibler ces écrans directement (seuls le consentement API et l'onboarding notifications sont couverts).
 - **Pourquoi ça compte** : si ces réglages sont importants pour l'usager (ex. désactivation du suivi par partenaire), une régression y serait actuellement invisible pour la suite de tests.
-- **Piste suggérée** : à confirmer avec l'équipe produit si ces écrans sont business-critical ; si oui, prioriser un scénario `preferences.test.ts` dans `src/tests/mobile/`.
+- **Piste suggérée** : à confirmer avec l'équipe produit si ces écrans sont business-critical ; si oui, prioriser un scénario `preferences.parcours.test.ts` dans `src/tests/mobile/`.
 
 ### 3. Appels réseau sans timeout dans les helpers HTTP `src/helpers/partner-api/` (partiellement résolu)
 

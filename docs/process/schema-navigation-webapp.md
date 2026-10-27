@@ -143,18 +143,18 @@ trait pointillé = lien partiel ou incertain.
 
 | Spec (`src/tests/webapp/`) | Parcours couvert sur le schéma |
 |---|---|
-| `authentication.test.ts` | Connexion → FranceConnect → clé d'accès → zones → notifications → Accueil |
-| `navigation.test.ts` | Barre basse (Agenda, Services, Suivi, retour Accueil) ; menu Plus : 6 entrées listées, 5 ouvertes |
-| `accueil.test.ts` | Accueil → cloche, évènements, démarches, carte OTV, carte adresse (sans enregistrer) |
-| `agenda.test.ts` | Agenda → dialogue évènement (Supprimer proposé, non cliqué) ; Préférences → page des zones → Retour |
-| `services.test.ts` | Services (2 onglets, entrées présentes) → checklist → section (cases décochées) ; fiche OTV par sa route |
-| `suivi.test.ts` | Cycle new/wip/closed ; Suivi → détail (historique) → lien partenaire ; archivées **par route** |
-| `notifications.test.ts` | Réception inbox ; notification de démarche → détail ; Gérer → préférences de notifications |
-| `profil.test.ts` | Profil → 3 formulaires (Annuler) ; modification nom d'usage et email puis restauration |
-| `preferences.test.ts` | Préférences → consentements (partenaires, AMI coché) ; notifications (case présente) ; Zones scolaires → page des zones → Fermer |
-| `aide-contact.test.ts` | Aide → Contact → dialogue ; pages légales : sections listées (non ouvertes) |
-| `deconnexion.test.ts` | Plus → Me déconnecter → confirmation → connexion → reconnexion, données d'origine |
-| `erreurs.test.ts` | Les 3 pages d'erreur, par leur route |
+| `authentification.smoke.test.ts` | Connexion → FranceConnect → clé d'accès → zones → notifications → Accueil |
+| `navigation.parcours.test.ts` | Barre basse (Agenda, Services, Suivi, retour Accueil) ; menu Plus : 6 entrées listées, 5 ouvertes |
+| `accueil.smoke.test.ts` | Accueil → cloche, évènements, démarches, carte OTV, carte adresse (sans enregistrer) |
+| `agenda.parcours.test.ts` | Agenda → dialogue évènement (Supprimer proposé, non cliqué) ; Préférences → page des zones → Retour |
+| `services.parcours.test.ts` | Services (2 onglets, entrées présentes) → checklist → section (cases décochées) ; fiche OTV par sa route |
+| `suivi.usage.test.ts` | Cycle new/wip/closed ; Suivi → détail (historique) → lien partenaire ; archivées **par route** |
+| `notifications.usage.test.ts` | Réception inbox ; notification de démarche → détail ; Gérer → préférences de notifications |
+| `profil.usage.test.ts` | Profil → 3 formulaires (Annuler) ; modification nom d'usage et email puis restauration |
+| `preferences.parcours.test.ts` | Préférences → consentements (partenaires, AMI coché) ; notifications (case présente) ; Zones scolaires → page des zones → Fermer |
+| `aide-contact.parcours.test.ts` | Aide → Contact → dialogue ; pages légales : sections listées (non ouvertes) |
+| `deconnexion.usage.test.ts` | Plus → Me déconnecter → confirmation → connexion → reconnexion, données d'origine |
+| `erreurs.parcours.test.ts` | Les 3 pages d'erreur, par leur route |
 
 ## Ce qu'aucun scénario ne couvre
 

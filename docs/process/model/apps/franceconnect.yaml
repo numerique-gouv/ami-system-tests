@@ -11,11 +11,11 @@ kind: external
 targets: [webapp, android, ios]
 sources:
   - {ref: src/pages/franceconnect/*.page.ts}
-  - {ref: src/tests/webapp/authentication.test.ts}
-  - {ref: src/tests/mobile/authentication.test.ts}
+  - {ref: src/tests/webapp/authentification.smoke.test.ts}
+  - {ref: src/tests/mobile/authentification.smoke.test.ts}
 note: >-
   Une session FranceConnect encore ouverte (SSO) renvoie directement vers l'app sans afficher
-  eIDAS ni identifiants (constat du commentaire de mobile/authentication.test.ts, 2026-10-06, iOS).
+  eIDAS ni identifiants (constat du commentaire de mobile/authentification.smoke.test.ts, 2026-10-06, iOS).
   Ce raccourci n'est pas modélisé : une arête `navigate` n'a qu'une destination.
 screens:
   eidas-choice:

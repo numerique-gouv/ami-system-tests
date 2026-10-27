@@ -38,7 +38,7 @@ Un scénario est une **trace** sur la face A :
 
 ```yaml
 - id: webapp.profil.edit-email
-  source: {file: src/tests/webapp/profil.test.ts, describe: Profil usager, it: "permet de modifier l'email du bloc « Contact »"}
+  source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "permet de modifier l'email du bloc « Contact »"}
   status: active
   targets: [webapp]
   trace:
@@ -69,7 +69,7 @@ Chiffres de la dernière exécution du script de validation (jetable, retiré du
 
 ## Couverture déclarée (SPA, éléments `live` ou `code`, `coverage: required`)
 
-> **Chiffres du 2026-10-06, NON recalculés.** Aucun outil ne calcule la couverture (spec.md §9). Les 21 scénarios `nonreg/`, la page des zones, `agenda-event-dialog#delete` désormais requis et `login_logout_login` désormais actif les rendent périmés ; ne pas les citer sans les recalculer.
+> **Chiffres du 2026-10-06, NON recalculés.** Aucun outil ne calcule la couverture (spec.md §9). Les 21 scénarios `nonreg/`, la page des zones, `agenda-event-dialog#delete` désormais requis et `deconnexion-reconnexion.usage` désormais actif les rendent périmés ; ne pas les citer sans les recalculer.
 
 Calcul sur ce que les scénarios `active` **déclarent**, pas sur une exécution mesurée (spec.md §9).
 
@@ -88,11 +88,11 @@ Android et iOS sont identiques parce que `src/tests/mobile/**` s'exécute sur le
 - **Webapp, écrans jamais visités** : les trois écrans d'onboarding (traversés par des no-op conditionnels, donc non revendiqués) et `ext-partner-demarche`.
 - **Mobile** : 10 écrans sur 35 (connexion, accueil, notifications, suivi et détail, menu Plus, profil et ses 2 formulaires, déconnexion). Navigation, services, agenda, préférences, aide, pages légales et erreurs n'ont aucun scénario mobile.
 - **Exclues par décision documentée** : `edit-address#save` (adresse Caf, COJUR) et `welcome-passkey#add-passkey` (passkey persistante sur le compte partagé, non confirmé). `agenda-event-dialog#delete` ne l'est plus : les specs S10 et S10.2 la cliquent (restauration par la déconnexion, observée le 2026-10-15).
-- **Restaurations `best-effort`** : les 4 scénarios de modification du profil (webapp et mobile) restaurent dans un `after()` qui avale les erreurs. Seuls `deconnexion` et `profile_deletion_at_logout` vérifient la restauration.
+- **Restaurations `best-effort`** : les 4 scénarios de modification du profil (webapp et mobile) restaurent dans un `after()` qui avale les erreurs. Seuls `deconnexion` et `profil-suppression-a-la-deconnexion.usage` vérifient la restauration.
 
 ## Écarts et doutes à lever
 
-- `../schema-navigation-webapp.md` marque `✔` l'arête « Accéder à ma démarche », mais `suivi.test.ts` ne fait qu'asserter la cible du lien (`assertLienExterne`), sans cliquer. Le modèle suit le code : l'action n'est pas couverte.
+- `../schema-navigation-webapp.md` marque `✔` l'arête « Accéder à ma démarche », mais `suivi.usage.test.ts` ne fait qu'asserter la cible du lien (`assertLienExterne`), sans cliquer. Le modèle suit le code : l'action n'est pas couverte.
 - `suivi-des-demarches-consentements.test.ts` annonce 4 interrupteurs ; le test webapp en relève 6.
 - Le second `tapFranceConnect(true)` du test d'authentification mobile n'est pas documenté : noté non confirmé.
 - Les zones scolaires sont une PAGE (`/preferences/zones`) et non plus un dialogue depuis le 2026-10-08 : l'ancien écran `agenda-zones-dialog` est supprimé du modèle.

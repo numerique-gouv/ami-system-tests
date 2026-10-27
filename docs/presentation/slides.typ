@@ -315,7 +315,7 @@ Les conditions d'exécution d'un subFlow (un process, e.g. login) se déclarent 
   columns: (1fr, 1fr),
   gutter: 1.5em,
   [
-    *`notifications.test.ts`*
+    *`notifications.usage.test.ts`*
     #text(size: 0.6em, raw(read("assets/wdio-test.ts"), lang: "typescript"))
   ],
   [
