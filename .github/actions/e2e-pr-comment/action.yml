@@ -29,7 +29,7 @@ inputs:
     required: false
     default: ''
   expect:
-    description: "Plateformes attendues (webapp,android,ios) : celles sans résultat sont signalées"
+    description: "Plateformes attendues (webapp,android) : celles sans résultat sont signalées"
     required: false
     default: ''
   sha:

@@ -6,6 +6,9 @@
 //
 // Le premier octet du fichier produit est le marqueur `<!-- e2e-report:<repo>:pr-<N> -->` (clé de mise à jour du commentaire unique).
 //
+// CONTRAINTE : ce script s'exécute avec un jeton `pull-requests: write` depuis la ref `checkout_ref` d'ami-system-tests (job `report` de
+// workflow-e2e-main.yml). Cette ref doit rester une branche de confiance (ami-system-tests, écriture réservée à l'équipe), jamais un code de fork.
+//
 // SÉCURITÉ : les noms de tests et messages d'erreur viennent d'un code modifiable dans une PR. Tout texte issu des JUnit passe par `cell()`
 // (échappement en entités HTML numériques de tout ce que Markdown ou GitHub interprète : | ` < > & @ [ ] * _ # ~ \ , retours à la ligne
 // supprimés, `://` et `www.` neutralisés contre l'auto-lien, longueur bornée). Seuls les liens Sentry de https://sentry.incubateur.net/ au jeu de

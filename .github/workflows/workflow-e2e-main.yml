@@ -15,7 +15,7 @@ on:
         type: string
         default: pixel_2_api30
       run_ios:
-        description: "nom de la suite ios à lancer (test-suites.ts : mobile_*) — vide = ne pas lancer (job iOS encore factice)"
+        description: "RÉSERVÉ, INACTIF : point d'extension iOS, aucun job ne le lit (décision : iOS non développé en CI). Si on change d'avis : ajouter un job macOS ici (reusable workflow dédié), son artefact test-results-<slug>-ios-run<N> et iOS dans `expect` du job report."
         type: string
         default: ''
       source_repo:
@@ -30,7 +30,7 @@ on:
         type: number
         default: 0
       apk_source:
-        description: "origine de l'APK Android : `build` = artefact `app-staging-debug` du run appelant (l'appelant l'a buildé : ami-app-android) ; `latest-tag` = APK du dernier tag d'ami-app-android (artefact `app-staging-debug-<tag>`, rétention 90 jours), retrouvé avec le secret AMI_APP_ANDROID_TOKEN (PAT/GitHub App avec actions:read sur ami-app-android)"
+        description: "origine de l'APK Android : `build` = artefact `app-staging-debug` du run appelant (l'appelant l'a buildé : ami-app-android) ; `latest-tag` = APK du dernier tag d'ami-app-android (artefact `app-staging-debug-<tag>`, rétention 90 jours), retrouvé avec un jeton de la GitHub App ami-reviewapps (variable AMI_REVIEWAPPS_APP_ID, secret AMI_REVIEWAPPS_PRIVATE_KEY du dépôt appelant ; permission actions:read sur ami-app-android)"
         type: string
         default: build
       report_label:
@@ -55,9 +55,6 @@ on:
       artifact_android:
         description: "nom de l'artefact des résultats Android (vide si run_android est vide)"
         value: ${{ jobs.report.outputs.artifact_android }}
-      artifact_ios:
-        description: "nom de l'artefact des résultats iOS (vide si run_ios est vide ; le job iOS est encore factice et n'en publie pas)"
-        value: ${{ jobs.report.outputs.artifact_ios }}
 
 # Un groupe par PR (source_repo + pr_number) : sérialise les runs d'une même PR, qui partagent le même
 # environnement Scalingo de review. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
@@ -73,18 +70,7 @@ permissions:
 # Les jobs RESTENT VERTS quand des tests échouent (garde `|| echo` des actions composites e2e-webapp / e2e-android, étape de rapport
 # avec fail_on_failure: false) : le résultat se lit dans le check « e2e (ami-system-tests) », le résumé du run et le commentaire de la PR.
 jobs:
-  # iOS reste isolé : reusable workflow classique → job/VM macOS dédié (pas de partage de
-  # disque avec webapp/android), tant que la CI macOS est en pause.
-  ios:
-    if: ${{ inputs.run_ios != '' }}
-    uses: ./.github/workflows/workflow-e2e-ios.yml
-    with:
-      checkout_ref: ${{ inputs.checkout_ref }}
-      suite: ${{ inputs.run_ios }}
-    secrets: inherit
-
   # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même dossier test-results)
-  # iOS a besoin d'un MacOs (10x plus cher qu'Ubuntu), donc d'une autre VM, donc d'un autre job avec transmission des résultats par upload et download d'artefacts.
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
@@ -152,12 +138,27 @@ jobs:
       # `app-staging-debug-<tag>` contenant app-staging-debug.apk + version.json, 90 jours, dépôt privé). Les artefacts sont listés du plus récent
       # au plus ancien (page de 100) ; les expirés sont ignorés. Un échec ici (jeton absent, aucun tag récent) n'arrête pas le job : l'étape Android échouera
       # visiblement sans APK.
+      # Jeton d'installation de la GitHub App `ami-reviewapps`, limité à ami-app-android et à `actions: read` (lecture des artefacts), valable
+      # 1 h et révoqué en fin de job. L'action masque le jeton dans les logs. Variable/secret À CRÉER dans le dépôt appelant (jamais de valeur
+      # dans le code) : variable AMI_REVIEWAPPS_APP_ID et secret AMI_REVIEWAPPS_PRIVATE_KEY (PEM brut, pas le base64 de GITHUB_APP_PRIVATE_KEY de Scalingo).
+      - name: jeton de lecture des artefacts d'ami-app-android
+        id: app-token
+        if: ${{ inputs.run_android != '' && inputs.apk_source == 'latest-tag' }}
+        continue-on-error: true
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.AMI_REVIEWAPPS_APP_ID }}
+          private-key: ${{ secrets.AMI_REVIEWAPPS_PRIVATE_KEY }}
+          owner: numerique-gouv
+          repositories: ami-app-android
+          permission-actions: read
+
       - name: trouver l'APK du dernier tag d'ami-app-android
         id: apk
         if: ${{ inputs.run_android != '' && inputs.apk_source == 'latest-tag' }}
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.AMI_APP_ANDROID_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
           line=$(gh api "repos/numerique-gouv/ami-app-android/actions/artifacts?per_page=100" \
@@ -177,7 +178,7 @@ jobs:
           apk-artifact: ${{ steps.apk.outputs.name || 'app-staging-debug' }}
           apk-run-id: ${{ steps.apk.outputs.run_id }}
           apk-repository: numerique-gouv/ami-app-android
-          apk-token: ${{ secrets.AMI_APP_ANDROID_TOKEN }}
+          apk-token: ${{ steps.app-token.outputs.token }}
 
       # Un artefact par plateforme (JUnit enrichi + dumps des échecs). Les dossiers de run sont nommés
       # <horodatage>_<plateforme>_<suite ou spec> (cf. src/helpers/reporting/run-dir.ts) : le motif `*_webapp_*` ne prend que ceux de la webapp.
@@ -211,8 +212,8 @@ jobs:
   # Le job reste vert même si des tests échouent ou si le commentaire est refusé (fork, jeton en lecture seule).
   report:
     name: rapport (check + commentaire de PR)
-    needs: [e2e, ios]
-    if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '' || inputs.run_ios != '') }}
+    needs: [e2e]
+    if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -222,7 +223,6 @@ jobs:
       test_results: ${{ steps.names.outputs.test_results }}
       artifact_webapp: ${{ steps.names.outputs.artifact_webapp }}
       artifact_android: ${{ steps.names.outputs.artifact_android }}
-      artifact_ios: ${{ steps.names.outputs.artifact_ios }}
     steps:
       - name: noms des artefacts
         id: names
@@ -233,7 +233,6 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
           RUN_WEBAPP: ${{ inputs.run_webapp }}
           RUN_ANDROID: ${{ inputs.run_android }}
-          RUN_IOS: ${{ inputs.run_ios }}
         run: |
           LABEL="${LABEL//[^A-Za-z0-9_-]/}"
           RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
@@ -244,7 +243,6 @@ jobs:
             echo "test_results=${prefix}-*-run${RUN_NUMBER}"
             [ -n "$RUN_WEBAPP" ] && { echo "artifact_webapp=${prefix}-webapp-run${RUN_NUMBER}"; expect="${expect}webapp,"; }
             [ -n "$RUN_ANDROID" ] && { echo "artifact_android=${prefix}-android-run${RUN_NUMBER}"; expect="${expect}android,"; }
-            [ -n "$RUN_IOS" ] && { echo "artifact_ios=${prefix}-ios-run${RUN_NUMBER}"; expect="${expect}ios,"; }
             echo "expect=${expect%,}"
           } >> "$GITHUB_OUTPUT"
 
