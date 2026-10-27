@@ -409,7 +409,8 @@ doctor target="":
     #!/usr/bin/env bash
     npx wdio session doctor {{ target }} || echo "→ Les ✖ cloud (BrowserStack…) et desktop (mac2, windows) sont sans objet ici ; seuls node, appium, android-sdk et simctl comptent."
 
-# Pour chaque test : plateforme, appareil, étapes, erreur (message complet, 12 lignes au plus), URL (jetons masqués) et lien Sentry de la SPA (context.json de chaque dossier).
+# Pour chaque test : plateforme, appareil, étapes, erreur (message complet, 12 lignes au plus), URL (jetons masqués), lien Sentry de la SPA
+# (context.json de chaque dossier) et chemin du transcript.md de sa trace (src/scripts/failures-text.ts).
 # Captures, arbre de l'écran et réseau : traces du service DevTools, une par test et par run, dans
 # test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/ (just failures-ui pour les ouvrir). Les dumps sont dans le
 # sous-dossier failures/ du même run. Le résumé passants/cassés (JUnit XML, un fichier par run) est dans test-results/junit/.
@@ -417,78 +418,17 @@ doctor target="":
 # Exemples : just failures-text   |   just failures-text test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact   |   just failures-text temp/test-results-pr1275
 [doc("Lister les tests en échec du dernier run · [DOSSIER]")]
 failures-text dir="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    root="{{ dir }}"
-    if [ -z "$root" ]; then
-        # Le dernier run qui a des dumps : les noms de run commencent par l'horodatage, donc le tri alphabétique est chronologique.
-        latest="$(ls -d test-results/traces/*/failures 2>/dev/null | sort | tail -1 || true)"
-        root="${latest:-test-results/failures}"
-    fi
-    [ -d "$root" ] || { echo "Aucun dump dans $root (aucun échec, ou aucun run)."; exit 0; }
-    node -e '
-      const fs = require("fs"), path = require("path"), root = process.argv[1]
-      const found = []
-      const walk = (dir) => {
-        if (fs.existsSync(path.join(dir, "context.json"))) { found.push(dir); return }
-        for (const e of fs.readdirSync(dir, { withFileTypes: true })) if (e.isDirectory()) walk(path.join(dir, e.name))
-      }
-      walk(root)
-      found.sort()
-      if (found.length === 0) { console.log("Aucun dump dans " + root); process.exit(0) }
-      for (const d of found) {
-        const c = JSON.parse(fs.readFileSync(path.join(d, "context.json"), "utf8"))
-        console.log("✖ " + c.test + "  [" + c.platform + (c.device && c.device.deviceName ? " · " + c.device.deviceName : "") + "]  " + c.failedAtUtc)
-        if (c.error) {
-          const lines = String(c.error.message).split("\n").filter(Boolean)
-          console.log("    erreur : " + lines[0].slice(0, 200))
-          for (const l of lines.slice(1, 12)) console.log("             " + l.slice(0, 200))
-        }
-        if (c.url) console.log("    url    : " + c.url)
-        if (c.steps && c.steps.length) console.log("    étapes : " + c.steps.join(" › "))
-        if (c.sentry) console.log("    sentry : " + (c.sentry.url || "trace inconnue") + " · dernier événement " + c.sentry.lastEventId + " · " + c.sentry.environment)
-        console.log("    dossier: " + d)
-      }
-    ' "$root"
+    npx ts-node --project tsconfig.json src/scripts/failures-text.ts {{ dir }}
 
 # Pendant visuel de `just failures-text` : ouvre dans le lecteur DevTools (captures, arbre de l'écran, réseau) la trace d'un test en échec.
 # Les traces ne sont gardées que pour les tests en échec ou rejoués : toute trace d'un run est donc celle d'un échec.
-# CIBLE : un dossier de run (test-results/traces/<horodatage>_…), l'artefact d'une CI téléchargé, le dossier d'un test ou d'une trace
-# (celui qui contient trace.trace), ou un .zip. Sans CIBLE : le dernier run qui a des traces.
-# Si la cible en contient plusieurs, la recette les liste ; FILTRE (sous-chaîne du chemin, donc du nom du test) en désigne une.
-# Le lecteur (show-trace) ne lit que des .zip : un dossier de trace (traceFormat 'ndjson-directory') est zippé à la volée dans un
-# dossier temporaire. Il s'ouvre dans le navigateur ; Ctrl+C l'arrête.
-# Exemples : just failures-ui   |   just failures-ui "" agenda   |   just failures-ui test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact   |   just failures-ui temp/test-results-pr1275
+# CIBLE : un dossier de run, l'artefact d'une CI téléchargé, le dossier d'une trace (celui qui contient trace.trace) ou un .zip ; sans CIBLE, le
+# dernier run qui a des traces. Si la cible en contient plusieurs, la recette les liste ; FILTRE (sous-chaîne du chemin, donc du nom du test)
+# en désigne une. Détail et raison du zip à la volée : src/scripts/failures-ui.ts.
+# Exemples : just failures-ui   |   just failures-ui "" agenda   |   just failures-ui test-results/traces/2026-10-12T14-06-09-523Z_webapp_aide-contact
 [doc("Ouvrir dans DevTools la trace d'un test en échec · [CIBLE] [FILTRE]")]
 failures-ui target="" filter="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    root="{{ target }}"
-    if [ -z "$root" ]; then
-        # Les noms de run commencent par l'horodatage : le tri alphabétique est chronologique.
-        root="$(find test-results/traces -name trace.trace 2>/dev/null | sed 's#^\(test-results/traces/[^/]*\)/.*#\1#' | sort -u | tail -1 || true)"
-        [ -n "$root" ] || { echo "Aucune trace dans test-results/traces/ (aucun échec, ou aucun run)."; exit 0; }
-    fi
-    if [ -f "$root" ]; then
-        zip="$root"
-    else
-        [ -d "$root" ] || { echo "❌ « $root » introuvable." >&2; exit 1; }
-        traces=()
-        while IFS= read -r t; do
-            traces+=("$(dirname "$t")")
-        done < <(find "$root" -name trace.trace | grep -F -- "{{ filter }}" | sort)
-        [ "${#traces[@]}" -gt 0 ] || { echo "Aucune trace dans $root{{ if filter == "" { "" } else { " pour « " + filter + " »" } }}."; exit 0; }
-        if [ "${#traces[@]}" -gt 1 ]; then
-            echo "${#traces[@]} traces dans $root — précisez-en une avec FILTRE (just failures-ui \"$root\" <texte>) :"
-            for t in "${traces[@]}"; do echo "  - ${t#"$root"/}"; done
-            exit 0
-        fi
-        echo "📄 Transcript : ${traces[0]}/transcript.md"
-        zip="$(mktemp -d)/trace.zip"
-        (cd "${traces[0]}" && zip -qr "$zip" .)
-    fi
-    echo "🔎 Ouverture de la trace dans le lecteur (Ctrl+C pour l'arrêter)…"
-    npx show-trace "$zip"
+    npx ts-node --project tsconfig.json src/scripts/failures-ui.ts "{{ target }}" "{{ filter }}"
 
 # Supprime les données produites par les tests et l'exploration : `.wdio` (sessions `wdio session`, snapshots), `.wdio-logs` et le CONTENU de
 # `test-results/` (traces, vidéos, dumps d'échec, JUnit). Les dossiers eux-mêmes sont conservés ; tout est régénéré au prochain run.

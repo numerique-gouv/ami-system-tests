@@ -75,7 +75,8 @@ just test-android --device pixel_2_api30 --suite mobile_short   # `--device` (AV
 just test-webvideo --spec src/tests/webapp/agenda.parcours.test.ts   # webapp headless avec vidéo DevTools (au moins un --spec)
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit
-just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
+just failures-text                                         # tests en échec du dernier run (dumps d'échec, chemin du transcript.md de la trace) ; le résumé JUnit est dans test-results/junit/
+just failures-ui                                           # ouvre dans le lecteur DevTools la trace d'un test en échec (CIBLE et FILTRE facultatifs)
 just clean-tests-data                                 # supprime .wdio, .wdio-logs et test-results/* (plusieurs Go)
 just --command npx ts-node --project tsconfig.json src/scripts/push-notification.ts <login> [titre]   # publie une notification de test via l'API (`just --command` charge .env.local ou le fichier de `-E`)
 ```

@@ -19,7 +19,7 @@ just test-android --suite mobile_all                 # suite nommée (mobile_sho
 just explore-webapp "/#/agenda"                     # session d'exploration (idem explore-android, explore-ios), puis `just s <cible> snapshot -i`, `just webview <cible>`
 just debug-webapp src/tests/webapp/agenda.parcours.test.ts   # test figé à son premier échec (mobile : `npx wdio run wdio.android.conf.ts --spec … --debug=agent` ; session debug-0-0), puis `just s debug-0-0 snapshot -i`
 just doctor                                         # diagnostic de l'environnement (Node, Appium, SDK, simulateurs)
-just failures-text                                       # liste les tests en échec du dernier run (dumps : capture, DOM, étapes, identifiants Sentry)
+just failures-text                                       # liste les tests en échec du dernier run (étapes, erreur, identifiants Sentry, chemin du transcript.md de la trace) ; `just failures-ui` ouvre la trace dans le lecteur DevTools
 ```
 
 > Android tourne sur le port **4723**, iOS sur **4724** pour éviter les conflits. La webapp ne lance aucun serveur Appium (Chromedriver direct).
