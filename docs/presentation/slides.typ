@@ -469,7 +469,7 @@ Les conditions d'exécution d'un subFlow (un process, e.g. login) se déclarent 
   columns: (1fr, 1fr),
   gutter: 2em,
   [
-    *Outils requis (vérifié par `just check`)*
+    *Outils requis (vérifié par `just doctor`)*
 
     - `just` — orchestrateur de commandes
     - `adb` + Android SDK

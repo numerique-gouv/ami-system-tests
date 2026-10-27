@@ -15,7 +15,7 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 | `just` | `brew install just` |
 | Android SDK + `adb` | Android Studio → SDK Manager |
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
-| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `npm run appium:install`, installées sous `~/.appium`) | `just setup` (ou `just install-appium-drivers`) |
+| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `npm run appium:install`, installées sous `~/.appium`) | `just install` (ou `just install-appium-drivers`) |
 
 **Piège après `npm install` ou `appium driver update`** : les liens symboliques `appium` de `~/.appium/node_modules/appium-*-driver/node_modules` disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall` puis `appium driver install` des deux pilotes (`APPIUM_HOME=~/.appium`), ou `just install-appium-drivers` après les avoir désinstallés ; à refaire après toute mise à jour des pilotes.
 
@@ -52,11 +52,11 @@ Un fichier choisi par `-E` doit être **complet** : `.env.local` n'est alors pas
 
 ```bash
 cp .env .env.local           # puis remplir AMI_ENV et les variables NOTIF_*
-just setup                   # npm install + drivers Appium, may not work on non mac os
-just check                   # vérifier que les outils sont présents
+just install                 # npm install + drivers Appium, may not work on non mac os
+just doctor                  # diagnostic de l'environnement (Node, Appium, SDK Android, simulateurs)
 ```
 
-Hors CI, `.env.local` est obligatoire (garde-fou `_require-dotenv` dans le `justfile`) — en CI, les
+Hors CI, `.env.local` fournit `AMI_ENV` et les variables `NOTIF_*` (sans lui, le code lève une erreur qui nomme la variable manquante) — en CI, les
 variables viennent du workflow GitHub Actions. Les comptes de test FranceConnect (maquette publique, sans secret) sont dans
 `src/helpers/common/test-users.ts` ; leur `fcHash` est calculé (`src/helpers/common/fc-hash.ts`).
 
@@ -76,9 +76,8 @@ just test-webvideo --spec src/tests/webapp/agenda.parcours.test.ts   # webapp he
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit
 just failures-text                                         # tests en échec du dernier run (dumps d'échec) ; le résumé JUnit est dans test-results/junit/
-just clean-install                                    # réinstallation propre (rm node_modules + npm ci)
-just upgrade                                          # met à jour les dépendances (npm-check-updates)
-just push-notification <login> [titre]                # publie une notification de test via l'API
+just clean-tests-data                                 # supprime .wdio, .wdio-logs et test-results/* (plusieurs Go)
+just --command npx ts-node --project tsconfig.json src/scripts/push-notification.ts <login> [titre]   # publie une notification de test via l'API (`just --command` charge .env.local ou le fichier de `-E`)
 ```
 
 > Les commandes utiles aux humains sont des cibles `just` documentées (`just --list`). Les outils sous-jacents (`npm`, `npx wdio`, `adb`, `xcrun`…) peuvent aussi être lancés directement.
@@ -109,7 +108,7 @@ src/
     locators/
       *.locators.ts        sélecteurs par plateforme + getXxxLocators()
   scripts/
-    *.ts                   scripts CLI lancés via just (push-notification)
+    *.ts                   scripts CLI (push-notification, failures-text…)
   tests/
     mobile/*.test.ts        scénarios Mocha Android + iOS
     webapp/*.test.ts        scénarios Mocha webapp

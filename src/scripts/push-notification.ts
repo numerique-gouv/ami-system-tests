@@ -1,6 +1,7 @@
 /**
  * Envoie une notification de test sans lancer la suite E2E.
- * Appelé par `just push-notification <login> [titre]`.
+ * Lancement : `just --command npx ts-node --project tsconfig.json src/scripts/push-notification.ts <login> [titre]`
+ * (`just --command` charge `.env.local`, ou le fichier choisi par `just -E <fichier>`).
  *
  * L'URL backend est dérivée de AMI_ENV (.env.local) :
  *   - contient un nombre  → review app PR  (ex: "1234" → ami-back-staging-pr1234.…)
@@ -16,7 +17,7 @@ import { backendUrlFor } from '../helpers/common/environment'
 const [,, login, title] = process.argv
 
 if (!login) {
-  console.error('Usage : just push-notification <login> [titre]')
+  console.error('Usage : npx ts-node --project tsconfig.json src/scripts/push-notification.ts <login> [titre]  (environnement chargé par `just --command`)')
   console.error('Logins disponibles : voir src/helpers/common/test-users.ts')
   process.exit(1)
 }
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
 
   await publishNotification({
     title: notifTitle,
-    body: 'Notification de test manuelle — just push-notification',
+    body: 'Notification de test manuelle — push-notification.ts',
     recipientFcHash: user.fcHash,
   })
 

@@ -105,6 +105,8 @@ publiée par Google pour API ≥ 31 sur Linux).
   qui tolère l'absence du fichier dès que `CI` ou `GITHUB_ACTIONS` est présent dans
   l'environnement.
 
+  > Note du 2026-10-27 : la recette de garde `_require-dotenv` et le réglage `dotenv-required` ont été retirés du `justfile` (le code lève déjà des erreurs explicites sur les variables absentes) ; `.env.local` absent est simplement ignoré, en local comme en CI.
+
 ### Garde `env.ACT` — limites assumées de test local
 
 `act` définit lui-même `env.ACT` (documenté sur nektosact.com), utilisé pour sauter, uniquement

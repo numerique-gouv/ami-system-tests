@@ -1,15 +1,13 @@
 # justfile — AMI E2E tests
-# Pré-requis : just, Android SDK (adb, gradle), Xcode, Node.js >= 20
+# Pré-requis : just, Android SDK (adb, gradle), Xcode, Node.js >= 22.19 (README, « Prérequis »)
 
 # Convention des arguments (pas de complétion shell sur mesure : `just <Tab>` complète les NOMS de recettes, avec leur commentaire) :
-# - 1 ou 2 arguments obligatoires, ou un argument variadique : positionnels ;
-# - la cible (webapp | android | ios) est dans le NOM de la recette (test-android, explore-ios, debug-webapp…), comme pour les tests ;
-# - 3 arguments ou plus : nommés avec `[arg("x", long="x")]` ; un drapeau booléen est toujours nommé (`--debug`) ;
-# - 2 ou 3 optionnels : on nomme dès qu'il faudrait donner un argument juste pour atteindre le suivant.
-# `just --list` et la complétion n'affichent qu'UNE ligne par recette : l'attribut `[doc("Rôle · [--device AVD] [GLOB…]")]` quand
-# la recette a des options (rôle, puis arguments), sinon la DERNIÈRE ligne de commentaire. Les exemples restent en commentaires
-# (lisibles dans ce fichier : `just --show` les masque dès qu'un `[doc]` est présent) et le détail des arguments est dans
-# `just --usage <recette>` (rappelé par `just help`).
+# - la cible (webapp | android | ios) est dans le NOM de la recette (test-android, explore-ios, debug-webapp…) ;
+# - les recettes de test sont fines : `--device` est lu par la recette, tout le reste (--suite, --spec…) est transmis à wdio ;
+# - un argument obligatoire ou deux : positionnels ; un drapeau booléen est toujours nommé (`--page-objects`).
+# `just --list` et la complétion n'affichent qu'UNE ligne par recette : l'attribut `[doc("Rôle · arguments")]` quand
+# la recette a des options, sinon la DERNIÈRE ligne de commentaire. Les exemples restent en commentaires
+# (lisibles dans ce fichier : `just --show` les masque dès qu'un `[doc]` est présent) ; arguments d'une recette : `just --usage <recette>`.
 
 # Fichier d'environnement : `.env.local` par défaut, ou celui choisi par l'option native `just -E <fichier>` (`--dotenv-path`),
 # ex. `just -E .env.local.preprod test-ios --suite mobile_short` (convention `.env.local.<cible>`, tous ignorés par git ; README, « Prérequis »).
@@ -41,57 +39,31 @@ android_sdk := env_var_or_default("ANDROID_SDK_ROOT", env_var_or_default("ANDROI
 # (iOS physique non géré : wdio.ios.conf.ts et l'app buildée visent un simulateur.)
 ios_default_device := env_var_or_default("IOS_DEVICE_NAME_DEFAULT", "")
 
-# ─── Setup ──────────────────────────────────────────────────────────────────
-
-# Vérifier que les outils nécessaires sont installés
-check:
-    @echo "🔍 Vérification des pré-requis…"
-    @command -v adb       > /dev/null && echo "✅ adb"       || echo "❌ adb manquant (Android SDK)"
-    @command -v xcodegen  > /dev/null && echo "✅ xcodegen"  || echo "❌ xcodegen manquant (brew install xcodegen)"
-    @command -v node      > /dev/null && echo "✅ node"      || echo "❌ node manquant"
-    @(command -v appium > /dev/null || [ -f node_modules/.bin/appium ]) && echo "✅ appium" || echo "❌ appium manquant (npm install)"
-    @command -v just      > /dev/null && echo "✅ just"      || echo "❌ just manquant"
+# ─── Installation ───────────────────────────────────────────────────────────
 
 # Passer par cette recette (plutôt que `npm run appium:install` en direct) garantit que l'install et le
-# `just test-android`/`test-ios` qui suivra utilisent le même APPIUM_HOME.
-# Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus).
+# `just test-android`/`test-ios` qui suivra utilisent le même APPIUM_HOME. Les versions des drivers sont celles de `npm run appium:install`
+# (package.json, source unique) ; un driver déjà installé est laissé tel quel, un échec d'installation fait échouer la recette.
 # Piège : après `npm install` ou `appium driver update`, les liens symboliques `appium` dans ~/.appium/node_modules/appium-*-driver/node_modules
 # disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall`
 # puis `install` des deux pilotes (APPIUM_HOME=~/.appium), donc cette recette après désinstallation ; à refaire après toute mise à jour des pilotes.
+# Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus).
 install-appium-drivers:
-    @echo "📥 Installation des drivers Appium…"
-    npm run appium:install || true
-    npx appium driver list --installed || true
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "📥 Installation des drivers Appium…"
+    installed="$(npx appium driver list --installed 2>&1)"
+    for driver in $(npm pkg get scripts.appium:install | grep -o '[a-z0-9]*@[0-9][0-9.]*'); do
+        if grep -qF -- "$driver " <<< "$installed"; then echo "✅ $driver déjà installé"; else npx appium driver install "$driver"; fi
+    done
+    npx appium driver list --installed
 
-# Installer les dépendances Node et les drivers Appium
-setup:
+# Installer les dépendances Node (`npm install`) puis les drivers Appium
+install:
     @echo "📥 Installation des dépendances…"
     npm install
     just install-appium-drivers
-    @echo "✅ Setup terminé. Lance 'just test-android' ou 'just test-ios'."
-
-# Repartir d'un node_modules propre, strictement conforme au lockfile
-clean-install:
-    @echo "🧹 Suppression de node_modules…"
-    rm -rf node_modules
-    @echo "📥 Réinstallation stricte depuis package-lock.json…"
-    npm ci
-    just install-appium-drivers
-    @echo "✅ node_modules reconstruit."
-
-# Afficher les dépendances dépassées (sans modifier package.json)
-check-deps:
-    npx npm-check-updates
-
-# Généralement, le cocktail de mise à jour crée un jeu de versions incompatibles entre elles : ce script est souvent à terminer à la main.
-# npm doit être configuré avec un cooldown de 14 jours (cat $HOME/.npmrc : min-release-age=14).
-# Appium ne connaît pas ce concept : on peut le mettre à jour en annulant le cooldown : npm_config_min_release_age=0 npm run appium:update
-# Mettre à jour package.json vers les dernières versions puis réinstaller.
-upgrade:
-    npx npm-check-updates --upgrade
-    @just setup
-    @echo "📥 Mise à jour des drivers Appium (uiautomator2 + xcuitest)…"
-    npm run appium:update || true
+    @echo "✅ Installation terminée. Lance 'just test-android' ou 'just test-ios'."
 
 # ─── Émulateurs / Simulateurs ───────────────────────────────────────────────
 
@@ -278,22 +250,12 @@ check-code:
 # (gabarit .env). Le fichier d'environnement est .env.local, ou `just -E .env.local.preprod test-… ` (cf. README).
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 
-# Garde-fou : hors CI, .env.local est obligatoire (AMI_ENV, NOTIF_*).
-# En CI ces variables sont injectées par le workflow via `env:` — pas de fichier requis.
-_require-dotenv:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ -z "${CI:-}${GITHUB_ACTIONS:-}" ] && [ ! -f .env.local ]; then
-        echo "❌ .env.local manquant — copier .env puis renseigner AMI_ENV et NOTIF_*." >&2
-        exit 1
-    fi
-
 # Tout ce qui n'est pas --device est transmis à wdio (--suite NOM, --spec GLOB…). Une variable ANDROID_UDID / ANDROID_DEVICE_NAME déjà
 # définie dans le shell vise précisément un appareil (second émulateur en parallèle).
 # Exemple : just test-android --device pixel_2_api30 --spec "src/tests/mobile/notifications*"
 [doc("Tests E2E Android · [--device AVD] [--suite NOM | --spec GLOB…] (le reste va à wdio)")]
 [positional-arguments]
-test-android *args: _require-dotenv
+test-android *args:
     #!/usr/bin/env bash
     set -euo pipefail
     device=""; wdio_args=()
@@ -314,7 +276,7 @@ test-android *args: _require-dotenv
 # Exemple : just test-ios --device "iPhone 17 Pro" --suite mobile_smoke
 [doc("Tests E2E iOS · [--device NOM] [--suite NOM | --spec GLOB…] (le reste va à wdio)")]
 [positional-arguments]
-test-ios *args: _require-dotenv
+test-ios *args:
     #!/usr/bin/env bash
     set -euo pipefail
     device=""; wdio_args=()
@@ -334,7 +296,7 @@ test-ios *args: _require-dotenv
 # Exemple : AMI_ENV=staging just test-webci --suite webapp_smoke   |   just test-webci --spec "src/tests/webapp/agenda*"
 # Tests E2E webapp (CI) : Chrome headless, pas d'émulateur/simulateur ; les arguments (--suite, --spec) vont à wdio.
 [positional-arguments]
-test-webci *args: _require-dotenv
+test-webci *args:
     npm run test:webapp -- "$@"
 
 # ATTENTION : ne pas ouvrir le panneau DevTools (F12 / Cmd+Opt+I) sur l'onglet de l'app pendant
@@ -345,7 +307,7 @@ test-webci *args: _require-dotenv
 # Exemple : just test-webapp --spec "src/tests/webapp/agenda*"   |   just test-webapp --suite webapp_usage
 # Tests E2E webapp avec un Chrome dédié visible (headed), lancé par WDIO/Chromedriver ; les arguments (--suite, --spec) vont à wdio.
 [positional-arguments]
-test-webapp *args: _require-dotenv
+test-webapp *args:
     WEBAPP_HEADLESS=false npm run test:webapp -- "$@"
 
 # Exemple : just test-webvideo --spec src/tests/webapp/nonreg/consentement-demarches.usage.test.ts
@@ -354,7 +316,7 @@ test-webapp *args: _require-dotenv
 # (chemin affiché à la fin). Au moins un argument est exigé (--spec GLOB) : la vidéo ralentit le run, on ne filme pas toute la suite.
 [doc("Tests webapp avec la config DevTools vidéo · --spec GLOB… (le reste va à wdio)")]
 [positional-arguments]
-test-webvideo +args: _require-dotenv
+test-webvideo +args:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🎬 Tests E2E webapp (headless, vidéo DevTools)…"
@@ -389,7 +351,7 @@ explore-ios device="": (_explore "ios" "/" device)
 #   (`just s <cible> contexts`, puis `exec`). En Android hybride, `snapshot` lit l'arbre natif.
 # La SPA route par hash : la route d'une page est `/#/agenda` (à entourer de guillemets).
 # (Recette privée : on lance explore-webapp, explore-android ou explore-ios.)
-_explore target route device="": _require-dotenv
+_explore target route device="":
     #!/usr/bin/env bash
     set -euo pipefail
     S="npx wdio session -s {{ target }}"
@@ -486,7 +448,7 @@ webview target="webapp":
 # (`before all`) ne déclenche pas la pause. Depuis un autre terminal : just s debug-0-0 snapshot -i,
 # just s debug-0-0 screenshot, just s debug-0-0 resume.
 # (Recette privée : on lance debug-webapp, debug-android ou debug-ios.)
-_debug target spec device="": _require-dotenv
+_debug target spec device="":
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{ target }}" in
@@ -616,17 +578,3 @@ clean-tests-data:
     rm -rf .wdio .wdio-logs
     [ ! -d test-results ] || find test-results -mindepth 1 -maxdepth 1 -exec rm -rf {} +
     echo "✅ Données de tests supprimées."
-
-# AMI_ENV (.env.local) détermine l'environnement cible (« preprod » → préproduction, nombre → PR, sinon → staging).
-# Exemples : just push-notification avec_nom_dusage   |   just push-notification avec_nom_dusage "Mon titre personnalisé"
-# Envoyer une notification de test à un utilisateur (sans lancer les tests E2E).
-push-notification login title="": _require-dotenv
-    npx ts-node --project tsconfig.json src/scripts/push-notification.ts "{{login}}" "{{title}}"
-
-# ─── Aide ───────────────────────────────────────────────────────────────────
-
-# Détail des arguments d'une recette : `just --usage <recette>`.
-# Lister les recettes (même chose que `just --list`, avec le rappel de `just --usage`)
-help:
-    @just --list --list-heading $'Recettes — détail des arguments d\'une recette : just --usage <recette>\n'
-
