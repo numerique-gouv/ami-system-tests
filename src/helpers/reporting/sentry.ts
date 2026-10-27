@@ -20,6 +20,10 @@ export interface SentryIds {
 
 /** Page « Traces » du Sentry de l'équipe (instance incubateur, organisation betagouv). */
 const SENTRY_TRACES_URL = 'https://sentry.incubateur.net/organizations/betagouv/explore/traces/trace/'
+// Environnements Sentry du filtre : ceux observés (Staging-front, Staging-new…) ou déjà codés ici. Les review apps de PR n'y figurent PAS : leur valeur
+// (`SENTRY_ENV` côté API, `PUBLIC_FRONT_SENTRY_ENV` côté SPA) n'est pas dans le dépôt ami-notifications-api (`.env` les laisse vides, scalingo.json
+// ne les définit pas : elles sont posées dans la configuration Scalingo). Non confirmé : ne pas en inventer une ; la trace d'une review app peut donc
+// être masquée par ce filtre tant que l'équipe n'a pas communiqué le nom réel (le champ `environment` du dump `context.json` le donne dès qu'un test web échoue sur une review app).
 const SENTRY_TRACES_URL_POSTFIX = '/?environment=Preprod-new&environment=Preprod-front&environment=Prod-new&environment=Staging-front&environment=Staging-new'
 /** Lien Sentry vers la recherche de la trace (`trace:<id>`, vue tableau), ou `null` si l'identifiant est inconnu. */
 export function sentryTraceUrl(traceId: string | null): string | null {
