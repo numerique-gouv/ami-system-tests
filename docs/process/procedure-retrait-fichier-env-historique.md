@@ -38,13 +38,13 @@ deux secrets comme compromis :
 ```bash
 git clone <url> reecriture && cd reecriture
 git fetch origin 'refs/heads/*:refs/remotes/origin/*'
-git filter-repo --path .env.staging.staging --invert-paths
+git filter-repo --path .env.local.staging --invert-paths
 ```
 
 `--invert-paths` retire le fichier de tous les commits de toutes les branches du clone. Vérifier :
 
 ```bash
-git log --all --oneline -- .env.staging.staging        # doit ne rien afficher
+git log --all --oneline -- .env.local.staging        # doit ne rien afficher
 git rev-list --all | wc -l                           # même ordre de grandeur qu'avant
 ```
 

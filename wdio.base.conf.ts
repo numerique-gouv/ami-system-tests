@@ -37,7 +37,7 @@ export function specFileRetriesFromEnv(env: NodeJS.ProcessEnv): number {
 }
 
 // Fichier d'environnement : sous `just`, c'est just qui charge `.env.staging` ou le fichier choisi par `just -E <fichier>` ; il pose
-// DOTENV_LOADED_BY_JUST (cf. justfile). Relire alors `.env.staging` ici compléterait en silence un fichier `.env.staging.preprod` par les
+// DOTENV_LOADED_BY_JUST (cf. justfile). Relire alors `.env.staging` ici compléterait en silence un fichier `.env.preprod` par les
 // valeurs staging de `.env.staging` : on ne le charge que hors `just` (`npx wdio …` direct). Les variables déjà définies dans le shell
 // ne sont pas écrasées (override: false).
 if (!process.env.DOTENV_LOADED_BY_JUST) {

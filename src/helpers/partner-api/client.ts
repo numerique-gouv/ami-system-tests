@@ -58,7 +58,7 @@ export function hasPartnerCredentials(partner: string = AMI_PARTNER): boolean {
 export function missingPartnerCredentialsMessage(partner: string): string {
     const vars = partnerCredentialVariables(partner)
     const missing = [vars.id, vars.secret].filter(name => !process.env[name])
-    return `Identifiants du partenaire « ${partner} » absents : renseigner ${missing.join(' et ')} dans .env.local ` +
+    return `Identifiants du partenaire « ${partner} » absents : renseigner ${missing.join(' et ')} dans .env.staging ` +
         `(secret : variable PARTNERS_${partner.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_SECRET de l'application Scalingo du backend).`
 }
 

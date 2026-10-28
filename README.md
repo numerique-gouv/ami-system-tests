@@ -38,13 +38,13 @@ Un chemin relatif se lit depuis la racine de ce projet ; `~/` désigne le dossie
 
 Ports (facultatifs, utiles pour un second appareil en parallèle) : `ANDROID_APPIUM_PORT` (4723), `IOS_APPIUM_PORT` (4724), `ANDROID_SYSTEM_PORT` (8200), `ANDROID_CHROMEDRIVER_PORT` (9515), `IOS_WDA_PORT` (8100). L'appareil visé précisément : `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `IOS_UDID`, `IOS_DEVICE_NAME`.
 
-### Fichiers d'environnement (`.env.staging`, `.env.local.<cible>`)
+### Fichiers d'environnement (`.env.staging`, `.env.<cible>`)
 
-`.env` est le gabarit commité (valeurs vides, aucun secret) ; chaque poste le copie en `.env.staging` (ignoré par git) et le remplit. `just` charge `.env.staging` par défaut. Pour une exécution contre un autre environnement, un fichier `.env.local.<cible>` (`.env.local.staging`, `.env.preprod`, tous ignorés par git) se choisit avec l'option native de `just` :
+`.env` est le gabarit commité (valeurs vides, aucun secret) ; chaque poste le copie en `.env.staging` (ignoré par git) et le remplit. `just` charge `.env.staging` par défaut. Pour une exécution contre un autre environnement, un fichier `.env.<cible>` (`.env.local.staging`, `.env.preprod`, tous ignorés par git) se choisit avec l'option native de `just` :
 
 ```bash
-just -E .env.staging.preprod test-ios --suite mobile_short                        # fichier choisi pour cette commande
-AMI_ENV=preprod IOS_APP_PATH=… just -E .env.staging.preprod test-ios --suite mobile_short   # + surcharge ponctuelle d'une variable
+just -E .env.preprod test-ios --suite mobile_short                        # fichier choisi pour cette commande
+AMI_ENV=preprod IOS_APP_PATH=… just -E .env.preprod test-ios --suite mobile_short   # + surcharge ponctuelle d'une variable
 ```
 
 Un fichier choisi par `-E` doit être **complet** : `.env.staging` n'est alors pas relu pour combler ses manques (voir `wdio.base.conf.ts`), pour ne jamais mélanger staging et préprod. Une variable déjà définie dans le shell l'emporte sur les fichiers.

@@ -68,7 +68,7 @@ check-code:
 #   just test-webci --suite webapp_smoke                     → idem webapp (webapp_short | webapp_smoke | webapp_usage | webapp_all)
 # Les suites nommées sont définies dans l'option native `suites` de wdio.base.conf.ts (appel sans just :
 # npx wdio run wdio.webapp.conf.ts --suite webapp_smoke). Les apps mobiles testées sont celles de ANDROID_APP_PATH / IOS_APP_PATH
-# (gabarit .env). Le fichier d'environnement est .env.staging, ou `just -E .env.staging.preprod test-… ` (cf. README).
+# (gabarit .env). Le fichier d'environnement est .env.staging, ou `just -E .env.preprod test-… ` (cf. README).
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 
 # L'appareil n'est PAS démarré par la recette : soit il tourne déjà (Android Studio, `adb devices`), soit Appium lance l'AVD de ANDROID_AVD
