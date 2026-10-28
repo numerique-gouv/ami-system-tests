@@ -33,6 +33,10 @@ const NAVIGATION_TIMEOUT_MS = 20000
 // ATTENTION, LENTEUR : une cible injoignable (hôte de `PRIVATE_NETWORK_HOSTS` hors VPN) ne rend la main qu'après le délai de connexion du
 // navigateur (~75 s) ; mesuré le 2026-10-28 : ni `pageLoad` (15 s) ni un `SETTLE_TIMEOUT_MS` de 20 s n'y changent rien (le spec reste à ~2 min 40).
 // Les specs de `src/tests/webapp/parcours/` cumulent donc plusieurs minutes quand le VPN manque : ne pas les lancer en session de travail.
+// Hack disponible si l'attente devient pénible (non retenu : un argument Chrome peu lisible) : dans `wdio.webapp.conf.ts`, ajouter aux `args` de
+// `goog:chromeOptions` un argument `--host-resolver-rules=MAP <hôte> ~NOTFOUND` par hôte de `PRIVATE_NETWORK_HOSTS` (liste séparée par des
+// virgules). La résolution de ces hôtes échoue alors tout de suite (page d'erreur du navigateur, statut null, même constat) : mesuré le
+// 2026-10-28 sur `demarche-detail.parcours`, 2 min 23 → 1 min 03. Effet de bord : ces hôtes ne sont plus joints, même depuis un VPN.
 const SETTLE_TIMEOUT_MS = 120000
 const SETTLE_MS = 1500
 
