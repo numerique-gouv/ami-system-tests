@@ -72,7 +72,7 @@ screens:
         to: welcome-zones
         conditional: true
         coverage: excluded
-        reason: "Crée une passkey persistante sur le compte de préprod partagé, sans suppression connue dans l'UI ; à jouer sur un compte dédié après accord de l'équipe (passkey.md, S11.2 suspendu)."
+        reason: "Crée une passkey persistante sur le compte de préprod partagé, sans suppression connue dans l'UI ; à jouer sur un compte dédié après accord de l'équipe (passkey mise de côté le 2026-10-28 ; plus de `it.skip` dédié, voir webapp/nonreg/otv-connexion-silencieuse.usage.test.ts, en skip)."
         risk: [shared-data]
         note: "Libellé et destination non confirmés (locator « non validé en live »)."
         <<: *unc
@@ -84,6 +84,7 @@ screens:
     page-object: OnboardingZonesPage
     identity: {route: /welcome/zones}
     <<: *live
+    note: "Cases de zones cochables sur cet écran ; le choix est enregistré dès le clic, sans bouton de validation (« Passer » seul) : observé en staging le 2026-10-28 (zones-onboarding.usage.test.ts). Action de bascule non modélisée."
     actions:
       skip: {kind: navigate, label: Passer, via: button, to: welcome-notifications, conditional: true, <<: *live}
 
@@ -151,7 +152,7 @@ screens:
     kind: dialog
     identity: {heading: "Suppression de vos données"}
     <<: *code
-    source: src/tests/webapp/deconnexion.usage.test.ts
+    source: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts
     actions:
       confirm: {kind: navigate, label: Confirmer, via: button, to: login, risk: [destructive], <<: *live}
 
@@ -554,11 +555,11 @@ screens:
         kind: mutate
         label: Enregistrer
         field: "profile@address"
-        restore: none
-        coverage: excluded
-        reason: "L'adresse est remontée de la Caf (limitation légale, en attente d'un COJUR) ; la restauration par autocomplétion BAN n'est pas fiable pour un compte sans adresse."
-        risk: [legal, shared-data]
-        source: "src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts (commentaires)"
+        restore: action
+        effects: ["profile@address"]
+        risk: [shared-data]
+        source: "src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts"
+        note: "Testée par le test mobile depuis le 2026-10-28 (décision de l'équipe) : modification par autocomplétion BAN, restauration par la déconnexion puis la reconnexion, adresse d'origine éventuellement vide. L'ancienne exclusion (adresse remontée de la Caf, COJUR) n'est plus invoquée ; statut du COJUR non confirmé."
         <<: *live
       cancel: {kind: navigate, label: Annuler, via: button, to: profile, <<: *live}
 
