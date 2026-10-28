@@ -85,7 +85,7 @@ kebab-case français (`profil-et-suppression-a-la-deconnexion.usage.test.ts`). T
 |-----------|---------------------|----------|
 | `smoke` | prouve que l'essentiel fonctionne : authentification, arrivée sur l'accueil | `authentification.smoke.test.ts`, `accueil.smoke.test.ts` |
 | `parcours` | parcourt des pages en **lecture seule** (liens sans 404, présence de la configuration, pages d'erreur), sans modifier le compte | `erreurs.parcours.test.ts`, `catalogue.parcours.test.ts` |
-| `usage` | un cas d'usage de bout en bout, qui agit (démarche publiée, profil modifié, consentement, déconnexion) ; le périmètre fonctionnel est dans le nom | `suivi.usage.test.ts`, `passkey.usage.test.ts` |
+| `usage` | un cas d'usage de bout en bout, qui agit (démarche publiée, profil modifié, consentement, déconnexion) ; le périmètre fonctionnel est dans le nom | `demarches-cycle-de-vie.usage.test.ts`, `passkey.usage.test.ts` |
 
 Trois autres catégories ont été envisagées et NON retenues : `liens` (couvert par `parcours`), `natif` (la frontière natif / WebView
 n'est pas figée : des pages seront promues en natif), `contrat` (pas de spec de contrat d'API dans ce dépôt).

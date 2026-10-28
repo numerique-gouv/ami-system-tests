@@ -7,7 +7,7 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 
 /**
- * Suivi des démarches en webapp : cycle de vie d'une démarche partenaire, détail et historique,
+ * Cycle de vie d'une démarche en webapp (Suivi des démarches) : cycle de vie d'une démarche partenaire, détail et historique,
  * démarches archivées.
  *
  * Le cycle new → wip → closed est un cycle de vie d'entité backend (exception documentée à
@@ -16,7 +16,7 @@ import {step} from '@helpers/reporting/report'
  * celui laissé par le précédent. Le détail et les archivées sont indépendants.
  * Pré-requis : variables NOTIF_* dans .env.
  */
-describe('Suivi des démarches', function () {
+describe('Cycle de vie d’une démarche', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   const user = getUser('avec_nom_dusage')
   let itemId: string
@@ -26,7 +26,7 @@ describe('Suivi des démarches', function () {
 
   before(async function () {
     const domainUrl = getBackendUrl()
-    itemId = `E2E-${new Date().toISOString()}`
+    itemId = `E2E-cycle-${new Date().toISOString()}`
     title = `Demarche E2E ${itemId}` // sans accent : la recherche par innerText les gère mal
     urlV1 = `${domainUrl}/demarches/${itemId}/v1`
     urlV2 = `${domainUrl}/demarches/${itemId}/v2`
