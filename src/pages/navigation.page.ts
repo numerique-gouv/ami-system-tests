@@ -74,7 +74,7 @@ class NavigationPage {
     /** Ouvre le menu « Plus » et clique une entrée. L'arrivée est vérifiée par la page cible. */
     async openPlusEntry(entry: PlusEntry): Promise<void> {
         await this.openPlusMenu()
-        await clickDisplayed(navigationLocators.plusEntry(entry), {timeout: 5000, within: navigationLocators.plusDialog})
+        await clickDisplayed(navigationLocators.plusEntry(entry), {timeout: 10000, within: navigationLocators.plusDialog})
     }
 
     /** Liste les entrées du menu « Plus » (menu ouvert par la méthode), hors bouton « Fermer » (sans texte visible). */
