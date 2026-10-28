@@ -54,6 +54,16 @@ export const config: Options.Testrunner = {
     androidUninstallApp(ANDROID_APP_PACKAGE)
   },
 
+  // Un test échoué (renderer de la WebView perdu, app bloquée) ne doit pas contaminer la spec suivante, qui ouvre une session sur
+  // l'app restée en l'état (`noReset: true`) : mesuré le 2026-10-28, `notifications` et `profil` échouaient en `before all` (aucune
+  // WebView) après un `demarches` en échec. L'app est donc arrêtée après CHAQUE spec (données et session conservées) : la session
+  // suivante la relance (autoLaunch du driver), toujours connectée.
+  afterSession: (): void => androidForceStop([ANDROID_APP_PACKAGE]),
+
+  // Scénarios séquentiels (chaque `it` part de l'état laissé par le précédent) : au premier échec, Mocha ne lance plus les `it` suivants
+  // (qui échoueraient en cascade, 180 s chacun mesurés sur iOS) mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
+  mochaOpts: {...baseConfig.mochaOpts, bail: true},
+
   // Fin de série : l'app, restée ouverte entre les specs, est fermée (l'appareil reste allumé). Quand Appium a lui-même démarré l'AVD
   // (ANDROID_AVD, absent d'adb lors d'onPrepare : la désinstallation ci-dessus n'a alors pas pu se faire), l'app est aussi désinstallée
   // ici : l'AVD survit au run (ses données restent) et sans cela le run suivant partirait d'une app encore connectée (constaté le 2026-10-27).

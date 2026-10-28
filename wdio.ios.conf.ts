@@ -65,6 +65,14 @@ export const config: Options.Testrunner = {
     iosUninstallApp(APP_ID)
   },
 
+  // L'app est terminée après CHAQUE spec : la spec suivante part d'un processus neuf, même si le test a laissé l'app bloquée.
+  // Le conteneur de données (session, permissions) est conservé ; la session suivante relance l'app (autoLaunch).
+  afterSession: (): void => iosTerminateApp(APP_ID),
+
+  // Scénarios séquentiels : au premier échec, Mocha ne lance plus les `it` suivants (cascade de 4 x 180 s mesurée le 2026-10-28)
+  // mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
+  mochaOpts: {...baseConfig.mochaOpts, bail: true},
+
   // Fin de série : l'app est fermée (le simulateur reste démarré).
   onComplete: [baseConfig.onComplete as () => void, (): void => iosTerminateApp(APP_ID)],
 } as Options.Testrunner
