@@ -61,15 +61,22 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     },
   }
 
+  /** Préférences s'ouvre par le menu Plus (barre basse) : on repart de l'Accueil, car le Suivi et les Notifications n'ont pas toujours cette barre. */
+  const ouvrirLesPreferences = async (): Promise<void> => {
+    await NavigationPage.goToRoute('/')
+    await HomePage.assertContentVisible()
+    await openDemarchesConsents()
+  }
+
   /** Par les cases de Préférences › Suivi des démarches. */
   const parLesPreferences: PilotageDuConsentement = {
     retirer: async () => {
-      await openDemarchesConsents()
+      await ouvrirLesPreferences()
       await PreferencesPage.setDemarchesConsent(PARTNER, false)
       await waitForBackendDemarchesConsent(PARTNER, user.fcHash, false)
     },
     donner: async () => {
-      await openDemarchesConsents()
+      await ouvrirLesPreferences()
       await PreferencesPage.setDemarchesConsent(PARTNER, true)
       await waitForBackendDemarchesConsent(PARTNER, user.fcHash, true)
     },
