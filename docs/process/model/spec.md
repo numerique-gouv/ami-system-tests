@@ -192,7 +192,7 @@ Une cellule est `(unité, cible)`. La face A donne les cibles applicables (`scre
 
 | Statut | Condition |
 |---|---|
-| `covered` | toutes les étapes requises, ou l'unité N1/N2, sont accomplies par ≥ 1 scénario `active` sur cette cible. Les étapes d'une action se **cumulent** sur les scénarios de la cible ; le rapport signale `split` quand aucun scénario unique ne porte le protocole complet (cas des `it()` séquentiels de `profil-suppression-a-la-deconnexion.usage.test.ts`) |
+| `covered` | toutes les étapes requises, ou l'unité N1/N2, sont accomplies par ≥ 1 scénario `active` sur cette cible. Les étapes d'une action se **cumulent** sur les scénarios de la cible ; le rapport signale `split` quand aucun scénario unique ne porte le protocole complet (cas des `it()` séquentiels de `profil-et-suppression-a-la-deconnexion.usage.test.ts`) |
 | `partial` | au moins une étape accomplie, mais pas toutes (taux `k/n`) |
 | `uncovered` | rien d'accompli, `coverage: required` |
 | `excluded` | `coverage: excluded` (le `reason` est reporté) |
