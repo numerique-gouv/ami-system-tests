@@ -332,7 +332,7 @@ Les suites nommées (`just test-android --suite <nom>` ou `npx wdio run <config>
 specs**, équivalentes à `--spec a --spec b` : un worker (une session WebDriver) par fichier, exactement comme en ligne de commande —
 une suite ne fait que désigner des fichiers, elle ne change pas la façon de les exécuter (les anciens groupes `[[a, b]]`, qui
 fusionnaient les specs en un seul worker, sont supprimés). L'état est cependant conservé d'un fichier à l'autre sans session partagée :
-profil Chrome du run en webapp, app non redémarrée sur Android ; seules `authentication` et `nonreg/passkey` repartent d'une session
+profil Chrome du run en webapp, données et session de l'app sur mobile (l'app elle-même est arrêtée après chaque spec, Android et iOS : la suivante la relance) ; seules `authentication` et `nonreg/passkey` repartent d'une session
 vierge. Un test qui modifie l'état global doit en tenir compte : ne pas supposer une session fraîche du seul fait d'être dans un
 nouveau fichier. Nommage : `mobile_*` (Android/iOS) et `webapp_*` (Chrome), jamais mélangés ; contenu et usage de chaque suite : tableau « Suites nommées »
 (§ 1).
@@ -347,6 +347,7 @@ Les tests modifient l'état ?
 - **`beforeEach`** : reset strict avant chaque test. Convient dès qu'un test modifie l'état de l'app, ou que l'onboarding doit être rejoué. `driver.reset()` est **déprécié** dans Appium 3 — utiliser
   `terminateApp` + `activateApp` (conserve l'installation, reset l'état mémoire) ou `fullReset: true`
   en capability pour une réinstallation complète.
+- **Mobile : `mochaOpts.bail`** (`wdio.android.conf.ts`, `wdio.ios.conf.ts`) — au premier `it` en échec, les suivants de la spec ne sont plus lancés (cascade de timeouts), les hooks `after`/`afterEach` s'exécutent quand même.
 - **Indépendance des `it()` : règle absolue.** Chaque `it()` doit pouvoir s'exécuter dans n'importe quel ordre et en isolation. Un `it()` qui modifie l'état doit le remettre dans l'état initial (dans le test lui-même, ou dans
   `afterEach`).
 - **Exception documentée : cycle de vie d'une entité backend.** Quand des `it()` testent les états successifs d'une même entité côté API (`new → wip → closed`), la dépendance entre `it()` est structurelle. Dans ce cas : documenter explicitement la dépendance en commentaire du `describe` ; utiliser un identifiant unique horodaté ; chaque `it()`
