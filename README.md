@@ -15,9 +15,9 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 | `just` | `brew install just` |
 | Android SDK + `adb` | Android Studio → SDK Manager |
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
-| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `npm run appium:install`, installées sous `~/.appium`) | `just install` (ou `just install-appium-drivers`) |
+| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `scripts/appium-drivers.mjs`, installées dans `node_modules/` du dépôt) | `npm ci && npm run appium:install` |
 
-**Piège après `npm install` ou `appium driver update`** : les liens symboliques `appium` de `~/.appium/node_modules/appium-*-driver/node_modules` disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall` puis `appium driver install` des deux pilotes (`APPIUM_HOME=~/.appium`), ou `just install-appium-drivers` après les avoir désinstallés ; à refaire après toute mise à jour des pilotes.
+**Drivers Appium** : `APPIUM_HOME` n'est pas défini, Appium travaille en mode « projet » (drivers dans `node_modules/`, manifeste dans `node_modules/.cache/appium`). `npm run appium:install` désinstalle puis installe les deux pilotes aux versions figées (`npm run appium:update` : dernières versions) et laisse `package.json`/`package-lock.json` inchangés. À relancer après tout `npm ci`/`npm install` (qui effacent les drivers, absents de `package.json`) et après un déplacement du dépôt (le manifeste contient des chemins absolus : « Could not find a driver … Could not read the driver manifest »).
 
 Les recettes `just` ne démarrent ni n'arrêtent aucun appareil, et n'ont aucune option `--device` : l'appareil visé se choisit par variables d'environnement (gabarit `.env`, surcharge ponctuelle `ANDROID_UDID=… just test-android …`).
 
@@ -55,7 +55,7 @@ Un fichier choisi par `-E` doit être **complet** : `.env.staging` n'est alors p
 
 ```bash
 cp .env .env.staging           # puis remplir AMI_ENV et les variables NOTIF_*
-just install                 # npm install + drivers Appium, may not work on non mac os
+npm ci && npm run appium:install   # dépendances Node + drivers Appium (node_modules/)
 just doctor                  # diagnostic de l'environnement (Node, Appium, SDK Android, simulateurs)
 ```
 

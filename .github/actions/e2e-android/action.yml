@@ -147,28 +147,15 @@ runs:
       shell: bash
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
-    # `~/.appium` (APPIUM_HOME par défaut, cf. justfile) contient les binaires des drivers
-    # (uiautomator2, xcuitest) téléchargés par `appium driver install` — pas couvert par le
-    # cache npm de setup-node (répertoire distinct de ~/.npm). Clé sur package.json : les
-    # versions de drivers sont figées dans les scripts `appium:install`/`appium:update`, donc
-    # tout changement de version y invalide bien le cache.
-    - name: cache Appium drivers
-      id: cache-appium-drivers
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-      with:
-        path: ~/.appium
-        key: ${{ runner.os }}-appium-drivers-${{ hashFiles('ami-system-tests/package.json') }}
-
-    # `just` (pas `npm run appium:install` en direct) pour que cette installation utilise le
-    # même APPIUM_HOME que `just test-android` plus bas — sinon Appium (devDependency
-    # locale) bascule en mode "APPIUM_HOME projet" (node_modules/.cache/appium) à l'install,
-    # et les tests cherchent les drivers dans ~/.appium : "Could not find a driver for
-    # automationName 'UiAutomator2'" alors que le driver est bien installé, juste ailleurs.
+    # Appium (devDependency locale, APPIUM_HOME non défini) travaille en mode « projet » : les drivers
+    # (uiautomator2, xcuitest) sont installés dans node_modules/ du dépôt par `npm run appium:install`
+    # (uninstall puis install aux versions figées de scripts/appium-drivers.mjs). Aucun cache dédié :
+    # node_modules/ est reconstruit par `npm ci` (cache npm de setup-node) et le manifeste des drivers
+    # (node_modules/.cache/appium) contient des chemins absolus, donc ne se met pas en cache.
     - name: Installer les drivers Appium
-      if: steps.cache-appium-drivers.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ami-system-tests
-      run: just install-appium-drivers
+      run: npm run appium:install
 
     - name: debug AVD devices
       shell: bash

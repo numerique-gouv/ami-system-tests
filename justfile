@@ -19,39 +19,6 @@ set dotenv-path := ".env.staging"
 # avec `just -E`). Hors just (`npx wdio …`), wdio charge `.env.staging` lui-même.
 export DOTENV_LOADED_BY_JUST := "1"
 
-# ─── Variables ──────────────────────────────────────────────────────────────
-
-# Fixe APPIUM_HOME hors du projet : sans ça, Appium (devDependency locale) bascule en mode
-# "APPIUM_HOME projet" (node_modules/.cache/appium) et fige des chemins absolus qui deviennent
-# invalides au moindre déplacement/reclonage du repo.
-export APPIUM_HOME := env_var_or_default("APPIUM_HOME", env_var("HOME") / ".appium")
-
-# ─── Installation ───────────────────────────────────────────────────────────
-
-# Passer par cette recette (plutôt que `npm run appium:install` en direct) garantit que l'install et le
-# `just test-android`/`test-ios` qui suivra utilisent le même APPIUM_HOME. Les versions des drivers sont celles de `npm run appium:install`
-# (package.json, source unique) ; un driver déjà installé est laissé tel quel, un échec d'installation fait échouer la recette.
-# Piège : après `npm install` ou `appium driver update`, les liens symboliques `appium` dans ~/.appium/node_modules/appium-*-driver/node_modules
-# disparaissent et les pilotes ne se chargent plus (« Could not find a driver », « Cannot find package 'appium' »). Remède : `appium driver uninstall`
-# puis `install` des deux pilotes (APPIUM_HOME=~/.appium), donc cette recette après désinstallation ; à refaire après toute mise à jour des pilotes.
-# Installer les drivers Appium sous le APPIUM_HOME du projet (cf. variable ci-dessus).
-install-appium-drivers:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "📥 Installation des drivers Appium…"
-    installed="$(npx appium driver list --installed 2>&1)"
-    for driver in $(npm pkg get scripts.appium:install | grep -o '[a-z0-9]*@[0-9][0-9.]*'); do
-        if grep -qF -- "$driver " <<< "$installed"; then echo "✅ $driver déjà installé"; else npx appium driver install "$driver"; fi
-    done
-    npx appium driver list --installed
-
-# Installer les dépendances Node (`npm install`) puis les drivers Appium
-install:
-    @echo "📥 Installation des dépendances…"
-    npm install
-    just install-appium-drivers
-    @echo "✅ Installation terminée. Lance 'just test-android' ou 'just test-ios'."
-
 # ─── Qualité ────────────────────────────────────────────────────────────────
 
 # Vérifications statiques : lint + typecheck (sans lancer les tests)
