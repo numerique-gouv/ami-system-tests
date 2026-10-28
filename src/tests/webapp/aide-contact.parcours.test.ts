@@ -34,6 +34,8 @@ describe('Aide, contact et pages légales', function () {
     const target = await AideContactPage.openAdministrationHelp()
     if (isBrokenTarget(target)) throw new AssertionError({message: `Aide de l'administration : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`})
     expect(target.host).toContain('service-public.gouv.fr')
+    // La page externe a quitté la SPA : on revient, sinon le beforeEach suivant perd son temps à récupérer l'application.
+    await AideContactPage.returnFromExternal()
   })
 
   it('« Données personnelles et sécurité » liste ses 6 sections', async () => {
