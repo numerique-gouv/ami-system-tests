@@ -71,7 +71,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     await ZonesPage.restoreZones(originalZones)
   })
 
-  it('S7 — retirer la zone B se reflète dans les préférences et dans l’agenda, la remettre aussi', async function () {
+  it('retirer la zone B se reflète dans les préférences et dans l’agenda, la remettre aussi', async function () {
     step('1. La zone B est cochée : repérer une tuile de l’agenda qui la cite')
     await openZones()
     await ZonesPage.setZone('Zone B', true)
@@ -84,7 +84,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     }
     if (!zoneTile) {
       // Hors période de vacances scolaires affichée, aucune tuile ne cite les zones : rien à vérifier.
-      log.warn('ANOMALIE ? Aucune tuile de l’agenda ne cite « Zone B » : scénario S7 non applicable à cette date.')
+      log.warn('ANOMALIE ? Aucune tuile de l’agenda ne cite « Zone B » : scénario des zones non applicable à cette date.')
       this.skip()
     }
     expect(await AgendaPage.eventText(zoneTile)).toContain('Zone B')
@@ -112,7 +112,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     expect(await AgendaPage.eventText(zoneTile)).toContain('Zone B')
   })
 
-  it('S8 — une démarche avec échéance apparaît dans l’agenda et son titre mène au détail de cette démarche', async function () {
+  it('une démarche avec échéance apparaît dans l’agenda et son titre mène au détail de cette démarche', async function () {
     step('1. Publier une démarche avec échéance')
     const {title, itemId} = await publishDemarcheWithMilestone('agenda')
 
@@ -127,7 +127,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     await DemarcheDetailPage.assertReference(itemId)
   })
 
-  it('S10 — un élément supprimé de l’agenda disparaît et ne revient pas au rechargement', async function () {
+  it('un élément supprimé de l’agenda disparaît et ne revient pas au rechargement', async function () {
     step('1. Publier une démarche avec échéance et la retrouver dans l’agenda')
     const {title} = await publishDemarcheWithMilestone('suppression')
     await AgendaPage.open()
@@ -143,7 +143,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     expect(await AgendaPage.isEventListed(title, 4000)).toBe(false)
   })
 
-  it('S10.2 — une reconnexion fait réapparaître un élément fixe supprimé de l’agenda', async function () {
+  it('une reconnexion fait réapparaître un élément fixe supprimé de l’agenda', async function () {
     step('1. Repérer un élément fixe : un jour férié de préférence, à défaut n’importe quel élément qui n’est pas une démarche de test')
     await AgendaPage.open()
     await AgendaPage.assertDisplayed()
@@ -151,7 +151,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     // indépendant des zones. Staging n'en a pas (un seul élément, « Vacances de la Toussaint », relevé le 2026-10-15).
     const fixed = (await AgendaPage.eventTitles()).filter(title => !title.startsWith('Demarche E2E'))
     const holiday = fixed.find(title => !title.startsWith('Vacances')) ?? fixed[0]
-    if (!holiday) throw new Error('Aucun élément fixe dans l’agenda : impossible de vérifier S10.2')
+    if (!holiday) throw new Error('Aucun élément fixe dans l’agenda : impossible de vérifier la réapparition à la reconnexion')
 
     step(`2. Supprimer « ${holiday} » : il est absent après rechargement`)
     await AgendaPage.deleteEvent(holiday)

@@ -25,7 +25,7 @@ describe('Non-régression — listes d’étapes', function () {
     await getAppToStartingState()
   })
 
-  it('S1.4 — chaque lien des listes d’étapes mène à une page valide, directement ou par la page intermédiaire', async function () {
+  it('chaque lien des listes d’étapes mène à une page valide, directement ou par la page intermédiaire', async function () {
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const lists = await ServicesPage.stepsListLabels()
@@ -98,7 +98,7 @@ describe('Non-régression — listes d’étapes', function () {
 
     log.info(`liens suivis : ${followed}`)
     // Sans aucun lien suivi, le scénario ne prouverait rien : on le dit plutôt que de passer.
-    if (followed === 0) throw new AssertionError({message: `Aucun item à lien dans les ${lists.length} listes d'étapes : S1.4 n'a rien vérifié`})
+    if (followed === 0) throw new AssertionError({message: `Aucun item à lien dans les ${lists.length} listes d'étapes : ce parcours n'a rien vérifié`})
     if (broken.length > 0) throw new AssertionError({message: `${broken.length} lien(s) cassé(s) sur ${followed} dans les listes d'étapes :\n${broken.join('\n')}`})
   })
 })

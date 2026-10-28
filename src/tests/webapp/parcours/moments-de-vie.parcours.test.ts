@@ -8,7 +8,7 @@ import {step} from '../../../helpers/reporting/report'
 const log = logger('test')
 
 /**
- * Smoke — les moments de vie (onglet « Trouver de l'aide » de Services) mènent à des pages valides (scénarios S1.3 et S1.2).
+ * Smoke — les moments de vie (onglet « Trouver de l'aide » de Services) mènent à des pages valides .
  * Les listes d'étapes (checklists « Je crée une association »…) ont leur propre parcours, liste-etapes.parcours.test.ts : elles sont
  * ignorées ici, pour ne rien vérifier deux fois. Le catalogue des démarches est dans catalogue.parcours.test.ts.
  *
@@ -24,7 +24,7 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
     await getAppToStartingState()
   })
 
-  it('S1.3 — chaque entrée de « Trouver de l’aide », hors listes d’étapes, mène à une page valide', async function () {
+  it('chaque entrée de « Trouver de l’aide », hors listes d’étapes, mène à une page valide', async function () {
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const labels = await ServicesPage.helpLabels()
@@ -63,11 +63,11 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
     if (broken.length > 0) throw new AssertionError({message: `${broken.length} entrée(s) d'aide cassée(s) sur ${labels.length} :\n${broken.join('\n')}`})
   })
 
-  it('S1.2 — le diagnostic cybermalveillance charge ses iframes', async function () {
+  it('le diagnostic cybermalveillance charge ses iframes', async function () {
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
 
-    // S1.3 prouve que l'entrée s'ouvre ; ici le contenu embarqué : chaque source d'iframe doit répondre.
+    // L'entrée du diagnostic s'ouvre déjà dans le parcours précédent ; l'entrée s'ouvre ; ici le contenu embarqué : chaque source d'iframe doit répondre.
     const sources = await ServicesPage.openCyberDiagnostic()
     expect(sources.length).toBeGreaterThan(0)
     for (const source of sources) {

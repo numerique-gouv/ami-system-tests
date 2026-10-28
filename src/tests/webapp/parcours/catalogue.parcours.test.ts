@@ -8,7 +8,7 @@ import {step} from '../../../helpers/reporting/report'
 const log = logger('test')
 
 /**
- * Smoke — aucun lien cassé dans le catalogue des démarches et outils (onglet « Démarches et outils » de Services, scénario S1.1).
+ * Smoke — aucun lien cassé dans le catalogue des démarches et outils (onglet « Démarches et outils » de Services).
  * Les moments de vie (« Trouver de l'aide ») sont dans moments-de-vie.parcours.test.ts, les listes d'étapes dans liste-etapes.parcours.test.ts.
  * Réunion du 2026-10-06 : « tous les liens du catalogue, quand on clique, on n'arrive pas sur une 404 ».
  *
@@ -26,7 +26,7 @@ describe('Non-régression — catalogue des démarches et outils (smoke)', funct
     await getAppToStartingState()
   })
 
-  it('S1.1 — chaque carte du catalogue mène à une page valide', async function () {
+  it('chaque carte du catalogue mène à une page valide', async function () {
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const labels = await ServicesPage.catalogueLabels()

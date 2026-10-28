@@ -43,7 +43,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     await restoreDemarchesConsents(original, user.fcHash)
   })
 
-  it('S3 — « Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif', async function () {
+  it('« Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif', async function () {
     step('1. Retirer tous les consentements (toutes les cases de l’écran : 4 en préprod, 6 en staging)')
     await openDemarchesConsents()
     await uncheckAllDemarchesConsents()
@@ -71,7 +71,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     })
   })
 
-  it('S4.1 — une case de consentement basculée est persistée côté backend', async function () {
+  it('une case de consentement basculée est persistée côté backend', async function () {
     await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     await openDemarchesConsents()
 
@@ -86,7 +86,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     expect((await PreferencesPage.demarchesConsentStates())[PARTNER_AMI]).toBe(true)
   })
 
-  it('S4.2 — « Tout suivre » active tous les consentements', async function () {
+  it('« Tout suivre » active tous les consentements', async function () {
     await openDemarchesConsents()
     const keys = await uncheckAllDemarchesConsents()
     expect(keys.length).toBeGreaterThan(0)
@@ -103,7 +103,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     expect(keys.map(key => states[key])).toEqual(keys.map(() => true))
   })
 
-  it('S6 — décocher le consentement AMI alors qu’une démarche est suivie : avertissement affiché, démarche masquée puis retrouvée (constat)', async function () {
+  it('retirer le consentement AMI alors qu’une démarche est suivie : avertissement affiché, démarche masquée puis retrouvée au rétablissement (constat)', async function () {
     const itemId = `E2E-consentement-${new Date().toISOString()}`
     const title = `Demarche E2E ${itemId} D4`
 
@@ -126,9 +126,9 @@ describe('Non-régression — consentement et suivi des démarches', function ()
           } catch { statut = 'différent de « En cours » (publiée avec le statut wip) ou illisible' }
         }
       } catch {
-        log.warn(`ANOMALIE ? S6 ${moment} : le titre « Mes démarches » (h1) n'est pas affiché sur le Suivi`)
+        log.warn(`ANOMALIE ? D4 ${moment} : le titre « Mes démarches » (h1) n'est pas affiché sur le Suivi`)
       }
-      log.info(`OBS S6 ${moment} : D4 listée sur l'Accueil : ${surAccueil} ; sur le Suivi : ${surSuivi} ; statut : ${statut}`)
+      log.info(`OBS D4 ${moment} : D4 listée sur l'Accueil : ${surAccueil} ; sur le Suivi : ${surSuivi} ; statut : ${statut}`)
     }
 
     step('1. Publier D4 (consentement AMI actif) et la retrouver dans le Suivi')

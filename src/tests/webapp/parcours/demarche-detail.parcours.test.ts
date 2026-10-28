@@ -49,7 +49,7 @@ describe('Non-régression — détail d’une démarche', function () {
     await getAppToStartingState()
   })
 
-  it('S9 — depuis l’Accueil puis depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’écran d’origine', async function () {
+  it('depuis l’Accueil puis depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’écran d’origine', async function () {
     step('1. Depuis l’Accueil : ouvrir le détail, puis le retour revient à l’Accueil')
     await HomePage.assertContentVisible()
     await SuiviDemarchesPage.ouvreDemarche(title)
@@ -69,7 +69,7 @@ describe('Non-régression — détail d’une démarche', function () {
     await SuiviDemarchesPage.assertDisplayed()
   })
 
-  it('S9.3 — depuis une notification, on arrive sur le détail de la démarche (et non sur la liste du Suivi)', async function () {
+  it('depuis une notification, on arrive sur le détail de la démarche (et non sur la liste du Suivi)', async function () {
     await NotificationsInboxPage.openFromHome()
     await NotificationsInboxPage.assertDisplayed()
     await NotificationsInboxPage.assertNotificationReceived(title)
@@ -78,7 +78,7 @@ describe('Non-régression — détail d’une démarche', function () {
     await DemarcheDetailPage.assertReference(itemId)
   })
 
-  it('S12 — la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)', async function () {
+  it('la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)', async function () {
     // ASSERTION PROPOSÉE, À VALIDER avec Édouard (demarche-detail.md) : seule la page FINALE est observée, pas les redirections.
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
@@ -101,7 +101,7 @@ describe('Non-régression — détail d’une démarche', function () {
     await ServicesPage.returnFromExternal()
   })
 
-  it('S13 — une démarche enfant est listée sous sa démarche parente, et pas sous une autre', async function () {
+  it('une démarche enfant est listée sous sa démarche parente, et pas sous une autre', async function () {
     // ASSERTION PROPOSÉE, À VALIDER avec Édouard (rattachement des sous-démarches, demarche-detail.md).
     const parent = {title: `Demarche E2E ${itemId} parent`, id: `${itemId}-P`}
     // « Autre » démarche : celle du `before()`, déjà vérifiée visible dans le Suivi. Une démarche publiée dans la foulée du parent

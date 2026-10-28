@@ -7,7 +7,7 @@ import {describeTarget, isBrokenTarget} from '../../helpers/webapp/link-check'
 /**
  * Aide et contact, Contact, pages légales (données personnelles, accessibilité).
  * Les liens sortants quittent la SPA : on teste la présence des entrées ; seule l'aide de l'administration (service-public.gouv.fr)
- * est contrôlée en HTTP (S2.1, avec `link-check`). Le catalogue, les moments de vie et les listes d'étapes ont leurs propres parcours.
+ * est contrôlée en HTTP (avec `link-check`). Le catalogue, les moments de vie et les listes d'étapes ont leurs propres parcours.
  */
 describe('Aide, contact et pages légales', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
@@ -29,7 +29,7 @@ describe('Aide, contact et pages légales', function () {
     expect(await AideContactPage.openContactDialog()).toEqual(['Faire une demande en ligne', 'Envoyer un mail'])
   })
 
-  it('S2.1 — « J\'ai besoin de l\'aide de l\'administration » mène à une page service-public.gouv.fr qui répond', async () => {
+  it('« J\'ai besoin de l\'aide de l\'administration » mène à une page service-public.gouv.fr qui répond', async () => {
     await AideContactPage.openHelpCenter()
     const target = await AideContactPage.openAdministrationHelp()
     if (isBrokenTarget(target)) throw new AssertionError({message: `Aide de l'administration : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`})

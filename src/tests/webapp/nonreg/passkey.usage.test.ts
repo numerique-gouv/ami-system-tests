@@ -21,7 +21,7 @@ describe('Non-régression — onboarding passkey', function () {
 
   const user = getUser('avec_nom_dusage')
 
-  it('S11.1 — « Peut-être plus tard » passe à l’écran suivant sans créer de clé', async function () {
+  it('« Peut-être plus tard » passe à l’écran suivant sans créer de clé', async function () {
     step('1. S’authentifier via FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)
     await FranceConnectEidasPage.selectEidasFaible()
@@ -43,7 +43,7 @@ describe('Non-régression — onboarding passkey', function () {
   // « Ajouter une clé » ENREGISTRE UNE PASSKEY PERSISTANTE sur le compte de test partagé (authentificateur virtuel côté navigateur,
   // mais credential déclaré au backend). Aucune suppression n'est connue dans l'UI, et la route `/passkey-authentication` pourrait
   // changer la connexion de toutes les autres specs. À jouer sur un compte dédié, avec accord de l'équipe : non exécuté (cf. passkey.md).
-  it.skip('S11.2 — « Ajouter une clé » crée une passkey et passe à l’écran suivant', async () => {
+  it.skip('« Ajouter une clé » crée une passkey et passe à l’écran suivant', async () => {
     // Se déconnecter puis se reconnecter via FranceConnect jusqu'à l'écran passkey
     // Cliquer « Ajouter une clé d'accès »
     // Vérifier qu'une credential existe dans l'authentificateur virtuel

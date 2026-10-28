@@ -183,12 +183,12 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     expect(await NotificationsInboxPage.isNotificationListed(prime.title, 3000)).toBe(false)
   }
 
-  it('S5 — démarche D1 sans consentement : refusée et jamais reçue, consentement piloté par l’API partenaire', async function () {
+  it('démarche D1 sans consentement : refusée par le backend et jamais reçue, consentement retiré puis donné par l’API partenaire', async function () {
     skipUnlessPartnerCredentials(this, PARTNER)
     await scenarioDemarcheSansConsentement(parLApi)
   })
 
-  it('S6.3 — démarche D1 sans consentement : refusée et jamais reçue, consentement piloté par les Préférences de l’app', async function () {
+  it('démarche D1 sans consentement : refusée par le backend et jamais reçue, consentement retiré puis donné par les Préférences de l’app', async function () {
     skipUnlessPartnerCredentials(this, PARTNER)
     await scenarioDemarcheSansConsentement(parLesPreferences)
   })
