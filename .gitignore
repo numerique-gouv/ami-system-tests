@@ -1,6 +1,8 @@
 # Variables d'environnement locales
 .*local*
 *.local.ts
+.env*
+!.env
 
 # ide
 .idea/
@@ -30,9 +32,6 @@ build/
 flaky-runs/
 flaky-test*
 __pycache__/
-
-# Variables d'environnement locales
-.env.*
 
 # macOS
 .DS_Store
