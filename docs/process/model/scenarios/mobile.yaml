@@ -1,12 +1,13 @@
 # Face B — scénarios de src/tests/mobile/** (cibles android et ios, Appium, WebView).
 # Décrit le code TEL QUE LU le 2026-10-06 : la trace est déclarée, pas mesurée (spec.md §9).
+# Mise à jour du 2026-10-28 (test mobile des démarches supprimé, adresse testée dans le test de profil) : seules les entrées touchées ont été réécrites d'après le code lu ce jour.
 x-anchors:
   auth: &auth [ami-spa:$authenticated]
   home: &home [ami-spa:$authenticated, ami-spa:$on-home]
   api: &api "ami-api-partenaire:~publish-notification"
 
 suite:
-  title: Mobile (Android + iOS) — 6 fichiers
+  title: Mobile (Android + iOS) — 3 fichiers
   root: src/tests/mobile
   described-on: 2026-10-06
   note: "Chaque scénario s'exécute sur android et sur ios ; la couverture est calculée par cible."
@@ -30,43 +31,7 @@ scenarios:
       - {visit: "ami-spa:home", note: "HomePage.assertHomeVisible, après un second FranceConnectMirePage.tapFranceConnect(true) dont le rôle n'est pas documenté (non confirmé)."}
     note: "Le test mobile n'observe pas la salutation, contrairement à la version webapp."
 
-  # === demarches.usage.test.ts =====================================================================
-  - id: mobile.demarches.demarche-new
-    source: {file: src/tests/mobile/demarches.usage.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "crée une démarche visible dans le suivi (statut new)"}
-    status: active
-    targets: [android, ios]
-    tags: {epic: Démarches, feature: Démarches, severity: critical, other: [api-notifications]}
-    requires: *auth
-    trace:
-      - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive], note: "HomePage.ouvreSuivi"}
-      - {call: *api, with: {itemGenericStatus: new, itemStatusLabel: Brouillon}}
-      - {observe: "ami-spa:followup@demarches", expect: "titre publié visible avec le statut « Brouillon »"}
-      - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
-      - {observe: "ami-spa:followup-item@external-link", expect: "URL V1"}
-    note: "Les 3 it() partagent un itemId : exception documentée à l'isolation (CONTRIBUTING.md §6)."
-  - id: mobile.demarches.demarche-wip
-    source: {file: src/tests/mobile/demarches.usage.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "met à jour l'URL externe de la démarche (statut wip)"}
-    status: active
-    targets: [android, ios]
-    tags: {epic: Démarches, feature: Démarches, severity: critical, other: [api-notifications]}
-    requires: *auth
-    trace:
-      - {call: *api, with: {itemGenericStatus: wip, itemStatusLabel: En cours}}
-      - {observe: "ami-spa:followup@demarches", expect: "titre publié visible avec le statut « En cours »"}
-      - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
-      - {observe: "ami-spa:followup-item@external-link", expect: "URL V2"}
-  - id: mobile.demarches.demarche-closed
-    source: {file: src/tests/mobile/demarches.usage.test.ts, describe: "Démarches — cycle de vie via notifications partenaire", it: "ferme la démarche (statut closed)"}
-    status: active
-    targets: [android, ios]
-    tags: {epic: Démarches, feature: Démarches, severity: critical, other: [api-notifications]}
-    requires: *auth
-    trace:
-      - {call: *api, with: {itemGenericStatus: closed, itemStatusLabel: Terminé}}
-      - {observe: "ami-spa:followup@demarches", expect: "titre publié visible avec le statut « Terminé »"}
-      - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
-      - {observe: "ami-spa:followup-item@external-link", expect: "URL V2"}
-    note: "Contrairement à la webapp, l'historique (followup-item@history) n'est pas observé."
+  # === demarches.usage.test.ts : SUPPRIMÉ le 2026-10-28 (cycle de vie testé en webapp seulement : webapp/demarches-cycle-de-vie.usage.test.ts ; plus aucun scénario mobile sur les démarches) ===
 
   # === notifications.usage.test.ts =================================================================
   - id: mobile.notifications.receive-in-inbox
@@ -86,7 +51,7 @@ scenarios:
   # Les 8 it() forment une histoire séquentielle (état partagé) : modifier, se déconnecter,
   # se reconnecter, relire. Le protocole `mutate` est donc réparti sur plusieurs scénarios.
   - id: mobile.profile-deletion.modify-preferred-username
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie le nom d'usage"}
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "modifie le nom d'usage"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -97,7 +62,7 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@identity", by: after-hook, assured: best-effort, note: "Filet si le test échoue avant la déconnexion."}
   - id: mobile.profile-deletion.modify-email
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie l'email"}
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "modifie l'email"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -108,13 +73,20 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@contact", by: after-hook, assured: best-effort}
   - id: mobile.profile-deletion.modify-address
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "modifie l'adresse"}
-    status: skipped
-    reason: "it.skip : adresse remontée de la Caf, limitation légale en attente d'un COJUR (cf. commentaire du fichier)."
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "modifie l'adresse"}
+    status: active
     targets: [android, ios]
-    intends: ["ami-spa:edit-address#save"]
+    tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
+    requires: *auth
+    trace:
+      - {do: "ami-spa:profile#open-edit-address", steps: [trigger, arrive]}
+      - {do: "ami-spa:edit-address#save", steps: [read-origin, mutate, read-mutation], note: "Premier résultat de l'autocomplétion BAN pour « 20 avenue de Ségur Paris » ; relecture : une des lignes d'adresse contient « ségur ». L'adresse d'origine peut être VIDE (compte sans adresse Caf) : l'état d'origine est alors `[]`."}
+    note: "Testé depuis le 2026-10-28 (décision de l'équipe) ; non exécuté sur appareil par l'auteur de cette mise à jour. Le COJUR sur l'adresse remontée de la Caf n'est plus invoqué dans le test ; son statut n'est pas confirmé."
+    cleanup:
+      - {restores: "ami-spa:profile@address", by: after-hook, assured: best-effort, note: "Aucune restauration directe : adresse d'origine éventuellement vide (editAddress('') échouerait dans l'autocomplétion BAN) ; la reconnexion FranceConnect la ramène à l'état d'origine."}
+
   - id: mobile.profile-deletion.logout
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "se déconnecte via le menu plus"}
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "se déconnecte via le menu plus"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -124,7 +96,7 @@ scenarios:
       - {do: "ami-spa:plus-menu#logout", steps: [trigger, arrive]}
       - {do: "ami-spa:logout-confirm#confirm", steps: [trigger], note: "L'arrivée sur l'écran de connexion n'est pas vérifiée dans ce it()."}
   - id: mobile.profile-deletion.relogin
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "se reconnecte avec le même compte"}
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "se reconnecte avec le même compte"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -133,7 +105,7 @@ scenarios:
       - {visit: "ami-spa:home", note: "getAppToStartingState({grantConsent: false})"}
       - {visit: "ami-spa:profile"}
   - id: mobile.profile-deletion.original-identity-restored
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche les données d'identité originales (pas les valeurs modifiées)"}
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "affiche les données d'identité originales (pas les valeurs modifiées)"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -144,7 +116,7 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@identity", by: logout, assured: asserted}
   - id: mobile.profile-deletion.original-email-restored
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche l'email original (pas la valeur modifiée)"}
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "affiche l'email original (pas la valeur modifiée)"}
     status: active
     targets: [android, ios]
     tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
@@ -155,8 +127,13 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@contact", by: logout, assured: asserted}
   - id: mobile.profile-deletion.original-address-restored
-    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications au déconnexion", it: "affiche l'adresse originale (pas la valeur modifiée)"}
-    status: skipped
-    reason: "it.skip : adresse remontée de la Caf, limitation légale en attente d'un COJUR (cf. commentaire du fichier)."
+    source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "affiche l'adresse originale (pas la valeur modifiée)"}
+    status: active
     targets: [android, ios]
-    intends: ["ami-spa:profile@address"]
+    tags: {epic: Profil usager, feature: "Profil usager — suppression au logout", severity: critical, other: [franceconnect]}
+    requires: *auth
+    trace:
+      - {do: "ami-spa:edit-address#save", steps: [restore], note: "Restauration par la déconnexion, vérifiée ici."}
+      - {observe: "ami-spa:profile@address", expect: "lignes d'adresse égales à celles relevées avant modification (tableau vide si le compte n'avait pas d'adresse)"}
+    cleanup:
+      - {restores: "ami-spa:profile@address", by: logout, assured: asserted}
