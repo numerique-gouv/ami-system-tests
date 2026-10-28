@@ -6,10 +6,12 @@ import {platform} from '../../platform'
 
 // Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
 // Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
-// L'adresse, remontée de la Caf, implique une limitation légale : elle est écartée des tests en attendant un COJUR.
+// L'adresse est choisie dans l'autocomplétion BAN (premier résultat de la requête) ; le compte peut ne pas en avoir d'origine (adresse Caf vide).
 const MODIFICATIONS = {
   preferredUsername: 'NOMTEST',
   email: 'testdemiseajour@yopmail.com',
+  addressQuery: '20 avenue de Ségur Paris',
+  addressMarker: 'ségur',
 }
 
 describe('Profil usager — suppression des modifications à la déconnexion', function () {
@@ -21,6 +23,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
     identityBolds: string[]
     preferredUsername: string  // extrait du displayName pour restauration after()
     email: string
+    addressBolds: string[]  // vide si le compte n'a pas d'adresse d'origine : état légitime
   }
 
   // Connexion initiale (jusqu'à ~105 s sur une machine lente) : comme les autres specs de login, 180 s et non les 120 s
@@ -42,6 +45,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
         identityBolds,
         preferredUsername,
         email: await ProfilePage.getEmailBold(),
+        addressBolds: await ProfilePage.getAddressBolds(),
       }
     })
   })
@@ -74,14 +78,14 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
     })
   })
 
-  // Désactivé en attendant le COJUR sur l'adresse remontée de la Caf (cf. en-tête du fichier).
-  // Corps conservé pour la réactivation (ProfilePage.editAddress / getAddressBolds à rétablir).
-  it.skip('modifie l\'adresse', async () => {
-    step('Modifier l\'adresse via autocomplétion BAN')
-    // await ProfilePage.editAddress('20 avenue de Ségur Paris')
+  it('modifie l\'adresse', async () => {
+    await platform().inWebContext(async () => {
+      step('Modifier l\'adresse via autocomplétion BAN')
+      await ProfilePage.editAddress(MODIFICATIONS.addressQuery)
 
-    // const bolds = await ProfilePage.getAddressBolds()
-    // expect(bolds.some(b => b.toLowerCase().includes('ségur'))).toBe(true)
+      const bolds = await ProfilePage.getAddressBolds()
+      expect(bolds.some(b => b.toLowerCase().includes(MODIFICATIONS.addressMarker))).toBe(true)
+    })
   })
 
   it('se déconnecte via le menu plus', async () => {
@@ -126,13 +130,12 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
     })
   })
 
-  // Désactivé en attendant le COJUR. Attendu : pour un compte sans adresse Caf, l'état original est
-  // l'absence d'adresse (à vérifier explicitement, pas seulement l'absence de « Ségur »).
-  it.skip('affiche l\'adresse originale (pas la valeur modifiée)', async () => {
-    step('Vérifier que l\'adresse est restaurée')
-    // const bolds = await ProfilePage.getAddressBolds()
-    // Compte sans adresse Caf : l'état original est l'absence d'adresse — vérifier ce fait explicitement,
-    // pas seulement l'absence de « Ségur » (qui passerait aussi si une autre adresse s'affichait par erreur).
-    // expect(bolds).toEqual([])
+  // Compte sans adresse d'origine : l'état attendu est alors « aucune adresse » (`[]`), pas seulement « sans Ségur » (qui passerait aussi
+  // si une autre adresse s'affichait par erreur).
+  it('affiche l\'adresse originale (pas la valeur modifiée)', async () => {
+    await platform().inWebContext(async () => {
+      step('Vérifier que l\'adresse est restaurée')
+      expect(await ProfilePage.getAddressBolds()).toEqual(original.addressBolds)
+    })
   })
 })
