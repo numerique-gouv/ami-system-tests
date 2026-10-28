@@ -2,7 +2,7 @@ import HomePage from '../../pages/home.page'
 import SuiviDemarchesPage from '@pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../pages/demarche-detail.page'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../helpers/partner-api'
-import {getUser} from '../../helpers/common/test-users'
+import {getTestUser} from '../../helpers/common/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 
@@ -18,7 +18,7 @@ import {step} from '@helpers/reporting/report'
  */
 describe('Cycle de vie d’une démarche', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
   let itemId: string
   let title: string
   let urlV1: string

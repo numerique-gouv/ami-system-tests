@@ -13,7 +13,7 @@ import {servicePublicLocators} from '../../../pages/locators/service-public.loca
 import {describeTarget, isBrokenTarget, isLoginWall} from '../../../helpers/webapp/link-check'
 import {environmentKind} from '../../../helpers/common/environment'
 import {openAppRoot} from '../../../helpers/common/session'
-import {getUser} from '../../../helpers/common/test-users'
+import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -48,7 +48,7 @@ describe('Non-régression — connexion FranceConnect silencieuse vers OTV', fun
   // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
 
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
 
   before(function () {
     if (environmentKind() !== 'preprod') {

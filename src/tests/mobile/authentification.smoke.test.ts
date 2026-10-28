@@ -3,7 +3,7 @@ import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
 import HomePage from '../../pages/home.page'
-import {getUser} from '../../helpers/common/test-users'
+import {getTestUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
 import {waitForNotificationAuthorization} from '../../helpers/mobile/ios-notifications'
@@ -23,7 +23,7 @@ describe('Authentification', function () {
   })
 
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
-    const user = getUser('avec_nom_dusage')
+    const user = getTestUser()
 
     step('1. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)

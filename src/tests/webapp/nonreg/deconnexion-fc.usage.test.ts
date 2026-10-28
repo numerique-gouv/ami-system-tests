@@ -4,7 +4,7 @@ import HomePage from '../../../pages/home.page'
 import FranceConnectDemoSpPage from '../../../pages/franceconnect/franceconnect-demo-sp.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {environmentKind} from '../../../helpers/common/environment'
-import {getUser} from '../../../helpers/common/test-users'
+import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -53,7 +53,7 @@ describe('Non-régression — déconnexion FranceConnect (staging)', function ()
     expect(await FranceConnectDemoSpPage.isAccountChooserShown()).toBe(true)
 
     step('5. Restauration : rouvrir la session FranceConnect, puis revenir sur AMI (session AMI intacte)')
-    await FranceConnectDemoSpPage.signInFromAccountChooser(getUser('avec_nom_dusage'))
+    await FranceConnectDemoSpPage.signInFromAccountChooser(getTestUser())
     await getAppToStartingState()
     expect(await HomePage.isHomeDisplayed(10000)).toBe(true)
   })

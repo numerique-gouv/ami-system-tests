@@ -8,7 +8,7 @@ import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {openDemarchesConsents, restoreDemarchesConsents, waitForBackendDemarchesConsent} from '../../../pages/consents.process'
 import {PARTNER_DN, getBackendUrl, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent, skipUnlessPartnerCredentials} from '../../../helpers/partner-api'
-import {getUser} from '../../../helpers/common/test-users'
+import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -42,7 +42,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
   // Délai posé au niveau du describe : un this.timeout() dans un it/hook est ignoré par WDIO (il lit le délai avant d'exécuter).
   this.timeout(420000)
 
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
   let original: Record<string, boolean> = {}
 
   /** Retire et donne le consentement du partenaire : c'est la SEULE différence entre les deux scénarios. */

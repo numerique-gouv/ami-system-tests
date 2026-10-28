@@ -3,7 +3,7 @@ import ZonesPage from '../../pages/zones.page'
 import {zonesLocators} from '../../pages/locators/zones.locators'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {PARTNER_AMI, grantDemarchesConsent} from '../../helpers/partner-api'
-import {getUser} from '../../helpers/common/test-users'
+import {getTestUser} from '../../helpers/common/test-users'
 
 /**
  * Préférences : suivi des démarches par partenaire (consentements), notifications, zones scolaires.
@@ -14,7 +14,7 @@ describe('Préférences', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
     // Le consentement AMI est la précondition du test « consentements ».
-    await grantDemarchesConsent(PARTNER_AMI, getUser('avec_nom_dusage').fcHash)
+    await grantDemarchesConsent(PARTNER_AMI, getTestUser().fcHash)
   })
 
   beforeEach(async function () {

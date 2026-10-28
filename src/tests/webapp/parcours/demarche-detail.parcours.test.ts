@@ -7,7 +7,7 @@ import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche, publishDemarcheEnfant} from '../../../helpers/partner-api'
 import {describeTarget, isBrokenTarget, isExpectedUnreachable, isLoginWall, toleratedUnreachableWarning} from '../../../helpers/webapp/link-check'
-import {getUser} from '../../../helpers/common/test-users'
+import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
@@ -26,7 +26,7 @@ describe('Non-régression — détail d’une démarche', function () {
   // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
 
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
   const stamp = new Date().toISOString()
   const itemId = `E2E-detail-${stamp}`
   const title = `Demarche E2E ${itemId} detail`

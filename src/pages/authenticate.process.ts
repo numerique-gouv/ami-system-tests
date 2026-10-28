@@ -9,7 +9,7 @@ import HomePage from './home.page'
 import ProfilePage from './profile.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/common/test-users'
-import {getUser} from '../helpers/common/test-users'
+import {getTestUser} from '../helpers/common/test-users'
 import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot, replaceWithAppRoot} from '../helpers/common/session'
 import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl} from '../helpers/common/first-screen'
 import logger from '@wdio/logger'
@@ -303,7 +303,7 @@ async function reachHome(user: TestUser): Promise<void> {
  * 4. L'URL d'arrivée est journalisée.
  */
 export async function getAppToStartingState(): Promise<void> {
-    const user = getUser('avec_nom_dusage')
+    const user = getTestUser()
 
     // 0. Déjà connecté ET sur l'accueil (cas du test précédent qui s'est terminé connecté) : rien à faire, ni rechargement
     //    ni authentification. L'accueil n'est lisible que session ouverte.
@@ -347,7 +347,7 @@ export async function getAppToLoggedOutState(): Promise<void> {
             // Au relancement de l'app avec une session ouverte, la feuille native « Activez les notifications » peut recouvrir l'accueil
             // (notifications non décidées, minuterie en mémoire remise à zéro) : l'accueil est lisible mais la WebView ne répond plus.
             await OnboardingNotificationsPage.dismiss()
-            await reachHome(getUser('avec_nom_dusage')) // ferme un éventuel onboarding : la déconnexion part de l'accueil
+            await reachHome(getTestUser()) // ferme un éventuel onboarding : la déconnexion part de l'accueil
             await platform().inWebContext(() => ProfilePage.logout())
             await FranceConnectMirePage.waitForLoginScreen()
             return

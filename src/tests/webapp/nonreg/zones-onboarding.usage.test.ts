@@ -10,7 +10,7 @@ import OnboardingZonesPage from '../../../pages/onboarding-zones.page'
 import PreferencesPage from '../../../pages/preferences.page'
 import ZonesPage from '../../../pages/zones.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {getUser} from '../../../helpers/common/test-users'
+import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 import logger from '@wdio/logger'
 
@@ -34,7 +34,7 @@ describe('Non-régression — zones choisies à l’onboarding', function () {
   // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(420000)
 
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
   let originalZones: Record<string, boolean> | undefined
 
   /**

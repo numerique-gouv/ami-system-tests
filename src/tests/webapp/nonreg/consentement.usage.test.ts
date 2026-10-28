@@ -5,7 +5,7 @@ import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {openDemarchesConsents, restoreDemarchesConsents, uncheckAllDemarchesConsents, waitForBackendDemarchesConsent as waitForBackendConsent} from '../../../pages/consents.process'
 import {PARTNER_AMI, PARTNER_DN, grantDemarchesConsent, publishDemarche} from '../../../helpers/partner-api'
-import {getUser} from '../../../helpers/common/test-users'
+import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 import {hasPageText} from '../../../helpers/spa/spa'
 import logger from '@wdio/logger'
@@ -23,7 +23,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
 
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
   let original: Record<string, boolean> = {}
 
   /** Le consentement AMI aux démarches vu par le backend atteint-il `expected` ? */

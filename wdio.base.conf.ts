@@ -9,6 +9,10 @@ import { runDirName } from './src/helpers/reporting/run-dir'
 
 const log = logger('scenario')
 
+/** Compte de test des scénarios : `TEST_USER` (surchargeable en ligne de commande), sinon ce compte ; lu par `getTestUser()`. */
+export const DEFAULT_TEST_USER = 'avec_nom_dusage'
+process.env.TEST_USER ||= DEFAULT_TEST_USER
+
 /**
  * `rootDir` de ce run, propre à chaque exécution : le service DevTools écrit ses traces sous `<rootDir>/test-results/`, donc dans
  * `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/test-results/` (cf. helpers/reporting/run-dir.ts). Calculé une seule fois par le

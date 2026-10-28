@@ -1,7 +1,7 @@
 import logger from '@wdio/logger'
 import NotificationsInboxPage from '../../pages/notifications.page'
 import {publishNotification} from '../../helpers/partner-api'
-import {getUser} from '../../helpers/common/test-users'
+import {getTestUser} from '../../helpers/common/test-users'
 import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
@@ -29,7 +29,7 @@ describe('Notifications', function () {
   // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe. B attend 3 × le délai du push (Android : FCM 45 à 70 s
   // mesurés le 2026-10-27, donc jusqu'à ~210 s d'attente négative) en plus des réglages et du centre de notifications.
   this.timeout(480000)
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
 
   /** Délai du push natif mesuré en A, réutilisé par B. */
   let measuredPushDelayMs: number | undefined

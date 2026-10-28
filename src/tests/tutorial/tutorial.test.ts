@@ -28,13 +28,13 @@
  * Un identifiant unique par exécution (`TUTO-${Date.now()}`) retrouve ses données parmi celles des autres runs.
  */
 import {getAppToStartingState} from '../../pages/authenticate.process'
-import {getUser} from '../../helpers/common/test-users'
+import {getTestUser} from '../../helpers/common/test-users'
 import {
   PARTNER_AMI, checkDemarchesConsent, grantDemarchesConsent, revokeDemarchesConsent, publishDemarche, publishDemarcheEnfant, publishNotification,
 } from '../../helpers/partner-api'
 
 describe.skip('Mon scénario', () => {
-  const user = getUser('avec_nom_dusage')
+  const user = getTestUser()
 
   // `beforeEach` standard des tests webapp (cf. src/tests/webapp/aide-contact.parcours.test.ts) : connecte l'app si besoin, puis remet l'app dans l'état de départ avant chaque test : le test précédent a pu s'arrêter n'importe où (page hors SPA,
   // déconnexion, onboarding). Repart de l'état courant : la vraie connexion n'a lieu qu'au premier appel, ensuite la session

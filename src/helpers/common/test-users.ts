@@ -91,3 +91,16 @@ export function getUser(login: FcLogin): TestUser {
   const { password, fcHash } = credentials[login]
   return { login, password, fcHash }
 }
+
+/**
+ * Compte de test de la session : variable d'environnement `TEST_USER` (un login de `credentials`), surchargeable en ligne de commande
+ * (`TEST_USER=sans_nom_dusage just test-webci …`). Sa valeur par défaut est posée par la configuration WDIO (`wdio.base.conf.ts`).
+ * Les scénarios la demandent ici plutôt que de choisir un compte eux-mêmes.
+ */
+export function getTestUser(): TestUser {
+  const login = process.env.TEST_USER
+  if (!login || !Object.hasOwn(credentials, login)) {
+    throw new Error(`TEST_USER « ${login ?? ''} » inconnu : comptes disponibles : ${Object.keys(credentials).join(', ')}`)
+  }
+  return getUser(login as FcLogin)
+}
