@@ -144,17 +144,22 @@ trait pointillé = lien partiel ou incertain.
 | Spec (`src/tests/webapp/`) | Parcours couvert sur le schéma |
 |---|---|
 | `authentification.smoke.test.ts` | Connexion → FranceConnect → clé d'accès → zones → notifications → Accueil |
-| `navigation.parcours.test.ts` | Barre basse (Agenda, Services, Suivi, retour Accueil) ; menu Plus : 6 entrées listées, 5 ouvertes |
 | `accueil.smoke.test.ts` | Accueil → cloche, évènements, démarches, carte OTV, carte adresse (sans enregistrer) |
 | `agenda.parcours.test.ts` | Agenda → dialogue évènement (Supprimer proposé, non cliqué) ; Préférences → page des zones → Retour |
 | `services.parcours.test.ts` | Services (2 onglets, entrées présentes) → checklist → section (cases décochées) ; fiche OTV par sa route |
-| `suivi.usage.test.ts` | Cycle new/wip/closed ; Suivi → détail (historique) → lien partenaire ; archivées **par route** |
+| `demarches-cycle-de-vie.usage.test.ts` (ex `suivi.usage.test.ts`) | Cycle new/wip/closed ; Suivi → détail (historique) → lien partenaire ; archivées **par route** |
 | `notifications.usage.test.ts` | Réception inbox ; notification de démarche → détail ; Gérer → préférences de notifications (le test « avec push consenti » est ignoré : service de push externe non fiable, les push sont testés sur mobile) |
-| `profil.usage.test.ts` | Profil → 3 formulaires (Annuler) ; modification nom d'usage et email puis restauration |
 | `preferences.parcours.test.ts` | Préférences → consentements (partenaires, AMI coché) ; notifications (case présente) ; Zones scolaires → page des zones → Fermer |
 | `aide-contact.parcours.test.ts` | Aide → Contact → dialogue ; pages légales : sections listées (non ouvertes) |
-| `deconnexion.usage.test.ts` | Plus → Me déconnecter → confirmation → connexion → reconnexion, données d'origine |
 | `erreurs.parcours.test.ts` | Les 3 pages d'erreur, par leur route |
+
+**Mise à jour du 2026-10-28 (le schéma ci-dessus n'est PAS redessiné ; les flèches `✔` n'ont pas été recalculées).**
+Des flèches `✔` reposaient sur des specs supprimées : `navigation.parcours.test.ts` (barre basse, menu Plus : la navigation n'a plus de spec dédiée, ses chemins sont exercés
+par les Page Objects des autres parcours sans assertion propre), `profil.usage.test.ts` (Profil et ses 3 formulaires) et `deconnexion.usage.test.ts` (Me déconnecter) : le profil et la déconnexion
+ne sont plus couverts que par le test **mobile** `profil-et-suppression-a-la-deconnexion.usage.test.ts`, qui teste aussi l'adresse. Non confirmé : lesquelles des flèches `✔` restent justifiées par un autre scénario.
+Autres changements de specs depuis ce tableau : `zones-onboarding.usage.test.ts` (nonreg, zone changée à l'onboarding visible dans Préférences et Agenda), `parcours/moments-de-vie.parcours.test.ts`
+(Services › « Trouver de l'aide », hors listes d'étapes), `nonreg/otv-connexion-silencieuse.usage.test.ts` (ex `passkey.usage.test.ts`, en **skip**, passkey en pause), et la fusion des scénarios de consentement
+dans `nonreg/consentement-demarches.usage.test.ts`.
 
 ## Ce qu'aucun scénario ne couvre
 
@@ -164,5 +169,5 @@ trait pointillé = lien partiel ou incertain.
 - changement réel de zones, « Fermer » depuis l'accès Agenda (non confirmé) ;
 - actions « Supprimer » (agenda) et « Archiver » (suivi), « Tout suivre », activation des notifications ;
 - chemin par bouton vers `/followup/archived`, rôle du bouton « Sous-menu » ;
-- enregistrement d'une adresse (`/edit-address`, volontairement écarté comme dans la suite mobile) ;
+- enregistrement d'une adresse en webapp (`/edit-address` ; testé seulement par la suite **mobile** depuis le 2026-10-28, qui ne l'écartait plus) ;
 - pages de prototype `/step`, `/step-form`, `/procedure-17cyber`.
