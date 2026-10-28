@@ -10,7 +10,7 @@ import ProfilePage from './profile.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/common/test-users'
 import {getUser} from '../helpers/common/test-users'
-import {currentUrlForLog, hasSessionToken, openAppRoot} from '../helpers/common/session'
+import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot} from '../helpers/common/session'
 import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl, pickFirstScreen} from '../helpers/common/first-screen'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
@@ -302,7 +302,8 @@ async function reachHome(user: TestUser): Promise<void> {
  * (sauf l'authentification) commence par là : le test précédent a pu s'arrêter n'importe où dans l'app.
  *
  * 0. Accueil déjà affiché (le test précédent s'est terminé connecté) → fini, rien n'est rechargé ni refait.
- * 1. Cookie de session présent → chargement de la racine de l'app (la SPA route vers l'accueil).
+ * 1. WebView sur une page serveur du backend hors de la SPA (cible d'un lien de démarche suivi par le test précédent) ou cookie de
+ *    session présent → chargement de la racine de l'app (la SPA route vers l'accueil, la session est conservée).
  * 2. Absent → rien n'est touché : la boucle déroule la connexion (sélecteur d'environnement, FranceConnect,
  *    eIDAS, identifiants) à partir de l'écran affiché.
  * 3. Jusqu'à l'accueil (« Bonjour »), les pages d'onboarding connues sont fermées.
@@ -319,7 +320,10 @@ export async function getAppToStartingState(): Promise<void> {
         return
     }
 
-    if (await hasSessionToken()) {
+    if (await isOnBackendPageOutsideSpa()) {
+        log.info(`getAppToStartingState: WebView sur une page du backend hors de la SPA (${await currentUrlForLog()}), chargement de la racine de l'app`)
+        await openAppRoot()
+    } else if (await hasSessionToken()) {
         log.info('getAppToStartingState: session ouverte, chargement de la racine de l\'app')
         await openAppRoot()
     } else {

@@ -1,7 +1,7 @@
 /* eslint-disable wdio/no-floating-promise -- node:test (describe/it renvoient des promesses sans les attendre) */
 import {describe, it} from 'node:test'
 import assert from 'node:assert/strict'
-import {describeFirstScreenTimeout, isLoginCallbackUrl, pickFirstScreen} from './first-screen'
+import {describeFirstScreenTimeout, isBackendPageOutsideSpa, isLoginCallbackUrl, pickFirstScreen} from './first-screen'
 
 describe('first-screen', () => {
   it('reconnaît la route login-callback, avec ou sans paramètres', () => {
@@ -28,5 +28,15 @@ describe('first-screen', () => {
     assert.match(msg, /accueil, passkey/)
     assert.match(msg, /25s/)
     assert.match(msg, /login-callback/)
+  })
+
+  it('distingue une page serveur du backend de la SPA et des autres origines', () => {
+    const backend = 'https://ami.example'
+    assert.equal(isBackendPageOutsideSpa('https://ami.example/demarches/E2E-1/v2#/', backend), true)
+    assert.equal(isBackendPageOutsideSpa('https://ami.example/', backend), false)
+    assert.equal(isBackendPageOutsideSpa('https://ami.example/#/followup', backend), false)
+    assert.equal(isBackendPageOutsideSpa('https://ami.example/?id_token=***#/login-callback', backend), false)
+    assert.equal(isBackendPageOutsideSpa('https://fcp-low.example/api/v2/authorize', backend), false)
+    assert.equal(isBackendPageOutsideSpa('about:blank', backend), false)
   })
 })

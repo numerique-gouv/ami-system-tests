@@ -1,5 +1,6 @@
 import {platform} from '../../platform'
 import {getBackendUrl} from '../partner-api'
+import {isBackendPageOutsideSpa} from './first-screen'
 import logger from '@wdio/logger'
 
 const log = logger('helper')
@@ -54,4 +55,11 @@ export async function currentUrlForLog(): Promise<string> {
   if (platform().kind !== 'webapp' && !await platform().isWebContextAvailable()) return 'écran natif (hors WebView)'
   return await platform().inWebContext(async () => maskSensitiveUrl(await browser.getUrl()))
     .catch(() => 'URL illisible')
+}
+
+/** La WebView affiche-t-elle une page serveur du backend hors de la SPA (cible d'un lien de démarche) ? Faux hors WebView ou si l'URL est illisible. */
+export async function isOnBackendPageOutsideSpa(): Promise<boolean> {
+  if (platform().kind !== 'webapp' && !await platform().isWebContextAvailable()) return false
+  return await platform().inWebContext(async () => isBackendPageOutsideSpa(await browser.getUrl(), getBackendUrl()))
+    .catch(() => false)
 }

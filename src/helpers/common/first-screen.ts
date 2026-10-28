@@ -21,3 +21,17 @@ export function pickFirstScreen<T extends {name: string}>(probed: Array<{screen:
 export function describeFirstScreenTimeout(expected: string[], url: string, waitedMs: number): string {
   return `aucun des écrans attendus (${expected.join(', ')}) n'est apparu en ${Math.round(waitedMs / 1000)}s, URL courante : ${url}`
 }
+
+/**
+ * `url` est-elle une page du backend HORS de la SPA ? La SPA est servie à la racine (`/`, ses routes sont dans le `#`) : un autre chemin du
+ * même backend est une page serveur (ex. la cible d'un lien de démarche, `/demarches/<id>/v2`, qui répond 404 sur staging). Une autre origine
+ * n'est pas jugée ici : ce peut être FranceConnect, dont les écrans font partie de la connexion.
+ */
+export function isBackendPageOutsideSpa(url: string, backendUrl: string): boolean {
+  try {
+    const page = new URL(url)
+    return page.origin === new URL(backendUrl).origin && page.pathname !== '/'
+  } catch {
+    return false
+  }
+}
