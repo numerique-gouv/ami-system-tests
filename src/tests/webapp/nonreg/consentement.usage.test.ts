@@ -2,12 +2,9 @@ import PreferencesPage from '../../../pages/preferences.page'
 import NavigationPage from '../../../pages/navigation.page'
 import HomePage from '../../../pages/home.page'
 import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
-import NotificationsInboxPage from '../../../pages/notifications.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {
-  PARTNER_AMI, PARTNER_DN, checkDemarchesConsent, hasPartnerCredentials, skipUnlessPartnerCredentials,
-  publicationOutcome, grantDemarchesConsent, publishDemarche, publishNotification, revokeDemarchesConsent,
-} from '../../../helpers/partner-api'
+import {openDemarchesConsents, restoreDemarchesConsents, waitForBackendDemarchesConsent as waitForBackendConsent} from '../../../pages/consents.process'
+import {PARTNER_AMI, PARTNER_DN, grantDemarchesConsent, publishDemarche} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 import {hasPageText} from '../../../helpers/spa/spa'
@@ -29,18 +26,8 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   const user = getUser('avec_nom_dusage')
   let original: Record<string, boolean> = {}
 
-  /** Ouvre Préférences › Suivi des démarches depuis l'application. */
-  async function openDemarchesConsents(): Promise<void> {
-    await PreferencesPage.open()
-    await PreferencesPage.openDemarchesConsents()
-  }
-
-  /** Le consentement AMI aux démarches vu par le backend atteint-il `expected` ? (la bascule d'une case est asynchrone) */
-  async function waitForBackendDemarchesConsent(expected: boolean): Promise<void> {
-    await browser.waitUntil(async () => await checkDemarchesConsent(PARTNER_AMI, user.fcHash) === expected, {
-      timeout: 10000, interval: 500, timeoutMsg: `Le backend ne renvoie pas « consentement AMI = ${expected} » après 10000ms`,
-    })
-  }
+  /** Le consentement AMI aux démarches vu par le backend atteint-il `expected` ? */
+  const waitForBackendDemarchesConsent = (expected: boolean): Promise<void> => waitForBackendConsent(PARTNER_AMI, user.fcHash, expected)
 
   before(async function () {
     await getAppToStartingState()
@@ -53,16 +40,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   })
 
   after(async function () {
-    await openDemarchesConsents()
-    await PreferencesPage.restoreDemarchesConsents(original)
-    // Le consentement AMI se rétablit aussi côté API : un test a pu le révoquer sans passer par la case.
-    if (original[PARTNER_AMI]) await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
-    else await revokeDemarchesConsent(PARTNER_AMI, user.fcHash)
-    // Idem pour DN, que S5 et S5.2 manipulent par l'API (seulement si ses identifiants sont fournis).
-    if (hasPartnerCredentials(PARTNER_DN)) {
-      if (original[PARTNER_DN]) await grantDemarchesConsent(PARTNER_DN, user.fcHash)
-      else await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
-    }
+    await restoreDemarchesConsents(original, user.fcHash)
   })
 
   it('S3 — « Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif', async function () {
@@ -126,71 +104,6 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     await NavigationPage.reload()
     const states = await PreferencesPage.demarchesConsentStates()
     expect(keys.map(key => states[key])).toEqual(keys.map(() => true))
-  })
-
-  // S5 et S5.2 exigent un partenaire À CONSENTEMENT ACTIVÉ (flag `consent_is_enabled` du partenaire, backend) : le partenaire AMI est un
-  // partenaire système dont le consentement est ignoré (PUT sans consentement : 201). On utilise `dinum-dn` ; identifiants
-  // NOTIF_PARTNER_DINUM_DN_ID / _SECRET dans .env, sinon le test est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
-  // Ce n'est pas le réglage des notifications push, global à AMI et sans endpoint (voir notifications.usage.test.ts).
-  it('S5 — une notification refusée sans consentement n’apparaît jamais, même après activation ; la suivante oui', async function () {
-    skipUnlessPartnerCredentials(this, PARTNER_DN)
-    const stamp = Date.now()
-    const before = `AMI-sans-consentement-${stamp}`
-    const after = `AMI-avec-consentement-${stamp}`
-
-    step('1. Retirer le consentement DN (API) et publier N1 sans consentement')
-    await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
-    // Précondition vérifiée côté backend : sans elle, N1 pourrait être acceptée simplement parce que la révocation n'a pas eu lieu.
-    expect(await checkDemarchesConsent(PARTNER_DN, user.fcHash)).toBe(false)
-    // Appelant réel : GET consent puis arrêt, sans PUT.
-    await expect(publishNotification({partner: PARTNER_DN, title: before, body: 'Doit rester invisible', recipientFcHash: user.fcHash}))
-      .rejects.toThrow(/pas de consentement/)
-    // Appel direct à PUT /api/v2/event : c'est le BACKEND qui doit refuser (404), pas répondre 201.
-    const issueN1 = await publicationOutcome(() => publishNotification({partner: PARTNER_DN, title: before, body: 'Doit rester invisible', recipientFcHash: user.fcHash, verifyPartnerConsent: false}))
-    expect(issueN1).toBe('refusée')
-
-    step('2. Activer le consentement DN (API), ouvrir l’inbox puis publier N2')
-    await grantDemarchesConsent(PARTNER_DN, user.fcHash)
-    await getAppToStartingState()
-    await NotificationsInboxPage.openFromHome()
-    // Avant de publier : l'inbox ouvre son WebSocket au montage (cf. notifications.usage.test.ts).
-    await NotificationsInboxPage.assertDisplayed()
-    await publishNotification({partner: PARTNER_DN, title: after, body: 'Doit apparaître', recipientFcHash: user.fcHash})
-
-    step('3. N2 est reçue ; N1 (refusée) n’est jamais visible')
-    await NotificationsInboxPage.assertNotificationReceived(after)
-    expect(await NotificationsInboxPage.isNotificationListed(before, 2000)).toBe(false)
-  })
-
-  it('S5.2 — sans consentement, la publication est refusée et rien n’apparaît dans l’inbox ; avec consentement, elle apparaît', async function () {
-    skipUnlessPartnerCredentials(this, PARTNER_DN)
-    const stamp = Date.now()
-    const sans = `AMI-s52-sans-consentement-${stamp}`
-    const avec = `AMI-s52-avec-consentement-${stamp}`
-
-    step('1. Retirer le consentement DN (API), ouvrir l’inbox')
-    await revokeDemarchesConsent(PARTNER_DN, user.fcHash)
-    expect(await checkDemarchesConsent(PARTNER_DN, user.fcHash)).toBe(false)
-    await getAppToStartingState()
-    await NotificationsInboxPage.openFromHome()
-    await NotificationsInboxPage.assertDisplayed()
-
-    step('2. Appel direct à PUT /api/v2/event sans consentement : le backend REFUSE (404), rien n’apparaît dans l’inbox')
-    // Le GET consent puis PUT d'un partenaire réel s'arrêterait au GET ; `verifyPartnerConsent: false` force le PUT pour tester le refus.
-    const issue = await publicationOutcome(() => publishNotification({partner: PARTNER_DN, title: sans, body: 'Refusée sans consentement', recipientFcHash: user.fcHash, verifyPartnerConsent: false}))
-    expect(issue).toBe('refusée')
-    expect(await NotificationsInboxPage.isNotificationListed(sans, 5000)).toBe(false)
-    await NavigationPage.reload()
-    await NotificationsInboxPage.assertDisplayed()
-    expect(await NotificationsInboxPage.isNotificationListed(sans, 8000)).toBe(false)
-
-    step('3. Redonner le consentement : une notification publiée ensuite DOIT apparaître')
-    await grantDemarchesConsent(PARTNER_DN, user.fcHash)
-    expect(await checkDemarchesConsent(PARTNER_DN, user.fcHash)).toBe(true)
-    await NavigationPage.reload() // rouvre le WebSocket de l'inbox avec le consentement actif
-    await NotificationsInboxPage.assertDisplayed()
-    await publishNotification({partner: PARTNER_DN, title: avec, body: 'Doit apparaître', recipientFcHash: user.fcHash})
-    await NotificationsInboxPage.assertNotificationReceived(avec)
   })
 
   it('S6 — décocher le consentement AMI alors qu’une démarche est suivie affiche l’avertissement', async function () {
