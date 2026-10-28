@@ -43,7 +43,9 @@ const log = logger('test')
  *    existante » de staging suggère une connexion par passkey) ? La silencieuse dépend-elle de la démarche (« Déclaration de changement
  *    d'adresse » aboutit sur une page de connexion, cf. demarche-detail.parcours) ? Quel environnement cibler ?
  */
-describe('Non-régression — connexion FranceConnect silencieuse vers OTV', function () {
+// SKIP (décision de l'équipe, 2026-10-28) : la passkey est mise de côté pour le moment. Les deux scénarios passaient en préprod
+// (2 passing, 3 min 47) ; les retirer d'ici pour les rejouer, avec les réponses aux questions ci-dessus.
+describe.skip('Non-régression — connexion FranceConnect silencieuse vers OTV', function () {
   // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
   // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
