@@ -1,6 +1,8 @@
 # Face B — scénarios de src/tests/webapp/** (cible webapp, Chrome).
 # Décrit le code TEL QUE LU le 2026-10-06 (specs de src/tests/webapp/*.test.ts) puis le 2026-10-15 (nonreg/ et zones-commune) : la trace
 # est déclarée, pas mesurée (spec.md §9).
+# Mise à jour du 2026-10-28 (specs supprimées, renommées, fusionnées ou mises en skip, voir les commentaires `# === …`) : seules les entrées touchées ont été
+# réécrites, d'après le code lu ce jour ; les traces des autres entrées n'ont pas été relues. Les codes S… ont disparu des titres de `it()`.
 # Les `steps` n'énumèrent que ce que le test accomplit ET vérifie.
 x-anchors:
   auth: &auth [ami-spa:$authenticated]
@@ -33,109 +35,9 @@ scenarios:
       - {do: "ami-spa:welcome-notifications#dismiss", steps: [trigger, arrive], note: "arrive = HomePage.assertHomeVisible"}
       - {observe: "ami-spa:home@greeting", expect: "/^Bonjour \\S+/"}
 
-  # === deconnexion.usage.test.ts ===================================================================
-  - id: webapp.deconnexion.logout-and-relogin-restores-data
-    source: {file: src/tests/webapp/deconnexion.usage.test.ts, describe: Déconnexion, it: "se déconnecte après confirmation, puis se reconnecte avec les données d'origine"}
-    status: active
-    targets: [webapp]
-    tags: {epic: Authentification, feature: Déconnexion, severity: critical, other: [franceconnect]}
-    requires: *auth
-    trace:
-      - {observe: "ami-spa:profile@identity", note: "Capture de l'origine dans before()."}
-      - {do: "ami-spa:profile#open-edit-identity", steps: [trigger, arrive], note: "dans ProfilePage.editPreferredUsername"}
-      - {do: "ami-spa:edit-preferred-username#save", steps: [read-origin, mutate, read-mutation, restore], note: "La restauration est celle de la déconnexion, vérifiée après reconnexion."}
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "dans ProfilePage.logout"}
-      - {do: "ami-spa:plus-menu#logout", steps: [trigger, arrive]}
-      - {do: "ami-spa:logout-confirm#confirm", steps: [trigger, arrive], note: "arrive = FranceConnectMirePage.waitForLoginScreen"}
-      - {visit: "ami-spa:home", note: "Reconnexion : getAppToStartingState({grantConsent: false})"}
-      - {visit: "ami-spa:profile"}
-      - {observe: "ami-spa:profile@identity", expect: "valeurs d'origine présentes, NOMTEST absent"}
-    cleanup:
-      - {restores: "ami-spa:profile@identity", by: logout, assured: asserted}
-      - {restores: "ami-spa:profile@identity", by: after-hook, assured: best-effort, note: "Filet si le test échoue avant la déconnexion."}
+  # === deconnexion.usage.test.ts : SUPPRIMÉ le 2026-10-28 (déconnexion et reconnexion portées par mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts) ===
 
-  # === navigation.parcours.test.ts ====================================================================
-  - id: webapp.navigation.tab-agenda
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "la barre basse ouvre « ${tab} » puis revient à l'accueil", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:%tab-bar#go-agenda", steps: [trigger, arrive]}
-      - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
-  - id: webapp.navigation.tab-services
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "la barre basse ouvre « ${tab} » puis revient à l'accueil", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:%tab-bar#go-services", steps: [trigger, arrive]}
-      - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
-  - id: webapp.navigation.tab-followup
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "la barre basse ouvre « ${tab} » puis revient à l'accueil", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
-      - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
-  - id: webapp.navigation.plus-menu-entries
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "le menu Plus propose les 6 entrées attendues"}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {observe: "ami-spa:plus-menu@entries", expect: "les 6 entrées, dans l'ordre"}
-  - id: webapp.navigation.plus-open-profile
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "le menu Plus ouvre « ${entry} »", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-profile", steps: [trigger, arrive]}
-  - id: webapp.navigation.plus-open-preferences
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "le menu Plus ouvre « ${entry} »", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
-  - id: webapp.navigation.plus-open-help-center
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "le menu Plus ouvre « ${entry} »", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-help-center", steps: [trigger, arrive]}
-  - id: webapp.navigation.plus-open-personal-data
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "le menu Plus ouvre « ${entry} »", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-personal-data", steps: [trigger, arrive]}
-  - id: webapp.navigation.plus-open-accessibility
-    source: {file: src/tests/webapp/navigation.parcours.test.ts, describe: Navigation principale, it: "le menu Plus ouvre « ${entry} »", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Navigation, feature: Navigation principale, severity: critical}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-accessibility", steps: [trigger, arrive]}
+  # === navigation.parcours.test.ts : SUPPRIMÉ le 2026-10-28 (la barre basse et le menu Plus sont exercés par les Page Objects des autres parcours, sans assertion propre) ===
 
   # === accueil.smoke.test.ts =======================================================================
   - id: webapp.accueil.content
@@ -377,70 +279,7 @@ scenarios:
       - {observe: "ami-spa:preferences-zones@zone-states", expect: "les 13 zones dans l'ordre des locators ; états non modifiés"}
       - {do: "ami-spa:preferences-zones#close", steps: [trigger, arrive], note: "arrive = PreferencesPage.assertDisplayed"}
 
-  # === profil.usage.test.ts ========================================================================
-  - id: webapp.profil.shows-data
-    source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "affiche l'identité, le contact et l'adresse issus de FranceConnect"}
-    status: active
-    targets: [webapp]
-    tags: {epic: Profil usager, feature: Profil usager, severity: normal}
-    requires: *auth
-    trace:
-      - {visit: "ami-spa:profile"}
-      - {observe: "ami-spa:profile@identity", expect: "non vide, nom d'usage extractible"}
-      - {observe: "ami-spa:profile@contact", expect: "/^\\S+@\\S+$/"}
-    note: "Le titre annonce l'adresse, l'assertion ne porte pas dessus : profile@address n'est pas observé."
-  - id: webapp.profil.cancel-edit-identity
-    source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "« Modifier » ouvre « ${heading} » et « Annuler » revient au profil sans rien changer", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Profil usager, feature: Profil usager, severity: normal}
-    requires: *auth
-    trace:
-      - {do: "ami-spa:profile#open-edit-identity", steps: [trigger, arrive]}
-      - {do: "ami-spa:edit-preferred-username#cancel", steps: [trigger, arrive]}
-      - {observe: "ami-spa:profile@contact", expect: "email inchangé"}
-  - id: webapp.profil.cancel-edit-contact
-    source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "« Modifier » ouvre « ${heading} » et « Annuler » revient au profil sans rien changer", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Profil usager, feature: Profil usager, severity: normal}
-    requires: *auth
-    trace:
-      - {do: "ami-spa:profile#open-edit-contact", steps: [trigger, arrive]}
-      - {do: "ami-spa:edit-email#cancel", steps: [trigger, arrive]}
-      - {observe: "ami-spa:profile@contact", expect: "email inchangé"}
-  - id: webapp.profil.cancel-edit-address
-    source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "« Modifier » ouvre « ${heading} » et « Annuler » revient au profil sans rien changer", parametrized: true}
-    status: active
-    targets: [webapp]
-    tags: {epic: Profil usager, feature: Profil usager, severity: normal}
-    requires: *auth
-    trace:
-      - {do: "ami-spa:profile#open-edit-address", steps: [trigger, arrive]}
-      - {do: "ami-spa:edit-address#cancel", steps: [trigger, arrive]}
-      - {observe: "ami-spa:profile@contact", expect: "email inchangé", note: "L'assertion porte sur l'email, pas sur l'adresse."}
-  - id: webapp.profil.edit-preferred-username
-    source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "permet de modifier le nom d'usage du bloc « Mon identité »"}
-    status: active
-    targets: [webapp]
-    tags: {epic: Profil usager, feature: Profil usager, severity: normal}
-    requires: *auth
-    trace:
-      - {do: "ami-spa:profile#open-edit-identity", steps: [trigger, arrive]}
-      - {do: "ami-spa:edit-preferred-username#save", steps: [read-origin, mutate, read-mutation, restore]}
-    cleanup:
-      - {restores: "ami-spa:profile@identity", by: after-hook, assured: best-effort, note: "after() : try/catch silencieux, relecture non vérifiée."}
-  - id: webapp.profil.edit-email
-    source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "permet de modifier l'email du bloc « Contact »"}
-    status: active
-    targets: [webapp]
-    tags: {epic: Profil usager, feature: Profil usager, severity: normal}
-    requires: *auth
-    trace:
-      - {do: "ami-spa:profile#open-edit-contact", steps: [trigger, arrive]}
-      - {do: "ami-spa:edit-email#save", steps: [read-origin, mutate, read-mutation, restore]}
-    cleanup:
-      - {restores: "ami-spa:profile@contact", by: after-hook, assured: best-effort, note: "after() : try/catch silencieux, relecture non vérifiée."}
+  # === profil.usage.test.ts : SUPPRIMÉ le 2026-10-28 (profil porté par mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts ; plus aucun scénario webapp sur le profil) ===
 
   # === services.parcours.test.ts ======================================================================
   - id: webapp.services.help-tab
@@ -485,9 +324,9 @@ scenarios:
       - {do: "ami-spa:service-otv#goto-route", steps: [trigger, arrive]}
       - {observe: "ami-spa:service-otv@benefit-button", expect: "proposé ; non cliqué"}
 
-  # === suivi.usage.test.ts =========================================================================
+  # === demarches-cycle-de-vie.usage.test.ts (ex suivi.usage.test.ts, renommé le 2026-10-28 ; les identifiants `webapp.suivi.*` sont conservés) ===
   - id: webapp.suivi.demarche-new
-    source: {file: src/tests/webapp/suivi.usage.test.ts, describe: Suivi des démarches, it: "crée une démarche visible dans le suivi (statut new)"}
+    source: {file: src/tests/webapp/demarches-cycle-de-vie.usage.test.ts, describe: Cycle de vie d’une démarche, it: "crée une démarche visible dans le suivi (statut new)"}
     status: active
     targets: [webapp]
     tags: {epic: Démarches, feature: Suivi des démarches, severity: critical, other: [api-notifications]}
@@ -500,7 +339,7 @@ scenarios:
       - {observe: "ami-spa:followup-item@external-link", expect: "URL V1"}
     note: "Les 3 premiers it() partagent un itemId : exception documentée à l'isolation (CONTRIBUTING.md §6)."
   - id: webapp.suivi.demarche-wip
-    source: {file: src/tests/webapp/suivi.usage.test.ts, describe: Suivi des démarches, it: "met à jour l'URL externe de la démarche (statut wip)"}
+    source: {file: src/tests/webapp/demarches-cycle-de-vie.usage.test.ts, describe: Cycle de vie d’une démarche, it: "met à jour l'URL externe de la démarche (statut wip)"}
     status: active
     targets: [webapp]
     tags: {epic: Démarches, feature: Suivi des démarches, severity: critical, other: [api-notifications]}
@@ -511,7 +350,7 @@ scenarios:
       - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup-item@external-link", expect: "URL V2"}
   - id: webapp.suivi.demarche-closed
-    source: {file: src/tests/webapp/suivi.usage.test.ts, describe: Suivi des démarches, it: "clôture la démarche (statut closed) et affiche son historique dans le détail"}
+    source: {file: src/tests/webapp/demarches-cycle-de-vie.usage.test.ts, describe: Cycle de vie d’une démarche, it: "clôture la démarche (statut closed) et affiche son historique dans le détail"}
     status: active
     targets: [webapp]
     tags: {epic: Démarches, feature: Suivi des démarches, severity: critical, other: [api-notifications]}
@@ -524,7 +363,7 @@ scenarios:
       - {observe: "ami-spa:followup-item@reference", expect: "itemId"}
       - {observe: "ami-spa:followup-item@history", expect: "les 3 messages publiés"}
   - id: webapp.suivi.archived
-    source: {file: src/tests/webapp/suivi.usage.test.ts, describe: Suivi des démarches, it: "affiche la page des démarches archivées et les partenaires suivis"}
+    source: {file: src/tests/webapp/demarches-cycle-de-vie.usage.test.ts, describe: Cycle de vie d’une démarche, it: "affiche la page des démarches archivées et les partenaires suivis"}
     status: active
     targets: [webapp]
     tags: {epic: Démarches, feature: Suivi des démarches, severity: critical, other: [api-notifications]}
@@ -533,25 +372,40 @@ scenarios:
       - {do: "ami-spa:followup-archived#goto-route", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup-archived@partners", expect: "contient AMI, Démarche Numérique, RDV Service Public, Service Public"}
 
-  # === zones-commune.parcours.test.ts (squelette 2026-10-15) ==========================================
-  - id: webapp.zones-commune.open-add-cities
-    source: {file: src/tests/webapp/zones-commune.parcours.test.ts, describe: "Zones scolaires › recherche d'une commune", it: "« Ajouter des communes » ouvre la recherche d'une commune, puis « Retour » revient aux zones"}
-    status: skipped
-    reason: "it.skip : squelette sans implémentation (aucun locator ni Page Object) ; route confirmée en live le 2026-10-15."
+  # === zones-commune.parcours.test.ts : squelette (2 it.skip) SUPPRIMÉ le 2026-10-28 ; la route `#/preferences/zones/city` (« Rechercher une commune ») reste observée mais sans scénario ===
+  # === nonreg/zones-onboarding.usage.test.ts (ajouté le 2026-10-28) ===
+  # MODIFIE les zones du compte : état d'origine relevé sur l'écran d'onboarding, rétabli dans after().
+  - id: webapp.zones-onboarding.zone-choice
+    source: {file: src/tests/webapp/nonreg/zones-onboarding.usage.test.ts, describe: Non-régression — zones choisies à l’onboarding, it: "une zone changée à l’onboarding est enregistrée dans les préférences et dans l’agenda, la remettre dans les préférences rétablit l’agenda"}
+    status: active
     targets: [webapp]
-    intends: ["ami-spa:preferences-zones#open-add-cities", "ami-spa:zones-city#back"]
-  - id: webapp.zones-commune.suggestions
-    source: {file: src/tests/webapp/zones-commune.parcours.test.ts, describe: "Zones scolaires › recherche d'une commune", it: "la saisie d'un nom de commune propose des suggestions (sans en choisir)"}
-    status: skipped
-    reason: "it.skip : NON CONFIRMÉ, autocomplétion vue dans le code `origin/main` seulement, aucune saisie faite en live."
-    targets: [webapp]
-    intends: ["ami-spa:zones-city@suggestions"]
-    unmodeled: ["saisie dans le champ de recherche", "origine des suggestions (backend d'adresses tiers probable, hypothèse)"]
+    tags: {other: [franceconnect]}
+    requires: ["ami-spa:$logged-out"]
+    trace:
+      - {do: "ami-spa:login#start-franceconnect", steps: [trigger, arrive]}
+      - {do: "franceconnect:eidas-choice#select-eidas-low", steps: [trigger, arrive]}
+      - {do: "franceconnect:credentials#submit-credentials", steps: [trigger]}
+      - {do: "ami-spa:welcome-passkey#dismiss", steps: [trigger], note: "seulement si l'écran est proposé (sonde de 15 s)"}
+      - {visit: "ami-spa:welcome-zones", note: "OnboardingZonesPage.isVisible(15000) ; états d'origine relevés (zoneStates), puis la zone B est basculée à l'inverse de son état d'origine."}
+      - {do: "ami-spa:welcome-zones#skip", steps: [trigger]}
+      - {do: "ami-spa:welcome-notifications#dismiss", steps: [trigger, arrive], note: "arrive = HomePage.assertHomeVisible(30000)"}
+      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "PreferencesPage.open"}
+      - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
+      - {do: "ami-spa:preferences#open-zones", steps: [trigger, arrive]}
+      - {observe: "ami-spa:preferences-zones@zone-states", expect: "Zone B à l'inverse de l'état d'origine, avant et après rechargement"}
+      - {do: "ami-spa:agenda#goto-route", steps: [trigger, arrive], note: "La page des zones n'a pas de barre basse : l'Agenda se rejoint par sa route."}
+      - {observe: "ami-spa:agenda@events", expect: "aucune tuile ne cite « Zone B » si elle est décochée ; au moins une si elle est cochée (avertissement, non bloquant, s'il n'y a aucune tuile de vacances à la date)"}
+      - {do: "ami-spa:preferences-zones#toggle-zone", steps: [enable, present], with: {zone: Zone B}, note: "Remise dans les Préférences. enable/present supposent que la zone B est cochée à l'origine (commentaire du test : « cochée par défaut ») ; le test suit l'état relevé."}
+      - {observe: "ami-spa:agenda@events", expect: "effet sur l'agenda de la remise en état"}
+    unmodeled: ["changement de zone SUR L'ÉCRAN D'ONBOARDING (OnboardingZonesPage.setZone) : cases enregistrées dès le clic, sans bouton de validation (« Passer » seul), observé en staging le 2026-10-28"]
+    note: "Part d'une session vierge : wdio.webapp.conf.ts supprime le profil Chrome avant cette spec. Une exécution du 2026-10-28 (staging) : 1 passing, 1 min 22 ; non rejouée depuis."
+    cleanup:
+      - {restores: "ami-spa:preferences-zones@zone-states", by: after-hook, assured: best-effort, note: "restoreZones ne relit pas l'état après écriture."}
 
   # === parcours/catalogue.parcours.test.ts (plan : parcours/catalogue.md) ==================================
   # Plans écrits d'après la réunion du 2026-10-06 ; relevés en préprod le 2026-10-15 (AMI_ENV=preprod, compte avec_nom_dusage).
   - id: webapp.catalogue.s1-1-cartes-valides
-    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.1 — chaque carte du catalogue mène à une page valide"}
+    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue des démarches et outils (smoke)", it: "chaque carte du catalogue mène à une page valide"}
     status: active
     targets: [webapp]
     requires: *home
@@ -562,8 +416,9 @@ scenarios:
       - {do: "ami-spa:services-tools#open-partner-card", steps: [trigger, http-ok], with: {card: "chacune, une par une"}, note: "Cible externe : statut < 400 et page rendue qui n'est pas une page d'erreur. Une page de connexion (200) est un avertissement. Les hôtes tolérés (réseau privé) sont un avertissement. La carte interne (OTV) n'est pas contrôlée. Retour dans l'application après chaque carte."}
     note: "`arrive` n'est pas revendiqué : une cible externe n'a pas d'identité vérifiée (écran `ext-service-sites` sans identity)."
 
-  - id: webapp.catalogue.s1-2-cyber-et-checklists
-    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.2 — « Trouver de l’aide » : le diagnostic cybermalveillance et les checklists s’ouvrent"}
+  # === parcours/moments-de-vie.parcours.test.ts (ajouté le 2026-10-28 : S1.2 réduit au contenu des iframes, S1.3 hors listes d'étapes) ====
+  - id: webapp.moments-de-vie.cyber-iframes
+    source: {file: src/tests/webapp/parcours/moments-de-vie.parcours.test.ts, describe: "Non-régression — moments de vie, « Trouver de l’aide » (smoke)", it: "le diagnostic cybermalveillance charge ses iframes"}
     status: active
     targets: [webapp]
     requires: *home
@@ -571,35 +426,33 @@ scenarios:
       - {do: "ami-spa:%tab-bar#go-services", steps: [trigger, arrive]}
       - {do: "ami-spa:services#open-cyber-diagnostic", steps: [trigger, arrive]}
       - {observe: "ami-spa:cyber-diagnostic@frames", expect: "au moins un iframe, dont l'adresse répond avec un statut < 400"}
-      - {do: "ami-spa:services#open-checklist", steps: [trigger, arrive], with: {checklist: "les 5 listes « Comment faire si… » (libellés codés dans le test)"}, note: "Retour par l'adresse entre chaque liste (la route d'une checklist n'a pas de barre basse)."}
-      - {observe: "ami-spa:checklist@sections", expect: "au moins une section « n/m » par liste"}
+    note: "Les checklists « Comment faire si… » ne sont plus ouvertes ici (retrait du 2026-10-28) : elles sont couvertes par les listes d'étapes."
 
-  - id: webapp.catalogue.s1-3-entrees-aide-valides
-    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.3 — chaque entrée de « Trouver de l’aide » mène à une page valide"}
+  - id: webapp.moments-de-vie.entrees-valides
+    source: {file: src/tests/webapp/parcours/moments-de-vie.parcours.test.ts, describe: "Non-régression — moments de vie, « Trouver de l’aide » (smoke)", it: "chaque entrée de « Trouver de l’aide », hors listes d’étapes, mène à une page valide"}
     status: active
     targets: [webapp]
     requires: *home
     trace:
       - {do: "ami-spa:%tab-bar#go-services", steps: [trigger, arrive]}
       - {observe: "ami-spa:services@help-entries", expect: "au moins une entrée ; libellés lus, jamais codés"}
-      - {do: "ami-spa:services#open-help-entry", steps: [trigger, http-ok], with: {entry: "chacune, une par une"}, note: "Route interne : pas une page d'erreur de l'application. Cible externe : statut < 400. Hôte de préproduction joignable seulement depuis un réseau privé : avertissement (PRIVATE_NETWORK_HOSTS), pas un échec."}
+      - {do: "ami-spa:services#open-help-entry", steps: [trigger, http-ok], with: {entry: "chacune, une par une, sauf les listes d'étapes (libellés de `stepsListLabels`, ignorés)"}, note: "Route interne : pas une page d'erreur de l'application. Cible externe : statut < 400. Hôte de préproduction joignable seulement depuis un réseau privé : avertissement (PRIVATE_NETWORK_HOSTS), pas un échec."}
     note: "Les cibles cassées sont rapportées en une fois. Durée ~5 min 40 s (parcours/catalogue.md)."
 
-  - id: webapp.catalogue.s2-1-aide-et-contact
-    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S2.1 — « Aide et contact » : l’aide de l’administration répond et « Nous contacter » s’affiche"}
+  # === aide-contact.parcours.test.ts : S2.1 déplacé ici le 2026-10-28, réduit au contrôle HTTP de l'aide de l'administration (le dialogue de Contact y a déjà son scénario) ===
+  - id: webapp.aide-contact.administration-help-http
+    source: {file: src/tests/webapp/aide-contact.parcours.test.ts, describe: "Aide, contact et pages légales", it: "« J'ai besoin de l'aide de l'administration » mène à une page service-public.gouv.fr qui répond"}
     status: active
     targets: [webapp]
     requires: *home
     trace:
       - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "AideContactPage.openHelpCenter"}
       - {do: "ami-spa:plus-menu#open-help-center", steps: [trigger, arrive]}
-      - {do: "ami-spa:help-center#open-administration-help", steps: [trigger, http-ok], note: "L'hôte contient service-public.gouv.fr ; statut < 400."}
-      - {do: "ami-spa:help-center#open-contact", steps: [trigger, arrive]}
-      - {do: "ami-spa:contact#open-actions-dialog", steps: [trigger, arrive]}
+      - {do: "ami-spa:help-center#open-administration-help", steps: [trigger, http-ok], note: "L'hôte contient service-public.gouv.fr ; statut < 400. Retour dans l'application ensuite (returnFromExternal)."}
 
   # === parcours/liste-etapes.parcours.test.ts (plan : parcours/catalogue.md § S1.4) ========================
   - id: webapp.liste-etapes.s1-4-liens-valides
-    source: {file: src/tests/webapp/parcours/liste-etapes.parcours.test.ts, describe: Non-régression — listes d’étapes, it: "S1.4 — chaque lien des listes d’étapes mène à une page valide, directement ou par la page intermédiaire"}
+    source: {file: src/tests/webapp/parcours/liste-etapes.parcours.test.ts, describe: Non-régression — listes d’étapes, it: "chaque lien des listes d’étapes mène à une page valide, directement ou par la page intermédiaire"}
     status: active
     targets: [webapp]
     requires: *home
@@ -619,7 +472,7 @@ scenarios:
   # === nonreg/consentement.usage.test.ts (plan : nonreg/consentement.md) ============================
   # Ces scénarios MODIFIENT les consentements du compte : état d'origine relevé dans before(), rétabli dans after() sans relecture.
   - id: webapp.consentement.s3-bouton-suivre
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S3 — « Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif"}
+    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "« Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif"}
     status: active
     targets: [webapp]
     requires: *home
@@ -639,7 +492,7 @@ scenarios:
       - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort, note: "restoreConsents ne relit pas l'état après écriture ; consentement AMI rétabli aussi par l'API."}
 
   - id: webapp.consentement.s4-1-persistance-backend
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S4.1 — une case de consentement basculée est persistée côté backend"}
+    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "une case de consentement basculée est persistée côté backend"}
     status: active
     targets: [webapp]
     requires: *home
@@ -658,7 +511,7 @@ scenarios:
       - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort}
 
   - id: webapp.consentement.s4-2-tout-suivre
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S4.2 — « Tout suivre » active tous les consentements"}
+    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "« Tout suivre » active tous les consentements"}
     status: active
     targets: [webapp]
     requires: *home
@@ -673,85 +526,35 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort}
 
-  - id: webapp.consentement.s5-notification-sans-consentement
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S5 — une notification reçue sans consentement n’apparaît jamais, même après activation ; la suivante oui"}
-    status: active
-    targets: [webapp]
-    requires: *home
-    trace:
-      - {call: *grant, with: {action: "retirer le consentement AMI"}}
-      - {call: *check, with: {attendu: false}, note: "Précondition vérifiée côté backend."}
-      - {call: *api, with: {checkConsent: false, title: "N1 (sans consentement)"}}
-      - {call: *grant, with: {action: "accorder le consentement AMI"}}
-      - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive], note: "NotificationsInboxPage.openFromHome, avant de publier N2 (WebSocket ouvert au montage)."}
-      - {call: *api, with: {title: "N2 (avec consentement)"}}
-      - {observe: "ami-spa:notifications@inbox", expect: "N2 reçue ; N1 absente : attente NON CONFIRMÉE, constat du 2026-10-15 : N1 est visible ; avertissement journalisé, non bloquant"}
-    cleanup:
-      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort, note: "Le consentement AMI est rétabli par l'API dans after()."}
-
-  - id: webapp.consentement.s5-2-constat-sans-consentement
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S5.2 — sans consentement, la notification publiée est observée dans l’inbox ; avec consentement, elle apparaît"}
-    status: active
-    targets: [webapp]
-    requires: *home
-    trace:
-      - {call: *grant, with: {action: "retirer le consentement AMI"}}
-      - {call: *check, with: {attendu: false}, note: "Précondition vérifiée côté backend."}
-      - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive], note: "NotificationsInboxPage.openFromHome, inbox ouverte avant de publier."}
-      - {call: *api, with: {checkConsent: false, title: "N1 (sans consentement)"}}
-      - {observe: "ami-spa:notifications@inbox", expect: "CONSTAT, jamais un échec : N1 listée ou non, avant puis après rechargement (journal OBS S5.2 / ANOMALIE ? S5.2). Comportement réel non confirmé (question à Édouard)."}
-      - {call: *grant, with: {action: "accorder le consentement AMI"}}
-      - {call: *api, with: {title: "N2 (avec consentement)"}}
-      - {observe: "ami-spa:notifications@inbox", expect: "N2 reçue (fait certain, asserté)"}
-    note: "Première observation à faire au premier run : aucun comportement n'est encore constaté."
-    cleanup:
-      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort, note: "Le consentement AMI est rétabli par l'API dans after()."}
-
-  - id: webapp.consentement.s6-avertissement-desactivation
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S6 — décocher le consentement AMI alors qu’une démarche est suivie affiche l’avertissement"}
+  - id: webapp.consentement.retrait-ami-avertissement-et-constat
+    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "retirer le consentement AMI alors qu’une démarche est suivie : avertissement affiché, démarche masquée puis retrouvée au rétablissement (constat)"}
     status: active
     targets: [webapp]
     requires: *home
     trace:
       - {call: *grant, with: {action: "accorder le consentement AMI"}}
-      - {call: *api, with: {itemType: OTV, itemGenericStatus: wip}, note: "Démarche suivie (publishDemarche)."}
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
-      - {do: "ami-spa:preferences#open-consents", steps: [trigger, arrive]}
-      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [disable], with: {partner: dinum-ami}}
-      - {observe: "ami-spa:preferences-consents@consent-warning", expect: "annonce la perte du suivi et la conservation de l'historique"}
-    note: "Le sort des démarches déjà synchronisées n'est pas défini : aucune assertion dessus (consentement.md, question à poser à Édouard)."
-    cleanup:
-      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort}
-
-  - id: webapp.consentement.s6-2-constat-demarche-apres-retrait
-    source: {file: src/tests/webapp/nonreg/consentement.usage.test.ts, describe: Non-régression — consentement et suivi des démarches, it: "S6.2 — constat : après retrait du consentement AMI par l’interface, la démarche suivie reste-t-elle listée ?"}
-    status: active
-    targets: [webapp]
-    requires: *home
-    trace:
-      - {call: *grant, with: {action: "accorder le consentement AMI"}}
-      - {call: *api, with: {itemType: OTV, itemGenericStatus: wip, title: "D4 (… s62)"}, note: "Démarche suivie (publishDemarche)."}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: wip, title: "D4"}, note: "Démarche suivie (publishDemarche)."}
       - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup@demarches", expect: "D4 visible (waitForDemarche, fait certain asserté)"}
       - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "PreferencesPage.open"}
       - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
       - {do: "ami-spa:preferences#open-consents", steps: [trigger, arrive]}
       - {do: "ami-spa:preferences-consents#toggle-consent", steps: [disable], with: {partner: dinum-ami}}
+      - {observe: "ami-spa:preferences-consents@consent-warning", expect: "annonce la perte du suivi et la conservation de l'historique (asserté)"}
       - {call: *check, with: {attendu: false}}
-      - {observe: "ami-spa:home@procedures-block", expect: "CONSTAT, jamais un échec : D4 listée ou non (journal OBS S6.2). Non confirmé."}
+      - {observe: "ami-spa:home@procedures-block", expect: "CONSTAT, jamais un échec : D4 listée ou non (journal OBS D4). Non confirmé."}
       - {observe: "ami-spa:followup@demarches", expect: "CONSTAT : D4 listée ou non. Non confirmé."}
       - {do: "ami-spa:preferences-consents#toggle-consent", steps: [enable], with: {partner: dinum-ami}}
       - {call: *check, with: {attendu: true}, note: "Consentement rétabli : fait certain, asserté."}
       - {observe: "ami-spa:followup@demarches", expect: "CONSTAT : D4 listée de nouveau, avec son statut (« En cours » attendu). Non confirmé."}
-    note: "Le sort des démarches après retrait n'est pas défini (consentement.md, question à Édouard) : aucune assertion dessus."
+    note: "Fusion du 2026-10-28 de S6 (avertissement) et S6.2 (constat). Le sort des démarches déjà synchronisées après retrait n'est pas défini (question à Édouard) : aucune assertion dessus. Les notifications sans consentement (ex S5, S5.2) sont couvertes par nonreg/consentement-demarches.usage.test.ts."
     cleanup:
       - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort}
 
   # === parcours/demarche-detail.parcours.test.ts (plan : parcours/demarche-detail.md) ======================
   # Les démarches sont créées par la spec (titre horodaté) dans before() : rien à restaurer.
-  - id: webapp.demarche-detail.s9-1-depuis-accueil
-    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.1 — depuis l’Accueil, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’Accueil"}
+  - id: webapp.demarche-detail.depuis-accueil-puis-suivi
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "depuis l’Accueil puis depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’écran d’origine"}
     status: active
     targets: [webapp]
     requires: *home
@@ -762,22 +565,16 @@ scenarios:
       - {observe: "ami-spa:followup-item@title", expect: "le titre publié"}
       - {observe: "ami-spa:followup-item@reference", expect: "la référence publiée (itemId)"}
       - {do: "ami-spa:followup-item#back-to-home", steps: [trigger, arrive], note: "arrive = HomePage.assertHomeVisible"}
-
-  - id: webapp.demarche-detail.s9-2-depuis-suivi
-    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.2 — depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à la liste"}
-    status: active
-    targets: [webapp]
-    requires: *home
-    trace:
       - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup@demarches", expect: "la démarche publiée dans before() est listée"}
       - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive]}
       - {observe: "ami-spa:followup-item@title", expect: "le titre publié"}
       - {observe: "ami-spa:followup-item@reference", expect: "la référence publiée (itemId)"}
       - {do: "ami-spa:followup-item#back-to-followup", steps: [trigger, arrive]}
+    note: "Fusion du 2026-10-28 de S9.1 (depuis l'Accueil) et S9.2 (depuis le Suivi)."
 
   - id: webapp.demarche-detail.s9-3-depuis-notification
-    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.3 — depuis une notification, on arrive sur le détail de la démarche (et non sur la liste du Suivi)"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "depuis une notification, on arrive sur le détail de la démarche (et non sur la liste du Suivi)"}
     status: active
     targets: [webapp]
     requires: *home
@@ -789,7 +586,7 @@ scenarios:
       - {observe: "ami-spa:followup-item@reference", expect: "la référence publiée (itemId)"}
 
   - id: webapp.demarche-detail.s12-connexion-silencieuse
-    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S12 — la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)"}
     status: active
     targets: [webapp]
     requires: *home
@@ -800,7 +597,7 @@ scenarios:
     note: "ASSERTION PROPOSÉE, à valider avec Édouard : seule la page finale est observée, pas les redirections. Constat du 2026-10-15 en préprod : la cible est « Se connecter | Service Public »."
 
   - id: webapp.demarche-detail.s13-demarche-enfant
-    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S13 — une démarche enfant est listée sous sa démarche parente, et pas sous une autre"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "une démarche enfant est listée sous sa démarche parente, et pas sous une autre"}
     status: active
     targets: [webapp]
     requires: *home
@@ -817,7 +614,7 @@ scenarios:
 
   # === nonreg/zones-agenda.usage.test.ts (plan : nonreg/zones-agenda.md) ============================
   - id: webapp.zones-agenda.s7-zone-b
-    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "S7 — retirer la zone B se reflète dans les préférences et dans l’agenda, la remettre aussi"}
+    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "retirer la zone B se reflète dans les préférences et dans l’agenda, la remettre aussi"}
     status: active
     targets: [webapp]
     requires: *home
@@ -833,7 +630,7 @@ scenarios:
       - {restores: "ami-spa:preferences-zones@zone-states", by: after-hook, assured: best-effort, note: "restoreZones ne relit pas l'état après écriture."}
 
   - id: webapp.zones-agenda.s8-echeance-agenda
-    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "S8 — une démarche avec échéance apparaît dans l’agenda et son titre mène au détail de cette démarche"}
+    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "une démarche avec échéance apparaît dans l’agenda et son titre mène au détail de cette démarche"}
     status: active
     targets: [webapp]
     requires: *home
@@ -846,7 +643,7 @@ scenarios:
       - {observe: "ami-spa:followup-item@reference", expect: "la référence publiée (itemId)"}
 
   - id: webapp.zones-agenda.s10-suppression
-    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "S10 — un élément supprimé de l’agenda disparaît et ne revient pas au rechargement"}
+    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "un élément supprimé de l’agenda disparaît et ne revient pas au rechargement"}
     status: active
     targets: [webapp]
     requires: *home
@@ -861,7 +658,7 @@ scenarios:
       - {restores: "ami-spa:agenda@events", by: none, assured: best-effort, note: "Entrée créée par le test (titre horodaté) ; elle reste dans l'agenda du compte jusqu'à la prochaine déconnexion."}
 
   - id: webapp.zones-agenda.s10-2-reconnexion-restaure
-    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "S10.2 — une reconnexion fait réapparaître un élément fixe supprimé de l’agenda"}
+    source: {file: src/tests/webapp/nonreg/zones-agenda.usage.test.ts, describe: Non-régression — zones scolaires et agenda, it: "une reconnexion fait réapparaître un élément fixe supprimé de l’agenda"}
     status: active
     targets: [webapp]
     requires: *home
@@ -880,64 +677,94 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:agenda@events", by: logout, assured: asserted}
 
-  # === nonreg/passkey.usage.test.ts (plan : nonreg/passkey.md) ======================================
-  - id: webapp.passkey.s11-1-plus-tard
-    source: {file: src/tests/webapp/nonreg/passkey.usage.test.ts, describe: Non-régression — onboarding passkey, it: "S11.1 — « Peut-être plus tard » passe à l’écran suivant sans créer de clé"}
-    status: active
+  # === nonreg/otv-connexion-silencieuse.usage.test.ts (ex passkey.usage.test.ts, renommé le 2026-10-28) : SPEC EN SKIP, passkey mise de côté (décision de l'équipe, 2026-10-28) ===
+  # `describe.skip` : les deux scénarios passaient en préprod (2 passing, 3 min 47, run du 2026-10-28). L'ancien S11.1 (passkey « Peut-être plus tard »)
+  # est repris dans le second ; S11.2 (« Ajouter une clé ») n'est plus un `it.skip` du fichier : il reste `welcome-passkey#add-passkey` (coverage: excluded).
+  - id: webapp.otv-connexion-silencieuse.sans-jeton-ami
+    source: {file: src/tests/webapp/nonreg/otv-connexion-silencieuse.usage.test.ts, describe: Non-régression — connexion FranceConnect silencieuse vers OTV, it: "sans le jeton d’AMI, OTV exige de se connecter avec FranceConnect : la connexion silencieuse vient du jeton d’AMI"}
+    status: skipped
+    reason: "describe.skip : passkey mise de côté (décision de l'équipe, 2026-10-28). Préprod seulement (OTV injoignable en staging)."
+    targets: [webapp]
+    unmodeled: ["ouverture directe de l'URL OTV de Service Public sans le jeton `caller` ; atterrissage sur preprod.auth.service-public.gouv.fr (titre « Se connecter avec FranceConnect »)"]
+  - id: webapp.otv-connexion-silencieuse.depuis-ami
+    source: {file: src/tests/webapp/nonreg/otv-connexion-silencieuse.usage.test.ts, describe: Non-régression — connexion FranceConnect silencieuse vers OTV, it: "OTV s’ouvre en connexion FranceConnect silencieuse depuis AMI, même quand l’usager a ignoré la passkey"}
+    status: skipped
+    reason: "describe.skip : passkey mise de côté (décision de l'équipe, 2026-10-28). Préprod seulement. Session vierge (profil Chrome supprimé par wdio.webapp.conf.ts)."
     targets: [webapp]
     tags: {other: [franceconnect]}
-    requires: ["ami-spa:$logged-out"]
-    trace:
-      - {do: "ami-spa:login#start-franceconnect", steps: [trigger, arrive]}
-      - {do: "franceconnect:eidas-choice#select-eidas-low", steps: [trigger, arrive]}
-      - {do: "franceconnect:credentials#submit-credentials", steps: [trigger]}
-      - {visit: "ami-spa:welcome-passkey", note: "OnboardingPasskeyPage.isVisible(15000) ; identité non relevée (titre et route non confirmés)"}
-      - {do: "ami-spa:welcome-passkey#dismiss", steps: [trigger, arrive], note: "arrive = OnboardingZonesPage.isVisible"}
-      - {do: "ami-spa:welcome-zones#skip", steps: [trigger]}
-      - {do: "ami-spa:welcome-notifications#dismiss", steps: [trigger, arrive], note: "arrive = HomePage.assertHomeVisible(30000)"}
-    note: "Part d'une session vierge : wdio.webapp.conf.ts supprime le profil Chrome avant cette spec."
+    intends: ["ami-spa:login#start-franceconnect", "ami-spa:welcome-passkey#dismiss", "ami-spa:welcome-zones#skip", "ami-spa:welcome-notifications#dismiss", "ami-spa:%tab-bar#go-services", "ami-spa:services-tools#open-partner-card"]
+    unmodeled: ["page finale de Service Public (preprod.demarches.service-public.gouv.fr) : formulaire OTV avec « Informations d'identité fournies par FranceConnect », sans mire FranceConnect ; seule la page finale est observable, pas les redirections"]
+    note: "Hypothèse de départ de l'équipe (la passkey conditionnerait la connexion silencieuse) NON CONFIRMÉE par l'exploration du 2026-10-28 : OTV est déjà silencieux avec la passkey ignorée. Questions ouvertes dans l'en-tête de la spec."
 
-  - id: webapp.passkey.s11-2-ajouter-une-cle
-    source: {file: src/tests/webapp/nonreg/passkey.usage.test.ts, describe: Non-régression — onboarding passkey, it: "S11.2 — « Ajouter une clé » crée une passkey et passe à l’écran suivant"}
-    status: skipped
-    reason: "it.skip : crée une passkey persistante sur le compte de préprod partagé, sans suppression connue ; à jouer sur un compte dédié après accord de l'équipe."
-    targets: [webapp]
-    intends: ["ami-spa:welcome-passkey#add-passkey"]
-    unmodeled: ["credential enregistrée dans l'authentificateur virtuel (getCredentials)"]
-
-  # === nonreg/consentement-demarches.usage.test.ts (plan : nonreg/consentement.md § S6.3) ===========
-  - id: webapp.consentement-demarches.s6-3-demarches-sans-consentement
-    source: {file: src/tests/webapp/nonreg/consentement-demarches.usage.test.ts, describe: Non-régression — démarches publiées sans consentement au suivi, it: "S6.3 — sans consentement la démarche n’apparaît ni au Suivi ni aux notifications ; après consentement seule la nouvelle apparaît"}
+  # === nonreg/consentement-demarches.usage.test.ts (plan : nonreg/consentement.md) : S5, S5.2 et S6.3 fusionnés le 2026-10-28 en deux scénarios ===
+  - id: webapp.consentement-demarches.sans-consentement-par-api
+    source: {file: src/tests/webapp/nonreg/consentement-demarches.usage.test.ts, describe: "Non-régression — démarche publiée sans consentement : refusée et jamais reçue", it: "démarche D1 sans consentement : refusée par le backend et jamais reçue, consentement retiré puis donné par l’API partenaire"}
     status: active
     targets: [webapp]
     requires: *home
     trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "PreferencesPage.open"}
+      - {call: *grant, with: {action: "retirer le consentement DN", partner: dinum-dn}}
+      - {call: *check, with: {attendu: false, partner: dinum-dn}, note: "Précondition vérifiée côté backend."}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: new, partner: dinum-dn, title: "D1 prime (sans consentement)"}, note: "Garde côté appelant : sans `verifyPartnerConsent: false`, publishDemarche s'arrête avant le PUT (« pas de consentement »), asserté."}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: new, partner: dinum-dn, checkConsent: false, title: "D1 prime (sans consentement)"}, note: "PUT forcé : le BACKEND refuse (404), asserté (publicationOutcome = refusée). D1 prime porte corps, sous-titre et lien."}
+      - {do: "ami-spa:home#goto-route", steps: [trigger, arrive], note: "Après 4 s d'attente, rechargement ; arrive = HomePage.assertHomeVisible."}
+      - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
+      - {observe: "ami-spa:followup@demarches", expect: "D1 prime absente"}
+      - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
+      - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive]}
+      - {observe: "ami-spa:notifications@inbox", expect: "D1 prime absente (centre de notifications)"}
+      - {call: *grant, with: {action: "donner le consentement DN", partner: dinum-dn}}
+      - {call: *check, with: {attendu: true, partner: dinum-dn}}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: wip, partner: dinum-dn, title: "D1 bis (corps seul, sans sous-titre ni lien)"}, note: "Même item_id que D1 prime."}
+      - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
+      - {observe: "ami-spa:followup@demarches", expect: "D1 bis présente ; D1 prime toujours absente"}
+      - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive], with: {demarche: D1 bis}}
+      - {observe: "ami-spa:followup-item@reference", expect: "l'item_id publié"}
+      - {observe: "ami-spa:followup-item@external-link", expect: "AUCUN bouton « Accéder à ma démarche » (champ `content_link` vide comme dans D1 bis) ; ni le corps ni le sous-titre de D1 prime : l'app n'a jamais reçu D1 prime"}
+      - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
+      - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive]}
+      - {observe: "ami-spa:notifications@inbox", expect: "D1 bis reçue (une démarche est une notification) ; D1 prime absente"}
+    note: "Remplace S5, S5.2 et S6.3 (fusion du 2026-10-28, décision de l'utilisateur du 2026-10-26 : refus 404 et jamais reçue, au lieu des anciennes attentes sur les mises à jour). Partenaire dinum-dn (consentement activé côté backend) ; SKIPPÉ sans ses identifiants (skipUnlessPartnerCredentials). Constat du 2026-10-28 (staging, un run) : les deux scénarios passent, 2 min 39. Ce scénario pilote le consentement par l'API."
+    cleanup:
+      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort, note: "États d'origine rétablis dans after() (cases puis API, AMI et DN), sans relecture."}
+      - {restores: "ami-spa:followup@demarches", by: none, assured: best-effort, note: "Les démarches publiées (titres horodatés) restent sur le compte : aucune suppression connue."}
+
+  - id: webapp.consentement-demarches.sans-consentement-par-preferences
+    source: {file: src/tests/webapp/nonreg/consentement-demarches.usage.test.ts, describe: "Non-régression — démarche publiée sans consentement : refusée et jamais reçue", it: "démarche D1 sans consentement : refusée par le backend et jamais reçue, consentement retiré puis donné par les Préférences de l’app"}
+    status: active
+    targets: [webapp]
+    requires: *home
+    trace:
+      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "PreferencesPage.open, en repartant de l'Accueil"}
       - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
       - {do: "ami-spa:preferences#open-consents", steps: [trigger, arrive]}
-      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [disable], with: {partner: dinum-ami}}
-      - {call: *check, with: {attendu: false}}
-      - {call: *api, with: {itemType: OTV, itemGenericStatus: new, checkConsent: false, title: "D1 (sans consentement)"}}
-      - {do: "ami-spa:home#goto-route", steps: [trigger, arrive], note: "Après 4 s d'attente, rechargement de l'Accueil."}
+      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [disable], with: {partner: dinum-dn}}
+      - {call: *check, with: {attendu: false, partner: dinum-dn}}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: new, partner: dinum-dn, title: "D1 prime (sans consentement)"}, note: "Garde côté appelant : sans `verifyPartnerConsent: false`, publishDemarche s'arrête avant le PUT (« pas de consentement »), asserté."}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: new, partner: dinum-dn, checkConsent: false, title: "D1 prime (sans consentement)"}, note: "PUT forcé : le BACKEND refuse (404), asserté (publicationOutcome = refusée). D1 prime porte corps, sous-titre et lien."}
+      - {do: "ami-spa:home#goto-route", steps: [trigger, arrive], note: "Après 4 s d'attente, rechargement ; arrive = HomePage.assertHomeVisible."}
       - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
-      - {observe: "ami-spa:followup@demarches", expect: "D1 absente", note: "Attente tenue le 2026-10-15 : D1 absente (l'Accueil et le Suivi n'affichent que « Je veux suivre mes démarches »)."}
+      - {observe: "ami-spa:followup@demarches", expect: "D1 prime absente"}
       - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
       - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive]}
-      - {observe: "ami-spa:notifications@inbox", expect: "D1 absente", note: "ÉCART observé le 2026-10-15 : « Création de D1 (sans consentement) » est dans l'inbox."}
-      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [enable], with: {partner: dinum-ami}, note: "Consentement redonné par l'interface (retour par l'Accueil puis les Préférences)."}
-      - {call: *check, with: {attendu: true}}
-      - {call: *api, with: {itemType: OTV, itemGenericStatus: wip, title: "D1 MAJ (mise à jour)"}}
-      - {call: *api, with: {itemType: OTV, itemGenericStatus: new, title: "D2 (création)"}}
+      - {observe: "ami-spa:notifications@inbox", expect: "D1 prime absente (centre de notifications)"}
+      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive], note: "On repart de l'Accueil : la page Notifications n'a pas de barre basse."}
+      - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
+      - {do: "ami-spa:preferences#open-consents", steps: [trigger, arrive]}
+      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [enable], with: {partner: dinum-dn}}
+      - {call: *check, with: {attendu: true, partner: dinum-dn}}
+      - {call: *api, with: {itemType: OTV, itemGenericStatus: wip, partner: dinum-dn, title: "D1 bis (corps seul, sans sous-titre ni lien)"}, note: "Même item_id que D1 prime."}
       - {do: "ami-spa:%tab-bar#go-followup", steps: [trigger, arrive]}
-      - {observe: "ami-spa:followup@demarches", expect: "D2 présente ET mise à jour de D1 absente", note: "D2 présente : attente tenue. ÉCART observé le 2026-10-15 : D1 apparaît (« En cours », « Mise à jour de D1 »), la création publiée sans consentement n'ayant pas créé la démarche au Suivi."}
+      - {observe: "ami-spa:followup@demarches", expect: "D1 bis présente ; D1 prime toujours absente"}
+      - {do: "ami-spa:followup#open-demarche", steps: [trigger, arrive], with: {demarche: D1 bis}}
+      - {observe: "ami-spa:followup-item@reference", expect: "l'item_id publié"}
+      - {observe: "ami-spa:followup-item@external-link", expect: "AUCUN bouton « Accéder à ma démarche » (champ `content_link` vide comme dans D1 bis) ; ni le corps ni le sous-titre de D1 prime : l'app n'a jamais reçu D1 prime"}
       - {do: "ami-spa:%tab-bar#go-home", steps: [trigger, arrive]}
       - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive]}
-      - {observe: "ami-spa:notifications@inbox", expect: "D1 et D2 absentes", note: "DEUX ÉCARTS observés le 2026-10-15 : D1 et D2 sont dans l'inbox."}
-    note: >-
-      Résultat du 2026-10-15 (préprod, vidéo) : 2 attentes tenues sur 6, 4 écarts collectés puis listés à la fin : le test échoue. Non confirmé : si « absentes des
-      notifications » est une règle de gestion ou une hypothèse (les démarches publiées avec consentement figurent aussi dans l'inbox) ; à confronter à Édouard.
+      - {observe: "ami-spa:notifications@inbox", expect: "D1 bis reçue (une démarche est une notification) ; D1 prime absente"}
+    note: "Remplace S5, S5.2 et S6.3 (fusion du 2026-10-28, décision de l'utilisateur du 2026-10-26 : refus 404 et jamais reçue, au lieu des anciennes attentes sur les mises à jour). Partenaire dinum-dn (consentement activé côté backend) ; SKIPPÉ sans ses identifiants (skipUnlessPartnerCredentials). Constat du 2026-10-28 (staging, un run) : les deux scénarios passent, 2 min 39. Ce scénario pilote le consentement par les cases de Préférences."
     cleanup:
-      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort, note: "Consentement AMI rétabli dans after() (case et API), sans relecture."}
+      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort, note: "États d'origine rétablis dans after() (cases puis API, AMI et DN), sans relecture."}
       - {restores: "ami-spa:followup@demarches", by: none, assured: best-effort, note: "Les démarches publiées (titres horodatés) restent sur le compte : aucune suppression connue."}
 
   # === nonreg/deconnexion-fc.usage.test.ts (plan : nonreg/environnements.md § ENV3) =================
@@ -961,31 +788,4 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:profile@identity", by: after-hook, assured: best-effort, note: "Sans objet pour les données AMI (jamais modifiées) ; l'after() ramène sur AMI avec getAppToStartingState(). La session FranceConnect rouverte n'est pas un observable modélisé."}
 
-  # === nonreg/demo-consentement.demo.ts (démonstration filmée, hors des globs *.test.ts) ======
-  - id: webapp.demo-consentement.notification-avant-consentement
-    source: {file: src/tests/webapp/nonreg/demo-consentement.demo.ts, describe: "Démonstration — notification reçue avant le consentement, visible après", it: "le consentement donné fait apparaître une notification publiée avant lui"}
-    status: active
-    targets: [webapp]
-    tags: {other: [demo]}
-    requires: *home
-    trace:
-      - {do: "ami-spa:home#open-plus-menu", steps: [trigger, arrive]}
-      - {do: "ami-spa:plus-menu#open-preferences", steps: [trigger, arrive]}
-      - {do: "ami-spa:preferences#open-consents", steps: [trigger, arrive]}
-      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [disable], with: {partner: dinum-ami}}
-      - {observe: "ami-spa:preferences-consents@consent-warning", expect: "toast d'avertissement, facultatif (journalisé sans bloquer s'il manque)"}
-      - {call: *check, with: {attendu: false}}
-      - {call: *api, with: {checkConsent: false, title: "N1 (sans consentement)"}}
-      - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive]}
-      - {observe: "ami-spa:notifications@inbox", expect: "N1 visible AVANT le consentement ? (constat journalisé)", note: "CONSTAT observé en vidéo le 2026-10-15 : N1, publiée sans consentement, est déjà visible dans l'inbox avant que le consentement soit redonné."}
-      - {do: "ami-spa:preferences-consents#toggle-consent", steps: [enable], with: {partner: dinum-ami}}
-      - {call: *check, with: {attendu: true}}
-      - {do: "ami-spa:home#open-notifications-bell", steps: [trigger, arrive]}
-      - {observe: "ami-spa:notifications@inbox", expect: "N1 visible APRÈS le consentement ? (constat journalisé)"}
-      - {call: *api, with: {title: "N2 (avec consentement)"}}
-      - {observe: "ami-spa:notifications@inbox", expect: "N2 reçue (assertion)"}
-    note: >-
-      DÉMONSTRATION filmée, pas un test de non-régression : extension `.demo.ts`, hors des suites. Aucune assertion sur N1 : seul le constat est journalisé. Reprend
-      le constat « ANOMALIE ? » de S5 (attente non confirmée, à valider avec Édouard).
-    cleanup:
-      - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort}
+  # === nonreg/demo-consentement.demo.ts : SUPPRIMÉE le 2026-10-28 (partenaire AMI dont le consentement est ignoré ; constat remplacé par les scénarios démarche de consentement-demarches.usage) ===
