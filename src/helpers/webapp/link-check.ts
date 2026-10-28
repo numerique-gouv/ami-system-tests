@@ -60,7 +60,7 @@ export function isBrokenTarget(target: Pick<LinkTarget, 'status' | 'title' | 'ex
  * Décision de l'équipe (2026-10-15) : leur échec est journalisé en avertissement, il ne fait pas échouer le test.
  * À maintenir à la main : n'ajouter un hôte qu'après confirmation qu'il est volontairement privé.
  */
-const PRIVATE_NETWORK_HOSTS: ReadonlySet<string> = new Set([
+export const PRIVATE_NETWORK_HOSTS: ReadonlySet<string> = new Set([
   'www.masecurite-form.pp.gendarmerie.interieur.gouv.fr',
   // Service Public « qualif » : cible des cartes Service Public du catalogue de STAGING (relevé le 2026-10-15, aucune réponse depuis une
   // machine publique). Ajouté sur décision de l'équipe, même règle que la gendarmerie.

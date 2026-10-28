@@ -112,7 +112,7 @@ dédoublonne en gardant la première occurrence.
 | `webapp_usage` | **PR, merge, tag** (API) | tous les `*.smoke` + tous les `*.usage` (nonreg compris) | ce que font les usagers, sans les parcours de navigation exhaustifs (`*.parcours`) |
 | `mobile_smoke` | hors CI : **valider un déploiement** | motif `*.smoke.test.ts` mobile (aujourd'hui : authentification) | le minimum qui prouve que l'app et le backend déployé se parlent |
 | `webapp_smoke` | hors CI : **valider un déploiement** | motif `*.smoke.test.ts` webapp (authentification, accueil) | idem, en quelques minutes ; le contrôle des liens externes (`catalogue.parcours`) n'en fait plus partie |
-| `webapp_all` | hors CI : **tester un déploiement** | tous les tests webapp (smoke, usage, parcours ; nonreg compris) | recette complète d'un déploiement |
+| `webapp_all` | hors CI : **tester un déploiement** | tous les tests webapp (smoke, usage, parcours ; nonreg compris) | recette complète d'un déploiement, avec les parcours exhaustifs (listes d'étapes, démarches), longs et pilotés par la configuration : c'est la campagne complète de la CI ; en campagne manuelle, on lui préfère `webapp_usage` (contient `webapp_short` et tous les `*.smoke`) |
 
 Suites supprimées (2026-10-27) : `all` et `api` (suites maison ; un fichier se désigne par `--spec`), `mobile_ci` et `mobile_nonreg` (remplacées par `mobile_all`), `webapp_nonreg` (remplacée par
 `webapp_usage`, qui contient en plus les `*.smoke`), `mobile_auth` / `webapp_auth` / `auth` (remplacées par `*_short` ou `*_smoke`).

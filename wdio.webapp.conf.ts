@@ -5,6 +5,7 @@ import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/common/environment'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { handleAccessKeyCookie } from './src/helpers/webapp/access-code'
+import { PRIVATE_NETWORK_HOSTS } from './src/helpers/webapp/link-check'
 import { setBackendUrl } from './src/helpers/partner-api'
 
 const { webappUrl, apiUrl } = resolveEnvironment()
@@ -24,6 +25,8 @@ const chromeProfileDir = path.resolve(__dirname, '.cache/chrome-profiles', path.
 function removeChromeProfile(): void {
   if (chromeProfileDir.includes(`${path.sep}chrome-profiles${path.sep}`)) fs.rmSync(chromeProfileDir, { recursive: true, force: true })
 }
+
+let specFailed = false // un worker = une spec : la variable ne vit que pour elle
 
 // Dimensions du viewport émulé (Pixel 7, cf. mobileEmulation ci-dessous) — réutilisées pour
 // dimensionner la fenêtre réelle en headless (cf. before()).
@@ -56,6 +59,10 @@ export const config: Options.Testrunner = {
           // ouverte par une spec est reprise par les suivantes (cookies), sans se réauthentifier. Supprimé en début et fin de série
           // (il contient les cookies de session).
           `--user-data-dir=${chromeProfileDir}`,
+          // Hôtes joignables seulement depuis un réseau privé (`PRIVATE_NETWORK_HOSTS`, cibles injoignables tolérées) : résolution
+          // refusée d'emblée (page d'erreur immédiate, statut null, constat inchangé) au lieu de ~90 s de connexion bloquée (mesuré le
+          // 2026-10-28 : `pageLoad` 15 s n'y change rien, le moteur de rendu reste bloqué jusqu'au délai de connexion).
+          `--host-resolver-rules=${[...PRIVATE_NETWORK_HOSTS].map(h => `MAP ${h} ~NOTFOUND`).join(', ')}`,
         ],
         // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
         // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
@@ -127,6 +134,11 @@ export const config: Options.Testrunner = {
   beforeSession: (_config, _capabilities, specs): void => {
     if (specs.some(spec => spec.endsWith('authentification.smoke.test.ts') || spec.endsWith('passkey.usage.test.ts'))) removeChromeProfile()
   },
+
+  // Une spec en échec laisse sa session (cookies, stockage de la SPA) dans le profil conservé : la suivante repart d'un profil neuf plutôt que
+  // d'un état peut-être sali par l'échec (onglets et fenêtres de dialogue, eux, meurent avec le Chrome de la session).
+  after: (result: number): void => { specFailed = result !== 0 },
+  afterSession: (): void => { if (specFailed) removeChromeProfile() },
 
   // Début et fin de série : le profil Chrome de ce run est supprimé (début : état propre, fin : il contient les cookies de session).
   onPrepare: (): void => removeChromeProfile(),
