@@ -2,7 +2,7 @@ import logger from '@wdio/logger'
 
 /**
  * Contrôle de la cible d'un lien qui quitte la SPA (catalogue, aide, iframe), pour les scénarios « aucun lien KO »
- * (réunion du 2026-10-06, `src/tests/webapp/nonreg/catalogue.md`).
+ * (réunion du 2026-10-06, `src/tests/webapp/parcours/catalogue.md`).
  *
  * Exception : une cible externe SANS jeton peut être interceptée au clic et contrôlée en HTTP (`followAndDescribe` avec
  * `deferExternal`, `describeByHttp`), ce qui évite de charger des sites tiers lents dans le navigateur.

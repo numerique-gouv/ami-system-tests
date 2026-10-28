@@ -31,12 +31,12 @@ Les libellés entre « » sont ceux de l'UI ; ils sont vérifiés à l'explorati
 
 | Id | Scénario | Fichier | Niveau | Statut |
 |---|---|---|---|---|
-| S1.1 | Chaque carte du catalogue mène à une page valide | [catalogue.md](catalogue.md) | smoke | ✅ |
-| S1.2 | « Trouver de l’aide » : cybermalveillance et checklists | [catalogue.md](catalogue.md) | smoke | ✅ |
-| S1.3 | Chaque entrée de « Trouver de l’aide » mène à une page valide | [catalogue.md](catalogue.md) | smoke | ✅ (gendarmerie tolérée en avertissement) |
-| S1.4 | Listes d étapes : chaque lien fonctionne | [catalogue.md](catalogue.md) | recette | ✅ (échoue sur 1 URL mal saisie, voir catalogue.md) |
-| S1.5 | Titre de la page cible cohérent avec la carte | [catalogue.md](catalogue.md) | smoke | ⏳ règle provisoire en avertissement (Kevin tranchera sur les données relevées) |
-| S2.1 | Aide et contact : liens atteignables | [catalogue.md](catalogue.md) | smoke | ✅ |
+| S1.1 | Chaque carte du catalogue mène à une page valide | [catalogue.md](../parcours/catalogue.md) | smoke | ✅ |
+| S1.2 | « Trouver de l’aide » : cybermalveillance et checklists | [catalogue.md](../parcours/catalogue.md) | smoke | ✅ |
+| S1.3 | Chaque entrée de « Trouver de l’aide » mène à une page valide | [catalogue.md](../parcours/catalogue.md) | smoke | ✅ (gendarmerie tolérée en avertissement) |
+| S1.4 | Listes d étapes : chaque lien fonctionne | [catalogue.md](../parcours/catalogue.md) | recette | ✅ (échoue sur 1 URL mal saisie, voir catalogue.md) |
+| S1.5 | Titre de la page cible cohérent avec la carte | [catalogue.md](../parcours/catalogue.md) | smoke | ⏳ règle provisoire en avertissement (Kevin tranchera sur les données relevées) |
+| S2.1 | Aide et contact : liens atteignables | [catalogue.md](../parcours/catalogue.md) | smoke | ✅ |
 | S3 | Bouton « Je veux suivre mes démarches » selon le consentement | [consentement.md](consentement.md) | recette | ✅ |
 | S4.1 | Case de consentement persistée côté backend | [consentement.md](consentement.md) | recette | ✅ |
 | S4.2 | « Tout suivre » active tout | [consentement.md](consentement.md) | recette | ✅ |
@@ -50,9 +50,9 @@ Les libellés entre « » sont ceux de l'UI ; ils sont vérifiés à l'explorati
 | S10.1 | Suppression d'un élément de l'agenda | [zones-agenda.md](zones-agenda.md) | recette | ✅ |
 | S10.2 | Reconnexion : l'élément fixe supprimé réapparaît | [zones-agenda.md](zones-agenda.md) | recette | ✅ |
 | S10.3 | Agenda vide | [zones-agenda.md](zones-agenda.md) | recette | 🚫 non décrit |
-| S9.1–S9.4 | Redirections vers le détail (Accueil, Suivi, notification, Agenda) | [demarche-detail.md](demarche-detail.md) | recette | ✅ (S9.4 couvert par S8.1) |
-| S12.1 | FranceConnect silencieuse | [demarche-detail.md](demarche-detail.md) | recette | ✅ (assertion proposée) |
-| S13.1 | Sous-démarches sous la bonne démarche parente | [demarche-detail.md](demarche-detail.md) | recette | ✅ (assertion proposée) |
+| S9.1–S9.4 | Redirections vers le détail (Accueil, Suivi, notification, Agenda) | [demarche-detail.md](../parcours/demarche-detail.md) | recette | ✅ (S9.4 couvert par S8.1) |
+| S12.1 | FranceConnect silencieuse | [demarche-detail.md](../parcours/demarche-detail.md) | recette | ✅ (assertion proposée) |
+| S13.1 | Sous-démarches sous la bonne démarche parente | [demarche-detail.md](../parcours/demarche-detail.md) | recette | ✅ (assertion proposée) |
 | S11.1 | Passkey : « Peut-être plus tard » | [passkey.md](passkey.md) | recette | ✅ |
 | S11.2 | Passkey : « Ajouter une clé » | [passkey.md](passkey.md) | recette | ⏸ suspendu (décision 2026-10-15 : aucun compte ne peut accueillir une passkey persistante) |
 | EP1–EP6 | Espace Partenaire (pages légales, reset, catalogue, listes d'étapes, notification, accès) | [espace-partenaire.md](espace-partenaire.md) | — | 🚫 **hors périmètre** (décision 2026-10-15) |

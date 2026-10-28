@@ -1,6 +1,6 @@
 # Backlog, exclusions et décisions en attente
 
-Les scénarios à implémenter ont leurs fichiers ([catalogue.md](catalogue.md), [consentement.md](consentement.md), [zones-agenda.md](zones-agenda.md), [espace-partenaire.md](espace-partenaire.md), [environnements.md](environnements.md)). Ce fichier ne garde que ce qui **n'est pas un scénario** : exclusions voulues par la réunion et décisions bloquantes.
+Les scénarios à implémenter ont leurs fichiers ([catalogue.md](../parcours/catalogue.md), [consentement.md](consentement.md), [zones-agenda.md](zones-agenda.md), [espace-partenaire.md](espace-partenaire.md), [environnements.md](environnements.md)). Ce fichier ne garde que ce qui **n'est pas un scénario** : exclusions voulues par la réunion et décisions bloquantes.
 
 ## Exclus par la réunion (ne pas tester)
 

@@ -90,6 +90,8 @@ kebab-case français (`profil-et-suppression-a-la-deconnexion.usage.test.ts`). T
 Trois autres catégories ont été envisagées et NON retenues : `liens` (couvert par `parcours`), `natif` (la frontière natif / WebView
 n'est pas figée : des pages seront promues en natif), `contrat` (pas de spec de contrat d'API dans ce dépôt).
 
+**Dossier `src/tests/webapp/parcours/`** : il regroupe les specs qui parcourent des zones **configurées par l'administrateur** (catalogue, services, détail d'une démarche, listes d'étapes) : leur contenu varie d'un environnement à l'autre, et elles suivent des liens externes dont une partie n'est joignable que depuis un VPN ou un réseau privé (les cibles injoignables rendent ces specs LENTES : plusieurs minutes d'attente de connexion). Elles portent la catégorie `parcours`, donc hors `webapp_usage` (PR, merge, tag) ; `webapp_all` les inclut. En session de travail, ne les lancez pas sans besoin.
+
 Filtrer par catégorie avec un glob : `just test-webapp "src/tests/webapp/**/*.smoke.test.ts"`. Les suites `*_smoke` et `webapp_usage` de
 `wdio.base.conf.ts` reposent sur ces mêmes motifs : la catégorie du nom de fichier fait donc entrer une spec dans une suite (section suivante).
 `wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `passkey.usage.test.ts`) les specs qui exigent un

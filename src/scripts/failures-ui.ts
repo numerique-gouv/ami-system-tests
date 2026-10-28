@@ -5,7 +5,7 @@
  * CIBLE : un dossier de run (test-results/traces/<horodatage>_…), l'artefact d'une CI téléchargé, le dossier d'une trace (celui qui contient
  * trace.trace) ou un .zip ; sans CIBLE, le dernier run qui a des traces. FILTRE : sous-chaîne du chemin (donc du nom du test) quand la cible
  * en contient plusieurs. Le lecteur (`show-trace`) ne lit que des .zip, alors que les traces sont écrites en dossier (`traceFormat:
- * 'ndjson-directory'`, nécessaire à trace-redact et au transcript.md lisible) : le dossier est zippé dans un dossier temporaire.
+ * 'ndjson-directory'`, nécessaire à trace-redact pour masquer les jetons et autres infos de sécurité et au transcript.md lisible) : le dossier est zippé dans un dossier temporaire.
  * Le lecteur s'ouvre dans le navigateur ; Ctrl+C l'arrête.
  */
 import {execFileSync, spawnSync} from 'child_process'

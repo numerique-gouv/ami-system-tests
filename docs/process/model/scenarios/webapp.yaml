@@ -548,10 +548,10 @@ scenarios:
     intends: ["ami-spa:zones-city@suggestions"]
     unmodeled: ["saisie dans le champ de recherche", "origine des suggestions (backend d'adresses tiers probable, hypothèse)"]
 
-  # === nonreg/catalogue.parcours.test.ts (plan : nonreg/catalogue.md) ==================================
+  # === parcours/catalogue.parcours.test.ts (plan : parcours/catalogue.md) ==================================
   # Plans écrits d'après la réunion du 2026-10-06 ; relevés en préprod le 2026-10-15 (AMI_ENV=preprod, compte avec_nom_dusage).
   - id: webapp.catalogue.s1-1-cartes-valides
-    source: {file: src/tests/webapp/nonreg/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.1 — chaque carte du catalogue mène à une page valide"}
+    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.1 — chaque carte du catalogue mène à une page valide"}
     status: active
     targets: [webapp]
     requires: *home
@@ -563,7 +563,7 @@ scenarios:
     note: "`arrive` n'est pas revendiqué : une cible externe n'a pas d'identité vérifiée (écran `ext-service-sites` sans identity)."
 
   - id: webapp.catalogue.s1-2-cyber-et-checklists
-    source: {file: src/tests/webapp/nonreg/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.2 — « Trouver de l’aide » : le diagnostic cybermalveillance et les checklists s’ouvrent"}
+    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.2 — « Trouver de l’aide » : le diagnostic cybermalveillance et les checklists s’ouvrent"}
     status: active
     targets: [webapp]
     requires: *home
@@ -575,7 +575,7 @@ scenarios:
       - {observe: "ami-spa:checklist@sections", expect: "au moins une section « n/m » par liste"}
 
   - id: webapp.catalogue.s1-3-entrees-aide-valides
-    source: {file: src/tests/webapp/nonreg/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.3 — chaque entrée de « Trouver de l’aide » mène à une page valide"}
+    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S1.3 — chaque entrée de « Trouver de l’aide » mène à une page valide"}
     status: active
     targets: [webapp]
     requires: *home
@@ -583,10 +583,10 @@ scenarios:
       - {do: "ami-spa:%tab-bar#go-services", steps: [trigger, arrive]}
       - {observe: "ami-spa:services@help-entries", expect: "au moins une entrée ; libellés lus, jamais codés"}
       - {do: "ami-spa:services#open-help-entry", steps: [trigger, http-ok], with: {entry: "chacune, une par une"}, note: "Route interne : pas une page d'erreur de l'application. Cible externe : statut < 400. Hôte de préproduction joignable seulement depuis un réseau privé : avertissement (PRIVATE_NETWORK_HOSTS), pas un échec."}
-    note: "Les cibles cassées sont rapportées en une fois. Durée ~5 min 40 s (nonreg/catalogue.md)."
+    note: "Les cibles cassées sont rapportées en une fois. Durée ~5 min 40 s (parcours/catalogue.md)."
 
   - id: webapp.catalogue.s2-1-aide-et-contact
-    source: {file: src/tests/webapp/nonreg/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S2.1 — « Aide et contact » : l’aide de l’administration répond et « Nous contacter » s’affiche"}
+    source: {file: src/tests/webapp/parcours/catalogue.parcours.test.ts, describe: "Non-régression — catalogue, services et aide (smoke)", it: "S2.1 — « Aide et contact » : l’aide de l’administration répond et « Nous contacter » s’affiche"}
     status: active
     targets: [webapp]
     requires: *home
@@ -597,9 +597,9 @@ scenarios:
       - {do: "ami-spa:help-center#open-contact", steps: [trigger, arrive]}
       - {do: "ami-spa:contact#open-actions-dialog", steps: [trigger, arrive]}
 
-  # === nonreg/liste-etapes.parcours.test.ts (plan : nonreg/catalogue.md § S1.4) ========================
+  # === parcours/liste-etapes.parcours.test.ts (plan : parcours/catalogue.md § S1.4) ========================
   - id: webapp.liste-etapes.s1-4-liens-valides
-    source: {file: src/tests/webapp/nonreg/liste-etapes.parcours.test.ts, describe: Non-régression — listes d’étapes, it: "S1.4 — chaque lien des listes d’étapes mène à une page valide, directement ou par la page intermédiaire"}
+    source: {file: src/tests/webapp/parcours/liste-etapes.parcours.test.ts, describe: Non-régression — listes d’étapes, it: "S1.4 — chaque lien des listes d’étapes mène à une page valide, directement ou par la page intermédiaire"}
     status: active
     targets: [webapp]
     requires: *home
@@ -614,7 +614,7 @@ scenarios:
       - {do: "ami-spa:checklist-item#follow-link", steps: [trigger, http-ok], note: "Chaque lien de la page intermédiaire, statut < 400."}
     note: >-
       Résultat du 2026-10-15 (préprod) : 38 liens suivis, 1 défaut réel (une URL saisie avec une parenthèse parasite dans « Je suis affecté à l'étranger › Pendant mon affectation »).
-      Le test reste donc EN ÉCHEC tant que le contenu de la liste n'est pas corrigé : comportement voulu (nonreg/catalogue.md).
+      Le test reste donc EN ÉCHEC tant que le contenu de la liste n'est pas corrigé : comportement voulu (parcours/catalogue.md).
 
   # === nonreg/consentement.usage.test.ts (plan : nonreg/consentement.md) ============================
   # Ces scénarios MODIFIENT les consentements du compte : état d'origine relevé dans before(), rétabli dans after() sans relecture.
@@ -748,10 +748,10 @@ scenarios:
     cleanup:
       - {restores: "ami-spa:preferences-consents@consent-states", by: after-hook, assured: best-effort}
 
-  # === nonreg/demarche-detail.usage.test.ts (plan : nonreg/demarche-detail.md) ======================
+  # === parcours/demarche-detail.parcours.test.ts (plan : parcours/demarche-detail.md) ======================
   # Les démarches sont créées par la spec (titre horodaté) dans before() : rien à restaurer.
   - id: webapp.demarche-detail.s9-1-depuis-accueil
-    source: {file: src/tests/webapp/nonreg/demarche-detail.usage.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.1 — depuis l’Accueil, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’Accueil"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.1 — depuis l’Accueil, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’Accueil"}
     status: active
     targets: [webapp]
     requires: *home
@@ -764,7 +764,7 @@ scenarios:
       - {do: "ami-spa:followup-item#back-to-home", steps: [trigger, arrive], note: "arrive = HomePage.assertHomeVisible"}
 
   - id: webapp.demarche-detail.s9-2-depuis-suivi
-    source: {file: src/tests/webapp/nonreg/demarche-detail.usage.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.2 — depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à la liste"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.2 — depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à la liste"}
     status: active
     targets: [webapp]
     requires: *home
@@ -777,7 +777,7 @@ scenarios:
       - {do: "ami-spa:followup-item#back-to-followup", steps: [trigger, arrive]}
 
   - id: webapp.demarche-detail.s9-3-depuis-notification
-    source: {file: src/tests/webapp/nonreg/demarche-detail.usage.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.3 — depuis une notification, on arrive sur le détail de la démarche (et non sur la liste du Suivi)"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S9.3 — depuis une notification, on arrive sur le détail de la démarche (et non sur la liste du Suivi)"}
     status: active
     targets: [webapp]
     requires: *home
@@ -789,7 +789,7 @@ scenarios:
       - {observe: "ami-spa:followup-item@reference", expect: "la référence publiée (itemId)"}
 
   - id: webapp.demarche-detail.s12-connexion-silencieuse
-    source: {file: src/tests/webapp/nonreg/demarche-detail.usage.test.ts, describe: Non-régression — détail d’une démarche, it: "S12 — la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S12 — la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)"}
     status: active
     targets: [webapp]
     requires: *home
@@ -800,7 +800,7 @@ scenarios:
     note: "ASSERTION PROPOSÉE, à valider avec Édouard : seule la page finale est observée, pas les redirections. Constat du 2026-10-15 en préprod : la cible est « Se connecter | Service Public »."
 
   - id: webapp.demarche-detail.s13-demarche-enfant
-    source: {file: src/tests/webapp/nonreg/demarche-detail.usage.test.ts, describe: Non-régression — détail d’une démarche, it: "S13 — une démarche enfant est listée sous sa démarche parente, et pas sous une autre"}
+    source: {file: src/tests/webapp/parcours/demarche-detail.parcours.test.ts, describe: Non-régression — détail d’une démarche, it: "S13 — une démarche enfant est listée sous sa démarche parente, et pas sous une autre"}
     status: active
     targets: [webapp]
     requires: *home
