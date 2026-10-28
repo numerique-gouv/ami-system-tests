@@ -27,3 +27,10 @@ export async function restoreDemarchesConsents(original: Record<string, boolean>
     else await revokeDemarchesConsent(partner, fcHash)
   }
 }
+
+/** Décoche toutes les cases de Préférences › Suivi des démarches (4 en préprod, 6 en staging) ; retourne leurs clés. */
+export async function uncheckAllDemarchesConsents(): Promise<string[]> {
+  const keys = Object.keys(await PreferencesPage.demarchesConsentStates())
+  for (const key of keys) await PreferencesPage.setDemarchesConsent(key, false)
+  return keys
+}

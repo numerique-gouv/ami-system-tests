@@ -3,7 +3,7 @@ import NavigationPage from '../../../pages/navigation.page'
 import HomePage from '../../../pages/home.page'
 import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {openDemarchesConsents, restoreDemarchesConsents, waitForBackendDemarchesConsent as waitForBackendConsent} from '../../../pages/consents.process'
+import {openDemarchesConsents, restoreDemarchesConsents, uncheckAllDemarchesConsents, waitForBackendDemarchesConsent as waitForBackendConsent} from '../../../pages/consents.process'
 import {PARTNER_AMI, PARTNER_DN, grantDemarchesConsent, publishDemarche} from '../../../helpers/partner-api'
 import {getUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
@@ -46,7 +46,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   it('S3 — « Je veux suivre mes démarches » est proposé sans consentement et disparaît dès qu’un seul est actif', async function () {
     step('1. Retirer tous les consentements (toutes les cases de l’écran : 4 en préprod, 6 en staging)')
     await openDemarchesConsents()
-    for (const key of Object.keys(await PreferencesPage.demarchesConsentStates())) await PreferencesPage.setDemarchesConsent(key, false)
+    await uncheckAllDemarchesConsents()
 
     step('2. Accueil et Suivi proposent de suivre ses démarches')
     await NavigationPage.goToRoute('/')
@@ -74,8 +74,6 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   it('S4.1 — une case de consentement basculée est persistée côté backend', async function () {
     await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
     await openDemarchesConsents()
-    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
-    await waitForBackendDemarchesConsent(true)
 
     step('1. Décocher « AMI » : le backend ne reconnaît plus le consentement')
     await PreferencesPage.setDemarchesConsent(PARTNER_AMI, false)
@@ -90,9 +88,8 @@ describe('Non-régression — consentement et suivi des démarches', function ()
 
   it('S4.2 — « Tout suivre » active tous les consentements', async function () {
     await openDemarchesConsents()
-    const keys = Object.keys(await PreferencesPage.demarchesConsentStates())
+    const keys = await uncheckAllDemarchesConsents()
     expect(keys.length).toBeGreaterThan(0)
-    for (const key of keys) await PreferencesPage.setDemarchesConsent(key, false)
 
     await PreferencesPage.followAllDemarches()
     await browser.waitUntil(async () => {
@@ -106,28 +103,9 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     expect(keys.map(key => states[key])).toEqual(keys.map(() => true))
   })
 
-  it('S6 — décocher le consentement AMI alors qu’une démarche est suivie affiche l’avertissement', async function () {
-    step('1. Publier une démarche suivie')
-    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
-    const itemId = `E2E-${new Date().toISOString()}`
-    await publishDemarche({
-      title: `Demarche E2E ${itemId} consentement`, body: 'Démarche suivie', recipientFcHash: user.fcHash,
-      itemType: 'OTV', itemId, status: 'wip',
-    })
-
-    step('2. Décocher le consentement AMI')
-    await getAppToStartingState()
-    await openDemarchesConsents()
-    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
-    await PreferencesPage.setDemarchesConsent(PARTNER_AMI, false)
-
-    step('3. L’avertissement annonce la perte du suivi et la conservation de l’historique')
-    await PreferencesPage.assertDemarchesConsentWarningDisplayed()
-    // Le sort des démarches déjà synchronisées n'est pas défini par la réunion : aucune assertion dessus (cf. consentement.md).
-  })
-  it('S6.2 — constat : après retrait du consentement AMI par l’interface, la démarche suivie reste-t-elle listée ?', async function () {
-    const itemId = `E2E-${new Date().toISOString()}`
-    const title = `Demarche E2E ${itemId} s62`
+  it('S6 — décocher le consentement AMI alors qu’une démarche est suivie : avertissement affiché, démarche masquée puis retrouvée (constat)', async function () {
+    const itemId = `E2E-consentement-${new Date().toISOString()}`
+    const title = `Demarche E2E ${itemId} D4`
 
     /** Constat sur l'Accueil puis sur le Suivi : D4 y est-elle listée ? Aucune assertion (règle de gestion non définie, cf. consentement.md). */
     async function observeD4(moment: string): Promise<void> {
@@ -148,9 +126,9 @@ describe('Non-régression — consentement et suivi des démarches', function ()
           } catch { statut = 'différent de « En cours » (publiée avec le statut wip) ou illisible' }
         }
       } catch {
-        log.warn(`ANOMALIE ? S6.2 ${moment} : le titre « Mes démarches » (h1) n'est pas affiché sur le Suivi`)
+        log.warn(`ANOMALIE ? S6 ${moment} : le titre « Mes démarches » (h1) n'est pas affiché sur le Suivi`)
       }
-      log.info(`OBS S6.2 ${moment} : D4 listée sur l'Accueil : ${surAccueil} ; sur le Suivi : ${surSuivi} ; statut : ${statut}`)
+      log.info(`OBS S6 ${moment} : D4 listée sur l'Accueil : ${surAccueil} ; sur le Suivi : ${surSuivi} ; statut : ${statut}`)
     }
 
     step('1. Publier D4 (consentement AMI actif) et la retrouver dans le Suivi')
@@ -161,14 +139,17 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     await SuiviDemarchesPage.assertDisplayed()
     await SuiviDemarchesPage.waitForDemarche(title)
 
-    step('2. Décocher le consentement AMI par l’interface, OBSERVER D4')
+    step('2. Décocher le consentement AMI par l’interface : l’avertissement annonce la perte du suivi et la conservation de l’historique')
     await openDemarchesConsents()
     await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
     await PreferencesPage.setDemarchesConsent(PARTNER_AMI, false)
+    await PreferencesPage.assertDemarchesConsentWarningDisplayed()
     await waitForBackendDemarchesConsent(false)
+
+    step('3. OBSERVER D4 consentement retiré (constat : le sort des démarches déjà synchronisées n’est pas défini)')
     await observeD4('consentement retiré')
 
-    step('3. Recocher le consentement AMI, OBSERVER D4')
+    step('4. Recocher le consentement AMI, OBSERVER D4')
     await openDemarchesConsents()
     await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
     await waitForBackendDemarchesConsent(true)
