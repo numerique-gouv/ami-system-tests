@@ -390,6 +390,9 @@ async function readStart(response: Response): Promise<string> {
   return text
 }
 
+/** Requêtes HTTP simultanées pour le contrôle des cibles interceptées (`describeByHttp`). */
+export const HTTP_CONCURRENCY = 6
+
 /** `items` traités par `worker` avec au plus `limit` appels simultanés ; résultats dans l'ordre des `items`. */
 export async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length)

@@ -3,13 +3,10 @@ import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import StepsListPage from '../../../pages/steps-list.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, mapWithConcurrency, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
+import {HTTP_CONCURRENCY, describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, mapWithConcurrency, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
-
-/** Requêtes HTTP simultanées pour le contrôle des cibles interceptées. */
-const HTTP_CONCURRENCY = 6
 
 /**
  * Listes d'étapes (« Comment faire si… ») — chaque lien fonctionne (plan : catalogue.md, scénario S1.4). Réunion du 2026-10-06,
@@ -23,10 +20,6 @@ describe('Non-régression — listes d’étapes', function () {
   // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
   // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(2400000)
-
-  before(async function () {
-    await getAppToStartingState()
-  })
 
   beforeEach(async function () {
     await getAppToStartingState()
