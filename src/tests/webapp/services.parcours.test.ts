@@ -9,10 +9,6 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
  */
 describe('Services', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
-  before(async function () {
-    await getAppToStartingState()
-  })
-
   beforeEach(async function () {
     await getAppToStartingState()
     await ServicesPage.open()

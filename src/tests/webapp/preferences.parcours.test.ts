@@ -13,7 +13,6 @@ import {getUser} from '../../helpers/common/test-users'
 describe('Préférences', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
-    await getAppToStartingState()
     // Le consentement AMI est la précondition du test « consentements ».
     await grantDemarchesConsent(PARTNER_AMI, getUser('avec_nom_dusage').fcHash)
   })

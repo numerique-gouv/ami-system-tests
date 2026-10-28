@@ -36,13 +36,7 @@ import {
 describe.skip('Mon scénario', () => {
   const user = getUser('avec_nom_dusage')
 
-  // `before` standard des tests webapp (cf. src/tests/webapp/aide-contact.parcours.test.ts) : connecte l'app si besoin.
-  before(async function () {
-    this.timeout(180000)
-    await getAppToStartingState()
-  })
-
-  // Remet l'app dans l'état de départ avant chaque test : le test précédent a pu s'arrêter n'importe où (page hors SPA,
+  // `beforeEach` standard des tests webapp (cf. src/tests/webapp/aide-contact.parcours.test.ts) : connecte l'app si besoin, puis remet l'app dans l'état de départ avant chaque test : le test précédent a pu s'arrêter n'importe où (page hors SPA,
   // déconnexion, onboarding). Repart de l'état courant : la vraie connexion n'a lieu qu'au premier appel, ensuite la session
   // est reprise (rechargement de la racine).
   beforeEach(async function () {
