@@ -174,9 +174,10 @@ class SuiviDemarchesPage {
         const loc = getSuiviDemarchesLocators()
         const pageTitle = loc.pageTitle
         if (await isShown(loc.pageTitleHeading)) return
-        // iOS : le retour arrière est sans effet à chaque fois (6 runs sur 6, 2026-10-27 : le lien externe s'ouvre dans une seconde WKWebView
-        // restée sur `about:blank`, la page du Suivi n'a pas bougé) : on ne perd pas 4 s à l'attendre.
-        if (!driver.isIOS) {
+        // Mobile : le retour arrière est sans effet à chaque fois (iOS : 6 runs sur 6, 2026-10-27, le lien externe s'ouvre dans une seconde
+        // WKWebView restée sur `about:blank`, la page du Suivi n'a pas bougé ; Android : 5 appels sur 5, 2026-10-28, ~4,5 s perdues à chaque
+        // fois) : on ne perd pas 4 s à l'attendre. Seule la webapp le tente (non mesuré ici).
+        if (platform().kind === 'webapp') {
             await browser.back()
             if (await isShown(loc.pageTitleHeading, 4000)) return
         }
