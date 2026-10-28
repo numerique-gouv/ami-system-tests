@@ -12,11 +12,6 @@ export function isLoginCallbackUrl(url: string): boolean {
 
 export const HOME = 'accueil'
 
-/** Premier écran visible parmi ceux sondés, dans l'ordre de priorité fourni (accueil d'abord) ; `null` si aucun. */
-export function pickFirstScreen<T extends {name: string}>(probed: Array<{screen: T, shown: boolean}>): T | null {
-  return probed.find(p => p.shown)?.screen ?? null
-}
-
 /** Raison d'échec explicite : quels écrans étaient attendus, où l'on est, après combien de temps. */
 export function describeFirstScreenTimeout(expected: string[], url: string, waitedMs: number): string {
   return `aucun des écrans attendus (${expected.join(', ')}) n'est apparu en ${Math.round(waitedMs / 1000)}s, URL courante : ${url}`

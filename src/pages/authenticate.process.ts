@@ -11,7 +11,7 @@ import {platform} from '../platform'
 import type {TestUser} from '../helpers/common/test-users'
 import {getUser} from '../helpers/common/test-users'
 import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot, replaceWithAppRoot} from '../helpers/common/session'
-import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl, pickFirstScreen} from '../helpers/common/first-screen'
+import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl} from '../helpers/common/first-screen'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
 
@@ -27,10 +27,8 @@ const MAX_DISMISSALS_PER_PAGE = 3
 // borne un simple check de présence (doit rester rapide, ré-exécuté à chaque tentative). Le sélecteur d'environnement est natif : il est
 // lisible tout de suite quand il est affiché (2 s d'attente par tour de boucle mesurées le 2026-10-27 sur iOS, pour rien : la boucle re-sonde).
 const DETECTION_TIMEOUT_MS = 500
-// Sondes rapides du tour de boucle : l'accueil (« Bonjour ») et chaque page d'onboarding. La sortie normale
-// est l'accueil ; on n'attend donc pas une page qui n'est pas là.
+// Sonde de l'accueil (« Bonjour ») hors de `probeScreen`, dont les sondes sont immédiates (la boucle appelante réessaie).
 const HOME_PROBE_MS = 500
-const ONBOARDING_PROBE_MS = 500
 // Rien de reconnu (ni accueil, ni onboarding, ni écran de connexion) pendant ce délai : on recharge la racine
 // de l'app une fois. Assez long pour laisser finir une redirection en cours (ex. fin de session FranceConnect : transitions mesurées ≤ 3 s
 // le 2026-10-27, iOS, machine chargée ; 15 s auparavant, dont 15 s perdues sur `#/welcome/notifications` resté blanc).
@@ -47,12 +45,11 @@ const FIRST_SCREEN_TIMEOUT_MS = 25000
 const DISMISS_GONE_TIMEOUT_MS = 10000
 const WELCOME_BLANK_ROUTE = /welcome\/notifications|notifications-welcome-page/
 
-type FcScreen = 'review-picker' | 'login' | 'eidas' | 'credentials' | 'home'
+type FcScreen = 'login' | 'eidas' | 'credentials' | 'home'
 type ConnectionScreen = Exclude<FcScreen, 'home'>
 
 // Les écrans de connexion, dans l'ordre, et leurs actions associées.
 const CONNECTION_SEQUENCE: Array<[ConnectionScreen, (user: TestUser) => Promise<void>]> = [
-    ['review-picker', (): Promise<void> => EnvironmentPickerPage.reviewEnvironmentPicker()],
     ['login', (): Promise<void> => FranceConnectMirePage.tapFranceConnect(false)],
     ['eidas', async (): Promise<void> => {
         await FranceConnectEidasPage.selectEidasFaible()
@@ -60,23 +57,50 @@ const CONNECTION_SEQUENCE: Array<[ConnectionScreen, (user: TestUser) => Promise<
     ['credentials', (user): Promise<void> => FranceConnectCredentialsPage.fillCredentials(user)],
 ]
 
-// Les pages d'onboarding connues. Chacune : une sonde rapide et sa fermeture. Sur mobile, l'écran
+// Les écrans reconnus par `probeScreen` (autres que l'accueil), chacun avec sa sonde immédiate et sa fermeture. Sur mobile, l'écran
 // « notifications » peut être natif (feuille SwiftUI) : sa page le gère.
-const ONBOARDING_PAGES: Array<{name: string, needsWeb: boolean, isVisible: () => Promise<boolean>, dismiss: () => Promise<void>}> = [
-    // iOS : la feuille native des notifications, SEULE (sans la page de la SPA derrière), se traite avant les pages de la SPA
-    // (au-dessus de la page « clé d'accès » juste après la connexion, son bouton « Activer » est unique).
-    {name: 'notifications (feuille native)', needsWeb: false, isVisible: () => OnboardingNotificationsPage.isNativeSheetAlone(ONBOARDING_PROBE_MS), dismiss: async () => { await OnboardingNotificationsPage.dismissNativeSheet() }},
-    {name: 'passkey', needsWeb: true, isVisible: () => OnboardingPasskeyPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingPasskeyPage.dismiss()},
-    {name: 'zones', needsWeb: true, isVisible: () => OnboardingZonesPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingZonesPage.dismiss()},
-    {name: 'notifications', needsWeb: true, isVisible: () => OnboardingNotificationsPage.isOnboardingVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingNotificationsPage.dismiss()},
+type OnboardingPage = {name: string, isVisible: () => Promise<boolean>, dismiss: () => Promise<void>}
+
+// Natif : sélecteur d'environnement. Il revient seul, sans WebView, après l'alerte système de notifications iOS (preuve : capture de la
+// trace de `authentification.smoke`, 2026-10-28, bandeau « Les notifications ont été activées » au-dessus de la liste des environnements) :
+// on re-choisit l'environnement, la session (cookie conservé) rouvre l'accueil.
+const ENVIRONMENT_PICKER: OnboardingPage = {name: 'sélecteur d\'environnement', isVisible: () => EnvironmentPickerPage.isEnvironmentPickerVisible(DETECTION_TIMEOUT_MS), dismiss: () => EnvironmentPickerPage.reviewEnvironmentPicker()}
+// iOS : la feuille native des notifications (au-dessus de la page « clé d'accès » juste après la connexion : à traiter avant les pages de la SPA).
+const NATIVE_SHEET: OnboardingPage = {name: 'notifications (feuille native)', isVisible: () => OnboardingNotificationsPage.isNativeSheetShownNow(), dismiss: async () => { await OnboardingNotificationsPage.dismissNativeSheet() }}
+// Pages de la SPA, sondées toutes dans UN seul passage en WebView.
+const WEB_PAGES: OnboardingPage[] = [
+    {name: 'passkey', isVisible: () => OnboardingPasskeyPage.isVisible(0), dismiss: () => OnboardingPasskeyPage.dismiss()},
+    {name: 'zones', isVisible: () => OnboardingZonesPage.isVisible(0), dismiss: () => OnboardingZonesPage.dismiss()},
+    {name: 'notifications', isVisible: () => OnboardingNotificationsPage.isWebOnboardingVisible(0), dismiss: () => OnboardingNotificationsPage.dismiss()},
 ]
+// Natif, sondé après le passage en WebView : écran des notifications d'un ancien build Android, bouton « plus tard » de la feuille iOS.
+const NATIVE_NOTIFICATIONS: OnboardingPage = {name: 'notifications (natif)', isVisible: () => OnboardingNotificationsPage.isNativeOnboardingVisible(0), dismiss: () => OnboardingNotificationsPage.dismiss()}
+const ONBOARDING_PAGES: OnboardingPage[] = [ENVIRONMENT_PICKER, NATIVE_SHEET, ...WEB_PAGES, NATIVE_NOTIFICATIONS]
+// Aucune WebView et aucun écran natif reconnu (app en relancement, chargement) : pas un écran à traiter, on attend.
+const NATIVE_ALONE = 'écran natif seul (aucune WebView)'
+
+/**
+ * UN tour de sonde : nom de l'écran affiché (HOME, une page de ONBOARDING_PAGES, ou NATIVE_ALONE), `null` si la WebView n'en montre aucun
+ * de connu. Un seul getContexts et un seul passage natif → WebView par tour (mesuré : une sonde « 500 ms » par écran en coûtait 1 à 3 s
+ * chacune, bascule de contexte et captures du service DevTools comprises) ; les sondes y sont immédiates, la boucle appelante réessaie.
+ */
+async function probeScreen(): Promise<string | null> {
+    for (const page of [ENVIRONMENT_PICKER, NATIVE_SHEET]) if (await page.isVisible()) return page.name
+    if (!await platform().isWebContextAvailable()) return NATIVE_ALONE
+    const web = await platform().inWebContext(async () => {
+        if (await HomePage.isHomeDisplayed(0)) return HOME
+        for (const page of WEB_PAGES) if (await page.isVisible()) return page.name
+        return null
+    })
+    if (web !== null) return web
+    return await NATIVE_NOTIFICATIONS.isVisible() ? NATIVE_NOTIFICATIONS.name : null
+}
 
 /**
  * Cherche l'écran en cours en une requête sur la webview en cours.
  * L'appelant gère les écrans natifs.
  */
 async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
-    if (!await platform().isWebContextAvailable()) return null
     return await platform().inWebContext(async () => {
         // Vérifié avant le bandeau générique "credentials" ci-dessous : la page d'erreur
         // technique FCP-LOW partage le même bandeau que le vrai formulaire de login. Sans cette
@@ -114,10 +138,9 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
 }
 
 // trouve l'écran courant en commençant par les natifs.
-async function detectCurrentScreen(): Promise<FcScreen | null> {
-    if (await EnvironmentPickerPage.isEnvironmentPickerVisible(DETECTION_TIMEOUT_MS)) return 'review-picker'
+async function detectCurrentScreen(probed: string | null): Promise<FcScreen | null> {
     if (platform().fcButtonIsNative && await FranceConnectMirePage.isLoginScreenVisible()) return 'login'
-    return await probeFranceConnectWebScreen()
+    return probed === NATIVE_ALONE ? null : await probeFranceConnectWebScreen()
 }
 
 /**
@@ -127,36 +150,16 @@ async function detectCurrentScreen(): Promise<FcScreen | null> {
  */
 async function runConnectionFrom(startScreen: ConnectionScreen, user: TestUser): Promise<void> {
     const startIndex = CONNECTION_SEQUENCE.findIndex(([screen]) => screen === startScreen)
-    for (const [screen, run] of CONNECTION_SEQUENCE.slice(startIndex)) {
+    for (const [, run] of CONNECTION_SEQUENCE.slice(startIndex)) {
         await run(user)
-        // Après le choix de l'environnement, l'app peut s'ouvrir DIRECTEMENT sur l'accueil (session conservée d'un démarrage à l'autre :
-        // cookie `token` du WKWebsiteDataStore sur iOS) : on rend la main à la boucle, qui réobserve (accueil, onboarding, écran de
-        // connexion) avant toute authentification FranceConnect. Mesuré le 2026-10-27 : enchaîner le choix et l'authentification sans
-        // réobserver gaspillait ~35 s (« eIDAS faible » introuvable 10 s, « bouton FranceConnect » introuvable 15 s) avant l'accueil.
-        if (screen === 'review-picker') return
     }
-}
-
-type OnboardingPage = (typeof ONBOARDING_PAGES)[number]
-
-/** Première page d'onboarding affichée (sonde rapide), ou `null`. */
-async function findVisibleOnboardingPage(): Promise<OnboardingPage | null> {
-    // Sans WebView (feuille native seule, sélecteur d'environnement), on ne sonde pas le web : un contexte inexistant coûte 25 s par sonde.
-    const webAvailable = await platform().isWebContextAvailable()
-    for (const page of ONBOARDING_PAGES) {
-        if (page.needsWeb && !webAvailable) continue
-        if (await page.isVisible()) return page
-    }
-    return null
 }
 
 /**
- * Ferme la première page d'onboarding affichée. `true` si une page a été fermée (il faut alors réobserver).
- * `dismissals` compte les fermetures par page : une page qui revient sans cesse est une anomalie à signaler.
+ * Ferme la page affichée (il faut ensuite réobserver). `dismissals` compte les fermetures par page : une page qui revient sans cesse
+ * est une anomalie à signaler.
  */
-async function dismissOnboardingPage(dismissals: Map<string, number>): Promise<boolean> {
-    const page = await findVisibleOnboardingPage()
-    if (!page) return false
+async function dismissOnboardingPage(page: OnboardingPage, dismissals: Map<string, number>): Promise<void> {
     const count = (dismissals.get(page.name) ?? 0) + 1
     if (count > MAX_DISMISSALS_PER_PAGE)
         throw new AssertionError({message: `getAppToStartingState: la page d'onboarding « ${page.name} » revient après ${MAX_DISMISSALS_PER_PAGE} fermetures (${await currentUrlForLog()})`})
@@ -166,26 +169,24 @@ async function dismissOnboardingPage(dismissals: Map<string, number>): Promise<b
     // Attend que la page ait quitté l'écran avant de réobserver : sinon la même page est vue juste après le clic (transition lente) et comptée comme un retour.
     await browser.waitUntil(async () => !await page.isVisible(), {timeout: DISMISS_GONE_TIMEOUT_MS, interval: 300})
         .catch(() => log.warn(`getAppToStartingState: la page d'onboarding « ${page.name} » est encore affichée ${DISMISS_GONE_TIMEOUT_MS}ms après sa fermeture`))
-    return true
 }
 
 /**
- * Attend la PREMIÈRE apparition parmi {accueil, feuille native des notifications, passkey, zones, notifications} (jusqu'à
- * FIRST_SCREEN_TIMEOUT_MS) et retourne son nom. Échoue avec la raison (écrans attendus, durée, URL courante) si rien n'apparaît.
+ * Attend la PREMIÈRE apparition parmi {accueil, sélecteur d'environnement, feuille native des notifications, passkey, zones, notifications}
+ * (jusqu'à FIRST_SCREEN_TIMEOUT_MS) et retourne son nom. « Écran natif seul » n'en est pas un : on attend la WebView. Échoue avec la
+ * raison (écrans attendus, durée, URL courante) si rien n'apparaît.
  * Ne traite pas l'écran : l'appelant le fait (la séquence peut se répéter, un écran peut manquer).
  */
 async function waitForFirstScreen(): Promise<string> {
     const expected = [HOME, ...ONBOARDING_PAGES.map(p => p.name)]
     const startedAt = Date.now()
-    let found: string | null = null
+    let found = null as string | null
     await browser.waitUntil(async () => {
-        const home = await platform().isWebContextAvailable() && await HomePage.isHomeDisplayed(HOME_PROBE_MS)
-        const page = home ? null : await findVisibleOnboardingPage()
-        found = pickFirstScreen([{screen: {name: HOME}, shown: home}, {screen: {name: page?.name ?? ''}, shown: page !== null}])?.name ?? null
-        return found !== null
+        found = await probeScreen()
+        return found !== null && found !== NATIVE_ALONE
     }, {timeout: FIRST_SCREEN_TIMEOUT_MS, interval: 300}).catch(() => undefined)
     const waitedMs = Date.now() - startedAt
-    if (found === null)
+    if (found === null || found === NATIVE_ALONE)
         throw new AssertionError({message: `getAppToStartingState: ${describeFirstScreenTimeout(expected, await currentUrlForLog(), waitedMs)}`})
     log.info(`getAppToStartingState: premier écran « ${found} » apparu après ${waitedMs}ms d'attente (${await currentUrlForLog()})`)
     return found
@@ -200,12 +201,13 @@ export async function passOnboardingToHome(): Promise<void> {
     const dismissals = new Map<string, number>()
     const startedAt = Date.now()
     while (Date.now() - startedAt < AUTHENTICATE_MAX_MS) {
-        if (await waitForFirstScreen() === HOME) {
+        const screen = await waitForFirstScreen()
+        if (screen === HOME) {
             // iOS : la feuille native « Activez les notifications » peut recouvrir l'accueil.
             await OnboardingNotificationsPage.dismissNativeSheet()
             return
         }
-        await dismissOnboardingPage(dismissals)
+        await dismissOnboardingPage(ONBOARDING_PAGES.find(p => p.name === screen) as OnboardingPage, dismissals)
     }
     throw new AssertionError({message: `passOnboardingToHome: l'accueil n'est pas atteint en ${Math.round(AUTHENTICATE_MAX_MS / 1000)}s (${await currentUrlForLog()})`})
 }
@@ -228,46 +230,37 @@ async function reachHome(user: TestUser): Promise<void> {
     let rootOpened = false
 
     while (Date.now() - lastProgressAt < NO_PROGRESS_TIMEOUT_MS && Date.now() - startedAt < AUTHENTICATE_MAX_MS) {
-        // Un seul getContexts() par tour (3 à 10 s sur iOS) : sans WebView (sélecteur d'environnement, écran
-        // natif), l'accueil et l'onboarding ne peuvent pas être affichés — on ne les sonde pas, sous peine
-        // d'attendre un contexte WebView qui n'existe pas (25 s par sonde).
-        // iOS : la feuille native « Activez les notifications » ne dépend pas de la WebView, qui peut ne pas être listée tant qu'elle est
-        // affichée (session FranceConnect ouverte : retour direct à l'app, constaté le 2026-10-27 : « Aucune WebView trouvée après 25000ms »,
-        // feuille visible en capture). On la traite donc avant de sonder le web.
-        if (await OnboardingNotificationsPage.dismissNativeSheet(ONBOARDING_PROBE_MS)) {
+        // UN tour de sonde (cf. probeScreen) : accueil, page d'onboarding (feuille native iOS comprise, qui ne dépend pas de la WebView),
+        // sélecteur d'environnement, ou « écran natif seul » (aucune WebView : rien de web n'est sondé, sous peine d'attendre un contexte inexistant).
+        const probed = await probeScreen()
+        if (probed === HOME) {
+            // iOS : la feuille native « Activez les notifications » peut recouvrir l'accueil (session restaurée au relancement).
+            await OnboardingNotificationsPage.dismissNativeSheet()
+            return
+        }
+        const page = ONBOARDING_PAGES.find(p => p.name === probed)
+        if (page) {
+            await dismissOnboardingPage(page, dismissals)
             unrecognizedSince = null
             lastProgressAt = Date.now()
             continue
         }
-        if (await platform().isWebContextAvailable()) {
-            if (await HomePage.isHomeDisplayed(HOME_PROBE_MS)) {
-                // iOS : la feuille native « Activez les notifications » peut recouvrir l'accueil (session restaurée au relancement).
-                await OnboardingNotificationsPage.dismissNativeSheet()
-                return
-            }
 
-            if (await dismissOnboardingPage(dismissals)) {
+        // Retour de FranceConnect (`login-callback`) : l'app charge, aucun écran n'est encore là. On attend le premier (le temps d'attente est
+        // un progrès : la connexion a abouti), au lieu de sonder à vide puis de recharger la racine.
+        if (probed === null && isLoginCallbackUrl(await currentUrlForLog())) {
+            lastProgressAt = Date.now()
+            try {
+                await waitForFirstScreen()
                 unrecognizedSince = null
                 lastProgressAt = Date.now()
                 continue
-            }
-
-            // Retour de FranceConnect (`login-callback`) : l'app charge, aucun écran n'est encore là. On attend le premier (le temps d'attente est
-            // un progrès : la connexion a abouti), au lieu de sonder à vide puis de recharger la racine.
-            if (isLoginCallbackUrl(await currentUrlForLog())) {
-                lastProgressAt = Date.now()
-                try {
-                    await waitForFirstScreen()
-                    unrecognizedSince = null
-                    lastProgressAt = Date.now()
-                    continue
-                } catch (err) {
-                    log.warn(String(err instanceof Error ? err.message : err))
-                }
+            } catch (err) {
+                log.warn(String(err instanceof Error ? err.message : err))
             }
         }
 
-        const screen = await detectCurrentScreen()
+        const screen = await detectCurrentScreen(probed)
         if (screen !== null && screen !== 'home') {
             unrecognizedSince = null
             try {

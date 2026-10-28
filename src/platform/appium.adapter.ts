@@ -197,6 +197,8 @@ async function inWebContext<T>(targetOrCallback: WebViewTarget | (() => Promise<
 }
 
 async function isWebContextAvailable(): Promise<boolean> {
+  // Déjà dans une WebView (callback d'`inWebContext`) : inutile de lister les contextes (getContexts rejoue la recherche des pages, cf. capabilities.ts).
+  if ((await currentContext()).startsWith('WEBVIEW_')) return true
   const contexts = await driver.getContexts() as string[]
   return contexts.some((c) => c.startsWith('WEBVIEW_'))
 }

@@ -40,14 +40,24 @@ class OnboardingNotificationsPage {
      * build ; iOS reste sur la sheet SwiftUI.
      */
     async isOnboardingVisible(timeout = 5000): Promise<boolean> {
+        return await this.isWebOnboardingVisible(timeout) || await this.isNativeOnboardingVisible(timeout)
+    }
+
+    /** Partie WebView de la sonde (route SPA, route vide iOS) : peut s'exécuter dans un `inWebContext` déjà ouvert (sonde unique par tour). */
+    async isWebOnboardingVisible(timeout = 5000): Promise<boolean> {
         if (platform().kind === 'webapp') return await this.isWebVisible(timeout)
         // iOS aussi : la page de la SPA (route `#/welcome/notifications`) est LA référence (le DOM est à jour). Son reflet dans l'arbre
         // natif peut être périmé (cf. refreshAxTree) : mesuré le 2026-10-27, la sonde native (« plus tard », hittable) ne la voyait pas
         // pendant 5 s alors que la WebView y était, et l'onboarding n'était alors jamais fermé (Home non atteinte).
         if (await this.isWebVisible(timeout)) return true
-        if (driver.isIOS && await this.isBlankWelcomeNotificationsRoute()) return true
+        return driver.isIOS && await this.isBlankWelcomeNotificationsRoute()
+    }
+
+    /** Partie native de la sonde (hors WebView) : écran natif de l'ancien build Android, bouton « plus tard » de la feuille iOS. */
+    async isNativeOnboardingVisible(timeout = 5000): Promise<boolean> {
+        if (platform().kind === 'webapp') return false
         const loc = getOnboardingNotifLocators()
-        const nativeShown = await this.firstNative(loc.dismiss, driver.isAndroid ? 1000 : timeout) !== null
+        const nativeShown = await this.firstNative(loc.dismiss, driver.isAndroid ? Math.min(timeout, 1000) : timeout) !== null
         // Android : le chemin nominal est la route SPA (observée sur l'émulateur moderne). L'écran natif
         // (OnboardingNotificationScreen.kt) est un ÉCART, à voir dans les logs ; on le traite pour que le test continue.
         if (nativeShown && driver.isAndroid) {
@@ -144,14 +154,13 @@ class OnboardingNotificationsPage {
     }
 
     /**
-     * La feuille native « Activez les notifications » est-elle affichée SEULE (la page `#/welcome/notifications` de la SPA n'est pas
-     * derrière) ? Son bouton « Activer » est alors le seul de l'arbre natif : pas d'ambiguïté avec celui de la SPA (même libellé, cf. locators).
-     * À traiter AVANT les pages d'onboarding de la SPA : la feuille apparaît juste après la connexion, au-dessus de la page « clé d'accès ».
+     * iOS : le titre de la feuille native « Activez les notifications » est-il dans l'arbre natif ? Sonde immédiate (la boucle appelante
+     * réessaie). La page `#/welcome/notifications` de la SPA y est parfois reflétée avec le même titre : « Activer » a le même effet
+     * dans les deux cas (cf. activateNativeIOS), l'appelant n'a donc pas à les distinguer. À traiter AVANT les pages d'onboarding de la
+     * SPA : la feuille apparaît juste après la connexion, au-dessus de la page « clé d'accès ».
      */
-    async isNativeSheetAlone(timeout = 500): Promise<boolean> {
-        if (!driver.isIOS) return false
-        if (await this.firstNative(getOnboardingNotifLocators().title, timeout) === null) return false
-        return !await this.isWebVisible(300)
+    async isNativeSheetShownNow(): Promise<boolean> {
+        return driver.isIOS && await this.firstNative(getOnboardingNotifLocators().title, 0) !== null
     }
 
     /** Attend l'alerte système de notifications jusqu'à `timeout` ; l'accepte (« Autoriser ») et retourne `true`, sinon `false`. */
@@ -264,11 +273,13 @@ class OnboardingNotificationsPage {
      * le même bouton (cf. locators) : on prend le premier et on le signale, sans critère natif/WebView ni position.
      */
     private async firstNative(selector: string, timeout: number): Promise<WebdriverIO.Element | null> {
-        let found: WebdriverIO.Element[] = []
-        await browser.waitUntil(async () => {
-            found = Array.from(await $$(selector))
-            return found.length > 0
-        }, {timeout, interval: 300}).catch(() => undefined)
+        let found = Array.from(await $$(selector))
+        if (found.length === 0 && timeout > 0) {
+            await browser.waitUntil(async () => {
+                found = Array.from(await $$(selector))
+                return found.length > 0
+            }, {timeout, interval: 300}).catch(() => undefined)
+        }
         if (found.length > 1) {
             log.warn(`ANOMALIE : ${found.length} éléments natifs correspondent à « ${selector} » (feuille native et page de la SPA ` +
                 'superposées, même libellé) ; on prend le premier. Aucun identifiant ne les distingue (constaté sur iOS, 2026-10-08).')
