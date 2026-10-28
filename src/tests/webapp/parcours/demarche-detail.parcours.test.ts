@@ -28,7 +28,7 @@ describe('Non-régression — détail d’une démarche', function () {
 
   const user = getUser('avec_nom_dusage')
   const stamp = new Date().toISOString()
-  const itemId = `E2E-${stamp}`
+  const itemId = `E2E-detail-${stamp}`
   const title = `Demarche E2E ${itemId} detail`
 
   before(async function () {
@@ -49,24 +49,22 @@ describe('Non-régression — détail d’une démarche', function () {
     await getAppToStartingState()
   })
 
-  it('S9.1 — depuis l’Accueil, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’Accueil', async function () {
+  it('S9 — depuis l’Accueil puis depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’écran d’origine', async function () {
+    step('1. Depuis l’Accueil : ouvrir le détail, puis le retour revient à l’Accueil')
     await HomePage.assertContentVisible()
     await SuiviDemarchesPage.ouvreDemarche(title)
     await DemarcheDetailPage.assertDisplayed(title)
     await DemarcheDetailPage.assertReference(itemId)
-
     await NavigationPage.goBack()
     await HomePage.assertHomeVisible(15000)
-  })
 
-  it('S9.2 — depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à la liste', async function () {
+    step('2. Depuis le Suivi : ouvrir le détail, puis le retour revient à la liste')
     await HomePage.ouvreSuivi()
     await SuiviDemarchesPage.assertDisplayed()
     await SuiviDemarchesPage.waitForDemarche(title)
     await SuiviDemarchesPage.ouvreDemarche(title)
     await DemarcheDetailPage.assertDisplayed(title)
     await DemarcheDetailPage.assertReference(itemId)
-
     await NavigationPage.goBack()
     await SuiviDemarchesPage.assertDisplayed()
   })
