@@ -73,6 +73,5 @@ export const config: Options.Testrunner = {
   // mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
   mochaOpts: {...baseConfig.mochaOpts, bail: true},
 
-  // Fin de série : l'app est fermée (le simulateur reste démarré).
-  onComplete: [baseConfig.onComplete as () => void, (): void => iosTerminateApp(APP_ID)],
+  // Pas de fermeture en fin de série : afterSession a déjà terminé l'app après la dernière spec.
 } as Options.Testrunner
