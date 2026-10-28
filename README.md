@@ -15,9 +15,9 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 | `just` | `brew install just` |
 | Android SDK + `adb` | Android Studio → SDK Manager |
 | Xcode + `xcodegen` | App Store + `brew install xcodegen` |
-| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `scripts/appium-drivers.mjs`, installées dans `node_modules/` du dépôt) | `npm ci && npm run appium:install` |
+| Appium 3.8 (local, devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` (versions figées dans `package.json`, script `appium:install`, installées dans `node_modules/` du dépôt) | `npm ci && npm run appium:install` |
 
-**Drivers Appium** : `APPIUM_HOME` n'est pas défini, Appium travaille en mode « projet » (drivers dans `node_modules/`, manifeste dans `node_modules/.cache/appium`). `npm run appium:install` désinstalle puis installe les deux pilotes aux versions figées (`npm run appium:update` : dernières versions) et laisse `package.json`/`package-lock.json` inchangés. À relancer après tout `npm ci`/`npm install` (qui effacent les drivers, absents de `package.json`) et après un déplacement du dépôt (le manifeste contient des chemins absolus : « Could not find a driver … Could not read the driver manifest »).
+**Drivers Appium** : `APPIUM_HOME` n'est pas défini, Appium travaille en mode « projet » (drivers dans `node_modules/`, manifeste dans `node_modules/.cache/appium`). `npm run appium:install` désinstalle puis installe les deux pilotes aux versions figées (pour mettre à jour : changer les versions dans ce script de `package.json` et le relancer). Mesuré dans un clone isolé : `appium driver install` ajoute les drivers aux `devDependencies` de `package.json` et `package-lock.json` ; ne pas commiter ces ajouts par mégarde (`git checkout package.json package-lock.json`). À relancer après tout `npm ci`/`npm install` (qui effacent les drivers, absents de `package.json`) et après un déplacement du dépôt (le manifeste contient des chemins absolus : « Could not find a driver … Could not read the driver manifest »).
 
 Les recettes `just` ne démarrent ni n'arrêtent aucun appareil, et n'ont aucune option `--device` : l'appareil visé se choisit par variables d'environnement (gabarit `.env`, surcharge ponctuelle `ANDROID_UDID=… just test-android …`).
 

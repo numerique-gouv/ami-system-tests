@@ -14,8 +14,7 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "appium:install": "node scripts/appium-drivers.mjs install",
-    "appium:update": "node scripts/appium-drivers.mjs update",
+    "appium:install": "npx appium driver uninstall uiautomator2; npx appium driver uninstall xcuitest; npx appium driver install uiautomator2@8.7.2 && npx appium driver install xcuitest@12.21.0",
     "appium:start": "npx appium --port 4723 --log-level info"
   },
   "devDependencies": {

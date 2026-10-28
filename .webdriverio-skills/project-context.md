@@ -39,7 +39,7 @@ test:android / test:ios / test:webapp       — wdio run <conf>
 test:android:staging / test:ios:staging     — idem avec APP_ENV=staging
 lint / lint:fix                             — eslint src --ext .ts
 typecheck                                   — tsc --noEmit
-appium:install / appium:update / appium:start
+appium:install / appium:start
 failures                                    — liste les tests en échec du dernier run (dumps d'échec)
 ```
 Le `justfile` les encapsule pour les humains (voir CLAUDE.md racine) ; un agent peut les appeler directement.
