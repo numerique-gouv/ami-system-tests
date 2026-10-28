@@ -5,7 +5,6 @@ import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { resolveEnvironment } from './src/helpers/common/environment'
 import { captureAppWindow } from './src/platform/browser.adapter'
 import { handleAccessKeyCookie } from './src/helpers/webapp/access-code'
-import { PRIVATE_NETWORK_HOSTS } from './src/helpers/webapp/link-check'
 import { setBackendUrl } from './src/helpers/partner-api'
 
 const { webappUrl, apiUrl } = resolveEnvironment()
@@ -59,10 +58,6 @@ export const config: Options.Testrunner = {
           // ouverte par une spec est reprise par les suivantes (cookies), sans se réauthentifier. Supprimé en début et fin de série
           // (il contient les cookies de session).
           `--user-data-dir=${chromeProfileDir}`,
-          // Hôtes joignables seulement depuis un réseau privé (`PRIVATE_NETWORK_HOSTS`, cibles injoignables tolérées) : résolution
-          // refusée d'emblée (page d'erreur immédiate, statut null, constat inchangé) au lieu de ~90 s de connexion bloquée (mesuré le
-          // 2026-10-28 : `pageLoad` 15 s n'y change rien, le moteur de rendu reste bloqué jusqu'au délai de connexion).
-          `--host-resolver-rules=${[...PRIVATE_NETWORK_HOSTS].map(h => `MAP ${h} ~NOTFOUND`).join(', ')}`,
         ],
         // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
         // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
