@@ -10,7 +10,7 @@ targets: [http]
 sources:
   - {ref: src/helpers/partner-api/}
   - {ref: src/tests/next/publications_partenaires/api-notification-entrante.test.ts, note: "contrats de réponse (backlog)"}
-note: "L'URL de base est fixée à l'exécution par le picker d'environnement mobile ou par AMI_ENV (webapp). Secrets NOTIF_* dans .env.staging, jamais reproduits ici."
+note: "L'URL de base est fixée à l'exécution par le picker d'environnement mobile ou par AMI_ENV (webapp). Secrets NOTIF_* dans .env, jamais reproduits ici."
 operations:
   publish-notification:
     title: Publier une notification (et alimenter le suivi d'une démarche)

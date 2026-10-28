@@ -19,7 +19,7 @@
  *
  * API PARTENAIRE (consentement, notification, démarche, démarche enfant) : les `it.skip` en fin de fichier donnent, pour chacun,
  * le `curl` et l'appel de helper équivalent. Préparer le shell (sans afficher les secrets) :
- *   set -a; . ./.env.staging; set +a
+ *   set -a; . ./.env; set +a
  *   API=https://ami-back-staging.osc-fr1.scalingo.io     # backend de l'environnement testé
  *   AUTH="$NOTIF_PARTNER_ID:$NOTIF_PARTNER_SECRET"
  *   FC=<fc_hash de l'utilisateur de test, dans src/helpers/common/test-users.ts>

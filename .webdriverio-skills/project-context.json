@@ -157,7 +157,7 @@
   ],
   "notes": [
     "test-results/ et .wdio-logs/*.log ne sont jamais nettoyés automatiquement avant un run — accumulation cross-run et cross-plateforme, voir health-recommendations.md",
-    "Ne jamais lire .env.staging ni afficher ses valeurs, y compris via un outil",
+    "Ne jamais lire .env ni afficher ses valeurs, y compris via un outil",
     "Le modèle du site (websiteModel ci-dessus) doit être lu par les skills de planification/investigation avant toute nouvelle exploration du site",
     "Tests webapp: 12 fichiers dans src/tests/webapp (authentication, navigation, accueil, agenda, services, suivi, notifications, profil, preferences, aide-contact, deconnexion, erreurs), mis en place le 2026-10-02",
     "Le nom accessible d'un bouton de la SPA peut différer de son texte visible (aria-label) — vérifier le DOM rendu avant de choisir un sélecteur par nom",

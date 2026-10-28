@@ -1,6 +1,5 @@
 import type { Options } from '@wdio/types'
 import path from 'path'
-import dotenv from 'dotenv'
 import logger from '@wdio/logger'
 import { dumpFailure } from './src/helpers/reporting/failure-dump'
 import { resetSteps } from './src/helpers/reporting/report'
@@ -34,14 +33,6 @@ export function specFileRetriesFromEnv(env: NodeJS.ProcessEnv): number {
   }
   const isCi = [env.CI, env.GITHUB_ACTIONS].some((v) => v !== undefined && !['', 'false', '0'].includes(v.toLowerCase()))
   return isCi ? 1 : 0
-}
-
-// Fichier d'environnement : sous `just`, c'est just qui charge `.env.staging` ou le fichier choisi par `just -E <fichier>` ; il pose
-// DOTENV_LOADED_BY_JUST (cf. justfile). Relire alors `.env.staging` ici compléterait en silence un fichier `.env.preprod` par les
-// valeurs staging de `.env.staging` : on ne le charge que hors `just` (`npx wdio …` direct). Les variables déjà définies dans le shell
-// ne sont pas écrasées (override: false).
-if (!process.env.DOTENV_LOADED_BY_JUST) {
-  dotenv.config({ path: path.resolve(__dirname, '.env.staging'), override: false })
 }
 
 // Service DevTools en mode trace, écrit dans test-results/ : captures, arbre de l'écran, éléments et réseau d'un test en échec

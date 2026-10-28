@@ -1,7 +1,7 @@
 /**
  * Socle HTTP de l'API partenaire AMI : URL du backend, authentification, délai d'attente.
  *
- * Variables (.env / .env.staging) :
+ * Variables (.env, gabarit .env.example) :
  *   AMI_ENV              — environnement cible (titre ou numéro de PR) ; en webapp, l'URL en est
  *                          dérivée par resolveEnvironment() (environment.ts).
  *   NOTIF_PARTNER_ID     — identifiant du partenaire AMI (`dinum-ami`, partenaire SYSTÈME, consentement non activé côté backend)
@@ -48,7 +48,7 @@ export function partnerCredentialVariables(partner: string): {id: string; secret
     return {id: `NOTIF_PARTNER_${slug}_ID`, secret: `NOTIF_PARTNER_${slug}_SECRET`}
 }
 
-/** Les identifiants du partenaire sont-ils renseignés (`.env.staging`) ? */
+/** Les identifiants du partenaire sont-ils renseignés (`.env`) ? */
 export function hasPartnerCredentials(partner: string = AMI_PARTNER): boolean {
     const vars = partnerCredentialVariables(partner)
     return Boolean(process.env[vars.id]) && Boolean(process.env[vars.secret])
@@ -58,7 +58,7 @@ export function hasPartnerCredentials(partner: string = AMI_PARTNER): boolean {
 export function missingPartnerCredentialsMessage(partner: string): string {
     const vars = partnerCredentialVariables(partner)
     const missing = [vars.id, vars.secret].filter(name => !process.env[name])
-    return `Identifiants du partenaire « ${partner} » absents : renseigner ${missing.join(' et ')} dans .env.staging ` +
+    return `Identifiants du partenaire « ${partner} » absents : renseigner ${missing.join(' et ')} dans .env ` +
         `(secret : variable PARTNERS_${partner.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_SECRET de l'application Scalingo du backend).`
 }
 
@@ -94,7 +94,7 @@ function requireEnv(name: string): string {
     if (!val) {
         throw new Error(
             `Variable d'environnement manquante : ${name}. ` +
-            'Copier .env en .env.staging et renseigner les valeurs.'
+            'Copier .env.example en .env et renseigner les valeurs.'
         )
     }
     return val

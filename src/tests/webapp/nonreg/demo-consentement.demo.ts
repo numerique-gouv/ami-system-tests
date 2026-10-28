@@ -14,7 +14,7 @@ const log = logger('test')
  * Préférences › Suivi des démarches) pour être visible à l'écran, et chaque état est tenu ~2 s pour être lisible dans la vidéo.
  *
  * Extension `.demo.ts` : hors des globs `**\/*.test.ts` des suites. Lancement (préprod, vidéo gardée même en cas de réussite) :
- *   set -a; . ./.env.staging; set +a
+ *   set -a; . ./.env; set +a
  *   AMI_ENV=preprod just test-webvideo src/tests/webapp/nonreg/demo-consentement.demo.ts
  * La vidéo (.webm) est écrite dans `test-results/traces/<horodatage>_webapp_…/test-results/video-*.webm`.
  *

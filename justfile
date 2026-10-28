@@ -10,14 +10,10 @@
 # la recette a des options, sinon la DERNIÈRE ligne de commentaire. Les exemples restent en commentaires
 # (lisibles dans ce fichier : `just --show` les masque dès qu'un `[doc]` est présent) ; arguments d'une recette : `just --usage <recette>`.
 
-# Fichier d'environnement : `.env.staging` par défaut, ou celui choisi par l'option native `just -E <fichier>` (`--dotenv-path`),
-# ex. `just -E .env.preprod test-ios --suite mobile_all` (convention `.env.<cible>`, tous ignorés par git ; README, « Prérequis »).
-# Absent, le fichier est simplement ignoré (CI : variables injectées par le workflow ; erreurs explicites du code si une variable manque).
-set dotenv-path := ".env.staging"
-
-# Marque que just a chargé le fichier d'environnement : wdio.base.conf.ts ne relit alors pas `.env.staging` (pas de mélange staging/préprod
-# avec `just -E`). Hors just (`npx wdio …`), wdio charge `.env.staging` lui-même.
-export DOTENV_LOADED_BY_JUST := "1"
+# Fichier d'environnement : `.env` par défaut (WDIO le charge aussi seul, sans just), ou celui choisi par l'option native `just -E <fichier>`
+# (`--dotenv-path`), ex. `just -E .env.preprod test-ios --suite mobile_all` (convention `.env.<cible>`, tous ignorés par git ; README).
+# Les variables absentes du fichier choisi sont complétées par `.env` (WDIO le charge sans écraser) ; le shell l'emporte sur les fichiers.
+set dotenv-load
 
 # ─── Qualité ────────────────────────────────────────────────────────────────
 
@@ -35,7 +31,7 @@ check-code:
 #   just test-webci --suite webapp_smoke                     → idem webapp (webapp_short | webapp_smoke | webapp_usage | webapp_all)
 # Les suites nommées sont définies dans l'option native `suites` de wdio.base.conf.ts (appel sans just :
 # npx wdio run wdio.webapp.conf.ts --suite webapp_smoke). Les apps mobiles testées sont celles de ANDROID_APP_PATH / IOS_APP_PATH
-# (gabarit .env). Le fichier d'environnement est .env.staging, ou `just -E .env.preprod test-… ` (cf. README).
+# (gabarit .env.example). Le fichier d'environnement est .env, ou `just -E .env.preprod test-… ` (cf. README).
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 
 # L'appareil n'est PAS démarré par la recette : soit il tourne déjà (Android Studio, `adb devices`), soit Appium lance l'AVD de ANDROID_AVD

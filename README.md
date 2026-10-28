@@ -38,28 +38,29 @@ Un chemin relatif se lit depuis la racine de ce projet ; `~/` désigne le dossie
 
 Ports (facultatifs, utiles pour un second appareil en parallèle) : `ANDROID_APPIUM_PORT` (4723), `IOS_APPIUM_PORT` (4724), `ANDROID_SYSTEM_PORT` (8200), `ANDROID_CHROMEDRIVER_PORT` (9515), `IOS_WDA_PORT` (8100). L'appareil visé précisément : `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `IOS_UDID`, `IOS_DEVICE_NAME`.
 
-### Fichiers d'environnement (`.env.staging`, `.env.<cible>`)
+### Fichiers d'environnement (`.env`, `.env.<cible>`)
 
-`.env` est le gabarit commité (valeurs vides, aucun secret) ; chaque poste le copie en `.env.staging` (ignoré par git) et le remplit. `just` charge `.env.staging` par défaut. Pour une exécution contre un autre environnement, un fichier `.env.<cible>` (`.env.local.staging`, `.env.preprod`, tous ignorés par git) se choisit avec l'option native de `just` :
+`.env.example` est le gabarit commité (valeurs vides, aucun secret). Chaque poste le copie en **`.env`** (ignoré par git : votre environnement par défaut, ex. staging) et le remplit. WebdriverIO charge `.env` tout seul (`@wdio/cli` fait `import "dotenv/config"`), avec ou sans `just`. Pour une exécution contre un autre environnement, un fichier `.env.<cible>` (`.env.staging`, `.env.preprod`, tous ignorés par git) se choisit pour une commande :
 
 ```bash
-just -E .env.preprod test-ios --suite mobile_short                        # fichier choisi pour cette commande
-AMI_ENV=preprod IOS_APP_PATH=… just -E .env.preprod test-ios --suite mobile_short   # + surcharge ponctuelle d'une variable
+just -E .env.preprod test-ios --suite mobile_short                                   # avec just (option native -E)
+node --env-file=.env.preprod node_modules/.bin/wdio run wdio.ios.conf.ts --suite mobile_short   # sans just (option native de Node)
+AMI_ENV=preprod IOS_APP_PATH=… just -E .env.preprod test-ios --suite mobile_short    # + surcharge ponctuelle d'une variable
 ```
 
-Un fichier choisi par `-E` doit être **complet** : `.env.staging` n'est alors pas relu pour combler ses manques (voir `wdio.base.conf.ts`), pour ne jamais mélanger staging et préprod. Une variable déjà définie dans le shell l'emporte sur les fichiers.
+Priorité (aucun chargeur n'écrase une variable déjà définie) : variable du shell, puis `.env.<cible>` choisi, puis `.env`. Une variable absente de `.env.<cible>` est donc complétée par `.env`. `--env-file` n'est pas accepté dans `NODE_OPTIONS` (Node le refuse) : il se place sur la commande `node`.
 
 ---
 
 ## Installation
 
 ```bash
-cp .env .env.staging           # puis remplir AMI_ENV et les variables NOTIF_*
+cp .env.example .env         # puis remplir AMI_ENV et les variables NOTIF_*
 npm ci                       # dépendances Node, dont Appium et ses drivers
 just doctor                  # diagnostic de l'environnement (Node, Appium, SDK Android, simulateurs)
 ```
 
-Hors CI, `.env.staging` fournit `AMI_ENV` et les variables `NOTIF_*` (sans lui, le code lève une erreur qui nomme la variable manquante) — en CI, les
+Hors CI, `.env` fournit `AMI_ENV` et les variables `NOTIF_*` (sans lui, le code lève une erreur qui nomme la variable manquante) — en CI, les
 variables viennent du workflow GitHub Actions. Les comptes de test FranceConnect (maquette publique, sans secret) sont dans
 `src/helpers/common/test-users.ts` ; leur `fcHash` est calculé (`src/helpers/common/fc-hash.ts`).
 
@@ -156,7 +157,7 @@ d'architecture : [`docs/adr/2026-08-04-Integration-continue-Github-Actions.md`](
 ## Secrets
 
 Les variables `AMI_ENV` (environnement backend ciblé) et `NOTIF_*` (clés API notifications) sont
-dans `.env.staging` à la racine — non commité. Voir `.env` pour les noms des variables à renseigner.
+dans `.env` à la racine — non commité. Voir `.env.example` pour les noms des variables à renseigner.
 
 ---
 

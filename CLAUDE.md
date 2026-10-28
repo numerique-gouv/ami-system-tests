@@ -152,12 +152,12 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 - Appium 3.8 et ses drivers `appium-uiautomator2-driver` / `appium-xcuitest-driver` : devDependencies de `package.json` (versions dans le lock), installés par `npm ci` ; `APPIUM_HOME` n'est pas défini (mode « projet », drivers dans `node_modules/`)
 - Simulateur iOS "iPhone 17 Pro" : `IOS_UDID` (`xcrun simctl list devices`) ; XCUITest le démarre s'il est arrêté
 - Émulateur Android : AVD de type Pixel, API 36 : démarré par Android Studio (`ANDROID_UDID` s'il y en a plusieurs) ou par Appium (`ANDROID_AVD`, il s'arrête avec le run)
-- Aucune recette `just` ne démarre/arrête d'appareil ni n'a d'option `--device` : variables d'environnement `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `ANDROID_AVD`, `ANDROID_AVD_ARGS`, `IOS_UDID`, `IOS_DEVICE_NAME` (gabarit `.env`, README « Prérequis »)
+- Aucune recette `just` ne démarre/arrête d'appareil ni n'a d'option `--device` : variables d'environnement `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `ANDROID_AVD`, `ANDROID_AVD_ARGS`, `IOS_UDID`, `IOS_DEVICE_NAME` (gabarit `.env.example`, README « Prérequis »)
 
 ## Secrets
 
-Variables `AMI_ENV` (environnement backend, pilote aussi le picker mobile et `resolveEnvironment()` webapp) et `NOTIF_*` dans `.env.staging` à la racine (non commité, gabarit dans `.env`). `ANDROID_APP_PATH` / `IOS_APP_PATH` désignent l'app mobile à tester (seule source du chemin, README « Prérequis »). Autre fichier pour une commande : `just -E .env.local.preprod …` (convention `.env.<cible>`, tous ignorés par git ; sous `just`, wdio ne relit pas `.env.staging`). Ne jamais écrire leurs valeurs dans du code ou du cache.
-Dans les permissions, tu ne dois pas avoir le droit de lire `.env.staging`, les commande shell s'en servent comme WDIO, scalingo, mais tu ne doit jamais utiliser d'outil pour l'afficher.
+Variables `AMI_ENV` (environnement backend, pilote aussi le picker mobile et `resolveEnvironment()` webapp) et `NOTIF_*` dans `.env` à la racine (non commité, gabarit dans `.env.example`). `ANDROID_APP_PATH` / `IOS_APP_PATH` désignent l'app mobile à tester (seule source du chemin, README « Prérequis »). Autre fichier pour une commande : `just -E .env.local.preprod …` (convention `.env.<cible>`, tous ignorés par git ; sous `just`, wdio ne relit pas `.env`). Ne jamais écrire leurs valeurs dans du code ou du cache.
+Dans les permissions, tu ne dois pas avoir le droit de lire `.env`, les commande shell s'en servent comme WDIO, scalingo, mais tu ne doit jamais utiliser d'outil pour l'afficher.
 
 ## Section Documentation
 

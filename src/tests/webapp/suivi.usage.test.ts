@@ -14,7 +14,7 @@ import {step} from '@helpers/reporting/report'
  * l'indépendance des it(), CONTRIBUTING.md §6) : les 3 premiers tests partagent le même `itemId`
  * horodaté, chacun publie sa propre notification et valide l'état de la liste sans supposer
  * celui laissé par le précédent. Le détail et les archivées sont indépendants.
- * Pré-requis : variables NOTIF_* dans .env.staging.
+ * Pré-requis : variables NOTIF_* dans .env.
  */
 describe('Suivi des démarches', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe

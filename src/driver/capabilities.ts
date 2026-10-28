@@ -11,13 +11,13 @@ const preprod = isPreprod()
 /**
  * Chemin d'une app mobile buildée, lu dans la variable d'environnement `name` (source unique : aucun chemin par défaut calculé).
  * Un chemin relatif se lit depuis la racine du projet (`../ami-app-android/…`), `~/` désigne le dossier personnel ; aucun motif (glob).
- * Absente, ou ne désignant aucun fichier : erreur qui nomme la variable. Valeurs d'exemple dans le gabarit `.env`, construction des
+ * Absente, ou ne désignant aucun fichier : erreur qui nomme la variable. Valeurs d'exemple dans le gabarit `.env.example`, construction des
  * apps dans le README (Prérequis).
  */
 function appPathFromEnv(name: 'ANDROID_APP_PATH' | 'IOS_APP_PATH'): string {
   const raw = process.env[name]?.trim()
   if (!raw) {
-    throw new Error(`${name} est absente : renseigner le chemin de l'app buildée (gabarit .env, README « Prérequis »).`)
+    throw new Error(`${name} est absente : renseigner le chemin de l'app buildée (gabarit .env.example, README « Prérequis »).`)
   }
   const value = path.resolve(path.resolve(__dirname, '../..'), raw.startsWith('~/') ? path.join(os.homedir(), raw.slice(2)) : raw)
   if (!fs.existsSync(value)) {

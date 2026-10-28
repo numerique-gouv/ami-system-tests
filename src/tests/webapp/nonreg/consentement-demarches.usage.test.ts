@@ -28,7 +28,7 @@ const PARTNER = PARTNER_DN
  *
  * PARTENAIRE : `dinum-dn` (consentement ACTIVÉ côté backend). Le partenaire AMI est un partenaire SYSTÈME dont le consentement est ignoré
  * (un PUT sans consentement y répond 201) : il ne peut pas exercer ce scénario. Identifiants DN : NOTIF_PARTNER_DINUM_DN_ID / _SECRET
- * (.env.staging) ; absents, le scénario est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
+ * (.env) ; absents, le scénario est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
  *
  * MODIFIE le consentement DN (et AMI) du compte partagé `avec_nom_dusage` : état d'origine relevé au `before()`, rétabli à l'`after()`. Les
  * démarches publiées (titres horodatés) restent sur le compte : aucune suppression n'est connue.

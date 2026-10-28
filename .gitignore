@@ -2,7 +2,7 @@
 .*local*
 *.local.ts
 .env*
-!.env
+!.env.example
 
 # ide
 .idea/

@@ -10,7 +10,7 @@ Backend (`ami/partner/models.py`, `notification/api_views_v2.py`) : `PUT /api/v2
 
 Conséquence : S5, S5.2 et S6.3 utilisent **`dinum-dn`** (`PARTNER_DN`). Un partenaire réel fait GET `/api/v1/consent/{fc_hash}` puis PUT (c'est ce que simule `publishEvent` par défaut) ; pour tester le **refus du backend** on appelle le PUT directement (`verifyPartnerConsent: false`) et on exige `publicationOutcome` = `refusée` (404).
 
-Variables d'environnement (`../../../../.env.staging`, jamais commitées ; gabarit `.env`) :
+Variables d'environnement (`../../../../.env`, jamais commitées ; gabarit `.env.example`) :
 
 | Partenaire | Identifiant | Secret (valeur : variable `PARTNERS_<SLUG>_SECRET` de l'app Scalingo du backend) |
 |---|---|---|

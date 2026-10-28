@@ -49,7 +49,7 @@ export function environmentKind(): EnvironmentKind {
   return /\b\d+\b/.test(env) ? 'review' : 'staging'
 }
 
-/** Dérive l'environnement depuis AMI_ENV (.env.staging), cf. backendUrlFor(). */
+/** Dérive l'environnement depuis AMI_ENV (.env), cf. backendUrlFor(). */
 export function resolveEnvironment(): Environment {
   const url = backendUrlFor(process.env.AMI_ENV ?? '')
   return {webappUrl: url, apiUrl: url}
