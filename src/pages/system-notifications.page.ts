@@ -202,9 +202,12 @@ class SystemNotificationsPage {
     /**
      * Page d'arrivée après le clic sur la notification native. Android : l'app est au premier plan et MainActivity a reçu l'intent (la WebView n'est
      * pas rechargée si l'app était ouverte : rien d'autre de stable à constater). iOS : l'app est au premier plan ET l'accueil est affiché.
-     * CONSTAT (dev tools, simulateur, 2026-10-27, plusieurs essais) : le tap lit `app_url` et crée une WebView `/#/notifications`, mais elle reste
-     * `hidden` (visibilityState) : l'utilisateur voit l'accueil (avec la bannière « Les notifications ont été activées »). Cette WebView n'est de plus
-     * pas toujours créée (absente sur un essai sur deux) : on ne l'asserte donc pas. Défaut de l'app ou de la simulation, NON CONFIRMÉ.
+     * CAUSE ÉTABLIE (journal de l'app `simctl spawn log show`, 2026-10-28, payload identique à celui du backend) : le tap est bien traité (`didReceive`
+     * lit `app_url`, « Notification Received: /#/notifications », nouvelle WebView `/#/notifications` chargée, utilisateur connecté, titre « Notifications »)
+     * mais cette WebView reste `hidden` : sur le build STAGING, `ReviewAppView` ouvre l'accueil par `navigationDestination` (targets/staging/Sources/
+     * Presentation/ReviewApp/ReviewAppView.swift:33) ; le tap remplace la RACINE de la pile (AMIApp.swift, `IS_AMI_STAGING`) alors que l'ancien accueil
+     * reste empilé au-dessus, donc visible. Le payload n'est PAS en cause. Prod/préprod remplacent directement la racine (non vérifié ici : pas de build).
+     * D'où l'absence d'assertion forte sur staging : la page Notifications n'y est pas affichée par l'app.
      */
     async assertPushArrival(): Promise<void> {
         if (!driver.isIOS) return await this.assertTapOpenedApp()
@@ -212,7 +215,7 @@ class SystemNotificationsPage {
         await OnboardingNotificationsPage.dismissNativeSheet(2000)
         expect(await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})).toBe(4)
         await platform().inWebContext(() => HomePage.assertHomeVisible())
-        log.warn('ANOMALIE (iOS, non confirmée) : le tap sur la notification n\'affiche pas la page Notifications (WebView /#/notifications cachée ou absente) ; l\'accueil reste à l\'écran')
+        log.warn('Limite du build staging (cf. commentaire) : le tap crée la WebView /#/notifications mais l\'ancien accueil, empilé par ReviewAppView, reste à l\'écran')
     }
 
     /**

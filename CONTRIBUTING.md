@@ -290,6 +290,10 @@ interface PlatformAdapter {
 
 ---
 
+### Push natif : charge du backend et charge de test iOS
+
+Le backend (`ami-notifications-api`, `ami/notification/push.py:26-73`) envoie via Firebase un `messaging.Message` : `notification` {title, body} (FCM en fait `aps.alert`, traduction supposée) et `data` = `title`, `message` (corps), `content_icon` (si renseigné), `sender` = « AMI », `app_url` = `PUBLIC_APP_URL`. Pas d'identifiant de notification, pas de route, aucun réglage `apns` (son, badge, category…). Au tap, l'app iOS ne lit que `userInfo["app_url"]` (`NotificationManager.swift:124`) et ouvre `/#/notifications` relatif à cette URL. Sur le simulateur, `simctl push` reproduit ces clés (`backendLikePushPayload`, `src/helpers/mobile/ios-notifications.ts`) ; un vrai push du backend (clés FCM en plus : `gcm.message_id`, `google.c.*`) a aussi été observé dans le journal de l'app sur le simulateur (2026-10-28). Sur le build **staging**, le tap crée bien la WebView `/#/notifications` mais l'ancien accueil, empilé par `ReviewAppView`, reste affiché (cf. `SystemNotificationsPage.assertPushArrival`) : pas d'assertion « page Notifications affichée » possible tant que l'app ne change pas.
+
 ## 5. Qualité des assertions
 
 La qualité d'une assertion se mesure au message produit en cas d'échec.

@@ -87,12 +87,35 @@ export interface SimulatedPush {
   appUrl?: string
 }
 
-/** `xcrun simctl push <simulateur> <bundleId> <charge>` : charge APNs fictive (titre, corps, son, `app_url`). */
+/**
+ * Charge d'un push REEL du backend (ami-notifications-api, `ami/notification/push.py`, fonction `push()`, lignes 26-73), telle que l'app iOS la reçoit
+ * (FCM -> APNs). Le backend envoie un message Firebase `messaging.Message` avec :
+ *  - `notification` {title, body} : FCM la traduit en `aps.alert` {title, body} (traduction FCM : supposée, non lisible dans le code du backend ni de l'app) ;
+ *  - `data` : tout `NotificationPush` (user/models.py:86-90) en chaînes, `exclude_none` : `title`, `message` (le corps), `content_icon` (si renseigné),
+ *    `sender` = « AMI », PLUS `app_url` = `settings.PUBLIC_APP_URL` (push.py:71). AUCUN identifiant de notification, aucune route. Ces clés `data`
+ *    sont à la racine du userInfo (hors `aps`), où l'app lit `userInfo["app_url"]` (NotificationManager.swift:124).
+ * Vérifié sur le simulateur (journal de l'app, 2026-10-28) : un VRAI push du backend y est arrivé, userInfo = `aps.alert`{title,body}, `title`, `message`,
+ *    `sender`, `app_url`, plus `gcm.message_id`, `google.c.a.e`, `google.c.fid`, `google.c.sender.id` ; ni son ni badge. C'est ce que reproduit la charge ci-dessous.
+ * Aucun réglage `apns` (pas de son, badge, category, thread-id, content-available, mutable-content) n'est posé par le backend.
+ * La charge de test reproduit ces clés ; ce que FCM ajoute de plus (`gcm.message_id`, `google.c.*`) n'est pas lu par l'app.
+ */
+export function backendLikePushPayload(push: SimulatedPush, contentIcon?: string): Record<string, unknown> {
+  return {
+    aps: {alert: {title: push.title, body: push.body}},
+    title: push.title,
+    message: push.body,
+    ...(contentIcon ? {content_icon: contentIcon} : {}),
+    sender: 'AMI',
+    ...(push.appUrl ? {app_url: push.appUrl} : {}),
+  }
+}
+
+/** `xcrun simctl push <simulateur> <bundleId> <charge>` : charge APNs fictive reproduisant celle du backend (cf. `backendLikePushPayload`). */
 export function simctlPush(push: SimulatedPush): void {
   const dir = mkdtempSync(join(tmpdir(), 'ami-push-'))
   const file = join(dir, 'payload.json')
   try {
-    writeFileSync(file, JSON.stringify({aps: {alert: {title: push.title, body: push.body}, sound: 'default'}, ...(push.appUrl ? {app_url: push.appUrl} : {})}))
+    writeFileSync(file, JSON.stringify(backendLikePushPayload(push)))
     execFileSync('xcrun', ['simctl', 'push', simulatorUdid(), appBundleId(), file], {encoding: 'utf8'})
   } finally {
     rmSync(dir, {recursive: true, force: true})
