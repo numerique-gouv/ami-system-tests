@@ -204,12 +204,12 @@ export async function setCheckbox(name: string, checked: boolean): Promise<void>
 export async function checkboxStates(): Promise<Record<string, boolean>> {
   const selector = roleSelector('checkbox')
   await browser.waitUntil(async () => (await $$(selector)).length > 0, {timeout: 10000, timeoutMsg: 'Aucune case à cocher affichée après 10000ms'})
-  const out: Record<string, boolean> = {}
-  for (const box of await $$(selector)) {
-    const key = (await box.getAttribute('name')) || (await box.getAttribute('id')) || ''
-    out[key] = await box.isSelected()
-  }
-  return out
+  // Un seul aller-retour : 13 cases × (name, id, isSelected) = 39 requêtes WebDriver avec les API d'élément. Les sélecteurs natifs
+  // ne renvoient pas un agrégat ; `execute` est ici inévitable (WebView/webapp seulement, comme toutes les aides de ce fichier).
+  return await browser.execute(() => Object.fromEntries(
+    Array.from(document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
+      .map(box => [box.name || box.id || '', box.checked]),
+  ))
 }
 
 /**
