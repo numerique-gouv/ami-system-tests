@@ -10,7 +10,7 @@ import ProfilePage from './profile.page'
 import {platform} from '../platform'
 import type {TestUser} from '../helpers/common/test-users'
 import {getUser} from '../helpers/common/test-users'
-import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot} from '../helpers/common/session'
+import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot, replaceWithAppRoot} from '../helpers/common/session'
 import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl, pickFirstScreen} from '../helpers/common/first-screen'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
@@ -321,8 +321,8 @@ export async function getAppToStartingState(): Promise<void> {
     }
 
     if (await isOnBackendPageOutsideSpa()) {
-        log.info(`getAppToStartingState: WebView sur une page du backend hors de la SPA (${await currentUrlForLog()}), chargement de la racine de l'app`)
-        await openAppRoot()
+        log.info(`getAppToStartingState: WebView sur une page du backend hors de la SPA (${await currentUrlForLog()}), remplacement par la racine de l'app`)
+        await replaceWithAppRoot()
     } else if (await hasSessionToken()) {
         log.info('getAppToStartingState: session ouverte, chargement de la racine de l\'app')
         await openAppRoot()

@@ -36,6 +36,7 @@ describe('first-screen', () => {
     assert.equal(isBackendPageOutsideSpa('https://ami.example/', backend), false)
     assert.equal(isBackendPageOutsideSpa('https://ami.example/#/followup', backend), false)
     assert.equal(isBackendPageOutsideSpa('https://ami.example/?id_token=***#/login-callback', backend), false)
+    assert.equal(isBackendPageOutsideSpa('https://ami.example/?login_redirect_url=https%3A%2F%2Fami.example%2Fdemarches%2F1&id_token=***#/login-callback', backend), true)
     assert.equal(isBackendPageOutsideSpa('https://fcp-low.example/api/v2/authorize', backend), false)
     assert.equal(isBackendPageOutsideSpa('about:blank', backend), false)
   })

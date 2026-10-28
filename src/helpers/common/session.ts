@@ -50,6 +50,16 @@ export async function openAppRoot(): Promise<void> {
   })
 }
 
+/**
+ * Remplace la page courante par la racine de l'app : l'entrée d'historique de la page quittée (ex. la 404 d'un lien de démarche) disparaît, un
+ * retour arrière (SPA, `goBack` natif iOS à l'ouverture des Réglages) ne peut plus y ramener. La session est conservée.
+ */
+export async function replaceWithAppRoot(): Promise<void> {
+  await platform().inWebContext(async () => {
+    await driver.execute((root: string) => { window.location.replace(root) }, platform().kind === 'webapp' ? '/' : `${new URL(getBackendUrl()).origin}/`)
+  })
+}
+
 /** URL courante de la WebView, jetons masqués ; « écran natif » hors WebView. Ne lève jamais. */
 export async function currentUrlForLog(): Promise<string> {
   if (platform().kind !== 'webapp' && !await platform().isWebContextAvailable()) return 'écran natif (hors WebView)'

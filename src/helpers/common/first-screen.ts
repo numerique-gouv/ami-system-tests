@@ -24,13 +24,14 @@ export function describeFirstScreenTimeout(expected: string[], url: string, wait
 
 /**
  * `url` est-elle une page du backend HORS de la SPA ? La SPA est servie à la racine (`/`, ses routes sont dans le `#`) : un autre chemin du
- * même backend est une page serveur (ex. la cible d'un lien de démarche, `/demarches/<id>/v2`, qui répond 404 sur staging). Une autre origine
+ * même backend est une page serveur (ex. la cible d'un lien de démarche, `/demarches/<id>/v2`, qui répond 404 sur staging), de même que la page intermédiaire du SSO
+ * qui y mène (`/?login_redirect_url=<cible>#/login-callback`, restée sans redirection sur iOS). Une autre origine
  * n'est pas jugée ici : ce peut être FranceConnect, dont les écrans font partie de la connexion.
  */
 export function isBackendPageOutsideSpa(url: string, backendUrl: string): boolean {
   try {
     const page = new URL(url)
-    return page.origin === new URL(backendUrl).origin && page.pathname !== '/'
+    return page.origin === new URL(backendUrl).origin && (page.pathname !== '/' || page.searchParams.has('login_redirect_url'))
   } catch {
     return false
   }
