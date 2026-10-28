@@ -32,7 +32,7 @@ flaky-test*
 __pycache__/
 
 # Variables d'environnement locales
-.env.local*
+.env.*
 
 # macOS
 .DS_Store

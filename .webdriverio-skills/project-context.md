@@ -85,7 +85,7 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 
 `AMI_ENV`, `ANDROID_DEVICE_NAME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `IOS_DEVICE_NAME`, `RUN_OLD_DEVICE`, `WEBAPP_HEADLESS`, `WEB_APP_ACCESS_KEYS`, `NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET` (les deux derniers via `requireEnv()` dans `notifications-api.ts`, jamais loggés).
 
-Rappel projet : ne jamais lire `.env.local` ni afficher ses valeurs, y compris via un outil.
+Rappel projet : ne jamais lire `../.env.staging` ni afficher ses valeurs, y compris via un outil.
 
 ## Serveurs / environnements cibles
 

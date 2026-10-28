@@ -21,7 +21,7 @@ _Template initial généré par `managing-project-customizations` le 2026-09-08.
 - Jamais de `browser.pause()` comme mécanisme de synchronisation — utiliser `waitUntil`/`waitForDisplayed`/`waitForClickable`.
 - `isVisible()` et équivalents : `try/catch` + `return await` (sans `await`, les rejections ne sont pas interceptées).
 - `platform().inWebContext()` unique pour tout le flow OIDC iOS — sortir du contexte WebView au milieu du flow FranceConnect bloque ~25s.
-- Ne jamais lire `.env.local` ni afficher ses valeurs.
+- Ne jamais lire `../.env.staging` ni afficher ses valeurs.
 
 ## Environnements / réseau
 

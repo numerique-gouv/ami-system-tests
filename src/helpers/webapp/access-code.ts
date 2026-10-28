@@ -22,7 +22,7 @@ export async function handleAccessKeyCookie(webappUrl: string): Promise<void> {
     if (!key) {
         throw new Error(
             "La webapp attend un cookie access_key valide, mais WEB_APP_ACCESS_KEYS est absent " +
-            'de .env.local (cf. gabarit dans .env).'
+            'de .env.staging (cf. gabarit dans .env).'
         )
     }
 

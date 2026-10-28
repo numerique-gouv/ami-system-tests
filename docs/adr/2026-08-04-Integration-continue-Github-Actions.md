@@ -11,7 +11,7 @@ Plusieurs contraintes structurent la solution :
   (macOS 3-4 core : $0,062/min contre $0,006/min pour Linux 2-core — cf. doc de facturation
   GitHub), ce qui pousse à garder iOS en stub le plus longtemps possible et à traiter Android
   sur `ubuntu-latest`.
-- `.env.local` est requis par le `justfile` (`set dotenv-required`) pour tout usage local, mais
+- `../../.env.staging` est requis par le `justfile` (`set dotenv-required`) pour tout usage local, mais
   matérialiser un tel fichier en CI serait un anti-pattern (secret sur disque, risque de fuite
   dans les logs/artefacts) — la bonne pratique GitHub est d'injecter les secrets/variables via
   `env:`, alimenté par des secrets/variables scopés à un **Environment** GitHub correspondant à
@@ -99,13 +99,13 @@ publiée par Google pour API ≥ 31 sur Linux).
   [reactivecircus/android-emulator-runner](https://github.com/ReactiveCircus/android-emulator-runner))
   précède le boot de l'émulateur — l'accélération matérielle est disponible nativement sur les
   runners GitHub-hosted `ubuntu-latest` (x86_64) depuis 2023.
-- Le `justfile` n'impose plus `.env.local` de façon inconditionnelle
+- Le `justfile` n'impose plus `../../.env.staging` de façon inconditionnelle
   (`set dotenv-required := false`, littéral requis par `just` — pas d'expression conditionnable
   sur `CI`) ; l'obligation en local est réimplémentée par une recette de garde `_require-dotenv`,
   qui tolère l'absence du fichier dès que `CI` ou `GITHUB_ACTIONS` est présent dans
   l'environnement.
 
-  > Note du 2026-10-27 : la recette de garde `_require-dotenv` et le réglage `dotenv-required` ont été retirés du `justfile` (le code lève déjà des erreurs explicites sur les variables absentes) ; `.env.local` absent est simplement ignoré, en local comme en CI.
+  > Note du 2026-10-27 : la recette de garde `_require-dotenv` et le réglage `dotenv-required` ont été retirés du `justfile` (le code lève déjà des erreurs explicites sur les variables absentes) ; `../../.env.staging` absent est simplement ignoré, en local comme en CI.
 
 ### Garde `env.ACT` — limites assumées de test local
 

@@ -130,7 +130,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
 
   // S5 et S5.2 exigent un partenaire À CONSENTEMENT ACTIVÉ (flag `consent_is_enabled` du partenaire, backend) : le partenaire AMI est un
   // partenaire système dont le consentement est ignoré (PUT sans consentement : 201). On utilise `dinum-dn` ; identifiants
-  // NOTIF_PARTNER_DINUM_DN_ID / _SECRET dans .env.local, sinon le test est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
+  // NOTIF_PARTNER_DINUM_DN_ID / _SECRET dans .env.staging, sinon le test est SKIPPÉ (BLOQUÉ) avec un message qui les nomme.
   // Ce n'est pas le réglage des notifications push, global à AMI et sans endpoint (voir notifications.usage.test.ts).
   it('S5 — une notification refusée sans consentement n’apparaît jamais, même après activation ; la suivante oui', async function () {
     skipUnlessPartnerCredentials(this, PARTNER_DN)

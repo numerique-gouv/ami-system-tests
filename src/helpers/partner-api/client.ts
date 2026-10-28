@@ -1,7 +1,7 @@
 /**
  * Socle HTTP de l'API partenaire AMI : URL du backend, authentification, délai d'attente.
  *
- * Variables (.env / .env.local) :
+ * Variables (.env / .env.staging) :
  *   AMI_ENV              — environnement cible (titre ou numéro de PR) ; en webapp, l'URL en est
  *                          dérivée par resolveEnvironment() (environment.ts).
  *   NOTIF_PARTNER_ID     — identifiant du partenaire AMI (`dinum-ami`, partenaire SYSTÈME, consentement non activé côté backend)
@@ -48,7 +48,7 @@ export function partnerCredentialVariables(partner: string): {id: string; secret
     return {id: `NOTIF_PARTNER_${slug}_ID`, secret: `NOTIF_PARTNER_${slug}_SECRET`}
 }
 
-/** Les identifiants du partenaire sont-ils renseignés (`.env.local`) ? */
+/** Les identifiants du partenaire sont-ils renseignés (`.env.staging`) ? */
 export function hasPartnerCredentials(partner: string = AMI_PARTNER): boolean {
     const vars = partnerCredentialVariables(partner)
     return Boolean(process.env[vars.id]) && Boolean(process.env[vars.secret])
@@ -94,7 +94,7 @@ function requireEnv(name: string): string {
     if (!val) {
         throw new Error(
             `Variable d'environnement manquante : ${name}. ` +
-            'Copier .env en .env.local et renseigner les valeurs.'
+            'Copier .env en .env.staging et renseigner les valeurs.'
         )
     }
     return val

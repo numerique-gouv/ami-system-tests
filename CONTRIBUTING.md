@@ -117,7 +117,7 @@ dédoublonne en gardant la première occurrence.
 Suites supprimées (2026-10-27) : `all` et `api` (suites maison ; un fichier se désigne par `--spec`), `mobile_ci` et `mobile_nonreg` (remplacées par `mobile_all`), `webapp_nonreg` (remplacée par
 `webapp_usage`, qui contient en plus les `*.smoke`), `mobile_auth` / `webapp_auth` / `auth` (remplacées par `*_short` ou `*_smoke`).
 
-Lancer hors CI (mêmes suites, mêmes commandes qu'en local ; `AMI_ENV` choisit l'environnement, cf. `.env.local`) :
+Lancer hors CI (mêmes suites, mêmes commandes qu'en local ; `AMI_ENV` choisit l'environnement, cf. `.env.staging`) :
 
 ```bash
 AMI_ENV=staging just test-webci --suite webapp_smoke   # valider un déploiement (webapp)

@@ -33,7 +33,7 @@ Règles du produit, à connaître avant de spécifier :
 
 | Étape | Ce qu'on fait | Outil |
 |---|---|---|
-| 0 | Préparer l'environnement | `just`, `.env.local` |
+| 0 | Préparer l'environnement | `just`, `../../../.env.staging` |
 | 1 | Spécifier : lever les ambiguïtés avant tout code | papier |
 | 2 | Explorer l'API à la main | `curl` |
 | 3 | Explorer l'app, page par page | `wdio session` sur un test mis en pause |
@@ -48,7 +48,7 @@ Les étapes 3 à 5 se répètent **pour chaque page**, puis on passe à la suiva
 
 ## Étape 0 — Préparer
 
-`.env.local` contient les secrets du partenaire (`NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET`) et `WEB_APP_ACCESS_KEYS` (code d'accès du staging). Pour les `curl`, chargez-les dans **votre** terminal sans les afficher : la procédure (`$API`, `$AUTH`, `$FC`) est dans l'en-tête de [`tutorial.test.ts`](tutorial.test.ts), qui porte toutes les commandes de ce tutoriel.
+`../../../.env.staging` contient les secrets du partenaire (`NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET`) et `WEB_APP_ACCESS_KEYS` (code d'accès du staging). Pour les `curl`, chargez-les dans **votre** terminal sans les afficher : la procédure (`$API`, `$AUTH`, `$FC`) est dans l'en-tête de [`tutorial.test.ts`](tutorial.test.ts), qui porte toutes les commandes de ce tutoriel.
 
 ### Ce qui est déjà fait pour vous
 
