@@ -147,16 +147,6 @@ runs:
       shell: bash
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
-    # Appium (devDependency locale, APPIUM_HOME non défini) travaille en mode « projet » : les drivers
-    # (uiautomator2, xcuitest) sont installés dans node_modules/ du dépôt par `npm run appium:install`
-    # (uninstall puis install aux versions figées de package.json). Aucun cache dédié :
-    # node_modules/ est reconstruit par `npm ci` (cache npm de setup-node) et le manifeste des drivers
-    # (node_modules/.cache/appium) contient des chemins absolus, donc ne se met pas en cache.
-    - name: Installer les drivers Appium
-      shell: bash
-      working-directory: ami-system-tests
-      run: npm run appium:install
-
     - name: debug AVD devices
       shell: bash
       run: |

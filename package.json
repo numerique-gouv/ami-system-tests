@@ -14,7 +14,6 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "appium:install": "npx appium driver uninstall uiautomator2; npx appium driver uninstall xcuitest; npx appium driver install uiautomator2@8.7.2 && npx appium driver install xcuitest@12.21.0",
     "appium:start": "npx appium --port 4723 --log-level info"
   },
   "devDependencies": {
@@ -30,6 +29,8 @@
     "@wdio/spec-reporter": "^10.0.0",
     "@wdio/types": "^10.0.0",
     "appium": "^3.8.0",
+    "appium-uiautomator2-driver": "^8.7.0",
+    "appium-xcuitest-driver": "^12.18.1",
     "eslint": "^10.9.1",
     "eslint-plugin-wdio": "^10.0.1",
     "globals": "^17.13.0",

@@ -149,7 +149,7 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 - `just` (`brew install just`)
 - Android SDK + `adb` dans le PATH
 - Xcode + `xcodegen` (`brew install xcodegen`)
-- Appium 3.8 (devDependency) + drivers `uiautomator2@8.7.2` et `xcuitest@12.21.0` dans `node_modules/` (`npm run appium:install` après `npm ci`, versions figées dans `package.json`, script `appium:install`)
+- Appium 3.8 et ses drivers `appium-uiautomator2-driver` / `appium-xcuitest-driver` : devDependencies de `package.json` (versions dans le lock), installés par `npm ci` ; `APPIUM_HOME` n'est pas défini (mode « projet », drivers dans `node_modules/`)
 - Simulateur iOS "iPhone 17 Pro" : `IOS_UDID` (`xcrun simctl list devices`) ; XCUITest le démarre s'il est arrêté
 - Émulateur Android : AVD de type Pixel, API 36 : démarré par Android Studio (`ANDROID_UDID` s'il y en a plusieurs) ou par Appium (`ANDROID_AVD`, il s'arrête avec le run)
 - Aucune recette `just` ne démarre/arrête d'appareil ni n'a d'option `--device` : variables d'environnement `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `ANDROID_AVD`, `ANDROID_AVD_ARGS`, `IOS_UDID`, `IOS_DEVICE_NAME` (gabarit `.env`, README « Prérequis »)
