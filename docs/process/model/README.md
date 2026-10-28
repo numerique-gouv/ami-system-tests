@@ -37,22 +37,22 @@ docs/process/model/
 Un scénario est une **trace** sur la face A :
 
 ```yaml
-- id: webapp.profil.edit-email
-  source: {file: src/tests/webapp/profil.usage.test.ts, describe: Profil usager, it: "permet de modifier l'email du bloc « Contact »"}
+- id: mobile.profile-deletion.modify-email
+  source: {file: src/tests/mobile/profil-et-suppression-a-la-deconnexion.usage.test.ts, describe: "Profil usager — suppression des modifications à la déconnexion", it: "modifie l'email"}
   status: active
-  targets: [webapp]
+  targets: [android, ios]
   trace:
     - {do: "ami-spa:profile#open-edit-contact", steps: [trigger, arrive]}
-    - {do: "ami-spa:edit-email#save", steps: [read-origin, mutate, read-mutation, restore]}
+    - {do: "ami-spa:edit-email#save", steps: [read-origin, mutate, read-mutation]}
   cleanup:
     - {restores: "ami-spa:profile@contact", by: after-hook, assured: best-effort}
 ```
 
-`ami-spa:edit-email#save` est une action `mutate` : son protocole impose `read-origin`, `mutate`, `read-mutation`, `restore`. Le `cleanup` dit que la restauration est faite par un `after()` dont les erreurs sont avalées : l'étape compte, mais le rapport l'affichera en avertissement.
+`ami-spa:edit-email#save` est une action `mutate` : son protocole impose `read-origin`, `mutate`, `read-mutation`, `restore` (dans cet exemple mobile, `restore` est porté par un scénario ultérieur : la reconnexion, `mobile.profile-deletion.original-email-restored`). Le `cleanup` dit que la restauration est faite par un `after()` dont les erreurs sont avalées : l'étape compte, mais le rapport l'affichera en avertissement.
 
 ## Inventaire (2026-10-15)
 
-Chiffres de la dernière exécution du script de validation (jetable, retiré du dépôt le 2026-10-15), copiés tels quels.
+Chiffres de la dernière exécution du script de validation (jetable, retiré du dépôt le 2026-10-15), copiés tels quels. **Périmés pour les scénarios et les `it()`** : le 2026-10-28, des specs ont été supprimées, renommées, fusionnées ou mises en skip (voir l'en-tête de `scenarios/webapp.yaml` et `scenarios/mobile.yaml`) ; `webapp.yaml` compte désormais 55 scénarios (53 `active`, 2 `skipped`) et `mobile.yaml` 10, d'après un simple décompte des entrées, sans rejouer les contrôles C1 à C12.
 
 | | Valeur |
 |---|---|
@@ -83,16 +83,16 @@ Android et iOS sont identiques parce que `src/tests/mobile/**` s'exécute sur le
 
 ### Ce que le modèle fait déjà ressortir
 
-- **Webapp, actions non couvertes** (relevé du 2026-10-06) : `home#open-procedure-title` (depuis, exercée par S9.1), `services-tools#select-help-tab`, `followup-item#open-partner-demarche`. Le `switch` des zones, ex-`agenda-zones-dialog#toggle-zone`, est devenu `preferences-zones#toggle-zone` : la spec S7 le déclare avec ses 4 étapes.
-- **Webapp, observables jamais lus** : `home@carousel` et `profile@address`. Le test « affiche l'identité, le contact et l'adresse » ne lit pas l'adresse malgré son titre.
+- **Webapp, actions non couvertes** (relevé du 2026-10-06) : `home#open-procedure-title` (depuis, exercée par le scénario « depuis l’Accueil puis depuis le Suivi », fusion de S9.1 et S9.2), `services-tools#select-help-tab`, `followup-item#open-partner-demarche`. Le `switch` des zones, ex-`agenda-zones-dialog#toggle-zone`, est devenu `preferences-zones#toggle-zone` : la spec S7 le déclare avec ses 4 étapes.
+- **Webapp, observables jamais lus** : `home@carousel` et `profile@address`. Le test webapp « affiche l'identité, le contact et l'adresse » (`profil.usage.test.ts`) est supprimé depuis le 2026-10-28 ; `profile@address` est désormais lu par le test **mobile** (adresse originale restaurée). Non recalculé pour la webapp.
 - **Webapp, écrans jamais visités** : les trois écrans d'onboarding (traversés par des no-op conditionnels, donc non revendiqués) et `ext-partner-demarche`.
 - **Mobile** : 10 écrans sur 35 (connexion, accueil, notifications, suivi et détail, menu Plus, profil et ses 2 formulaires, déconnexion). Navigation, services, agenda, préférences, aide, pages légales et erreurs n'ont aucun scénario mobile.
-- **Exclues par décision documentée** : `edit-address#save` (adresse Caf, COJUR) et `welcome-passkey#add-passkey` (passkey persistante sur le compte partagé, non confirmé). `agenda-event-dialog#delete` ne l'est plus : les specs S10 et S10.2 la cliquent (restauration par la déconnexion, observée le 2026-10-15).
-- **Restaurations `best-effort`** : les 4 scénarios de modification du profil (webapp et mobile) restaurent dans un `after()` qui avale les erreurs. Seuls `deconnexion` et `profil-et-suppression-a-la-deconnexion.usage` vérifient la restauration.
+- **Exclues par décision documentée** : `welcome-passkey#add-passkey` (passkey persistante sur le compte partagé, non confirmé ; la passkey est en pause depuis le 2026-10-28). `edit-address#save` ne l'est plus : le test mobile de profil la couvre depuis le 2026-10-28 (décision de l'équipe ; statut du COJUR non confirmé). `agenda-event-dialog#delete` ne l'est plus : les specs S10 et S10.2 la cliquent (restauration par la déconnexion, observée le 2026-10-15).
+- **Restaurations `best-effort`** : les scénarios de modification du profil (désormais mobiles seulement : nom d'usage, email, adresse) restaurent dans un `after()` qui avale les erreurs. Seul `profil-et-suppression-a-la-deconnexion.usage` vérifie la restauration (la webapp `deconnexion.usage` est supprimée).
 
 ## Écarts et doutes à lever
 
-- `../schema-navigation-webapp.md` marque `✔` l'arête « Accéder à ma démarche », mais `suivi.usage.test.ts` ne fait qu'asserter la cible du lien (`assertLienExterne`), sans cliquer. Le modèle suit le code : l'action n'est pas couverte.
+- `../schema-navigation-webapp.md` marque `✔` l'arête « Accéder à ma démarche », mais `demarches-cycle-de-vie.usage.test.ts` (ex `suivi.usage.test.ts`) ne fait qu'asserter la cible du lien (`assertLienExterne`), sans cliquer. Le modèle suit le code : l'action n'est pas couverte.
 - `suivi-des-demarches-consentements.test.ts` annonce 4 interrupteurs ; le test webapp en relève 6.
 - Le second `tapFranceConnect(true)` du test d'authentification mobile n'est pas documenté : noté non confirmé.
 - Les zones scolaires sont une PAGE (`/preferences/zones`) et non plus un dialogue depuis le 2026-10-08 : l'ancien écran `agenda-zones-dialog` est supprimé du modèle.
