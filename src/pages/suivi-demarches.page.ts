@@ -183,7 +183,7 @@ class SuiviDemarchesPage {
         }
 
         const origin = await driver.execute(() => location.origin) as string
-        log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
+        log.warn(`ANOMALIE : page du Suivi non revenue (page hors SPA, ex. 404 du lien externe ; retour arrière sans effet sur mobile), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
         await browser.url(`${origin}/#/followup`)
         await waitForHeading(pageTitle, 20000)
     }
