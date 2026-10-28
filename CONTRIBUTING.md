@@ -85,7 +85,7 @@ kebab-case français (`profil-et-suppression-a-la-deconnexion.usage.test.ts`). T
 |-----------|---------------------|----------|
 | `smoke` | prouve que l'essentiel fonctionne : authentification, arrivée sur l'accueil | `authentification.smoke.test.ts`, `accueil.smoke.test.ts` |
 | `parcours` | parcourt des pages en **lecture seule** (liens sans 404, présence de la configuration, pages d'erreur), sans modifier le compte | `erreurs.parcours.test.ts`, `catalogue.parcours.test.ts` |
-| `usage` | un cas d'usage de bout en bout, qui agit (démarche publiée, profil modifié, consentement, déconnexion) ; le périmètre fonctionnel est dans le nom | `demarches-cycle-de-vie.usage.test.ts`, `passkey.usage.test.ts` |
+| `usage` | un cas d'usage de bout en bout, qui agit (démarche publiée, profil modifié, consentement, déconnexion) ; le périmètre fonctionnel est dans le nom | `demarches-cycle-de-vie.usage.test.ts`, `otv-connexion-silencieuse.usage.test.ts` |
 
 Trois autres catégories ont été envisagées et NON retenues : `liens` (couvert par `parcours`), `natif` (la frontière natif / WebView
 n'est pas figée : des pages seront promues en natif), `contrat` (pas de spec de contrat d'API dans ce dépôt).
@@ -94,7 +94,7 @@ n'est pas figée : des pages seront promues en natif), `contrat` (pas de spec de
 
 Filtrer par catégorie avec un glob : `just test-webapp "src/tests/webapp/**/*.smoke.test.ts"`. Les suites `*_smoke` et `webapp_usage` de
 `wdio.base.conf.ts` reposent sur ces mêmes motifs : la catégorie du nom de fichier fait donc entrer une spec dans une suite (section suivante).
-`wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `passkey.usage.test.ts`) les specs qui exigent un
+`wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `otv-connexion-silencieuse.usage.test.ts`) les specs qui exigent un
 profil Chrome vierge : à garder en phase en cas de renommage.
 
 #### Suites nommées (option native `suites` de `wdio.base.conf.ts`)
@@ -102,7 +102,7 @@ profil Chrome vierge : à garder en phase en cas de renommage.
 Source de vérité : l'objet `suites` de `wdio.base.conf.ts` (option native de WDIO, lancée par `--suite <nom>`). Listes plates de specs
 (un worker par spec, jamais de tableau imbriqué). Préfixe `mobile_` (Android + iOS) ou `webapp_` (Chrome) ; jamais mélangés. Aucun
 ordre particulier n'est requis : chaque spec s'authentifie seule et `wdio.webapp.conf.ts` vide le profil Chrome avant
-`authentification.smoke` et `nonreg/passkey.usage` (cf. ci-dessus). Les suites sont définies par motif de catégorie : un nouveau
+`authentification.smoke` et `nonreg/otv-connexion-silencieuse.usage` (cf. ci-dessus). Les suites sont définies par motif de catégorie : un nouveau
 `*.smoke.test.ts` ou `*.usage.test.ts` y entre sans modifier la config ; `*_all` et `webapp_usage` citent les smoke d'abord, WDIO
 dédoublonne en gardant la première occurrence.
 
