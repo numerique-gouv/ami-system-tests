@@ -1,17 +1,14 @@
 import {execFileSync} from 'node:child_process'
-import {mkdtempSync, writeFileSync, rmSync} from 'node:fs'
-import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {homedir} from 'node:os'
 import logger from '@wdio/logger'
 import {iosSystemNotificationsLocators} from '../../pages/locators/system-notifications.locators'
 
 /**
- * Notifications SYSTÈME iOS, côté SIMULATEUR : constat des réglages et simulation locale d'un push, via `xcrun simctl`.
+ * Notifications SYSTÈME iOS : constat des réglages (via `xcrun simctl` sur simulateur) et bannières de SpringBoard.
  * iOS seulement : à n'appeler que si `driver.isIOS`.
  *
- * Périmètre : un push APNs RÉEL (jeton APNs, FCM → APNs) exige un appareil physique et reste hors périmètre ; `simctl push` injecte une
- * charge APNs fictive directement dans le simulateur (le jeton, le backend et Firebase ne sont pas exercés).
+ * Le push est émis par le BACKEND (FCM → APNs), comme sur Android : un simulateur iOS 26 / Xcode 26 reçoit de vrais push APNs (sandbox).
  *
  * Constaté le 2026-10-26 (iOS 26.5, Xcode 26) :
  *  - `simctl privacy` ne gère PAS les notifications (services : all, calendar, contacts, location, photos, microphone, motion, reminders,
@@ -77,51 +74,6 @@ export async function waitForNotificationAuthorization(expected: IosNotification
   return expected
 }
 
-export interface SimulatedPush {
-  title: string
-  body: string
-  /**
-   * Champ `app_url` lu par l'app (NotificationManager.swift, `didReceive`) au tap : elle ouvre `/#/notifications` relatif à cette URL.
-   * Sans lui, le tap n'ouvre rien de particulier.
-   */
-  appUrl?: string
-}
-
-/**
- * Charge d'un push REEL du backend (ami-notifications-api, `ami/notification/push.py`, fonction `push()`, lignes 26-73), telle que l'app iOS la reçoit
- * (FCM -> APNs). Le backend envoie un message Firebase `messaging.Message` avec :
- *  - `notification` {title, body} : FCM la traduit en `aps.alert` {title, body} (traduction FCM : supposée, non lisible dans le code du backend ni de l'app) ;
- *  - `data` : tout `NotificationPush` (user/models.py:86-90) en chaînes, `exclude_none` : `title`, `message` (le corps), `content_icon` (si renseigné),
- *    `sender` = « AMI », PLUS `app_url` = `settings.PUBLIC_APP_URL` (push.py:71). AUCUN identifiant de notification, aucune route. Ces clés `data`
- *    sont à la racine du userInfo (hors `aps`), où l'app lit `userInfo["app_url"]` (NotificationManager.swift:124).
- * Vérifié sur le simulateur (journal de l'app, 2026-10-28) : un VRAI push du backend y est arrivé, userInfo = `aps.alert`{title,body}, `title`, `message`,
- *    `sender`, `app_url`, plus `gcm.message_id`, `google.c.a.e`, `google.c.fid`, `google.c.sender.id` ; ni son ni badge. C'est ce que reproduit la charge ci-dessous.
- * Aucun réglage `apns` (pas de son, badge, category, thread-id, content-available, mutable-content) n'est posé par le backend.
- * La charge de test reproduit ces clés ; ce que FCM ajoute de plus (`gcm.message_id`, `google.c.*`) n'est pas lu par l'app.
- */
-export function backendLikePushPayload(push: SimulatedPush, contentIcon?: string): Record<string, unknown> {
-  return {
-    aps: {alert: {title: push.title, body: push.body}},
-    title: push.title,
-    message: push.body,
-    ...(contentIcon ? {content_icon: contentIcon} : {}),
-    sender: 'AMI',
-    ...(push.appUrl ? {app_url: push.appUrl} : {}),
-  }
-}
-
-/** `xcrun simctl push <simulateur> <bundleId> <charge>` : charge APNs fictive reproduisant celle du backend (cf. `backendLikePushPayload`). */
-export function simctlPush(push: SimulatedPush): void {
-  const dir = mkdtempSync(join(tmpdir(), 'ami-push-'))
-  const file = join(dir, 'payload.json')
-  try {
-    writeFileSync(file, JSON.stringify(backendLikePushPayload(push)))
-    execFileSync('xcrun', ['simctl', 'push', simulatorUdid(), appBundleId(), file], {encoding: 'utf8'})
-  } finally {
-    rmSync(dir, {recursive: true, force: true})
-  }
-}
-
 /** Appareil de la session : simulateur (présent dans `simctl list`) ou appareil physique ? Sans UDID de capacité, on suppose un simulateur (`booted`). */
 export function isSimulator(): boolean {
   const udid = simulatorUdid()
@@ -167,17 +119,6 @@ export async function tapBanner(title: string): Promise<void> {
   await driver.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})) === 4, {
     timeout: 15000, timeoutMsg: 'L\'app n\'est pas repassée au premier plan après le tap sur la bannière',
   })
-}
-
-/**
- * Pousse la notification (simulateur) et CLIQUE sur sa bannière : SpringBoard au premier plan, `simctl push`, attente de la bannière, tap.
- * Retourne quand l'app est au premier plan.
- */
-export async function pushAndTapBanner(push: SimulatedPush): Promise<void> {
-  await showSpringBoard()
-  simctlPush(push)
-  await waitForBanner(push.title)
-  await tapBanner(push.title)
 }
 
 const SETTINGS_APP = 'com.apple.Preferences'

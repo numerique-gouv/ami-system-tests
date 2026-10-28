@@ -11,9 +11,8 @@ import {platform} from '../platform'
 import logger from '@wdio/logger'
 
 const log = logger('page-object')
-import {getBackendUrl} from '../helpers/partner-api'
 import {
-    bannerAppearsWithin, isSimulator, setNotificationsFromAppSettings as setIosNotificationsFromAppSettings, showSpringBoard, simctlPush, tapBanner,
+    bannerAppearsWithin, setNotificationsFromAppSettings as setIosNotificationsFromAppSettings, showSpringBoard, tapBanner,
     waitForBanner, appBundleId,
 } from '../helpers/mobile/ios-notifications'
 
@@ -160,33 +159,18 @@ class SystemNotificationsPage {
         else await driver.pressKeyCode(4)
     }
 
-    /**
-     * Déclenche la notification NATIVE (système) correspondant à la notification publiée au backend avec `tryPush`, et retourne le titre qu'elle
-     * portera à l'écran, avec l'instant de référence du délai (`sentAt`) :
-     *   - Android : le push arrive du backend (FCM) : rien à faire, titre = celui de la publication ;
-     *   - iOS simulateur : pas d'APNs réel : `simctl push` simule l'envoi en ligne de commande avec un titre `AMI-cli-<horodatage>` qui le dit ;
-     *   - iOS APPAREIL PHYSIQUE : NON EXERCÉ ICI (aucun appareil physique disponible) : le backend produit la vraie notification, titre = celui
-     *     de la publication ; aucune simulation.
-     */
-    async triggerNativePush(publishedTitle: string, body: string, publishedAt: number): Promise<{title: string, sentAt: number}> {
-        if (!driver.isIOS) return {title: publishedTitle, sentAt: publishedAt}
-        await showSpringBoard()
-        if (!isSimulator()) return {title: publishedTitle, sentAt: publishedAt}
-        const sentAt = Date.now()
-        const title = `AMI-cli-${sentAt}`
-        simctlPush({title, body: `${body} (envoyé en ligne de commande : simctl push)`, appUrl: getBackendUrl()})
-        return {title, sentAt}
-    }
-
-    /** Attend la notification native `title` (visible : dumpsys notification sur Android, bannière SpringBoard sur iOS). */
+    /** Attend la notification native `title`, émise par le backend (Android : dumpsys notification ; iOS : bannière de SpringBoard, passé au premier plan). */
     async waitForNativePush(title: string, body: string, timeoutMs = 150000): Promise<void> {
-        if (driver.isIOS) await waitForBanner(title, Math.min(timeoutMs, 30000))
-        else await this.waitForSystemNotification(title, body, timeoutMs)
+        if (driver.isIOS) {
+            await showSpringBoard()
+            await waitForBanner(title, timeoutMs)
+        } else await this.waitForSystemNotification(title, body, timeoutMs)
     }
 
     /** Vérifie qu'AUCUNE notification native `title` n'apparaît pendant `durationMs` (Android : dumpsys ; iOS : bannière SpringBoard). */
     async assertNoNativePush(title: string, durationMs: number): Promise<void> {
         if (!driver.isIOS) return await this.assertNoSystemNotification(title, durationMs)
+        await showSpringBoard()
         const shown = await bannerAppearsWithin(title, durationMs)
         // Sans tap sur une bannière, l'app est restée en arrière-plan (SpringBoard au premier plan) : la remettre au premier plan.
         await driver.execute('mobile: activateApp', {bundleId: appBundleId()})
