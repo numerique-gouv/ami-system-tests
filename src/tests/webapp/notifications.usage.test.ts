@@ -44,7 +44,9 @@ describe('Notifications', function () {
     await NotificationsInboxPage.clickNotification(title)
   })
 
-  it("avec push consenti : la notification est reçue dans l'inbox ET en notification système du navigateur", async function () {
+  // SKIP : service de push externe non fiable, non testé en webapp (les push sont testés sur mobile : src/tests/mobile/notifications.usage.test.ts).
+  // Le corps est conservé pour le jour où le push navigateur sera de nouveau testable ; rien d'autre ne dépend de ce test.
+  it.skip("avec push consenti : la notification est reçue dans l'inbox ET en notification système du navigateur", async function () {
     step("1. Autoriser les notifications du navigateur et activer l'interrupteur de Préférences")
     await browser.setPermissions({name: 'notifications'}, 'granted')
     await getAppToStartingState() // beforeEach a ouvert l'inbox, qui n'a pas la barre basse (menu « Plus »)

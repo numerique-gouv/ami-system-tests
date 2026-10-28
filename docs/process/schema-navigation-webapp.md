@@ -149,7 +149,7 @@ trait pointillé = lien partiel ou incertain.
 | `agenda.parcours.test.ts` | Agenda → dialogue évènement (Supprimer proposé, non cliqué) ; Préférences → page des zones → Retour |
 | `services.parcours.test.ts` | Services (2 onglets, entrées présentes) → checklist → section (cases décochées) ; fiche OTV par sa route |
 | `suivi.usage.test.ts` | Cycle new/wip/closed ; Suivi → détail (historique) → lien partenaire ; archivées **par route** |
-| `notifications.usage.test.ts` | Réception inbox ; notification de démarche → détail ; Gérer → préférences de notifications |
+| `notifications.usage.test.ts` | Réception inbox ; notification de démarche → détail ; Gérer → préférences de notifications (le test « avec push consenti » est ignoré : service de push externe non fiable, les push sont testés sur mobile) |
 | `profil.usage.test.ts` | Profil → 3 formulaires (Annuler) ; modification nom d'usage et email puis restauration |
 | `preferences.parcours.test.ts` | Préférences → consentements (partenaires, AMI coché) ; notifications (case présente) ; Zones scolaires → page des zones → Fermer |
 | `aide-contact.parcours.test.ts` | Aide → Contact → dialogue ; pages légales : sections listées (non ouvertes) |
