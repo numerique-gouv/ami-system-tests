@@ -13,9 +13,9 @@ const log = logger('helper')
  */
 const SESSION_COOKIE_NAME = 'token'
 
-const SENSITIVE_QUERY_PARAMS = /([?&](?:id_token|id_token_hint|token|access_token)=)[^&#]*/g
+const SENSITIVE_QUERY_PARAMS = /([?&](?:id_token|id_token_hint|token|access_token|user_data)=)[^&#]*/g
 
-/** Masque les jetons d'une URL avant de l'écrire dans un log ou un message d'erreur. */
+/** Masque les jetons d'une URL (`user_data` : JWT des données de l'utilisateur, présent dans l'URL du retour de connexion) avant de l'écrire dans un log ou un message d'erreur. */
 export function maskSensitiveUrl(url: string): string {
   return url.replace(SENSITIVE_QUERY_PARAMS, '$1***')
 }
