@@ -43,6 +43,8 @@ const WELCOME_BLANK_BEFORE_ROOT_MS = 3000
 // retarde l'écran « clé d'accès » : mesuré). On attend ce premier écran (accueil ou onboarding) plutôt que de sonder 500 ms par page
 // et de recharger la racine, ce qui interrompt le chargement.
 const FIRST_SCREEN_TIMEOUT_MS = 25000
+// Délai laissé à une page d'onboarding pour disparaître après son clic de fermeture.
+const DISMISS_GONE_TIMEOUT_MS = 10000
 const WELCOME_BLANK_ROUTE = /welcome\/notifications|notifications-welcome-page/
 
 type FcScreen = 'review-picker' | 'login' | 'eidas' | 'credentials' | 'home'
@@ -60,13 +62,13 @@ const CONNECTION_SEQUENCE: Array<[ConnectionScreen, (user: TestUser) => Promise<
 
 // Les pages d'onboarding connues. Chacune : une sonde rapide et sa fermeture. Sur mobile, l'écran
 // « notifications » peut être natif (feuille SwiftUI) : sa page le gère.
-const ONBOARDING_PAGES: Array<{name: string, isVisible: () => Promise<boolean>, dismiss: () => Promise<void>}> = [
+const ONBOARDING_PAGES: Array<{name: string, needsWeb: boolean, isVisible: () => Promise<boolean>, dismiss: () => Promise<void>}> = [
     // iOS : la feuille native des notifications, SEULE (sans la page de la SPA derrière), se traite avant les pages de la SPA
     // (au-dessus de la page « clé d'accès » juste après la connexion, son bouton « Activer » est unique).
-    {name: 'notifications (feuille native)', isVisible: () => OnboardingNotificationsPage.isNativeSheetAlone(ONBOARDING_PROBE_MS), dismiss: async () => { await OnboardingNotificationsPage.dismissNativeSheet() }},
-    {name: 'passkey', isVisible: () => OnboardingPasskeyPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingPasskeyPage.dismiss()},
-    {name: 'zones', isVisible: () => OnboardingZonesPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingZonesPage.dismiss()},
-    {name: 'notifications', isVisible: () => OnboardingNotificationsPage.isOnboardingVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingNotificationsPage.dismiss()},
+    {name: 'notifications (feuille native)', needsWeb: false, isVisible: () => OnboardingNotificationsPage.isNativeSheetAlone(ONBOARDING_PROBE_MS), dismiss: async () => { await OnboardingNotificationsPage.dismissNativeSheet() }},
+    {name: 'passkey', needsWeb: true, isVisible: () => OnboardingPasskeyPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingPasskeyPage.dismiss()},
+    {name: 'zones', needsWeb: true, isVisible: () => OnboardingZonesPage.isVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingZonesPage.dismiss()},
+    {name: 'notifications', needsWeb: true, isVisible: () => OnboardingNotificationsPage.isOnboardingVisible(ONBOARDING_PROBE_MS), dismiss: () => OnboardingNotificationsPage.dismiss()},
 ]
 
 /**
@@ -139,7 +141,10 @@ type OnboardingPage = (typeof ONBOARDING_PAGES)[number]
 
 /** Première page d'onboarding affichée (sonde rapide), ou `null`. */
 async function findVisibleOnboardingPage(): Promise<OnboardingPage | null> {
+    // Sans WebView (feuille native seule, sélecteur d'environnement), on ne sonde pas le web : un contexte inexistant coûte 25 s par sonde.
+    const webAvailable = await platform().isWebContextAvailable()
     for (const page of ONBOARDING_PAGES) {
+        if (page.needsWeb && !webAvailable) continue
         if (await page.isVisible()) return page
     }
     return null
@@ -158,31 +163,51 @@ async function dismissOnboardingPage(dismissals: Map<string, number>): Promise<b
     dismissals.set(page.name, count)
     log.info(`getAppToStartingState: onboarding « ${page.name} » affiché, fermeture (${count}/${MAX_DISMISSALS_PER_PAGE})`)
     await page.dismiss()
+    // Attend que la page ait quitté l'écran avant de réobserver : sinon la même page est vue juste après le clic (transition lente) et comptée comme un retour.
+    await browser.waitUntil(async () => !await page.isVisible(), {timeout: DISMISS_GONE_TIMEOUT_MS, interval: 300})
+        .catch(() => log.warn(`getAppToStartingState: la page d'onboarding « ${page.name} » est encore affichée ${DISMISS_GONE_TIMEOUT_MS}ms après sa fermeture`))
     return true
 }
 
 /**
  * Attend la PREMIÈRE apparition parmi {accueil, feuille native des notifications, passkey, zones, notifications} (jusqu'à
- * FIRST_SCREEN_TIMEOUT_MS) et retourne son nom ; `null` (raison journalisée : écrans attendus, URL courante) si rien n'apparaît.
- * Ne traite pas l'écran : la boucle de `reachHome` le fait au tour suivant (la séquence peut se répéter, un écran peut manquer).
+ * FIRST_SCREEN_TIMEOUT_MS) et retourne son nom. Échoue avec la raison (écrans attendus, durée, URL courante) si rien n'apparaît.
+ * Ne traite pas l'écran : l'appelant le fait (la séquence peut se répéter, un écran peut manquer).
  */
-async function waitForFirstScreen(): Promise<string | null> {
+async function waitForFirstScreen(): Promise<string> {
     const expected = [HOME, ...ONBOARDING_PAGES.map(p => p.name)]
     const startedAt = Date.now()
     let found: string | null = null
     await browser.waitUntil(async () => {
-        const home = await HomePage.isHomeDisplayed(HOME_PROBE_MS)
+        const home = await platform().isWebContextAvailable() && await HomePage.isHomeDisplayed(HOME_PROBE_MS)
         const page = home ? null : await findVisibleOnboardingPage()
         found = pickFirstScreen([{screen: {name: HOME}, shown: home}, {screen: {name: page?.name ?? ''}, shown: page !== null}])?.name ?? null
         return found !== null
     }, {timeout: FIRST_SCREEN_TIMEOUT_MS, interval: 300}).catch(() => undefined)
     const waitedMs = Date.now() - startedAt
-    if (found === null) {
-        log.warn(`getAppToStartingState: ${describeFirstScreenTimeout(expected, await currentUrlForLog(), waitedMs)}`)
-        return null
-    }
+    if (found === null)
+        throw new AssertionError({message: `getAppToStartingState: ${describeFirstScreenTimeout(expected, await currentUrlForLog(), waitedMs)}`})
     log.info(`getAppToStartingState: premier écran « ${found} » apparu après ${waitedMs}ms d'attente (${await currentUrlForLog()})`)
     return found
+}
+
+/**
+ * À appeler juste après la connexion FranceConnect : enchaîne les écrans d'onboarding jusqu'à l'accueil. À chaque tour, attend la
+ * PREMIÈRE apparition parmi {accueil, passkey, zones, notifications} (un geo.api.gouv.fr lent retarde le premier écran), traite l'écran
+ * trouvé puis recommence : la séquence peut se répéter et un écran peut manquer. Échoue avec la raison si rien n'apparaît.
+ */
+export async function passOnboardingToHome(): Promise<void> {
+    const dismissals = new Map<string, number>()
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < AUTHENTICATE_MAX_MS) {
+        if (await waitForFirstScreen() === HOME) {
+            // iOS : la feuille native « Activez les notifications » peut recouvrir l'accueil.
+            await OnboardingNotificationsPage.dismissNativeSheet()
+            return
+        }
+        await dismissOnboardingPage(dismissals)
+    }
+    throw new AssertionError({message: `passOnboardingToHome: l'accueil n'est pas atteint en ${Math.round(AUTHENTICATE_MAX_MS / 1000)}s (${await currentUrlForLog()})`})
 }
 
 // Au-delà de ce nombre d'échecs de la séquence de connexion, aucune progression n'est possible :
@@ -231,10 +256,13 @@ async function reachHome(user: TestUser): Promise<void> {
             // un progrès : la connexion a abouti), au lieu de sonder à vide puis de recharger la racine.
             if (isLoginCallbackUrl(await currentUrlForLog())) {
                 lastProgressAt = Date.now()
-                if (await waitForFirstScreen() !== null) {
+                try {
+                    await waitForFirstScreen()
                     unrecognizedSince = null
                     lastProgressAt = Date.now()
                     continue
+                } catch (err) {
+                    log.warn(String(err instanceof Error ? err.message : err))
                 }
             }
         }

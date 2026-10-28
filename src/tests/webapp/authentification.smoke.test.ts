@@ -1,9 +1,7 @@
+import {passOnboardingToHome} from '../../pages/authenticate.process'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
-import OnboardingPasskeyPage from '../../pages/onboarding-passkey.page'
-import OnboardingZonesPage from '../../pages/onboarding-zones.page'
-import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 import HomePage from '../../pages/home.page'
 import {getUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
@@ -31,9 +29,8 @@ describe('Authentification', function () {
     await FranceConnectCredentialsPage.fillCredentials(user)
 
     step("2. Passer les écrans d'onboarding présents (clé d'accès, zones scolaires, notifications)")
-    await OnboardingPasskeyPage.dismiss()
-    await OnboardingZonesPage.dismiss()
-    await OnboardingNotificationsPage.dismiss()
+    // Attend le PREMIER écran parmi {accueil, passkey, zones, notifications} (geo.api.gouv.fr lent), le traite, et recommence jusqu'à l'accueil.
+    await passOnboardingToHome()
 
     step("3. Vérifier l'arrivée sur la page d'accueil")
     await HomePage.assertHomeVisible(30000)
