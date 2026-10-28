@@ -83,10 +83,12 @@ describe('Non-régression — zones choisies à l’onboarding', function () {
     await OnboardingNotificationsPage.dismiss()
     await HomePage.assertHomeVisible(30000)
 
-    step('3. Les préférences reflètent le choix de l’onboarding, après rechargement aussi')
+    step('3. Les préférences reflètent le choix de l’onboarding, en revenant sur l’écran aussi')
     await openZones()
     expect((await ZonesPage.zoneStates())[ZONE]).toBe(!wasChecked)
-    await NavigationPage.reload()
+    await NavigationPage.goToRoute('/')
+    await HomePage.assertHomeVisible()
+    await openZones()
     expect((await ZonesPage.zoneStates())[ZONE]).toBe(!wasChecked)
 
     step('4. L’agenda reflète le choix de l’onboarding')

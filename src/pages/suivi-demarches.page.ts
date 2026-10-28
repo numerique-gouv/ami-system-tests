@@ -37,7 +37,8 @@ class SuiviDemarchesPage {
      * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
      *
      * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
-     * on la recharge à chaque tentative, toutes les `RELOAD_INTERVAL_MS`, jusqu'à `SUIVI_WAIT_MS`. `hasPageText` attend le rendu
+     * on la recharge à chaque tentative (un simple retour Accueil → Suivi ne suffit pas pour une démarche DÉJÀ listée dont le titre ou le statut change :
+     * constaté le 2026-10-28 sur le cycle new → wip → closed ; il suffit pour une nouvelle démarche), toutes les `RELOAD_INTERVAL_MS`, jusqu'à `SUIVI_WAIT_MS`. `hasPageText` attend le rendu
      * de la page rechargée (le texte n'est pas là tant que Svelte n'a pas monté la liste). `waitUntil` réessaie les erreurs
      * WebDriver d'une tentative (reload lent, contexte en cours de remplacement) ; la dernière figure dans le message d'échec.
      */

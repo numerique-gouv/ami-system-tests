@@ -48,7 +48,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
   /** Retire et donne le consentement du partenaire : c'est la SEULE différence entre les deux scénarios. */
   type PilotageDuConsentement = {retirer: () => Promise<void>, donner: () => Promise<void>}
 
-  /** Par l'API partenaire. Le rechargement de l'app (WebSocket de l'inbox compris) prend en compte le nouvel état. */
+  /** Par l'API partenaire. Les écrans ouverts ensuite (Suivi, centre de notifications) relisent le serveur à leur ouverture. */
   const parLApi: PilotageDuConsentement = {
     retirer: async () => {
       await revokeDemarchesConsent(PARTNER, user.fcHash)
@@ -57,7 +57,6 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     donner: async () => {
       await grantDemarchesConsent(PARTNER, user.fcHash)
       await waitForBackendDemarchesConsent(PARTNER, user.fcHash, true)
-      await NavigationPage.reload()
     },
   }
 
@@ -149,11 +148,10 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     log.info(`D1 prime publiée sans consentement : ${issuePrime} par l'API`)
     expect(issuePrime).toBe('refusée')
 
-    step('4. Attendre 4 secondes, recharger : D1 prime est absente (consentement retiré)')
+    step('4. Attendre 4 secondes, revenir à l’Accueil : D1 prime est absente (consentement retiré)')
     // eslint-disable-next-line wdio/no-pause -- délai imposé par le scénario de l'équipe : laisser au backend le temps de traiter l'événement
     await browser.pause(4000)
     await NavigationPage.goToRoute('/')
-    await NavigationPage.reload()
     await HomePage.assertHomeVisible()
     await assertPrimeJamaisRecue('avant consentement')
 

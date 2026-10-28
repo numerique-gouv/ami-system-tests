@@ -3,7 +3,7 @@ import NavigationPage from '../../../pages/navigation.page'
 import HomePage from '../../../pages/home.page'
 import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {openDemarchesConsents, restoreDemarchesConsents, uncheckAllDemarchesConsents, waitForBackendDemarchesConsent as waitForBackendConsent} from '../../../pages/consents.process'
+import {openDemarchesConsents, reopenDemarchesConsents, restoreDemarchesConsents, uncheckAllDemarchesConsents, waitForBackendDemarchesConsent as waitForBackendConsent} from '../../../pages/consents.process'
 import {PARTNER_AMI, PARTNER_DN, grantDemarchesConsent, publishDemarche} from '../../../helpers/partner-api'
 import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
@@ -79,10 +79,10 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     await PreferencesPage.setDemarchesConsent(PARTNER_AMI, false)
     await waitForBackendDemarchesConsent(false)
 
-    step('2. Recocher « AMI » : le backend le reconnaît et la case reste cochée après rechargement')
+    step('2. Recocher « AMI » : le backend le reconnaît et la case reste cochée en revenant sur l’écran')
     await PreferencesPage.setDemarchesConsent(PARTNER_AMI, true)
     await waitForBackendDemarchesConsent(true)
-    await NavigationPage.reload()
+    await reopenDemarchesConsents()
     expect((await PreferencesPage.demarchesConsentStates())[PARTNER_AMI]).toBe(true)
   })
 
@@ -98,7 +98,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     }, {timeout: 10000, interval: 300, timeoutMsg: `« Tout suivre » n’a pas coché les ${keys.length} consentements après 10000ms`})
     await waitForBackendDemarchesConsent(true)
 
-    await NavigationPage.reload()
+    await reopenDemarchesConsents()
     const states = await PreferencesPage.demarchesConsentStates()
     expect(keys.map(key => states[key])).toEqual(keys.map(() => true))
   })

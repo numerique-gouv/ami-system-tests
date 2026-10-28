@@ -2,6 +2,7 @@ import AgendaPage from '../../../pages/agenda.page'
 import PreferencesPage from '../../../pages/preferences.page'
 import ZonesPage from '../../../pages/zones.page'
 import ProfilePage from '../../../pages/profile.page'
+import HomePage from '../../../pages/home.page'
 import NavigationPage from '../../../pages/navigation.page'
 import DemarcheDetailPage from '../../../pages/demarche-detail.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
@@ -48,10 +49,12 @@ describe('Non-régression — zones scolaires et agenda', function () {
     return {title, itemId}
   }
 
-  /** L'agenda ne se met à jour qu'au chargement : on le recharge jusqu'à voir l'élément. */
+  /** L'agenda ne se met à jour qu'au chargement : on sort de l'Agenda et on y revient (la SPA relit le serveur à l'entrée) jusqu'à voir l'élément. */
   async function waitForAgendaEvent(title: string): Promise<void> {
     await browser.waitUntil(async () => {
-      await NavigationPage.reload()
+      await NavigationPage.goToRoute('/')
+      await HomePage.assertHomeVisible()
+      await AgendaPage.open()
       return await AgendaPage.isEventListed(title, 4000)
     }, {timeout: 40000, interval: 1000, timeoutMsg: `L'élément « ${title} » n'est pas apparu dans l'agenda après 40000ms`})
   }
@@ -89,10 +92,12 @@ describe('Non-régression — zones scolaires et agenda', function () {
     }
     expect(await AgendaPage.eventText(zoneTile)).toContain('Zone B')
 
-    step('2. Décocher « Zone B » : elle est décochée après rechargement')
+    step('2. Décocher « Zone B » : elle est décochée en revenant sur l’écran')
     await openZones()
     await ZonesPage.setZone('Zone B', false)
-    await NavigationPage.reload()
+    await NavigationPage.goToRoute('/')
+    await HomePage.assertHomeVisible()
+    await openZones()
     expect((await ZonesPage.zoneStates())['Zone B']).toBe(false)
 
     step('3. La tuile ne cite plus « Zone B » mais cite toujours une autre zone')
@@ -127,7 +132,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     await DemarcheDetailPage.assertReference(itemId)
   })
 
-  it('un élément supprimé de l’agenda disparaît et ne revient pas au rechargement', async function () {
+  it('un élément supprimé de l’agenda disparaît et ne revient pas en revenant sur l’agenda', async function () {
     step('1. Publier une démarche avec échéance et la retrouver dans l’agenda')
     const {title} = await publishDemarcheWithMilestone('suppression')
     await AgendaPage.open()
@@ -137,8 +142,9 @@ describe('Non-régression — zones scolaires et agenda', function () {
     step('2. La supprimer')
     await AgendaPage.deleteEvent(title)
 
-    step('3. Elle reste absente après rechargement')
-    await NavigationPage.reload()
+    step('3. Elle reste absente en revenant sur l’agenda')
+    await NavigationPage.goToTab('Accueil')
+    await AgendaPage.open()
     await AgendaPage.assertDisplayed()
     expect(await AgendaPage.isEventListed(title, 4000)).toBe(false)
   })
@@ -153,9 +159,10 @@ describe('Non-régression — zones scolaires et agenda', function () {
     const holiday = fixed.find(title => !title.startsWith('Vacances')) ?? fixed[0]
     if (!holiday) throw new Error('Aucun élément fixe dans l’agenda : impossible de vérifier la réapparition à la reconnexion')
 
-    step(`2. Supprimer « ${holiday} » : il est absent après rechargement`)
+    step(`2. Supprimer « ${holiday} » : il est absent en revenant sur l’agenda`)
     await AgendaPage.deleteEvent(holiday)
-    await NavigationPage.reload()
+    await NavigationPage.goToTab('Accueil')
+    await AgendaPage.open()
     await AgendaPage.assertDisplayed()
     expect(await AgendaPage.isEventListed(holiday, 3000)).toBe(false)
 

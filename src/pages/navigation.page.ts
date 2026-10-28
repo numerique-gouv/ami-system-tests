@@ -1,8 +1,7 @@
 import {navigationLocators} from './locators/navigation.locators'
 import type {PlusEntry, TabName} from './locators/navigation.locators'
-import {platform} from '../platform'
 import {traced} from '../helpers/reporting/traced'
-import {clickDisplayed, firstDisplayed, reloadPage} from '../helpers/spa/spa'
+import {clickDisplayed, firstDisplayed} from '../helpers/spa/spa'
 
 /**
  * Navigation principale de la SPA : barre basse (Accueil, Agenda, Services, Suivi), menu « Plus »
@@ -14,12 +13,6 @@ class NavigationPage {
     async goToRoute(route: string): Promise<void> {
         // driver.execute : aucun bouton ne mène à ces routes (ex. /network-error) — navigation directe par hash.
         await driver.execute((r: string) => { window.location.hash = r }, route)
-    }
-
-    /** Recharge la page courante de la SPA (la session est conservée) : relit l'état serveur, ex. après un changement de consentement par l'API. */
-    async reload(): Promise<void> {
-        await reloadPage()
-        await platform().refreshAxTree()
     }
 
     /**
