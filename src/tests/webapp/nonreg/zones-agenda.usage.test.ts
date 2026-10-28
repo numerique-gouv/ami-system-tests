@@ -39,7 +39,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
   /** Publie une démarche avec échéance (entrée d'agenda) et retourne son titre et sa référence. */
   async function publishDemarcheWithMilestone(label: string): Promise<{title: string; itemId: string}> {
     await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
-    const itemId = `E2E-${new Date().toISOString()}`
+    const itemId = `E2E-zones-${new Date().toISOString()}`
     const title = `Demarche E2E ${itemId} ${label}`
     await publishDemarche({
       title, body: `Démarche avec échéance (${label})`, recipientFcHash: user.fcHash,

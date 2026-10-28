@@ -93,7 +93,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
   /** Déroulé commun : D1 prime refusée sans consentement et jamais reçue ; D1 bis reçue après consentement. */
   async function scenarioDemarcheSansConsentement(consentement: PilotageDuConsentement): Promise<void> {
     const stamp = new Date().toISOString()
-    const itemId = `E2E-${stamp}`
+    const itemId = `E2E-sans-consentement-${stamp}`
     const prime = {title: `Demarche E2E ${stamp} D1prime sans consentement`, body: `Corps de D1 prime ${stamp}`, subheading: `Service D1 prime ${stamp}`,
       link: `${getBackendUrl()}/demarches/${itemId}/prime`}
     const bis = {title: `Demarche E2E ${stamp} D1bis apres consentement`, body: `Corps de D1 bis ${stamp}`}
