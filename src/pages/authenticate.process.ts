@@ -11,6 +11,7 @@ import {platform} from '../platform'
 import type {TestUser} from '../helpers/common/test-users'
 import {getUser} from '../helpers/common/test-users'
 import {currentUrlForLog, hasSessionToken, openAppRoot} from '../helpers/common/session'
+import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl, pickFirstScreen} from '../helpers/common/first-screen'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
 
@@ -38,6 +39,10 @@ const UNRECOGNIZED_BEFORE_ROOT_MS = 8000
 // iOS, quand la permission de notifications est déjà décidée — la feuille native ne vient pas) : seul un rechargement de la racine en sort ;
 // inutile d'attendre autant que pour une page inconnue.
 const WELCOME_BLANK_BEFORE_ROOT_MS = 3000
+// Après la connexion FranceConnect (route `login-callback`), l'app charge avant d'afficher son premier écran (un geo.api.gouv.fr lent
+// retarde l'écran « clé d'accès » : mesuré). On attend ce premier écran (accueil ou onboarding) plutôt que de sonder 500 ms par page
+// et de recharger la racine, ce qui interrompt le chargement.
+const FIRST_SCREEN_TIMEOUT_MS = 25000
 const WELCOME_BLANK_ROUTE = /welcome\/notifications|notifications-welcome-page/
 
 type FcScreen = 'review-picker' | 'login' | 'eidas' | 'credentials' | 'home'
@@ -130,22 +135,54 @@ async function runConnectionFrom(startScreen: ConnectionScreen, user: TestUser):
     }
 }
 
+type OnboardingPage = (typeof ONBOARDING_PAGES)[number]
+
+/** Première page d'onboarding affichée (sonde rapide), ou `null`. */
+async function findVisibleOnboardingPage(): Promise<OnboardingPage | null> {
+    for (const page of ONBOARDING_PAGES) {
+        if (await page.isVisible()) return page
+    }
+    return null
+}
+
 /**
  * Ferme la première page d'onboarding affichée. `true` si une page a été fermée (il faut alors réobserver).
  * `dismissals` compte les fermetures par page : une page qui revient sans cesse est une anomalie à signaler.
  */
 async function dismissOnboardingPage(dismissals: Map<string, number>): Promise<boolean> {
-    for (const page of ONBOARDING_PAGES) {
-        if (!await page.isVisible()) continue
-        const count = (dismissals.get(page.name) ?? 0) + 1
-        if (count > MAX_DISMISSALS_PER_PAGE)
-            throw new AssertionError({message: `getAppToStartingState: la page d'onboarding « ${page.name} » revient après ${MAX_DISMISSALS_PER_PAGE} fermetures (${await currentUrlForLog()})`})
-        dismissals.set(page.name, count)
-        log.info(`getAppToStartingState: onboarding « ${page.name} » affiché, fermeture (${count}/${MAX_DISMISSALS_PER_PAGE})`)
-        await page.dismiss()
-        return true
+    const page = await findVisibleOnboardingPage()
+    if (!page) return false
+    const count = (dismissals.get(page.name) ?? 0) + 1
+    if (count > MAX_DISMISSALS_PER_PAGE)
+        throw new AssertionError({message: `getAppToStartingState: la page d'onboarding « ${page.name} » revient après ${MAX_DISMISSALS_PER_PAGE} fermetures (${await currentUrlForLog()})`})
+    dismissals.set(page.name, count)
+    log.info(`getAppToStartingState: onboarding « ${page.name} » affiché, fermeture (${count}/${MAX_DISMISSALS_PER_PAGE})`)
+    await page.dismiss()
+    return true
+}
+
+/**
+ * Attend la PREMIÈRE apparition parmi {accueil, feuille native des notifications, passkey, zones, notifications} (jusqu'à
+ * FIRST_SCREEN_TIMEOUT_MS) et retourne son nom ; `null` (raison journalisée : écrans attendus, URL courante) si rien n'apparaît.
+ * Ne traite pas l'écran : la boucle de `reachHome` le fait au tour suivant (la séquence peut se répéter, un écran peut manquer).
+ */
+async function waitForFirstScreen(): Promise<string | null> {
+    const expected = [HOME, ...ONBOARDING_PAGES.map(p => p.name)]
+    const startedAt = Date.now()
+    let found: string | null = null
+    await browser.waitUntil(async () => {
+        const home = await HomePage.isHomeDisplayed(HOME_PROBE_MS)
+        const page = home ? null : await findVisibleOnboardingPage()
+        found = pickFirstScreen([{screen: {name: HOME}, shown: home}, {screen: {name: page?.name ?? ''}, shown: page !== null}])?.name ?? null
+        return found !== null
+    }, {timeout: FIRST_SCREEN_TIMEOUT_MS, interval: 300}).catch(() => undefined)
+    const waitedMs = Date.now() - startedAt
+    if (found === null) {
+        log.warn(`getAppToStartingState: ${describeFirstScreenTimeout(expected, await currentUrlForLog(), waitedMs)}`)
+        return null
     }
-    return false
+    log.info(`getAppToStartingState: premier écran « ${found} » apparu après ${waitedMs}ms d'attente (${await currentUrlForLog()})`)
+    return found
 }
 
 // Au-delà de ce nombre d'échecs de la séquence de connexion, aucune progression n'est possible :
@@ -188,6 +225,17 @@ async function reachHome(user: TestUser): Promise<void> {
                 unrecognizedSince = null
                 lastProgressAt = Date.now()
                 continue
+            }
+
+            // Retour de FranceConnect (`login-callback`) : l'app charge, aucun écran n'est encore là. On attend le premier (le temps d'attente est
+            // un progrès : la connexion a abouti), au lieu de sonder à vide puis de recharger la racine.
+            if (isLoginCallbackUrl(await currentUrlForLog())) {
+                lastProgressAt = Date.now()
+                if (await waitForFirstScreen() !== null) {
+                    unrecognizedSince = null
+                    lastProgressAt = Date.now()
+                    continue
+                }
             }
         }
 
