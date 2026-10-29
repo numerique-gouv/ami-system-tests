@@ -1,5 +1,5 @@
 import { traced } from '@helpers/reporting/traced'
-import { getDemarcheDetailLocators } from '@locators/demarche-detail.locators'
+import { demarcheDetailLocators } from '@locators/demarche-detail.locators'
 import {AssertionError} from "node:assert";
 import {clickDisplayed, hasPageText, isShown, pageText, waitForPageText} from '@helpers/spa/spa'
 
@@ -27,8 +27,7 @@ class DemarcheDetailPage {
 
   /** Le bouton « Accéder à ma démarche » n'existe que si une notification reçue de la démarche porte un `content_link`. */
   async isLienExterneProposed(timeout = 2000): Promise<boolean> {
-    const loc = getDemarcheDetailLocators()
-    return await isShown(loc.detailExternalButton, timeout)
+    return await isShown(demarcheDetailLocators.detailExternalButton, timeout)
   }
 
   async hasText(text: string, timeout = 1000): Promise<boolean> {
@@ -62,8 +61,7 @@ class DemarcheDetailPage {
    * Le retour sur la liste est dans `SuiviDemarchesPage.retourJusquAPageSuivi()`. iOS : l'URL tentée n'est pas observable avec le domaine de test.
    */
   async assertLienExterne(expectedUrl: string, timeoutMs = DEMARCHE_DETAIL_TIMEOUT_MS): Promise<void> {
-    const loc = getDemarcheDetailLocators()
-    await clickDisplayed(loc.detailExternalButton, { timeout: timeoutMs })
+    await clickDisplayed(demarcheDetailLocators.detailExternalButton, { timeout: timeoutMs })
 
     let lastUrl: string | null = null
     try {
@@ -81,7 +79,7 @@ class DemarcheDetailPage {
         }
       )
     } catch {
-      throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${loc.detailExternalButtonName}" (dernière URL observée : ${maskIdToken(lastUrl)})` })
+      throw new AssertionError({ message: `URL externe "${expectedUrl}" non trouvée après clic sur "${demarcheDetailLocators.detailExternalButtonName}" (dernière URL observée : ${maskIdToken(lastUrl)})` })
     }
   }
 }

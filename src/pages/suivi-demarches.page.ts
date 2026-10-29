@@ -1,6 +1,6 @@
 import { platform } from '../platform'
 import { traced } from '@helpers/reporting/traced'
-import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
+import { suiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
 import {publicationSentryUrl} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
@@ -20,7 +20,7 @@ class SuiviDemarchesPage {
     }
 
     async isFollowButtonShown(timeout = 0): Promise<boolean> {
-        return await isShown(getSuiviDemarchesLocators().followButton, timeout)
+        return await isShown(suiviDemarchesLocators.followButton, timeout)
     }
 
     /**
@@ -47,16 +47,15 @@ class SuiviDemarchesPage {
     statusLabel: string,
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
-    const loc = getSuiviDemarchesLocators()
     const statusLabelLower = statusLabel.toLowerCase()
     let lastStatus: string | null = null // null : aucune carte ne porte ce titre
     try {
       await browser.waitUntil(
         async () => {
           lastStatus = null
-          for await (const card of $$(loc.cardContent)) {
-            if (!(await card.$(loc.cardTitle).getText()).includes(title)) continue
-            lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
+          for await (const card of $$(suiviDemarchesLocators.cardContent)) {
+            if (!(await card.$(suiviDemarchesLocators.cardTitle).getText()).includes(title)) continue
+            lastStatus = (await card.$(suiviDemarchesLocators.cardBadge).getText()).trim().toLowerCase()
             return lastStatus.includes(statusLabelLower)
           }
           return false
@@ -74,7 +73,7 @@ class SuiviDemarchesPage {
   /** Ouvre le détail de la démarche `title` en cliquant sa tuile (nom accessible unique, horodaté). L'arrivée se vérifie par `DemarcheDetailPage.assertDisplayed(title)`. */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
     await platform().refreshAxTree()
-    await clickDisplayed(getSuiviDemarchesLocators().demarcheTile(title), { timeout: timeoutMs })
+    await clickDisplayed(suiviDemarchesLocators.demarcheTile(title), { timeout: timeoutMs })
   }
 
   /** Aucun bouton de la SPA n'y mène de façon confirmée : navigation directe par route. */
@@ -84,10 +83,10 @@ class SuiviDemarchesPage {
 
   /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
   async archivedPartners(): Promise<string[]> {
-    await waitForHeading('Démarches archivées')
+    await waitForHeading(suiviDemarchesLocators.archivedTitle)
     // Déplié au chargement : un clic le refermerait.
-    if (await isShown(getSuiviDemarchesLocators().archivedHelpAccordionCollapsed, 1000)) {
-      await clickDisplayed(getSuiviDemarchesLocators().archivedHelpAccordion)
+    if (await isShown(suiviDemarchesLocators.archivedHelpAccordionCollapsed, 1000)) {
+      await clickDisplayed(suiviDemarchesLocators.archivedHelpAccordion)
     }
     await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
     const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
@@ -96,18 +95,17 @@ class SuiviDemarchesPage {
 
   /** Le h1 « Mes démarches » : le h2 du même nom existe aussi sur l'Accueil, qu'un `waitForHeading` validerait à tort. */
   async assertDisplayed(): Promise<void> {
-    await firstDisplayed(getSuiviDemarchesLocators().pageTitleH1, {timeout: 10000})
+    await firstDisplayed(suiviDemarchesLocators.pageTitleH1, {timeout: 10000})
   }
 
     /** Revient sur le Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur la page du lien externe (404 serveur hors SPA, sans bouton de retour). */
     async retourJusquAPageSuivi(): Promise<void> {
-        const loc = getSuiviDemarchesLocators()
-        const pageTitle = loc.pageTitle
-        if (await isShown(loc.pageTitleHeading)) return
+        const pageTitle = suiviDemarchesLocators.pageTitle
+        if (await isShown(suiviDemarchesLocators.pageTitleHeading)) return
         // Sur mobile le retour arrière est sans effet : seule la webapp le tente.
         if (platform().kind === 'webapp') {
             await browser.back()
-            if (await isShown(loc.pageTitleHeading, 4000)) return
+            if (await isShown(suiviDemarchesLocators.pageTitleHeading, 4000)) return
         }
 
         const origin = await driver.execute(() => location.origin) as string

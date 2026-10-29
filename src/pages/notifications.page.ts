@@ -49,13 +49,13 @@ class NotificationsInboxPage {
      * Le titre est un lien (fr-tile DSFR), pas un heading : les liens de navigation sont exclus.
      */
     async getTopNotificationTitle(): Promise<string> {
-        return await driver.execute(() => {
-            const EXCLUDED = new Set(['Retour à la page précédente', 'Gérer', 'Notifications', ''])
-            const el = Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"], a[href]')).find(
-                (e) => !EXCLUDED.has((e.textContent ?? '').replace(/\s+/g, ' ').trim())
+        return await driver.execute((candidates: string, navigationTexts: string[]) => {
+            const excluded = new Set(navigationTexts)
+            const el = Array.from(document.querySelectorAll<HTMLElement>(candidates)).find(
+                (e) => !excluded.has((e.textContent ?? '').replace(/\s+/g, ' ').trim())
             )
             return el ? (el.textContent ?? '').replace(/\s+/g, ' ').trim() : ''
-        }) as string
+        }, notificationsLocators.topTitleCandidates, notificationsLocators.navigationTexts) as string
     }
 }
 

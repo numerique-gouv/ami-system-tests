@@ -6,7 +6,7 @@ import {roleSelector} from '../../helpers/spa/selectors'
  * `/#/profile/addresses`, et leurs formulaires d'édition. Sélecteurs identiques sur iOS, Android et webapp.
  * Seul `pageTitle` est un nom (pour `waitForHeading`), les autres valeurs sont des sélecteurs WDIO 10.
  */
-export interface ProfileLocators {
+interface ProfileLocators {
   identitySection: Locator
   emailSection: Locator
   addressSection: Locator
@@ -38,6 +38,10 @@ export interface ProfileLocators {
   /** Titre de la modale de confirmation de suppression des données, et son bouton « Confirmer ». */
   deletionHeading: Locator
   confirmButton: Locator
+  cancelButton: Locator
+  saveButton: Locator
+  /** Les valeurs affichées en gras d'une section. */
+  boldIn: (section: Locator) => Locator
 }
 
 const testId = (id: string): Locator => `[data-testid="${id}"]`
@@ -64,8 +68,7 @@ export const profileLocators: ProfileLocators = {
   logoutButton: roleSelector('button', 'Me déconnecter'),
   deletionHeading: roleSelector('heading', 'Suppression de vos données'),
   confirmButton: roleSelector('button', 'Confirmer'),
-}
-
-export function getProfileLocators(): ProfileLocators {
-  return profileLocators
+  cancelButton: roleSelector('button', 'Annuler'),
+  saveButton: roleSelector('button', 'Enregistrer'),
+  boldIn: (section: Locator): Locator => `${section} b`,
 }

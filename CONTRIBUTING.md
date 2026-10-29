@@ -2,7 +2,7 @@
 
 Les règles à suivre pour écrire ou modifier un test. Pour installer ou lancer les tests : [README](README.md). Un cas qui ne concerne qu'un écran ou une méthode se documente en commentaire dans le fichier de code concerné.
 
-Le code doit aussi être conforme aux bonnes pratiques et aux guides de la documentation officielle de WebdriverIO, d'Appium et de Mocha. Les skills du projet (`.claude/skills/`, voir [CLAUDE.md](CLAUDE.md)) les connaissent.
+Le code doit aussi être conforme aux bonnes pratiques et aux guides de la documentation officielle de WebdriverIO, d'Appium et de Mocha.
 
 ## Principes
 
@@ -41,34 +41,50 @@ Et KISS, sans décoration :
 ```
 src/tests/mobile/    scénarios Mocha Android + iOS — zéro sélecteur, zéro if(driver.isIOS)
 src/tests/webapp/    scénarios Mocha webapp — même contrainte
-src/pages/           Page Objects — logique métier, dispatch via getXxxLocators()
-src/pages/locators/  sélecteurs par plateforme + fonction getXxxLocators()
+src/pages/           Page Objects — logique métier, sans sélecteur
+src/pages/locators/  sélecteurs : variantes web / android / ios selon la page
 ```
 
 ### Niveau 1 — `locators/*.locators.ts`
 
-Un fichier par page : une interface TypeScript, un objet `androidXxxLocators`, un objet `iosXxxLocators`, une fonction `getXxxLocators()` qui dispatche selon `driver.isIOS`.
+Un fichier par page. Les locators d'une page existent en trois variantes, **toutes facultatives** : `web` (la webapp et la WebView des apps mobiles), `android` et `ios` (la page est native sur cette plateforme). Une page en cours de promotion vers le natif peut en avoir trois (par exemple `web` + `android`) pour rester testable dans la webapp. Une page peut cesser d'exister en webapp (réglages du mobile) : elle n'a alors pas de `web`.
+
+**Page WebView seule** (la grande majorité) : un simple objet de constantes, identique sur les trois plateformes, sans fonction. Les sélecteurs restent dans ce fichier, jamais dans le Page Object : un seul endroit à changer (par exemple le jour où l'i18n arrive).
 
 ```typescript
-export const androidLoginLocators: LoginLocators = {
-    fcButton: '~franceConnect button', // accessibility id Android
-    fcButtonInWebView: false,
-}
-export const iosLoginLocators: LoginLocators = {
-    fcButton: "button=S’identifier avec FranceConnect", // apostrophe typographique copiée de la SPA
-    fcButtonInWebView: true,
-}
-
-export function getLoginLocators(): LoginLocators {
-    return driver.isIOS ? iosLoginLocators : androidLoginLocators
+export const homeContentLocators = {
+    greeting: 'h1*=Bonjour',
+    agendaHeading: roleSelector('heading', 'Mon agenda'),
 }
 ```
 
-Quand une page est entièrement en WebView avec un DOM identique sur iOS et Android, exporter un seul objet partagé ; `getXxxLocators()` reste la seule API appelée par le Page Object. Si un seul champ diverge un jour, repasser à deux objets plutôt que d'ajouter un `driver.isIOS ? … : …` dans l'objet partagé.
+**Page avec une version native** : un objet par variante, une même interface, et `pickLocators` (`src/helpers/common/pick-locators.ts`).
+
+```typescript
+export const loginVariants: LocatorVariants<LoginLocators> = {
+    web: {button: 'button*=identifier avec FranceConnect'},
+    android: {button: '~franceConnect button'},   // pas de variante ios : la page est encore en WebView sur iOS
+}
+export const getLoginLocators = (): LoginLocators => pickLocators('LoginPage', loginVariants)
+```
+
+`getLoginLocators()` renvoie la variante adaptée au **contexte courant** de l'appelant (`platform().context()`) :
+
+| Contexte courant | Variante |
+|---|---|
+| webapp | `web` |
+| mobile, dans un `inWebContext` | `web` |
+| mobile, hors `inWebContext` (natif) | `android` ou `ios` |
+
+Si la variante n'existe pas, `pickLocators` lève une erreur technique (« LoginPage n'a pas de locators ios : l'appeler dans un inWebContext », ou « …pas de locators web »).
+
+**Page mixte** (le Page Object gère lui-même le passage du natif à la WebView : FranceConnect, onboarding des notifications, flows OIDC) : le choix par contexte donnerait la mauvaise variante, car un sélecteur est évalué avant l'entrée dans la WebView. Le Page Object accède explicitement à la variante voulue (`loginVariants.web.button`, `loginVariants.android.button`) et `hasNativeLocators(loginVariants)` dit si la page est native sur la plateforme courante.
+
+**Qui change de contexte** : `inWebContext` est l'affaire de la couche scénario (un par test, hook ou flow : moins on bascule, plus on va vite) et des flows mixtes. Les Page Objects et les aides ne s'enveloppent pas.
 
 ### Niveau 2 — `pages/*.page.ts`
 
-- **Aucun sélecteur direct** : appel à `getXxxLocators()` à chaque méthode. Les éléments de la SPA s'atteignent par les sélecteurs natifs de WDIO 10 définis dans le fichier `locators/` de la page (cf. §2) et par les aides de `src/helpers/spa/spa.ts`.
+- **Aucun sélecteur ni nom accessible en littéral** : tout vient du fichier de locators de la page. Les éléments de la SPA s'atteignent par les sélecteurs natifs de WDIO 10 définis dans le fichier `locators/` de la page (cf. §2) et par les aides de `src/helpers/spa/spa.ts`.
 - Exporté comme singleton tracé : `export default traced(new XxxPage(), 'XxxPage')`.
 - `if (driver.isIOS)` seulement quand le **comportement d'interaction** diffère vraiment, pas juste le sélecteur. Avant un branchement plateforme, chercher un signal DOM commun aux deux (la disparition d'une modale est observable partout).
 - Le dispatch de comportement passe par `platform()` (cf. §4).
@@ -194,7 +210,7 @@ Ce qui diffère entre Android, iOS et webapp est isolé derrière `PlatformAdapt
 ```typescript
 interface PlatformAdapter {
     readonly kind: 'android' | 'ios' | 'webapp'
-    readonly fcButtonIsNative: boolean   // Android seulement
+    context(): 'web' | 'native'          // lu en mémoire ; syncContext() relit le contexte réel
     inWebContext<T>(callback: () => Promise<T>): Promise<T>
     isWebContextAvailable(): Promise<boolean>
     refreshAxTree(): Promise<void>       // iOS seulement

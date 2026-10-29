@@ -57,7 +57,7 @@ class StepsListPage {
     async linkItems(): Promise<StepsLinkItem[]> {
         await firstDisplayed(stepsListLocators.title, {timeout: 15000})
         // Les items sont rendus après le titre ; leur case est transparente, d'où une attente sur `$$`.
-        await browser.waitUntil(async () => (await $$('li input[type="checkbox"]')).length > 0, {
+        await browser.waitUntil(async () => (await $$(stepsListLocators.itemCheckbox)).length > 0, {
             timeout: 15000, interval: 200, timeoutMsg: 'Aucun item rendu dans la section après 15000ms',
         })
         return await driver.execute((selector: string, directPrefix: string) =>

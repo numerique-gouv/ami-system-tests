@@ -9,6 +9,8 @@ export const stepsListLocators = {
   sectionButton: 'nav li button',
   /** Boutons-liens d'items (directs et pages intermédiaires), de taille nulle. */
   itemLinkButton: 'button[data-testid^="item-button-"]',
+  /** Case à cocher d'un item, transparente : l'item est rendu quand elle existe. */
+  itemCheckbox: 'li input[type="checkbox"]',
   directLinkPrefix: 'item-button-direct-link-',
   /** Page intermédiaire d'un item : fragment de route et bouton de retour (exclu des liens). */
   itemRouteFragment: '/item/',
