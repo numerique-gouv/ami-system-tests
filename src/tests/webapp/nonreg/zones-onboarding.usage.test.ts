@@ -20,18 +20,11 @@ const log = logger('test')
 const ZONE = 'Zone B'
 
 /**
- * Le choix de zones fait à l'onboarding (premier écran après la connexion) est enregistré : visible dans Préférences › Zones scolaires et
- * dans l'agenda ; le remettre dans les Préférences rétablit l'agenda.
- *
- * Part d'une session VIERGE : `wdio.webapp.conf.ts` supprime le profil Chrome avant cette spec (comme pour passkey.usage.test.ts), pour que
- * l'écran d'onboarding « Zones scolaires » s'affiche.
- *
- * MODIFIE les zones scolaires du compte `avec_nom_dusage` : l'état d'origine est relevé sur l'écran d'onboarding (avant toute modification) et
- * rétabli dans `after()`.
+ * Le choix de zones fait à l'onboarding est enregistré : visible dans Préférences › Zones scolaires et dans l'agenda ; le remettre dans les
+ * Préférences rétablit l'agenda. Part d'une session vierge (`wdio.webapp.conf.ts` supprime le profil Chrome avant cette spec) pour que
+ * l'onboarding « Zones scolaires » s'affiche. Modifie les zones du compte `avec_nom_dusage` : état d'origine relevé sur l'onboarding, rétabli dans `after()`.
  */
 describe('Non-régression — zones choisies à l’onboarding', function () {
-  // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
-  // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(420000)
 
   const user = getTestUser()

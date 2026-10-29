@@ -10,18 +10,13 @@ import {step} from '../../../helpers/reporting/report'
 const log = logger('test')
 
 /**
- * ENV3 — « Déconnexion FranceConnect », outil de test du catalogue de STAGING (plan : environnements.md § ENV3).
- *
- * Observé le 2026-10-15 sur staging : la carte ouvre, dans l'onglet courant, le fournisseur de service de DÉMONSTRATION FranceConnect
- * (« Mock Service Provider »). Sa page « Login Callback » propose « Se déconnecter », qui déconnecte de FranceConnect (la session FC
- * disparaît : une nouvelle connexion repasse par le choix du compte) et ramène sur la page de connexion du démonstrateur, PAS sur AMI.
- * La session AMI, elle, n'est pas touchée (cookie `token` conservé, l'accueil s'affiche).
- *
- * Le test se saute hors staging (la carte n'existe pas ailleurs : non confirmé pour la préprod et les review apps).
- * Restauration : la session FranceConnect est rouverte par le test (connexion complète depuis le démonstrateur), puis retour sur AMI.
+ * « Déconnexion FranceConnect », outil de test du catalogue de staging : la carte ouvre, dans l'onglet courant, le fournisseur de service de
+ * démonstration FranceConnect. Sa page « Login Callback » propose « Se déconnecter », qui déconnecte de FranceConnect (une nouvelle connexion
+ * repasse par le choix du compte) et ramène sur la page de connexion du démonstrateur, pas sur AMI. La session AMI n'est pas touchée.
+ * Sauté hors staging (la carte n'existe pas ailleurs, non confirmé pour la préprod et les review apps). Le test rouvre ensuite la session
+ * FranceConnect (connexion complète depuis le démonstrateur), puis revient sur AMI.
  */
 describe('Non-régression — déconnexion FranceConnect (staging)', function () {
-  // Délai posé ICI : un `this.timeout()` dans un it ou un hook arrive trop tard (voir catalogue.parcours.test.ts).
   this.timeout(300000)
 
   before(async function () {

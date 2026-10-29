@@ -7,14 +7,9 @@ import {getAppToStartingState} from '../../pages/authenticate.process'
 import {step} from '@helpers/reporting/report'
 
 /**
- * Cycle de vie d'une démarche en webapp (Suivi des démarches) : cycle de vie d'une démarche partenaire, détail et historique,
- * démarches archivées.
- *
- * Le cycle new → wip → closed est un cycle de vie d'entité backend (exception documentée à
- * l'indépendance des it(), CONTRIBUTING.md §6) : les 3 premiers tests partagent le même `itemId`
- * horodaté, chacun publie sa propre notification et valide l'état de la liste sans supposer
- * celui laissé par le précédent. Le détail et les archivées sont indépendants.
- * Pré-requis : variables NOTIF_* dans .env.
+ * Suivi des démarches : cycle de vie d'une démarche partenaire (new → wip → closed), détail et historique, démarches archivées.
+ * Exception à l'indépendance des it() (CONTRIBUTING.md §6) : les 3 premiers tests partagent le même `itemId` horodaté, chacun publie
+ * sa notification et valide la liste sans supposer l'état laissé par le précédent. Pré-requis : variables NOTIF_* dans .env.
  */
 describe('Cycle de vie d’une démarche', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe

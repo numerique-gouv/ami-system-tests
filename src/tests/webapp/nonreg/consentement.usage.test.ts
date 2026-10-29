@@ -13,14 +13,10 @@ import logger from '@wdio/logger'
 const log = logger('test')
 
 /**
- * Consentement et suivi des démarches (plan : consentement.md, scénarios S3 à S6). Réunion du 2026-10-06, 03:45–09:40.
- *
- * Ces scénarios MODIFIENT les consentements du compte `avec_nom_dusage` : l'état d'origine est relevé dans `before()` et rétabli
- * dans `after()` (les autres specs supposent le consentement AMI actif).
+ * Consentement et suivi des démarches. Modifie les consentements du compte `avec_nom_dusage` : l'état d'origine est relevé dans `before()` et
+ * rétabli dans `after()` (les autres specs supposent le consentement AMI actif).
  */
 describe('Non-régression — consentement et suivi des démarches', function () {
-  // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
-  // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
 
   const user = getTestUser()
@@ -107,7 +103,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     const itemId = `E2E-consentement-${new Date().toISOString()}`
     const title = `Demarche E2E ${itemId} D4`
 
-    /** Constat sur l'Accueil puis sur le Suivi : D4 y est-elle listée ? Aucune assertion (règle de gestion non définie, cf. consentement.md). */
+    /** Constat sur l'Accueil puis sur le Suivi : D4 y est-elle listée ? Aucune assertion (règle de gestion non définie). */
     async function observeD4(moment: string): Promise<void> {
       await NavigationPage.goToRoute('/')
       await HomePage.assertHomeVisible()
@@ -115,7 +111,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
       await HomePage.ouvreSuivi()
       let surSuivi: boolean | 'page Suivi non confirmée' = 'page Suivi non confirmée'
       let statut = 'sans objet'
-      // Piège établi : assertDisplayed() vise le h1 « Mes démarches » (le h2 existe aussi sur l'Accueil) ; on ne cherche pas avant de l'avoir confirmé.
+      // assertDisplayed() vise le h1 « Mes démarches » (le h2 existe aussi sur l'Accueil) : ne chercher D4 qu'après l'avoir confirmé.
       try {
         await SuiviDemarchesPage.assertDisplayed()
         surSuivi = await hasPageText(title, 8000)

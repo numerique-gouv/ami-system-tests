@@ -7,13 +7,8 @@ import {getTestUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
 
 /**
- * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil, en webapp.
- * L'authentification est sous la responsabilité d'une autre équipe — ce test valide uniquement
- * que notre intégration fonctionne de bout en bout.
- *
- * Pas de sélecteur d'environnement en webapp (cf. resolveEnvironment) : la session démarre
- * directement sur l'écran de connexion. Les écrans d'onboarding (clé d'accès, zones scolaires,
- * notifications) ne sont affichés qu'à certaines connexions — chacun est un no-op s'il est absent.
+ * Le flow FranceConnect complet aboutit sur la page d'accueil (l'authentification elle-même est l'affaire d'une autre équipe).
+ * Pas de sélecteur d'environnement en webapp ; les écrans d'onboarding ne s'affichent qu'à certaines connexions.
  */
 describe('Authentification', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
@@ -29,7 +24,6 @@ describe('Authentification', function () {
     await FranceConnectCredentialsPage.fillCredentials(user)
 
     step("2. Passer les écrans d'onboarding présents (clé d'accès, zones scolaires, notifications)")
-    // Attend le PREMIER écran parmi {accueil, passkey, zones, notifications} (geo.api.gouv.fr lent), le traite, et recommence jusqu'à l'accueil.
     await passOnboardingToHome()
 
     step("3. Vérifier l'arrivée sur la page d'accueil")

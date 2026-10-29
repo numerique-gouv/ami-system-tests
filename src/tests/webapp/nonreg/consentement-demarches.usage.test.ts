@@ -1,4 +1,3 @@
-import logger from '@wdio/logger'
 import PreferencesPage from '../../../pages/preferences.page'
 import HomePage from '../../../pages/home.page'
 import NavigationPage from '../../../pages/navigation.page'
@@ -11,41 +10,34 @@ import {PARTNER_DN, getBackendUrl, publicationOutcome, grantDemarchesConsent, pu
 import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
 
-const log = logger('test')
 
-/** Partenaire à consentement activé (voir l'en-tête du describe). */
+/** Partenaire à consentement activé. */
 const PARTNER = PARTNER_DN
 
 /**
- * Démarche publiée par un partenaire SANS consentement de l'usager : le backend la REFUSE (404) et l'app ne la reçoit JAMAIS (ni Suivi des
- * démarches, ni centre de notifications, avant comme après le consentement). Deux scénarios identiques dans leur déroulé, qui ne diffèrent
- * que par la façon dont le consentement est retiré puis donné : par l'API partenaire, ou par les cases de Préférences › Suivi des démarches.
- * Décision de l'utilisateur (2026-10-26).
+ * Démarche publiée par un partenaire SANS consentement de l'usager : le backend la refuse (404) et l'app ne la reçoit jamais, avant comme après le
+ * consentement. Deux scénarios au déroulé identique, qui ne diffèrent que par la façon de retirer puis donner le consentement : l'API partenaire,
+ * ou les cases de Préférences › Suivi des démarches.
  *
  * Déroulé : « D1 prime » (corps, sous-titre, lien) est publiée sans consentement : la garde côté appelant s'arrête avant le PUT, et le PUT forcé est
- * refusé par le backend. Une fois le consentement donné, « D1 bis » (même `item_id`, corps seul : ni sous-titre ni lien) est reçue : le détail de la
- * démarche porte le champ VIDE de D1 bis et non la valeur de D1 prime, preuve que l'app n'a jamais eu D1 prime.
+ * refusé par le backend. Une fois le consentement donné, « D1 bis » (même `item_id`, corps seul) est reçue : le détail porte le champ vide de D1 bis
+ * et non la valeur de D1 prime, preuve que l'app n'a jamais eu D1 prime. Le lien externe d'une démarche est le dernier `content_link` non vide de ses
+ * notifications : si D1 prime avait été reçue, « Accéder à ma démarche » serait proposé. Que D1 bis apparaisse au Suivi et dans le centre de
+ * notifications est normal (une démarche est une notification).
  *
- * Champ discriminant : `content_link` (vérifié dans ami-notifications-api, ami/followup/schemas.py). Le lien externe d'une démarche est le
- * DERNIER `content_link` non vide de toutes les notifications reçues : si D1 prime avait été reçue, le bouton « Accéder à ma démarche » serait
- * proposé malgré D1 bis sans lien. `content_body` est obligatoire (non vide) et sert de marqueur : le corps de D1 prime ne doit jamais
- * apparaître dans le détail. Que D1 bis apparaisse au Suivi et dans le centre de notifications est normal (une démarche est une notification).
+ * Partenaire `dinum-dn` (consentement activé) : le partenaire AMI est un partenaire système, dont le consentement est ignoré. Identifiants
+ * NOTIF_PARTNER_DINUM_DN_ID / _SECRET dans .env ; absents, les scénarios sont sautés.
  *
- * PARTENAIRE : `dinum-dn` (consentement ACTIVÉ côté backend). Le partenaire AMI est un partenaire SYSTÈME dont le consentement est ignoré
- * (un PUT sans consentement y répond 201) : il ne peut pas exercer ce scénario. Identifiants DN : NOTIF_PARTNER_DINUM_DN_ID / _SECRET
- * (.env) ; absents, les scénarios sont SKIPPÉS (BLOQUÉS) avec un message qui les nomme.
- *
- * MODIFIE le consentement DN (et AMI) du compte partagé `avec_nom_dusage` : état d'origine relevé au `before()`, rétabli à l'`after()`. Les
- * démarches publiées (titres horodatés) restent sur le compte : aucune suppression n'est connue.
+ * Modifie le consentement DN et AMI du compte partagé `avec_nom_dusage` : état d'origine relevé au `before()`, rétabli à l'`after()`. Les
+ * démarches publiées (titres horodatés) restent sur le compte.
  */
 describe('Non-régression — démarche publiée sans consentement : refusée et jamais reçue', function () {
-  // Délai posé au niveau du describe : un this.timeout() dans un it/hook est ignoré par WDIO (il lit le délai avant d'exécuter).
   this.timeout(420000)
 
   const user = getTestUser()
   let original: Record<string, boolean> = {}
 
-  /** Retire et donne le consentement du partenaire : c'est la SEULE différence entre les deux scénarios. */
+  /** Retire et donne le consentement du partenaire : seule différence entre les deux scénarios. */
   type PilotageDuConsentement = {retirer: () => Promise<void>, donner: () => Promise<void>}
 
   /** Par l'API partenaire. Les écrans ouverts ensuite (Suivi, centre de notifications) relisent le serveur à leur ouverture. */
@@ -145,7 +137,6 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     step('3. D1 prime, presque pleine (corps, sous-titre, lien), publiée sans consentement : le BACKEND refuse (404)')
     // `verifyPartnerConsent: false` saute la garde et force le PUT, pour vérifier que c'est bien le backend qui refuse.
     const issuePrime = await publicationOutcome(() => publishDemarche({...primeOptions, verifyPartnerConsent: false}))
-    log.info(`D1 prime publiée sans consentement : ${issuePrime} par l'API`)
     expect(issuePrime).toBe('refusée')
 
     step('4. Attendre 4 secondes, revenir à l’Accueil : D1 prime est absente (consentement retiré)')

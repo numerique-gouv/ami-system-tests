@@ -8,15 +8,9 @@ import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
 import {waitForNotificationAuthorization} from '../../helpers/mobile/ios-notifications'
 
-/**
- * Vérifie que le flow FranceConnect complet aboutit sur la page d'accueil.
- * L'authentification est sous la responsabilité d'une autre équipe — ce test
- * valide uniquement que notre intégration fonctionne de bout en bout.
- */
+/** Le flow FranceConnect complet aboutit sur la page d'accueil (l'authentification elle-même est l'affaire d'une autre équipe). */
 describe('Authentification', function () {
-  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
-  // Une fois par spec (pas par test) : l'app peut garder la session ouverte d'un démarrage à l'autre. Environnement choisi, puis
-  // déconnexion explicite si besoin. On reste authentifié en fin de test : le suivant repart de getAppToStartingState().
+  this.timeout(180000)
   before(async function () {
     step('Sélectionner l\'environnement de review et s\'assurer d\'être déconnecté')
     await getAppToLoggedOutState()
@@ -27,9 +21,7 @@ describe('Authentification', function () {
 
     step('1. Démarrer le flow FranceConnect (eIDAS faible)')
     await FranceConnectMirePage.tapFranceConnect(false)
-    // Une session FranceConnect encore ouverte dans le simulateur/émulateur (run précédent, SSO) renvoie
-    // directement vers l'app sans afficher la mire eIDAS : observé 2026-10-06 sur iOS, la capture de l'échec
-    // montrait déjà l'onboarding des notifications. On ne saisit alors ni eIDAS ni identifiants.
+    // Une session FranceConnect encore ouverte (SSO) renvoie directement vers l'app, sans mire eIDAS ni identifiants.
     if (await FranceConnectEidasPage.waitForEidasTile()) {
       await FranceConnectEidasPage.selectEidasFaible()
       await FranceConnectCredentialsPage.fillCredentials(user)
@@ -38,16 +30,13 @@ describe('Authentification', function () {
     }
 
     step('2. Accepter la feuille native des notifications (iOS), passer la clé d\'accès, le choix des zones puis l\'onboarding')
-    // iOS : la feuille native « Activez les notifications » apparaît juste après la connexion, AU-DESSUS de la page « clé d'accès » de la
-    // SPA : son bouton « Activer » est alors le seul de l'arbre natif. Elle se traite d'abord (Activer, alerte système, Autoriser).
-    // Attend le PREMIER écran parmi {accueil, passkey, zones, notifications} (geo.api.gouv.fr lent), le traite, et recommence jusqu'à l'accueil.
     await passOnboardingToHome()
     await FranceConnectMirePage.tapFranceConnect(true )
 
     step('3. Vérifier l\'arrivée sur la page d\'accueil')
     await platform().inWebContext(() => HomePage.assertHomeVisible(30000))
 
-    // iOS : l'onboarding ACCEPTE les notifications (« Activer » puis « Autoriser ») ; on le constate dans le simulateur (base BulletinBoard).
+    // iOS : l'onboarding accepte les notifications, constaté dans le simulateur.
     if (driver.isIOS) {
       step('4. Vérifier que les notifications sont autorisées (réglage système du simulateur)')
       await waitForNotificationAuthorization('authorized')

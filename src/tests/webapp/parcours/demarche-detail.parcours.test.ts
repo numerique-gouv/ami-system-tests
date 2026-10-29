@@ -15,15 +15,10 @@ import logger from '@wdio/logger'
 const log = logger('test')
 
 /**
- * Redirections vers le détail d'une démarche (plan : demarche-detail.md, scénarios S9, S12, S13). Réunion du 2026-10-06,
- * 09:49–12:39 et 57:38 : « avant, ça ramenait à la liste, maintenant ça ramène à l'item ». Assertion clé : la référence dossier
- * publiée est retrouvée sur l'écran de détail atteint.
- *
+ * Redirections vers le détail d'une démarche. Assertion clé : la référence dossier publiée est retrouvée sur l'écran de détail atteint.
  * Les démarches sont créées par la spec (titre horodaté) : rien à restaurer.
  */
 describe('Non-régression — détail d’une démarche', function () {
-  // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
-  // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
 
   const user = getTestUser()
@@ -79,12 +74,11 @@ describe('Non-régression — détail d’une démarche', function () {
   })
 
   it('la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)', async function () {
-    // ASSERTION PROPOSÉE, À VALIDER avec Édouard (demarche-detail.md) : seule la page FINALE est observée, pas les redirections.
+    // Assertion à valider avec l'équipe : seule la page finale est observée, pas les redirections.
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const target = await ServicesPage.openCatalogueCardNamed('Déclaration de changement d')
-    // Cible non différée (`deferExternal`) : son adresse porte un jeton à usage unique, que seul le navigateur peut suivre ; l'attente du
-    // délai de connexion de Chrome (~75-90 s) quand l'hôte qualif est injoignable ne peut donc pas être évitée par un contrôle HTTP.
+    // Cible non différée : son adresse porte un jeton à usage unique que seul le navigateur peut suivre (sans contrôle HTTP, l'attente de Chrome sur un hôte injoignable ~75-90 s est inévitable).
     if (isBrokenTarget(target)) {
       const line = `Connexion silencieuse : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`
       // Seul un hôte listé (`PRIVATE_NETWORK_HOSTS`) SANS réponse est toléré ; une page d'erreur d'AMI ou un autre hôte reste un échec.
@@ -94,17 +88,15 @@ describe('Non-régression — détail d’une démarche', function () {
       return
     }
     expect(target.host).not.toContain('franceconnect')
-    // Constat du 2026-10-15 en préprod : la cible est « Se connecter | Service Public » (200), la connexion silencieuse n'aboutit pas.
-    // Ce n'est pas encore un critère d'échec (non confirmé : désactivée ou en échec ?) : signalé, pas bloquant.
+    // Page de connexion (200) : la connexion silencieuse n'aboutit pas. Pas encore un critère d'échec (désactivée ou en échec, non confirmé).
     if (isLoginWall(target)) log.warn(`ANOMALIE ? La connexion silencieuse aboutit sur une page de connexion (${describeTarget(target)}, « ${target.title} »)`)
     await ServicesPage.returnFromExternal()
   })
 
   it('une démarche enfant est listée sous sa démarche parente, et pas sous une autre', async function () {
-    // ASSERTION PROPOSÉE, À VALIDER avec Édouard (rattachement des sous-démarches, demarche-detail.md).
+    // Assertion à valider avec l'équipe (rattachement des sous-démarches).
     const parent = {title: `Demarche E2E ${itemId} parent`, id: `${itemId}-P`}
-    // « Autre » démarche : celle du `before()`, déjà vérifiée visible dans le Suivi. Une démarche publiée dans la foulée du parent
-    // n'apparaissait pas dans la fenêtre de 30 s de `waitForDemarche` (relevé le 2026-10-15), d'où ce choix.
+    // « Autre » démarche : celle du `before()`, déjà visible dans le Suivi (une démarche publiée dans la foulée du parent n'apparaît pas toujours sous 30 s).
     const other = {title, id: itemId}
     const childTitle = `Sous-demarche E2E ${itemId}`
 
@@ -116,7 +108,7 @@ describe('Non-régression — détail d’une démarche', function () {
     })
 
     step('2. Le détail du parent liste l’enfant')
-    // Recharge la racine APRÈS les publications : un clic sur l'onglet « Suivi » pendant que l'Accueil se re-rend était perdu.
+    // Racine rechargée après les publications : un clic sur « Suivi » pendant le re-rendu de l'Accueil serait perdu.
     await getAppToStartingState()
     await HomePage.ouvreSuivi()
     await SuiviDemarchesPage.assertDisplayed()
@@ -126,8 +118,7 @@ describe('Non-régression — détail d’une démarche', function () {
     await DemarcheDetailPage.assertChildListed(childTitle)
 
     step('3. Le détail d’une autre démarche ne le liste pas')
-    // Repart de la racine plutôt que d'un retour arrière : après `goBack`, la tuile de l'autre démarche n'était plus affichée au bout de
-    // 20 s (relevé le 2026-10-15) — la liste du Suivi ne se ré-hydrate pas de façon fiable à cet endroit.
+    // Repart de la racine plutôt que d'un retour arrière : la liste du Suivi ne se ré-hydrate pas de façon fiable après `goBack`.
     await getAppToStartingState()
     await HomePage.ouvreSuivi()
     await SuiviDemarchesPage.assertDisplayed()

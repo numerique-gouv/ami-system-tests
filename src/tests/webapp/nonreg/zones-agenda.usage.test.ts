@@ -14,15 +14,10 @@ import logger from '@wdio/logger'
 const log = logger('test')
 
 /**
- * Zones scolaires et agenda (plan : zones-agenda.md, scénarios S7, S8, S10). Réunion du 2026-10-06, 01:40–03:08 et 12:46–14:43.
- *
- * S7 MODIFIE les zones scolaires du compte `avec_nom_dusage` : état d'origine relevé dans `before()`, rétabli dans `after()`.
- * S8 et S10 créent leurs propres démarches (titre horodaté) : rien à restaurer — la suppression d'un élément de l'agenda est
- * définitive pour l'usager (réunion, 13:17–13:36), d'où l'élément créé par le test.
+ * Zones scolaires et agenda. Le premier scénario modifie les zones du compte `avec_nom_dusage` : état d'origine relevé dans `before()`, rétabli
+ * dans `after()`. Les autres créent leurs propres démarches (titre horodaté) : la suppression d'un élément de l'agenda est définitive pour l'usager.
  */
 describe('Non-régression — zones scolaires et agenda', function () {
-  // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
-  // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(300000)
 
   const user = getTestUser()
@@ -78,7 +73,6 @@ describe('Non-régression — zones scolaires et agenda', function () {
     step('1. La zone B est cochée : repérer une tuile de l’agenda qui la cite')
     await openZones()
     await ZonesPage.setZone('Zone B', true)
-    // La page Zones n'a pas de barre de navigation basse : on rejoint l'Agenda par sa route.
     await NavigationPage.goToRoute('/agenda')
     await AgendaPage.assertDisplayed()
     let zoneTile: string | undefined
@@ -101,7 +95,6 @@ describe('Non-régression — zones scolaires et agenda', function () {
     expect((await ZonesPage.zoneStates())['Zone B']).toBe(false)
 
     step('3. La tuile ne cite plus « Zone B » mais cite toujours une autre zone')
-    // La page Zones n'a pas de barre de navigation basse : on rejoint l'Agenda par sa route.
     await NavigationPage.goToRoute('/agenda')
     await AgendaPage.assertDisplayed()
     const text = await AgendaPage.eventText(zoneTile)
@@ -111,7 +104,6 @@ describe('Non-régression — zones scolaires et agenda', function () {
     step('4. Recocher « Zone B » : la tuile la cite de nouveau')
     await openZones()
     await ZonesPage.setZone('Zone B', true)
-    // La page Zones n'a pas de barre de navigation basse : on rejoint l'Agenda par sa route.
     await NavigationPage.goToRoute('/agenda')
     await AgendaPage.assertDisplayed()
     expect(await AgendaPage.eventText(zoneTile)).toContain('Zone B')
@@ -153,8 +145,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     step('1. Repérer un élément fixe : un jour férié de préférence, à défaut n’importe quel élément qui n’est pas une démarche de test')
     await AgendaPage.open()
     await AgendaPage.assertDisplayed()
-    // Élément fixe = tout sauf les démarches créées par ces specs (« Demarche E2E … »). Un jour férié est préféré : stable et
-    // indépendant des zones. Staging n'en a pas (un seul élément, « Vacances de la Toussaint », relevé le 2026-10-15).
+    // Élément fixe = tout sauf les démarches créées par ces specs (« Demarche E2E … »), de préférence un jour férié, indépendant des zones.
     const fixed = (await AgendaPage.eventTitles()).filter(title => !title.startsWith('Demarche E2E'))
     const holiday = fixed.find(title => !title.startsWith('Vacances')) ?? fixed[0]
     if (!holiday) throw new Error('Aucun élément fixe dans l’agenda : impossible de vérifier la réapparition à la reconnexion')
@@ -173,8 +164,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     step('4. L’élément fixe est de nouveau dans l’agenda')
     await AgendaPage.open()
     await AgendaPage.assertDisplayed()
-    // Réapparition constatée en préprod le 2026-10-15 ; une démarche avec échéance supprimée réapparaît aussi, mais la réunion ne
-    // l'affirme pas (« pas ses rendez-vous », 14:04) : elle n'est pas assertée ici.
+    // Seule la réapparition d'un élément fixe est assertée : celle d'une démarche avec échéance supprimée n'est pas établie.
     expect(await AgendaPage.isEventListed(holiday, 10000)).toBe(true)
   })
 })

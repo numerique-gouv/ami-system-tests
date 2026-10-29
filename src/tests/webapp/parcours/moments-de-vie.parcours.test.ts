@@ -8,7 +8,7 @@ import {step} from '../../../helpers/reporting/report'
 const log = logger('test')
 
 /**
- * Smoke — les moments de vie (onglet « Trouver de l'aide » de Services) mènent à des pages valides .
+ * Les moments de vie (onglet « Trouver de l'aide » de Services) mènent à des pages valides .
  * Les listes d'étapes (checklists « Je crée une association »…) ont leur propre parcours, liste-etapes.parcours.test.ts : elles sont
  * ignorées ici, pour ne rien vérifier deux fois. Le catalogue des démarches est dans catalogue.parcours.test.ts.
  *
@@ -16,8 +16,6 @@ const log = logger('test')
  * puis contrôlée en HTTP (concurrence bornée), une route interne ou une adresse à jeton est suivie par le navigateur.
  */
 describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)', function () {
-  // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
-  // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(900000)
 
   beforeEach(async function () {
@@ -30,7 +28,6 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
     const labels = await ServicesPage.helpLabels()
     expect(labels.length).toBeGreaterThan(0)
     const stepsLists = new Set(await ServicesPage.stepsListLabels())
-    log.info(`aide : ${labels.length} entrées dont ${stepsLists.size} listes d'étapes ignorées (liste-etapes.parcours.test.ts)`)
 
     const broken: string[] = []
     const judge = (label: string, target: LinkTarget): void => {
@@ -38,7 +35,6 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
         if (isInternalErrorRoute(target)) broken.push(`« ${label} » → page d'erreur de l'application (${target.route})`)
       } else if (isBrokenTarget(target)) {
         const line = `« ${label} » → ${describeTarget(target)} (statut ${target.status}, « ${target.title} »${target.excerpt ? ` : ${target.excerpt.slice(0, 120)}` : ''})`
-        // Hôte de préproduction partenaire joignable seulement depuis un réseau privé : avertissement, pas un échec (décision 2026-10-15).
         if (isExpectedUnreachable(target)) log.warn(toleratedUnreachableWarning(line))
         else broken.push(line)
       }

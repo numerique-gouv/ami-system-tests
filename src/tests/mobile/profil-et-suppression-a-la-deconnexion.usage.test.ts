@@ -7,9 +7,7 @@ import logger from '@wdio/logger'
 
 const log = logger('test')
 
-// Valeurs clairement identifiables comme données de test — non confondables avec de vraies données.
-// Le logout déclenche la suppression côté app — le after() restaure en cas d'échec avant logout.
-// L'adresse est choisie dans l'autocomplétion BAN (premier résultat de la requête) ; le compte peut ne pas en avoir d'origine (adresse Caf vide).
+// Valeurs identifiables comme données de test. L'adresse est choisie dans l'autocomplétion BAN (premier résultat) ; le compte peut ne pas en avoir d'origine.
 const MODIFICATIONS = {
   preferredUsername: 'NOMTEST',
   email: 'testdemiseajour@yopmail.com',
@@ -20,19 +18,14 @@ const MODIFICATIONS = {
 describe('Profil usager — suppression des modifications à la déconnexion', function () {
   this.timeout(180000)
 
-  // Données initiales capturées dynamiquement — non codées en dur.
-  // Initialisées dans le before() pour refléter l'état réel du compte au moment du test.
+  // Données initiales du compte, capturées dans le before().
   let original: {
     identityBolds: string[]
     preferredUsername: string  // extrait du displayName pour restauration after()
     email: string
-    addressBolds: string[]  // vide si le compte n'a pas d'adresse d'origine : état légitime
+    addressBolds: string[]  // vide si le compte n'a pas d'adresse d'origine
   }
 
-  // Connexion initiale (jusqu'à ~105 s sur une machine lente) : comme les autres specs de login, 180 s et non les 120 s
-  // du délai Mocha global (campagne du 2026-10-15 : « before all » en timeout 2 fois sur 4 sur Android).
-  // Le délai se pose au niveau du describe : this.timeout() dans un hook est sans effet avec WDIO (constaté le 2026-10-26 : « before all »
-  // expiré à 120 s, passé au retry).
   before(async function () {
     await getAppToStartingState()
 
@@ -44,8 +37,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
       const identityBolds = await ProfilePage.getIdentityBolds()
       original = {
         identityBolds,
-        // Valeur réelle du champ du formulaire (vide si le compte n'a pas de nom d'usage) : la déduire du nom affiché donnait un faux nom d'usage
-        // (« Bernard Pierre LIVRE » pour naissance_Italie), que l'after() écrivait ensuite sur le compte.
+        // Valeur du champ du formulaire, pas déduite du nom affiché (qui vient de FranceConnect).
         preferredUsername: await ProfilePage.getPreferredUsernameField(),
         email: await ProfilePage.getEmailBold(),
         addressBolds: await ProfilePage.getAddressBolds(),
@@ -54,12 +46,9 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
   })
 
   after(async () => {
-    // Restauration best-effort : protège le compte si le test échoue avant le logout.
-    // Sans cela, les données modifiées resteraient et pollueraient les runs suivants.
+    // Protège le compte si le test échoue avant le logout, qui supprime les modifications. Adresse d'origine vide : rien à restaurer.
     if (!original) return
     await platform().inWebContext(() => ProfilePage.restore(original))
-    // Adresse originale vide (compte sans adresse Caf) : rien à restaurer, la reconnexion FranceConnect
-    // a déjà ramené l'adresse à cet état vide — appeler editAddress('') échouerait dans l'autocomplétion BAN.
   })
 
   it('modifie le nom d\'usage', async () => {
@@ -67,7 +56,6 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
       step('Modifier le nom d\'usage')
       await ProfilePage.editPreferredUsername(MODIFICATIONS.preferredUsername)
 
-      // Le nom affiché dans « Mon identité » vient de FranceConnect (cf. getPreferredUsernameField) : on relit le champ du formulaire.
       expect(await ProfilePage.getPreferredUsernameField()).toBe(MODIFICATIONS.preferredUsername)
     })
   })
@@ -82,8 +70,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
   })
 
   it('modifie l\'adresse', async function () {
-    // L'autocomplétion peut manquer (fonctionnalité éventuellement désactivée côté WebView pour un point juridique, non confirmé) : ce n'est pas
-    // un échec, le test est alors SAUTÉ avec un avertissement, et les autres étapes (nom d'usage, email, déconnexion) restent vérifiées.
+    // Autocomplétion absente (peut-être désactivée volontairement, non confirmé) : le test est sauté avec un avertissement, pas en échec.
     let proposed = true
     await platform().inWebContext(async () => {
       step('Modifier l\'adresse via autocomplétion BAN')
@@ -108,14 +95,13 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
     await getAppToStartingState()
     await platform().inWebContext(() => ProfilePage.logout())
 
-    // La déconnexion n'est finie qu'au retour sur l'écran de connexion : la fin de session FranceConnect
-    // est un aller-retour que la suite ne doit pas interrompre.
+    // La déconnexion n'est finie qu'au retour sur l'écran de connexion (fin de session FranceConnect).
     step('Attendre l\'écran de connexion')
     await FranceConnectMirePage.waitForLoginScreen()
   })
 
   it('se reconnecte avec le même compte', async function () {
-    this.timeout(180000) // une connexion complète : même raison que le before()
+    this.timeout(180000)
     step('Lancer le flow FranceConnect')
     await getAppToStartingState()
 
@@ -145,8 +131,7 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
     })
   })
 
-  // Compte sans adresse d'origine : l'état attendu est alors « aucune adresse » (`[]`), pas seulement « sans Ségur » (qui passerait aussi
-  // si une autre adresse s'affichait par erreur).
+  // Sans adresse d'origine, l'attendu est `[]` : « sans Ségur » passerait aussi avec une autre adresse affichée par erreur.
   it('affiche l\'adresse originale (pas la valeur modifiée)', async () => {
     await platform().inWebContext(async () => {
       step('Vérifier que l\'adresse est restaurée')

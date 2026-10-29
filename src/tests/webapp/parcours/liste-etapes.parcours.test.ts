@@ -9,16 +9,11 @@ import {step} from '../../../helpers/reporting/report'
 const log = logger('test')
 
 /**
- * Listes d'étapes (« Comment faire si… ») — chaque lien fonctionne (plan : catalogue.md, scénario S1.4). Réunion du 2026-10-06,
- * 20:40–21:51 : un item à un seul lien mène directement à une page externe, un item à plusieurs liens ouvre une page intermédiaire
- * qui les liste ; « est-ce qu'on peut tester que chaque lien fonctionne ? au moins ça ».
- *
- * Seul le PARCOURS est contrôlé, pas le contenu (wording, ordre : configurable, hors de la main de l'équipe). Les listes sont
- * découvertes dynamiquement (`data-testid` préfixé `service-steps-`) : aucun libellé de liste ou d'item n'est codé en dur.
+ * Listes d'étapes (« Comment faire si… ») : chaque lien fonctionne. Un item à un seul lien mène directement à une page externe, un item à
+ * plusieurs liens ouvre une page intermédiaire qui les liste. Seul le parcours est contrôlé, pas le contenu (configurable, hors de la main de
+ * l'équipe) : les listes sont découvertes dynamiquement (`data-testid` préfixé `service-steps-`), aucun libellé n'est codé en dur.
  */
 describe('Non-régression — listes d’étapes', function () {
-  // Délai posé ICI et non dans le corps du test : WDIO fixe son propre délai d'après le délai du test AVANT de l'exécuter
-  // (@wdio/utils, executeAsync), un `this.timeout()` écrit dans un `it` ou un hook arrive trop tard et reste à 120 s.
   this.timeout(2400000)
 
   beforeEach(async function () {
@@ -30,7 +25,6 @@ describe('Non-régression — listes d’étapes', function () {
     await ServicesPage.assertDisplayed()
     const lists = await ServicesPage.stepsListLabels()
     expect(lists.length).toBeGreaterThan(0)
-    log.info(`listes d'étapes : ${lists.length}`)
 
     const broken: string[] = []
     let followed = 0
@@ -39,15 +33,12 @@ describe('Non-régression — listes d’étapes', function () {
       if (target.internal) broken.push(`${where} : le lien est resté dans l'application (${target.route || target.path})`)
       else if (isBrokenTarget(target)) {
         const line = `${where} → ${describeTarget(target)} (statut ${target.status}, « ${target.title} »)`
-        // Hôte de préproduction partenaire joignable seulement depuis un réseau privé : avertissement, pas un échec (décision 2026-10-15).
         if (isExpectedUnreachable(target)) log.warn(toleratedUnreachableWarning(line))
         else broken.push(line)
       }
     }
 
-    // Cibles externes sans jeton : interceptées au clic (page non chargée, donc ni retour ni rechargement), contrôlées en HTTP après le
-    // parcours, en parallèle. Chacune garde son `where`. Les adresses à jeton et les liens restés dans l'application suivent le
-    // chemin habituel (clic + navigateur, puis retour).
+    // Cibles externes sans jeton : interceptées au clic puis contrôlées en HTTP après le parcours ; les autres sont suivies par le navigateur, puis retour.
     const deferred: {where: string, link: DeferredLink}[] = []
     /** Suit un lien ; `true` si la page a été quittée (retour nécessaire), `false` si la cible a seulement été interceptée. */
     const follow = (where: string, target: LinkTarget | DeferredLink): boolean => {
@@ -71,7 +62,6 @@ describe('Non-régression — listes d’étapes', function () {
         await StepsListPage.returnTo(listRoute)
         const sectionRoute = await StepsListPage.openSection(s)
         const items = await StepsListPage.linkItems()
-        log.info(`${list} › ${section} : ${items.length} item(s) à lien`)
 
         for (const [i, item] of items.entries()) {
           const where = `${list} › ${section} › ${item.kind === 'direct' ? `« ${item.label} »` : `page n° ${i + 1}`}`
@@ -96,7 +86,6 @@ describe('Non-régression — listes d’étapes', function () {
     const described = await describeDeferred(deferred)
     for (const [position, {where}] of deferred.entries()) check(where, described[position])
 
-    log.info(`liens suivis : ${followed}`)
     // Sans aucun lien suivi, le scénario ne prouverait rien : on le dit plutôt que de passer.
     if (followed === 0) throw new AssertionError({message: `Aucun item à lien dans les ${lists.length} listes d'étapes : ce parcours n'a rien vérifié`})
     if (broken.length > 0) throw new AssertionError({message: `${broken.length} lien(s) cassé(s) sur ${followed} dans les listes d'étapes :\n${broken.join('\n')}`})
