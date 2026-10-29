@@ -6,31 +6,19 @@ import NavigationPage from './navigation.page'
 import {AssertionError} from "node:assert";
 
 class HomePage {
-    /**
-     * Attend que la SPA home authentifiée soit chargée : titre « Bonjour <prénom> » (<h1>), seul affiché par la
-     * home — les 5 boutons de la barre de nav sont présents sur tous les écrans, et la route seule ne distingue
-     * pas la home de la page « not connected » (écran de login FranceConnect, même route).
-     *
-     * Ne ferme aucun écran de blocage (onboardings, menu « Plus ») : c'est le rôle du scénario, qui les passe
-     * explicitement (`getAppToStartingState` pour les autres tests).
-     *
-     * Échec dur (throw) plutôt que booléen : centralise le diagnostic (currentUrlForLog()) pour ses appelants.
-     */
+    /** Échec dur avec l'URL courante. N'en ferme aucun écran de blocage (onboardings, menu « Plus ») : c'est le rôle du scénario. */
     async assertHomeVisible(timeout = 30000): Promise<void> {
         if (await this.isHomeDisplayed(timeout)) return
         const where = await currentUrlForLog()
         throw new AssertionError({message: `assertHomeVisible: Home non atteinte (${where})`})
     }
 
-    /** Sonde : la salutation « Bonjour <prénom> » est-elle affichée sous `timeout` ms ? Sans cascade de récupération. */
+    /** La salutation « Bonjour <prénom> », seule affichée par l'accueil authentifié, est-elle affichée sous `timeout` ms ? */
     async isHomeDisplayed(timeout: number): Promise<boolean> {
         return await isShown(homeContentLocators.greeting, timeout)
     }
 
-    /**
-     * Navigue vers la section "Suivi" en cliquant sur le bouton de la nav. L'arrivée est vérifiée par
-     * la page Suivi (`SuiviDemarchesPage.assertDisplayed()` ou ses propres méthodes).
-     */
+    /** L'arrivée est vérifiée par la page Suivi. */
     async ouvreSuivi(): Promise<void> {
         await NavigationPage.goToTab('Suivi')
     }
@@ -43,12 +31,11 @@ class HomePage {
         await expect($(homeContentLocators.notificationsBell)).toBeDisplayed()
     }
 
-    /** Sonde : le bouton « Je veux suivre mes démarches » est-il affiché sur l'accueil sous `timeout` ms ? (0 : maintenant) */
+    /** Le bouton « Je veux suivre mes démarches » est-il affiché sous `timeout` ms (0 : maintenant) ? */
     async isFollowButtonShown(timeout = 0): Promise<boolean> {
         return await isShown(homeContentLocators.followButton, timeout)
     }
 
-    /** Texte de la salutation « Bonjour <prénom> » (titre <h1> de l'accueil). */
     async greeting(): Promise<string> {
         const heading = await firstDisplayed(homeContentLocators.greeting)
         return (await heading.getText()).trim()
@@ -74,34 +61,26 @@ class HomePage {
         await clickDisplayed(homeContentLocators.seeAllProcedures)
     }
 
-    /**
-     * Ouvre la fiche du service « Opération Tranquillité Vacances » depuis le carrousel (Splide) :
-     * une seule carte est accessible à la fois (les autres sont aria-hidden, hors écran) — on avance
-     * avec « Diapositive suivante » jusqu'à ce que la carte soit atteignable.
-     */
+    /** Avance le carrousel jusqu'à ce que la carte OTV soit atteignable : une seule carte l'est à la fois. */
     async openOtvCard(): Promise<void> {
-        // Chaîne reconstruite à chaque appel : WDIO garde le parent résolu au premier usage, alors que la diapositive
-        // visible change après chaque clic sur la flèche.
+        // Reconstruite à chaque appel : la diapositive visible change après chaque clic.
         const card = (): ReturnType<typeof $> => $(homeContentLocators.visibleSlide).$(homeContentLocators.otvCard)
         for (let slide = 0; slide < 4 && !await card().isDisplayed(); slide++) {
             const next = $(homeContentLocators.carouselNext)
-            await next.waitForExist({timeout: 5000}) // le carrousel se monte après le rendu de la page
+            await next.waitForExist({timeout: 5000})
             await next.click()
-            // Animation du carrousel : la carte devient visible à la fin de la transition. Si elle ne l'est pas, on
-            // avance d'une diapositive de plus ; l'échec définitif est signalé par l'assertion ci-dessous.
             await card().waitForDisplayed({timeout: 2500}).catch(() => undefined)
         }
         await expect(card()).toBeDisplayed()
         await card().click()
     }
 
-    /** Ouvre le formulaire d'adresse depuis la carte « Renseignez votre adresse » du carrousel (1re diapositive). */
+    /** Ouvre le formulaire d'adresse depuis la carte « Renseignez votre adresse » (1re diapositive). */
     async openAddressCard(): Promise<void> {
         const card = $(homeContentLocators.visibleSlide).$(homeContentLocators.addressCard)
         await card.waitForClickable()
         await card.click()
     }
-
 }
 
 export default traced(new HomePage(), 'HomePage')

@@ -104,7 +104,7 @@ export async function waitForHeading(name: string, timeout = DEFAULT_TIMEOUT): P
   await waitForRole('heading', name, {timeout})
 }
 
-const normalizeSpaces = (text: string): string => text.replace(/\s+/g, ' ').trim()
+export const normalizeSpaces = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 /** Textes visibles des boutons affichés, sans les boutons-icônes (`getComputedLabel` n'existe pas dans la WebView iOS). */
 export async function visibleButtonTexts(): Promise<string[]> {

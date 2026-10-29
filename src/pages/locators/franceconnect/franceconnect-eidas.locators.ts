@@ -1,27 +1,11 @@
-/**
- * Sélecteurs de l'écran eIDAS de la mire FranceConnect (sélection eIDAS faible).
- *
- * WebView, structure identique Android/iOS (page hors app AMI, hors contrôle du DSFR). Relevé du 2026-10-13 : chaque IDP est
- * un `<button type="submit" role="link">` (icône + texte), dont Chrome calcule le nom accessible AVEC une espace finale
- * (« Démonstration eIDAS faible␠ ») : `role/link[name="…"]`, qui compare exactement, ne le trouve donc pas. Ciblage par
- * texte visible contient (`button*=`).
- */
+// Chaque IDP est un `<button type="submit" role="link">` dont Chrome calcule le nom accessible avec une espace finale : `role/link[name="…"]` ne le trouve pas, d'où le texte « contient ».
 export const fcEidasLocators = {
   eidasFaibleLink: 'button*=eIDAS faible',
 }
 
-// Pas de getXxxLocators() — un seul jeu cross-platform
-
-/**
- * iOS seulement : le même bouton lu dans l'arbre d'accessibilité NATIF (XCUITest expose le contenu de la WebView ; type Link, libellé
- * « Démonstration eIDAS faible », relevé en live le 2026-10-27). Sonde qui ne passe pas par le débogueur WebKit : sert à constater
- * l'apparition de la page eIDAS et sa disparition après le clic, sans envoyer de commande à une page en cours de remplacement.
- */
+/** iOS : le même bouton lu dans l'arbre natif, sans passer par le débogueur WebKit : constate l'apparition de la page eIDAS et sa disparition après le clic. */
 export const iosEidasLinkNativeAx = '-ios predicate string:label CONTAINS[c] "eidas faible"'
 
-/**
- * iOS seulement : la page eIDAS OU la feuille native « Activez les notifications » (si une session FranceConnect est déjà ouverte, l'app
- * revient directement sur la feuille : aucune page eIDAS à attendre, constaté le 2026-10-27). Un seul constat pour les deux issues.
- */
+/** iOS : la page eIDAS OU la feuille native « Activez les notifications » (session FranceConnect déjà ouverte : aucune page eIDAS à attendre). */
 export const iosEidasOrNotificationSheetNativeAx =
   '-ios predicate string:label CONTAINS[c] "eidas faible" OR label CONTAINS[c] "notifications pour suivre"'

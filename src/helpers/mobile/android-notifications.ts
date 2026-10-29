@@ -23,11 +23,6 @@ export async function isPostNotificationsGranted(pkg = appPackage()): Promise<bo
   return (await postNotificationsPermissionLine(pkg))?.includes('granted=true') ?? false
 }
 
-/** Équivalent de « Autoriser » dans la boîte de dialogue système. */
-export async function grantPostNotifications(pkg = appPackage()): Promise<void> {
-  await adbShell('pm', ['grant', pkg, POST_NOTIFICATIONS])
-}
-
 /** Blocs `NotificationRecord` de `dumpsys notification` appartenant à l'app. */
 export async function activeNotificationRecords(pkg = appPackage()): Promise<string[]> {
   const out = await adbShell('dumpsys', ['notification', '--noredact'], 30000)
@@ -38,17 +33,6 @@ export async function activeNotificationRecords(pkg = appPackage()): Promise<str
 export async function focusedWindow(): Promise<string> {
   const out = await adbShell('dumpsys', ['window'], 30000)
   return out.split('\n').find(l => l.includes('mCurrentFocus'))?.trim() ?? ''
-}
-
-/** Importance du canal par défaut de l'app vue du système : NONE = notifications coupées. */
-export async function appNotificationsImportance(pkg = appPackage()): Promise<string | undefined> {
-  const out = await adbShell('dumpsys', ['notification', '--noredact'], 30000)
-  return out.match(new RegExp(`AppSettings: ${pkg.replace(/\./g, '\\.')} \\(\\d+\\) importance=(\\w+)`))?.[1]
-}
-
-/** Mode appops de POST_NOTIFICATION : `ignore` = refusée, `allow` ou « No operations » (par défaut) = permise. */
-export async function postNotificationAppOps(pkg = appPackage()): Promise<string> {
-  return (await adbShell('appops', ['get', pkg, 'POST_NOTIFICATION'])).replace(/\n/g, ' ').trim()
 }
 
 export async function logcatTag(tag: string): Promise<string> {

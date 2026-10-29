@@ -1,12 +1,8 @@
 /* eslint-disable no-console -- script CLI hors session de test : la sortie console est son produit (cf. CONTRIBUTING.md, scripts CLI) */
 /**
- * Ouvre dans le lecteur DevTools (captures, arbre de l'écran, réseau) la trace d'un test en échec.
- * Lancement : `just failures-ui [CIBLE] [FILTRE]` ou `npx ts-node --project tsconfig.json src/scripts/failures-ui.ts [CIBLE] [FILTRE]`.
- * CIBLE : un dossier de run (test-results/traces/<horodatage>_…), l'artefact d'une CI téléchargé, le dossier d'une trace (celui qui contient
- * trace.trace) ou un .zip ; sans CIBLE, le dernier run qui a des traces. FILTRE : sous-chaîne du chemin (donc du nom du test) quand la cible
- * en contient plusieurs. Le lecteur (`show-trace`) ne lit que des .zip, alors que les traces sont écrites en dossier (`traceFormat:
- * 'ndjson-directory'`, nécessaire à trace-redact pour masquer les jetons et autres infos de sécurité et au transcript.md lisible) : le dossier est zippé dans un dossier temporaire.
- * Le lecteur s'ouvre dans le navigateur ; Ctrl+C l'arrête.
+ * Ouvre dans le lecteur DevTools la trace d'un test en échec. `just failures-ui [CIBLE] [FILTRE]` : CIBLE est un dossier de run ou de trace, ou un .zip
+ * (par défaut le dernier run) ; FILTRE, une sous-chaîne du chemin quand la cible contient plusieurs traces. Le lecteur ne lit que des .zip :
+ * le dossier de trace (nécessaire à trace-redact) est zippé dans un dossier temporaire.
  */
 import {execFileSync, spawnSync} from 'child_process'
 import fs from 'fs'
@@ -35,7 +31,7 @@ function main(): void {
     return
   }
   if (!fs.existsSync(root)) {
-    console.error(`« ${root} » introuvable.`)
+    console.error(`${root} introuvable`)
     process.exitCode = 1
     return
   }
@@ -51,11 +47,11 @@ function main(): void {
       for (const t of traces) console.log(`  - ${path.relative(root, t)}`)
       return
     }
-    console.log(`📄 Transcript : ${path.join(traces[0], 'transcript.md')}`)
+    console.log(`Transcript : ${path.join(traces[0], 'transcript.md')}`)
     zip = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'trace-')), 'trace.zip')
     execFileSync('zip', ['-qr', zip, '.'], {cwd: traces[0]})
   }
-  console.log("🔎 Ouverture de la trace dans le lecteur (Ctrl+C pour l'arrêter)…")
+  console.log("Ouverture de la trace dans le lecteur (Ctrl+C pour l'arrêter)")
   spawnSync('npx', ['show-trace', zip], {stdio: 'inherit'})
 }
 

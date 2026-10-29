@@ -9,7 +9,6 @@ class AgendaPage {
         await NavigationPage.goToTab('Agenda')
     }
 
-    /** Vérifie l'arrivée sur la page Agenda (titre). */
     async assertDisplayed(): Promise<void> {
         await waitForHeading(agendaLocators.pageTitle)
     }
@@ -30,7 +29,7 @@ class AgendaPage {
         await clickDisplayed(agendaLocators.eventDialogButton, {timeout: 10000})
     }
 
-    /** Titres affichés des éléments de l'agenda, dans l'ordre de la page (espaces normalisés, emoji final compris). */
+    /** Titres affichés des éléments de l'agenda, dans l'ordre de la page (emoji final compris). */
     async eventTitles(): Promise<string[]> {
         await firstDisplayed(agendaLocators.eventTitles, {timeout: 10000})
         const texts: string[] = []
@@ -38,44 +37,44 @@ class AgendaPage {
         return texts
     }
 
-    /** Sonde : un élément dont le titre commence par `title` est-il listé (attend jusqu'à `timeout` ms, 0 : maintenant) ? */
+    /** Un élément dont le titre commence par `title` est-il listé sous `timeout` ms (0 : maintenant) ? */
     async isEventListed(title: string, timeout = 0): Promise<boolean> {
         return await isShown(agendaLocators.eventItem(title), timeout)
     }
 
-    /** Attend l'élément et retourne tout son texte visible (titre, catégorie, dates, zones…), espaces normalisés. */
+    /** Tout le texte visible de l'élément (titre, catégorie, dates, zones…). */
     async eventText(title: string): Promise<string> {
         const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
         return (await item.getText()).replace(/\s+/g, ' ').trim()
     }
 
-    /** Ouvre la modale de l'élément dont le titre commence par `title` (bouton d'ouverture du même conteneur). */
+    /** Ouvre la modale de l'élément dont le titre commence par `title`. */
     async openEventDialog(title: string): Promise<void> {
         const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
         await item.$(agendaLocators.eventOpenInItem).click()
     }
 
-    /** Clique le TITRE de l'élément : pour une démarche avec échéance, ouvre son détail (**non confirmé**, vérifié par `DemarcheDetailPage`). */
+    /** Clique le titre de l'élément : pour une démarche avec échéance, ouvre son détail (non confirmé, vérifié par `DemarcheDetailPage`). */
     async openEventTitle(title: string): Promise<void> {
         const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
         await item.$(agendaLocators.eventTitleInItem).click()
     }
 
-    /** Supprime l'élément (modale › bouton « Masquer », ex-« Supprimer » avant le front #1430 du 2026-10-26) et attend sa disparition de la liste. */
+    /** Masque l'élément (modale › « Masquer ») et attend sa disparition de la liste. */
     async deleteEvent(title: string): Promise<void> {
         await this.openEventDialog(title)
         await clickDisplayed(agendaLocators.deleteAction, {timeout: 5000})
         await browser.waitUntil(async () => !await this.isEventListed(title), {
-            timeout: 10000, interval: 300, timeoutMsg: `L'élément « ${title} » est toujours dans l'agenda 10000ms après « Masquer »`,
+            timeout: 10000, interval: 300, timeoutMsg: `L'élément « ${title} » est toujours dans l'agenda après « Masquer »`,
         })
     }
 
-    /** Vérifie que le dialogue d'évènement propose l'action « Masquer » (ex-« Supprimer ») — sans l'utiliser (mutante). */
+    /** Vérifie que le dialogue propose « Masquer », sans l'utiliser (action mutante). */
     async assertDeleteActionOffered(): Promise<void> {
         await firstDisplayed(agendaLocators.deleteAction, {timeout: 5000})
     }
 
-    /** Ferme le dialogue d'évènement (bouton « Fermer ») et attend sa disparition. */
+    /** Ferme le dialogue d'évènement et attend sa disparition. */
     async closeEventDialog(): Promise<void> {
         await clickButton(agendaLocators.eventDialogCloseName)
         await browser.waitUntil(async () => !await isShown(agendaLocators.deleteAction), {
@@ -83,10 +82,7 @@ class AgendaPage {
         })
     }
 
-    /**
-     * Clique le bouton « Préférences » de l'agenda, qui ouvre la page des zones scolaires (`/#/preferences/zones`, plus un dialogue
-     * depuis le 2026-10-08). L'arrivée est vérifiée par `ZonesPage.assertDisplayed()`, pas ici.
-     */
+    /** Ouvre la page des zones scolaires (`/#/preferences/zones`) ; l'arrivée est vérifiée par `ZonesPage.assertDisplayed()`. */
     async openZonePreferences(): Promise<void> {
         await clickButton(agendaLocators.preferencesButtonName)
     }

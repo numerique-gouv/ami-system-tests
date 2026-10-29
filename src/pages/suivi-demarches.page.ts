@@ -2,58 +2,38 @@ import { platform } from '../platform'
 import { traced } from '@helpers/reporting/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
-import logger from "@wdio/logger";
 import {publicationSentryUrl} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
 import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
 
-const log = logger('page-object')
-
 const DEMARCHES_TIMEOUT_MS = 20000
 
-// Durée maximale d'attente de la démarche : traitement serveur de la notification, puis rafraîchissements (≈ 2 s d'intervalle).
+// Attente de la démarche : traitement serveur de la notification, puis rechargements ; rendu de la page rechargée.
 const SUIVI_WAIT_MS = 30000
-// Rendu de la page après un reload, et délai entre deux rechargements.
 const RELOAD_RENDER_MS = 8000
 const RELOAD_INTERVAL_MS = 2000
 
 class SuiviDemarchesPage {
-    /**
-     * Sonde : la démarche dont le titre contient `title` est-elle affichée dans le texte du Suivi courant sous `timeout` ms ? Une absence
-     * ne se prouve qu'en attendant ce délai en entier. Pré-condition : `assertDisplayed()` (h1 « Mes démarches ») a confirmé qu'on est
-     * bien sur le Suivi : l'Accueil affiche aussi un bloc « Mes démarches » et ses tuiles les plus récentes.
-     */
+    /** Le titre de la démarche est-il dans le texte du Suivi sous `timeout` ms ? Pré-condition : `assertDisplayed()` (l'Accueil a aussi un bloc « Mes démarches »). */
     async isDemarcheListed(title: string, timeout = 1000): Promise<boolean> {
         return await hasPageText(title, timeout)
     }
 
-    /** Sonde : le bouton « Je veux suivre mes démarches » est-il affiché sur le Suivi sous `timeout` ms ? (0 : maintenant) */
     async isFollowButtonShown(timeout = 0): Promise<boolean> {
         return await isShown(getSuiviDemarchesLocators().followButton, timeout)
     }
 
     /**
-     * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
-     * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
-     *
-     * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
-     * on la recharge à chaque tentative (un simple retour Accueil → Suivi ne suffit pas pour une démarche DÉJÀ listée dont le titre ou le statut change :
-     * constaté le 2026-10-28 sur le cycle new → wip → closed ; il suffit pour une nouvelle démarche), toutes les `RELOAD_INTERVAL_MS`, jusqu'à `SUIVI_WAIT_MS`. `hasPageText` attend le rendu
-     * de la page rechargée (le texte n'est pas là tant que Svelte n'a pas monté la liste). `waitUntil` réessaie les erreurs
-     * WebDriver d'une tentative (reload lent, contexte en cours de remplacement) ; la dernière figure dans le message d'échec.
+     * Attend que la démarche apparaisse sur le Suivi (pré-condition : y être déjà). La page n'a pas d'abonnement temps réel (CONTRIBUTING.md §3) :
+     * on la recharge à chaque tentative, y compris pour une démarche déjà listée dont le titre ou le statut change.
      */
     async waitForDemarche(title: string): Promise<void> {
         const startedAt = Date.now()
-        let attempt = 0
         try {
             await browser.waitUntil(async () => {
-                attempt++
                 await reloadPage()
-                // Le reload peut laisser un arbre d'accessibilité WKWebView périmé sur iOS (cf. refreshAxTree()) — no-op sur Android.
                 await platform().refreshAxTree()
-                const present = await hasPageText(title, RELOAD_RENDER_MS)
-                log.log(`[suivi] démarche "${title}" ${present ? 'visible' : 'toujours pas visible'} (tentative ${attempt}, ${Date.now() - startedAt}ms)`)
-                return present
+                return await hasPageText(title, RELOAD_RENDER_MS)
             }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS})
         } catch (err) {
             const sentry = publicationSentryUrl(title)
@@ -61,19 +41,7 @@ class SuiviDemarchesPage {
         }
     }
 
-  /**
-   * Attend qu'une carte de démarche visible corresponde à `title` et `statusLabel`.
-   *
-   * $$()/card.$() plutôt qu'un sélecteur de rôle : on ne sait pas à l'avance quelle carte contient `title`,
-   * il faut donc lire le titre de chaque carte pour le comparer. Une fois la bonne carte
-   * trouvée, lire le badge. $$() donne directement la carte, le badge
-   * se lit dedans sans remonter le DOM.
-   *
-   * Les 2 critères (titre, statut) sont vérifiés dans le même `waitUntil` avec un seul
-   * `failReason`, plutôt que 2 méthodes séparées à un critère chacune : ça évite de reparcourir
-   * la liste de cartes 2 fois, et le message d'échec pointe précisément lequel des 2 critères
-   * n'a jamais été atteint (au lieu d'un "timeout" générique sur le dernier appel).
-   */
+  /** Attend qu'une carte corresponde à `title` et `statusLabel`, les deux critères dans un même `waitUntil` pour que le message dise lequel manque. */
   async assertVisibleDemarcheWith(
     title: string,
     statusLabel: string,
@@ -96,7 +64,6 @@ class SuiviDemarchesPage {
         { timeout: timeoutMs, interval: 2000 }
       )
     } catch (err) {
-      // `waitUntil` réessaie les erreurs WebDriver (carte périmée…) : `err` porte la dernière si la liste est restée illisible.
       const reason = (err as Error).message
       if (lastStatus === null)
         throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms (${reason})` })
@@ -104,28 +71,13 @@ class SuiviDemarchesPage {
     }
   }
 
-  /**
-   * Depuis la page Suivi, ouvre la page de détail de la démarche `title` en cliquant sa tuile.
-   * Ne vérifie pas l'arrivée sur la page de détail : cette sentinelle appartient à la page cible
-   * (`DemarcheDetailPage.assertDisplayed(title)`, ou la méthode qui utilise réellement un élément de
-   * cette page, ex. `DemarcheDetailPage.assertLienExterne`).
-   * Le scénario appelant enchaîne donc, par exemple :
-   * - suiviDemarchesPage.ouvreDemarche(...)
-   * - demarcheDetailPage.assertDisplayed(...)
-   */
+  /** Ouvre le détail de la démarche `title` en cliquant sa tuile (nom accessible unique, horodaté). L'arrivée se vérifie par `DemarcheDetailPage.assertDisplayed(title)`. */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
-    // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
-    // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
     await platform().refreshAxTree()
-    // Rôle + nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
-    // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
     await clickDisplayed(getSuiviDemarchesLocators().demarcheTile(title), { timeout: timeoutMs })
   }
 
-  /**
-   * Ouvre la page des démarches archivées (`/#/followup/archived`). Aucun bouton de la SPA n'y mène
-   * de façon confirmée (cf. website-analysis.md § Démarches archivées) : navigation directe par route.
-   */
+  /** Aucun bouton de la SPA n'y mène de façon confirmée : navigation directe par route. */
   async openArchived(): Promise<void> {
     await NavigationPage.goToRoute('/followup/archived')
   }
@@ -133,8 +85,7 @@ class SuiviDemarchesPage {
   /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
   async archivedPartners(): Promise<string[]> {
     await waitForHeading('Démarches archivées')
-    // L'encart est un accordéon DÉPLIÉ au chargement depuis le déploiement staging observé le 2026-10-26 (`aria-expanded="true"` ;
-    // il était fermé par défaut avant) : on ne le déplie que s'il est replié, un clic le refermerait sinon.
+    // Déplié au chargement : un clic le refermerait.
     if (await isShown(getSuiviDemarchesLocators().archivedHelpAccordionCollapsed, 1000)) {
       await clickDisplayed(getSuiviDemarchesLocators().archivedHelpAccordion)
     }
@@ -143,48 +94,23 @@ class SuiviDemarchesPage {
     return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))
   }
 
-  /**
-   * Vérifie l'arrivée sur la page Suivi : titre h1 « Mes démarches ». Le h2 du même nom existe aussi sur l'Accueil (bloc « Mes
-   * démarches »), donc un simple `waitForHeading` validait l'Accueil — et un clic perdu sur l'onglet « Suivi » passait inaperçu
-   * (relevé le 2026-10-15 : `waitForDemarche` cherchait alors sur l'Accueil, qui n'affiche que les démarches les plus récentes).
-   */
+  /** Le h1 « Mes démarches » : le h2 du même nom existe aussi sur l'Accueil, qu'un `waitForHeading` validerait à tort. */
   async assertDisplayed(): Promise<void> {
     await firstDisplayed(getSuiviDemarchesLocators().pageTitleH1, {timeout: 10000})
   }
 
-    /**
-     * Quitte le Suivi pour l'Accueil (barre basse) et attend que la liste ait DISPARU. À appeler avant de sortir du `inWebContext`
-     * d'un scénario qui a affiché le Suivi : le service de trace lit l'arbre NATIF à chaque commande native (changement de contexte), et
-     * celui d'un Suivi chargé de démarches coûte ~25 s par lecture (mesuré le 2026-10-27, iOS : 7 lectures bloquées, 160 s sur 4 min 40) ;
-     * celui de l'Accueil, qui ne liste que les plus récentes, est léger. Même raisonnement que pour l'inbox (notifications.usage.test.ts).
-     */
-    async quitterPourAccueil(): Promise<void> {
-        await NavigationPage.goToTab('Accueil')
-        await $(getSuiviDemarchesLocators().pageTitleH1).waitForDisplayed({reverse: true, timeout: 10000, timeoutMsg: 'Le Suivi est toujours affiché après le clic sur « Accueil »'})
-    }
-
-    /**
-     * Revient sur la page Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur
-     * la page du lien externe de la démarche. Observé 2026-10-06 (Android, staging) : cette page est une
-     * page serveur « Not Found » (404 HTML, hors SPA) — sans bouton de retour, et des `browser.back()`
-     * répétés toutes les 500 ms ressortaient de l'app avant que la SPA ait fini de se recharger.
-     * Un seul retour est donc tenté ; si le titre de la page Suivi n'est pas revenu, la route SPA
-     * `#/followup` est rechargée depuis l'origine de la page courante (même origine que l'app).
-     */
+    /** Revient sur le Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur la page du lien externe (404 serveur hors SPA, sans bouton de retour). */
     async retourJusquAPageSuivi(): Promise<void> {
         const loc = getSuiviDemarchesLocators()
         const pageTitle = loc.pageTitle
         if (await isShown(loc.pageTitleHeading)) return
-        // Mobile : le retour arrière est sans effet à chaque fois (iOS : 6 runs sur 6, 2026-10-27, le lien externe s'ouvre dans une seconde
-        // WKWebView restée sur `about:blank`, la page du Suivi n'a pas bougé ; Android : 5 appels sur 5, 2026-10-28, ~4,5 s perdues à chaque
-        // fois) : on ne perd pas 4 s à l'attendre. Seule la webapp le tente (non mesuré ici).
+        // Sur mobile le retour arrière est sans effet : seule la webapp le tente.
         if (platform().kind === 'webapp') {
             await browser.back()
             if (await isShown(loc.pageTitleHeading, 4000)) return
         }
 
         const origin = await driver.execute(() => location.origin) as string
-        log.warn(`ANOMALIE : page du Suivi non revenue (page hors SPA, ex. 404 du lien externe ; retour arrière sans effet sur mobile), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
         await browser.url(`${origin}/#/followup`)
         await waitForHeading(pageTitle, 20000)
     }

@@ -5,10 +5,7 @@ import FranceConnectEidasPage from './franceconnect-eidas.page'
 import FranceConnectCredentialsPage from './franceconnect-credentials.page'
 import type {TestUser} from '../../helpers/common/test-users'
 
-/**
- * Page Object du fournisseur de service de démonstration FranceConnect (carte « Déconnexion FC » du catalogue de staging) :
- * connexion à FranceConnect depuis le démonstrateur, puis « Se déconnecter » (déconnexion FranceConnect).
- */
+/** Fournisseur de service de démonstration FranceConnect (carte « Déconnexion FC » du catalogue de staging). */
 class FranceConnectDemoSpPage {
     /** Attend la page de connexion du démonstrateur (titre d'onglet et bouton « Connexion à FranceConnect »). */
     async assertLoginDisplayed(): Promise<void> {

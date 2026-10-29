@@ -9,27 +9,21 @@ export async function openDemarchesConsents(): Promise<void> {
   await PreferencesPage.openDemarchesConsents()
 }
 
-/**
- * Sort de Préférences et y revient (Accueil puis réouverture) : la SPA relit le serveur à l'entrée dans l'écran, sans recharger la page
- * (constaté le 2026-10-28 : un consentement changé par l'API y apparaît au retour). Préférences n'a pas de barre basse : on repart de l'Accueil.
- */
+/** Sort de Préférences par l'Accueil et y revient : la SPA relit le serveur à l'entrée dans l'écran, sans recharger la page. */
 export async function reopenDemarchesConsents(): Promise<void> {
   await NavigationPage.goToRoute('/')
   await HomePage.assertHomeVisible()
   await openDemarchesConsents()
 }
 
-/** Le consentement du partenaire aux démarches vu par le backend atteint-il `expected` ? (la bascule d'une case est asynchrone) */
+/** Attend que le backend voie le consentement du partenaire à `expected` (la bascule d'une case est asynchrone). */
 export async function waitForBackendDemarchesConsent(partner: PartnerId, fcHash: string, expected: boolean): Promise<void> {
   await browser.waitUntil(async () => await checkDemarchesConsent(partner, fcHash) === expected, {
     timeout: 10000, interval: 500, timeoutMsg: `Le backend ne renvoie pas « consentement ${partner} = ${expected} » après 10000ms`,
   })
 }
 
-/**
- * Rétablit l'état d'origine relevé dans `before()` : par les cases, puis par l'API (un test a pu changer un consentement sans passer
- * par la case ; DN seulement si ses identifiants sont fournis).
- */
+/** Rétablit l'état relevé dans `before()`, par les cases puis par l'API (DN seulement si ses identifiants sont fournis). */
 export async function restoreDemarchesConsents(original: Record<string, boolean>, fcHash: string): Promise<void> {
   await openDemarchesConsents()
   await PreferencesPage.restoreDemarchesConsents(original)
@@ -40,7 +34,7 @@ export async function restoreDemarchesConsents(original: Record<string, boolean>
   }
 }
 
-/** Décoche toutes les cases de Préférences › Suivi des démarches (4 en préprod, 6 en staging) ; retourne leurs clés. */
+/** Décoche toutes les cases de Préférences › Suivi des démarches ; retourne leurs clés. */
 export async function uncheckAllDemarchesConsents(): Promise<string[]> {
   const keys = Object.keys(await PreferencesPage.demarchesConsentStates())
   for (const key of keys) await PreferencesPage.setDemarchesConsent(key, false)

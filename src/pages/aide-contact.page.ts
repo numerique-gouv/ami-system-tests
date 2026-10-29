@@ -4,19 +4,19 @@ import {clickButton, visibleButtonTexts, waitForHeading, waitForRole} from '../h
 import {followAndDescribe, type LinkTarget} from '../helpers/webapp/link-check'
 import NavigationPage from './navigation.page'
 
-/** Page Object de Aide et contact, Contact et des pages légales (données personnelles, accessibilité). */
+/** Aide et contact, Contact et pages légales (données personnelles, accessibilité). */
 class AideContactPage {
     async openHelpCenter(): Promise<void> {
         await NavigationPage.openPlusEntry('Aide et contact')
     }
 
-    /** Entrées de la page Aide et contact (hors bouton de retour). */
+    /** Entrées de Aide et contact, hors bouton de retour. */
     async helpEntries(): Promise<string[]> {
         await waitForHeading(aideContactLocators.helpTitle)
         return (await visibleButtonTexts()).filter(t => t !== 'Retour à la page précédente')
     }
 
-    /** Clique « J’ai besoin de l’aide de l’administration » (lien externe) et décrit la page atteinte, sans exposer son URL complète. */
+    /** Clique « J’ai besoin de l’aide de l’administration » (lien externe) et décrit la page atteinte. */
     async openAdministrationHelp(): Promise<LinkTarget> {
         await waitForHeading(aideContactLocators.helpTitle)
         return await followAndDescribe(async () => {
@@ -24,7 +24,7 @@ class AideContactPage {
         })
     }
 
-    /** Revient sur Aide et contact après un lien externe (rechargement de la SPA par route). */
+    /** Revient sur Aide et contact après un lien externe. */
     async returnFromExternal(): Promise<void> {
         await browser.url('/#/help-center')
         await waitForHeading(aideContactLocators.helpTitle)
@@ -44,7 +44,7 @@ class AideContactPage {
         return texts.filter(t => [aideContactLocators.contactOnlineRequestName, aideContactLocators.contactMailName].includes(t))
     }
 
-    /** Sections (boutons) d'une page légale, hors bouton de retour. `pageTitle` : titre de la page attendue. */
+    /** Sections d'une page légale, hors bouton de retour. */
     async legalSections(pageTitle: string): Promise<string[]> {
         await waitForHeading(pageTitle)
         return (await visibleButtonTexts()).filter(t => t !== 'Retour à la page précédente')

@@ -1,12 +1,7 @@
 /* eslint-disable no-console -- script CLI hors session de test : la sortie console est son produit (cf. CONTRIBUTING.md, scripts CLI) */
 /**
- * Liste les tests en échec d'un run : pour chacun, plateforme, étapes, erreur, URL, identifiants Sentry (context.json du dossier de dump)
- * et chemin du `transcript.md` de sa trace DevTools (texte brut des étapes, lisible dans un éditeur ou un commentaire de PR).
- *
- * Lancement : `just failures-text [DOSSIER]` ou `npx ts-node --project tsconfig.json src/scripts/failures-text.ts [DOSSIER]`.
- * DOSSIER : un dossier de dumps, un dossier de run, ou tout dossier qui en contient (ex. l'artefact d'un run de CI téléchargé).
- * Sans DOSSIER : le dernier run de test-results/traces/ qui a des dumps (les noms de run commencent par l'horodatage : tri alphabétique =
- * chronologique), sinon test-results/failures.
+ * Liste les tests en échec d'un run : plateforme, étapes, erreur, URL, Sentry (context.json du dossier de dump) et chemin du transcript.md de leur trace.
+ * `just failures-text [DOSSIER]` : DOSSIER est un dossier de dumps ou de run, ou en contient (ex. l'artefact d'une CI) ; par défaut le dernier run de test-results/traces/.
  */
 import fs from 'fs'
 import path from 'path'
@@ -51,10 +46,7 @@ function findTranscripts(dir: string): string[] {
   })
 }
 
-/**
- * Transcript de la trace d'un test. Une trace par test est dans `<run>/test-results/<spec>_test-<titre du test tronqué>-<navigateur>-<hash>/trace/` :
- * on retient la trace dont le titre tronqué est le début du titre (slug) du test. Le run est le premier ancêtre du dump qui a un dossier `test-results`.
- */
+/** Transcript de la trace du test : celle dont le titre tronqué est le début du slug de son titre, dans le run du dump. */
 function transcriptOf(dump: string, test: string): string | undefined {
   let run = path.dirname(dump)
   while (!fs.existsSync(path.join(run, 'test-results')) && path.dirname(run) !== run) run = path.dirname(run)
@@ -80,7 +72,7 @@ function main(): void {
   for (const dump of dumps) {
     const c = JSON.parse(fs.readFileSync(path.join(dump, 'context.json'), 'utf8')) as FailureContext
     const device = c.device?.deviceName ? ` · ${c.device.deviceName}` : ''
-    console.log(`✖ ${c.test}  [${c.platform}${device}]  ${c.failedAtUtc}`)
+    console.log(`${c.test}  [${c.platform}${device}]  ${c.failedAtUtc}`)
     if (c.error) {
       const lines = String(c.error.message).split('\n').filter(Boolean)
       console.log(`    erreur : ${(lines[0] ?? '').slice(0, 200)}`)
@@ -90,7 +82,7 @@ function main(): void {
     if (c.steps?.length) console.log(`    étapes : ${c.steps.join(' › ')}`)
     if (c.sentry) console.log(`    sentry : ${c.sentry.url ?? 'trace inconnue'} · dernier événement ${c.sentry.lastEventId} · ${c.sentry.environment}`)
     console.log(`    transcript : ${transcriptOf(dump, c.test) ?? '(aucune trace pour ce test)'}`)
-    console.log(`    dossier: ${dump}`)
+    console.log(`    dossier : ${dump}`)
   }
 }
 

@@ -1,21 +1,6 @@
 import {roleSelector} from '../../helpers/spa/selectors'
 
-/**
- * Sélecteurs de l'écran d'onboarding « Zones scolaires » (SPA Svelte, route `/#/welcome/zones`).
- *
- * Affiché par `login-callback/+page.svelte` quand l'URL de retour OIDC porte
- * `user_first_login=true`, avant l'écran d'onboarding des notifications.
- *
- * WebView/webapp, DOM identique : un seul jeu de sélecteurs (pas de getXxxLocators()).
- * Ciblage par nom accessible (CONTRIBUTING.md §2). Vérifié en live sur staging le 2026-10-02 :
- * <h2>Zones scolaires</h2>, bouton « Passer » (data-testid="skip-button" existe aussi).
- */
-export interface OnboardingZonesLocators {
-  heading: string        // « Zones scolaires » : identité de l'écran (`role/heading`)
-  skipButton: string     // « Passer » (texte visible contient)
-}
-
-export const onboardingZonesLocators: OnboardingZonesLocators = {
+export const onboardingZonesLocators = {
   heading: roleSelector('heading', 'Zones scolaires'),
   skipButton: 'button*=Passer',
 }

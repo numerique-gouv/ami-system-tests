@@ -120,7 +120,7 @@ async function navigateToAppNotificationsSettings(): Promise<void> {
 
 async function navigateToAppNotificationsSettingsOnce(): Promise<void> {
   const loc = iosSystemNotificationsLocators
-  const done = async (): Promise<boolean> => (await $$(loc.osAllowNotificationsRow)).length > 0
+  const done = async (): Promise<boolean> => (await $$(loc.osSettingsSwitch)).length > 0
   for (let hop = 0; hop < 10 && !await done(); hop++) {
     const next = [loc.osNotificationsRow, loc.osAppRow, loc.osAppsRow]
     let clicked = false
