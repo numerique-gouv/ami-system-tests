@@ -1,5 +1,5 @@
 import {homeContentLocators} from './locators/home.locators'
-import {describeCurrentPage} from '../helpers/spa/webview';
+import {currentUrlForLog} from '../helpers/common/session'
 import {clickDisplayed, firstDisplayed, isShown, pageText} from '../helpers/spa/spa'
 import {traced} from '../helpers/reporting/traced'
 import NavigationPage from './navigation.page'
@@ -14,11 +14,11 @@ class HomePage {
      * Ne ferme aucun écran de blocage (onboardings, menu « Plus ») : c'est le rôle du scénario, qui les passe
      * explicitement (`getAppToStartingState` pour les autres tests).
      *
-     * Échec dur (throw) plutôt que booléen : centralise le diagnostic (describeCurrentPage()) pour ses appelants.
+     * Échec dur (throw) plutôt que booléen : centralise le diagnostic (currentUrlForLog()) pour ses appelants.
      */
     async assertHomeVisible(timeout = 30000): Promise<void> {
         if (await this.isHomeDisplayed(timeout)) return
-        const where = await describeCurrentPage()
+        const where = await currentUrlForLog()
         throw new AssertionError({message: `assertHomeVisible: Home non atteinte (${where})`})
     }
 

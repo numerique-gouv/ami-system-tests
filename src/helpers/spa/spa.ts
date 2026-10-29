@@ -1,22 +1,6 @@
-import logger from '@wdio/logger'
 import {AssertionError} from 'node:assert'
 import {platform} from '../../platform'
 import {roleSelector} from './selectors'
-
-/**
- * Primitives communes aux Page Objects de la SPA (WebView/webapp), au-dessus des sélecteurs natifs de WDIO 10
- * (`role/<rôle>[name=…]`, `tag*=texte`, CSS, `aria/…`, cf. `selectors.ts` et CONTRIBUTING.md §2). Convention (CONTRIBUTING.md §4) :
- * l'APPELANT MOBILE ouvre le `inWebContext` (un par test ou par flow) ; les Page Objects et aides ne s'enveloppent pas, sauf
- * `isShown` et `clickDisplayed` qui gardent leur enveloppe : les flows mixtes natif/WebView (`authenticate.process.ts`, pages
- * d'onboarding et FranceConnect) les appellent sans enveloppe (réentrant : sans effet dans une WebView déjà active). Les aides qui
- * RETOURNENT un élément (`firstDisplayed`, `allDisplayed`) se lisent et s'utilisent DANS un `inWebContext` ouvert : l'élément ne
- * survit pas à la sortie de la WebView.
- *
- * Le nom accessible de `role/…[name=…]` est comparé EXACTEMENT, tel que le moteur le calcule (Chrome garde par exemple
- * une espace finale pour un bouton icône + texte) : pour un nom partiel ou incertain, utiliser `tag*=texte`.
- */
-
-const log = logger('helper')
 
 const DEFAULT_TIMEOUT = 10000
 
@@ -25,16 +9,13 @@ export async function waitForRole(role: string, name: string, opts: DisplayOptio
   await firstDisplayed(roleSelector(role, name), opts)
 }
 
-// --- Sélecteurs natifs WDIO 10 (`role/…`, `tag*=…`, CSS) -------------------------------------------------------
-// À appeler depuis un `inWebContext` ouvert par l'appelant (sauf `isShown` et `clickDisplayed`). Voir `selectors.ts` pour `role/`.
-
-/** Options des aides ci-dessous. `within` : sélecteur du conteneur où chercher. */
+/** `within` : sélecteur du conteneur où chercher. */
 export interface DisplayOptions {
   timeout?: number
   within?: string
 }
 
-/** Tous les éléments AFFICHÉS de `selector`, tout de suite, dans l'ordre du DOM. Ne lève jamais « strict ». */
+/** Tous les éléments affichés de `selector`, tout de suite, dans l'ordre du DOM. */
 export async function allDisplayed(selector: string, {within}: DisplayOptions = {}): Promise<WebdriverIO.Element[]> {
   const out: WebdriverIO.Element[] = []
   for (const element of within ? await $(within).$$(selector) : await $$(selector)) {
@@ -43,7 +24,7 @@ export async function allDisplayed(selector: string, {within}: DisplayOptions = 
   return out
 }
 
-/** Premier élément AFFICHÉ de `selector`, tout de suite, sinon `null`. Ne lève jamais « strict ». */
+/** Premier élément affiché de `selector`, tout de suite, sinon `null`. */
 async function queryDisplayed(selector: string, {within}: DisplayOptions = {}): Promise<WebdriverIO.Element | null> {
   const found = within ? await $(within).$$(selector) : await $$(selector)
   for (const element of found) {
@@ -52,23 +33,19 @@ async function queryDisplayed(selector: string, {within}: DisplayOptions = {}): 
   return null
 }
 
-/**
- * Attend le premier élément affiché de `selector`, et le retourne. À appeler DANS un `inWebContext` ouvert (l'élément ne
- * survit pas à la sortie de la WebView). Plusieurs correspondances ne posent pas de problème (liste d'éléments au même
- * nom) : on prend le premier affiché, dans l'ordre du DOM.
- */
+/** Attend le premier élément affiché de `selector` (dans l'ordre du DOM) et le retourne ; à appeler dans un `inWebContext` ouvert. */
 export async function firstDisplayed(selector: string, opts: DisplayOptions = {}): Promise<WebdriverIO.Element> {
   const {timeout = DEFAULT_TIMEOUT, within} = opts
   let found: WebdriverIO.Element | null = null
   try {
     await browser.waitUntil(async () => (found = await queryDisplayed(selector, opts)) !== null, {timeout, interval: 200})
-  } catch (err) {
-    throw new AssertionError({message: `Aucun élément affiché pour « ${selector} »${within ? ` dans « ${within} »` : ''} après ${timeout}ms (${(err as Error).message})`})
+  } catch {
+    throw new AssertionError({message: `Aucun élément affiché pour « ${selector} »${within ? ` dans « ${within} »` : ''} après ${timeout}ms`})
   }
   return found as unknown as WebdriverIO.Element
 }
 
-/** Sonde : un élément de `selector` est-il affiché sous `timeout` ms (0 : maintenant) ? `false` sans WebView ; toute autre erreur remonte. */
+/** Un élément de `selector` est-il affiché sous `timeout` ms (0 : maintenant) ? `false` sans WebView. */
 export async function isShown(selector: string, timeout = 0, opts: Omit<DisplayOptions, 'timeout'> = {}): Promise<boolean> {
   if (!await platform().isWebContextAvailable()) return false
   return await platform().inWebContext(async () => {
@@ -100,21 +77,14 @@ export async function clickButton(name: string, timeout = DEFAULT_TIMEOUT): Prom
   await clickRole('button', name, {timeout})
 }
 
-/**
- * Clique le bouton jusqu'à ce qu'il disparaisse de la page d'origine. EXCEPTION, pas le comportement
- * par défaut : un clic est normalement considéré comme pris en compte. À réserver à un clic dont la
- * perte est avérée (re-rendu concurrent) — observé sur « Services » (checklists, 3 échecs sur 5 en
- * campagne du 2026-10-06). Le bouton absent prouve le clic sans que la page d'origine connaisse la suivante.
- */
+/** EXCEPTION : à réserver à un clic dont la perte est avérée (re-rendu concurrent). Clique jusqu'à ce que le bouton disparaisse. */
 export async function clickButtonUntilGone(name: string, timeout = DEFAULT_TIMEOUT): Promise<void> {
   const selector = roleSelector('button', name)
   await firstDisplayed(selector, {timeout})
   await browser.waitUntil(async () => {
     const button = await queryDisplayed(selector)
     if (!button) return true
-    await button.click().catch((err: Error) => {
-      log.warn(`clickButtonUntilGone : clic sur "${name}" en échec (${err.message})`)
-    })
+    await button.click().catch(() => undefined)
     return false
   }, {
     timeout, interval: 500,
@@ -122,10 +92,7 @@ export async function clickButtonUntilGone(name: string, timeout = DEFAULT_TIMEO
   })
 }
 
-/**
- * Attend que tous les boutons attendus soient affichés (listes rendues après un appel API : le titre de section peut
- * être affiché avant ses entrées). `names` : noms accessibles exacts. Un par un, en séquence : chacun réessaie jusqu'à `timeout`.
- */
+/** Attend, un par un, que les boutons de noms accessibles exacts `names` soient affichés. */
 export async function waitForButtons(names: string[], timeout = 15000): Promise<void> {
   for (const name of names) {
     await firstDisplayed(roleSelector('button', name), {timeout})
@@ -139,11 +106,7 @@ export async function waitForHeading(name: string, timeout = DEFAULT_TIMEOUT): P
 
 const normalizeSpaces = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
-/**
- * Textes des boutons actuellement affichés, dans l'ordre du DOM, sans les boutons sans texte (icônes). Attend qu'au moins
- * un bouton soit rendu. Texte visible (`getText`) et non nom accessible : `getComputedLabel` n'existe pas dans la
- * WebView iOS.
- */
+/** Textes visibles des boutons affichés, sans les boutons-icônes (`getComputedLabel` n'existe pas dans la WebView iOS). */
 export async function visibleButtonTexts(): Promise<string[]> {
   await firstDisplayed(roleSelector('button'), {timeout: 10000})
   const texts: string[] = []
@@ -156,18 +119,14 @@ export async function visibleButtonTexts(): Promise<string[]> {
 
 /** Texte visible de la page (espaces normalisés). */
 export async function pageText(): Promise<string> {
-  return (await $('body').getText()).replace(/\s+/g, ' ').trim()
+  return normalizeSpaces(await $('body').getText())
 }
 
-/** Attend que le texte visible de la page contienne `text` (sentinelle de rendu) : assertion WDIO avec attente. */
 export async function waitForPageText(text: string, timeout = DEFAULT_TIMEOUT): Promise<void> {
   await expect($('body')).toHaveText(text, {containing: true, wait: timeout})
 }
 
-/**
- * Sonde : le texte visible de la page contient-il `text` sous `timeout` ms ? `false` sans WebView. Seul l'échec « délai
- * dépassé » vaut `false` : toute autre erreur (contexte perdu, session morte) remonte.
- */
+/** Le texte visible contient-il `text` sous `timeout` ms ? `false` sans WebView ou si le délai est dépassé ; toute autre erreur remonte. */
 export async function hasPageText(text: string, timeout = 1000): Promise<boolean> {
   if (!await platform().isWebContextAvailable()) return false
   try {
@@ -179,12 +138,7 @@ export async function hasPageText(text: string, timeout = 1000): Promise<boolean
   }
 }
 
-/**
- * Coche ou décoche la case dont l'attribut `name` — à défaut `id`, comme la clé de `checkboxStates()` — est `name`, puis attend
- * qu'elle ait l'état demandé. Sans effet si elle l'a déjà. L'`<input>` DSFR (`fr-toggle__input`, `fr-checkbox`) est recouvert par
- * son `<label for=id>` : un clic sur l'input est refusé (« element click intercepted », relevé en live le 2026-10-15), c'est le
- * label qui reçoit le clic, comme pour l'usager. `$()` + `waitForExist` : l'input n'est pas « affiché » au sens WebDriver.
- */
+/** Coche ou décoche la case d'attribut `name` (à défaut `id`) en cliquant son label : l'input DSFR est recouvert par lui. */
 export async function setCheckbox(name: string, checked: boolean): Promise<void> {
   const box = $(`input[type="checkbox"][name="${name}"], input[type="checkbox"][id="${name}"]`)
   await box.waitForExist({timeout: DEFAULT_TIMEOUT, timeoutMsg: `Case « ${name} » absente après ${DEFAULT_TIMEOUT}ms`})
@@ -197,28 +151,18 @@ export async function setCheckbox(name: string, checked: boolean): Promise<void>
   })
 }
 
-/**
- * États (coché/décoché) des cases à cocher, indexés par leur attribut `name` (à défaut `id`). Attend qu'au moins une
- * case soit rendue. Pas de filtre « affiché » : l'`<input>` d'une case DSFR est transparent derrière son libellé.
- */
+/** États des cases à cocher, par `name` (à défaut `id`). Pas de filtre « affiché » : l'input d'une case DSFR est transparent. */
 export async function checkboxStates(): Promise<Record<string, boolean>> {
   const selector = roleSelector('checkbox')
   await browser.waitUntil(async () => (await $$(selector)).length > 0, {timeout: 10000, timeoutMsg: 'Aucune case à cocher affichée après 10000ms'})
-  // Un seul aller-retour : 13 cases × (name, id, isSelected) = 39 requêtes WebDriver avec les API d'élément. Les sélecteurs natifs
-  // ne renvoient pas un agrégat ; `execute` est ici inévitable (WebView/webapp seulement, comme toutes les aides de ce fichier).
+  // Un seul aller-retour plutôt que 3 requêtes par case.
   return await browser.execute(() => Object.fromEntries(
     Array.from(document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
       .map(box => [box.name || box.id || '', box.checked]),
   ))
 }
 
-/**
- * Recharge la page courante de la SPA (la session est conservée).
- * Webapp : `browser.refresh()`. `driver.execute(() => window.location.reload())` y échoue avec « Cannot find context with specified id » :
- * WDIO 10 exécute le script par BiDi (`script.callFunction`, awaitPromise) et la page est détruite pendant l'appel (20 échecs sur 20 après un
- * changement de hash, 0 sur 20 avec `browser.refresh()` ; sonde du 2026-10-27 en Chrome 156).
- * Mobile : `execute` conservé (pas de BiDi ; sur iOS le geste natif peut être bloqué par un UIRefreshControl, cf. appium.adapter.ts).
- */
+/** Recharge la page courante de la SPA, session conservée. */
 export async function reloadPage(): Promise<void> {
   if (browser.isMobile) await browser.execute(() => window.location.reload())
   else await browser.refresh()
