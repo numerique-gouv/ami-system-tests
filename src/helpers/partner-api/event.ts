@@ -62,6 +62,14 @@ const PUBLISH_RETRY_DELAY_MS = 10000
  * Retry automatique sur 5xx (cold-start Scalingo) avec délai de 10s entre chaque tentative.
  * Lance si les variables d'environnement sont manquantes ou si toutes les tentatives échouent.
  */
+/** Lien Sentry de la trace de chaque publication, par `content_title` : le titre est ce que le test cherche ensuite dans l'application. */
+const publicationTraces = new Map<string, string>()
+
+/** Lien Sentry de la trace de l'envoi de l'événement de titre `title` (la dernière publication portant ce titre), s'il a été publié par ce processus. */
+export function publicationSentryUrl(title: string): string | undefined {
+    return publicationTraces.get(title)
+}
+
 export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI, verifyPartnerConsent = true}: PublishEventOptions = {}): Promise<void> {
     const apiUrl = getBackendUrl()
     const recipientFcHash = payload.recipient_fc_hash
@@ -86,7 +94,9 @@ export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI
     // cette trace par le backend s'il est instrumenté ; le lien journalisé retrouve alors l'appel dans Sentry (instrumentation du backend non confirmée).
     const traceId = randomBytes(16).toString('hex')
     const headers = {'Content-Type': 'application/json', 'sentry-trace': `${traceId}-${randomBytes(8).toString('hex')}-1`, ...authHeaders(partner)}
-    log.info(`publishEvent → trace Sentry de l'appel : ${sentryTraceUrl(traceId)}`)
+    const traceUrl = sentryTraceUrl(traceId)
+    if (traceUrl) publicationTraces.set(payload.content_title, traceUrl)
+    log.info(`publishEvent → trace Sentry de l'appel : ${traceUrl}`)
 
     let lastError: Error | undefined
     for (let attempt = 1; attempt <= PUBLISH_MAX_RETRIES; attempt++) {

@@ -3,7 +3,7 @@ import { traced } from '@helpers/reporting/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
-import {scalingoLogsHint} from '@helpers/partner-api'
+import {publicationSentryUrl, scalingoLogsHint} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
 import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
 
@@ -56,7 +56,8 @@ class SuiviDemarchesPage {
                 return present
             }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS})
         } catch (err) {
-            throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms. ${scalingoLogsHint(startedAt)} (${(err as Error).message})` })
+            const sentry = publicationSentryUrl(title)
+            throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms. ${scalingoLogsHint(startedAt)}${sentry ? ` Trace Sentry de l'envoi : ${sentry}` : ''} (${(err as Error).message})` })
         }
     }
 
