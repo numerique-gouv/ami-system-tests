@@ -102,7 +102,7 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
 }
 
 async function detectCurrentScreen(probed: string | null): Promise<FcScreen | null> {
-    if (platform().fcButtonIsNative && await FranceConnectMirePage.isLoginScreenVisible()) return 'login'
+    if (FranceConnectMirePage.hasNativeLoginButton() && await FranceConnectMirePage.isLoginScreenVisible()) return 'login'
     return probed === NATIVE_ALONE ? null : await probeFranceConnectWebScreen()
 }
 

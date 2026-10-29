@@ -1,5 +1,5 @@
 import {isUnambiguous, lastVisible} from '../helpers/spa/webview-choice'
-import type { PlatformAdapter, WebViewTarget } from './types'
+import type { ContextKind, PlatformAdapter, WebViewTarget } from './types'
 
 const WEBVIEW_WAIT_MS = 15000
 const WEBVIEW_POLL_MS = 500
@@ -71,14 +71,34 @@ async function pickWebView(target?: WebViewTarget): Promise<WebViewInfo> {
   return webviews[webviews.length - 1]
 }
 
+// Une session Appium démarre sur NATIVE_APP.
+let known: {session: string, context: string} | undefined
+
+function remember(context: string): void {
+  known = {session: driver.sessionId, context}
+}
+
+function context(): ContextKind {
+  const current = known?.session === driver.sessionId ? known.context : 'NATIVE_APP'
+  return current.startsWith('WEBVIEW') ? 'web' : 'native'
+}
+
 async function currentContext(): Promise<string> {
   const current = await driver.getContext()
-  return typeof current === 'string' ? current : current.id
+  const id = typeof current === 'string' ? current : current.id
+  remember(id)
+  return id
+}
+
+async function syncContext(): Promise<ContextKind> {
+  await currentContext()
+  return context()
 }
 
 /** iOS : un contexte par page ; Android : contexte du package puis page. */
 async function switchToWebView(webview: WebViewInfo): Promise<void> {
   await driver.switchContext(webview.id)
+  remember(webview.id)
   if (webview.webviewPageId) await browser.switchToWindow(webview.webviewPageId)
 }
 
@@ -123,6 +143,7 @@ async function inWebContext<T>(targetOrCallback: WebViewTarget | (() => Promise<
   } finally {
     try {
       await driver.switchContext(previousContext)
+      remember(previousContext)
       if (previousPage) await browser.switchToWindow(previousPage)
     } catch (err) {
       // On ne masque jamais l'erreur d'origine du callback.
@@ -158,9 +179,8 @@ export const appiumAdapter: PlatformAdapter = {
   get kind() {
     return driver.isIOS ? 'ios' : 'android'
   },
-  get fcButtonIsNative() {
-    return !driver.isIOS
-  },
+  context,
+  syncContext,
   inWebContext,
   isWebContextAvailable,
   refreshAxTree,

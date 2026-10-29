@@ -40,7 +40,9 @@ async function doEnsureAppWindow(): Promise<void> {
 
 export const browserAdapter: PlatformAdapter = {
   kind: 'webapp',
-  fcButtonIsNative: false,
+
+  context: () => 'web',
+  syncContext: async () => 'web',
 
   async inWebContext<T>(targetOrCallback: WebViewTarget | (() => Promise<T>), maybeCallback?: () => Promise<T>): Promise<T> {
     // Une seule page : la cible est sans objet.

@@ -1,5 +1,8 @@
 export type PlatformKind = 'android' | 'ios' | 'webapp'
 
+/** `web` : webapp, ou WebView sur mobile (dans un `inWebContext`) ; `native` : mobile hors WebView. */
+export type ContextKind = 'web' | 'native'
+
 /** WebView visée par `inWebContext`, désignée par son titre (contient, ou RegExp) ; à défaut, la dernière WebView hors workers. */
 export interface WebViewTarget {
   title?: string | RegExp
@@ -9,8 +12,11 @@ export interface WebViewTarget {
 export interface PlatformAdapter {
   readonly kind: PlatformKind
 
-  /** Android : bouton FranceConnect natif ; iOS et webapp : dans le DOM. */
-  readonly fcButtonIsNative: boolean
+  /** Contexte courant, lu en mémoire : mis à jour à chaque lecture de `driver.getContext()` et à chaque bascule de l'adaptateur. */
+  context(): ContextKind
+
+  /** Relit `driver.getContext()` et met la mémoire à jour (après un changement de contexte hors de l'adaptateur). */
+  syncContext(): Promise<ContextKind>
 
   /** Exécute `callback` dans le contexte contenant le DOM de la SPA (webapp : identité). */
   inWebContext<T>(callback: () => Promise<T>): Promise<T>

@@ -1,5 +1,6 @@
 import {waitForNativeAx} from '../../helpers/mobile/native-ax'
-import {androidFcButton, iosFcButtonNativeAx, webFcButton, webFcButtonAny} from '../locators/franceconnect/franceconnect-mire.locators'
+import {franceConnectMireLocators, iosFcButtonNativeAx} from '../locators/franceconnect/franceconnect-mire.locators'
+import {hasNativeLocators} from '../../helpers/common/pick-locators'
 import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
 import {AssertionError} from "node:assert";
@@ -18,19 +19,23 @@ export class FranceConnectProviderError extends Error {
 }
 
 class FranceConnectMirePage {
+    hasNativeLoginButton(): boolean {
+        return hasNativeLocators(franceConnectMireLocators)
+    }
+
     private async isNativeFcButtonDisplayed(): Promise<boolean> {
-        return await $(androidFcButton).isDisplayed()
+        return await $(franceConnectMireLocators.android!.button).isDisplayed()
     }
 
     async isLoginScreenVisible(): Promise<boolean> {
-        if (platform().fcButtonIsNative) {
+        if (hasNativeLocators(franceConnectMireLocators)) {
             return await this.isNativeFcButtonDisplayed()
         }
         // iOS : lecture native, jamais bloquée par un `execute` sans réponse pendant que la WebView change de domaine.
         if (driver.isIOS) {
             return await $$(iosFcButtonNativeAx).length > 0
         }
-        return await isShown(webFcButtonAny)
+        return await isShown(franceConnectMireLocators.web!.anyButton)
     }
 
     /** Après un logout, la SPA met quelques secondes à rediriger vers `/#/login`. */
@@ -57,14 +62,14 @@ class FranceConnectMirePage {
     async tapFranceConnect(isOkToFail = false): Promise<void> {
         const timeout = isOkToFail ? 5000 : 15000
 
-        if (driver.isAndroid) {
+        if (hasNativeLocators(franceConnectMireLocators)) {
             let tapped = false
             await browser.waitUntil(
                 async () => {
                     const displayed = await this.isNativeFcButtonDisplayed()
                     if (displayed) {
                         tapped = true
-                        await $(androidFcButton).click()
+                        await $(franceConnectMireLocators.android!.button).click()
                     }
                     return displayed
                 },
@@ -112,7 +117,7 @@ class FranceConnectMirePage {
         let button: WebdriverIO.Element | undefined
         let home = false
         await browser.waitUntil(async () => {
-            button = (await allDisplayed(webFcButton))[0]
+            button = (await allDisplayed(franceConnectMireLocators.web!.button))[0]
             if (button) return true
             home = (await allDisplayed(homeContentLocators.greeting)).length > 0
             return home
