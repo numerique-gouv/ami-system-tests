@@ -151,8 +151,8 @@ Les singletons sont exportés tracés : `export default traced(new XxxPage(), 'X
 - Xcode + `xcodegen` (`brew install xcodegen`)
 - Appium 3.8 et ses drivers `appium-uiautomator2-driver` / `appium-xcuitest-driver` : devDependencies de `package.json` (versions dans le lock), installés par `npm ci` ; `APPIUM_HOME` n'est pas défini (mode « projet », drivers dans `node_modules/`)
 - Simulateur iOS "iPhone 17 Pro" : `IOS_UDID` (`xcrun simctl list devices`) ; XCUITest le démarre s'il est arrêté
-- Émulateur Android : AVD de type Pixel, API 36 : démarré avant le run par Android Studio ou `emulator -avd <nom> -port <port>` (`ANDROID_UDID` = `emulator-<port>`, à renseigner s'il y a plusieurs appareils)
-- Aucune recette `just` ne démarre/arrête d'appareil ni n'a d'option `--device` : variables d'environnement `ANDROID_UDID` et `IOS_UDID` (gabarit `.env.example`, README « Prérequis »)
+- Émulateur Android : AVD de type Pixel, API 36 : démarré avant le run par `just start <AVD>` (affiche l'UDID `emulator-<port>`) ou Android Studio ; `ANDROID_UDID` à renseigner s'il y a plusieurs appareils
+- Les recettes de test ne démarrent/arrêtent aucun appareil (`just start [NOM]` / `just stop [NOM]`, sans argument : listes) et n'ont pas d'option `--device` : variables d'environnement `ANDROID_UDID` et `IOS_UDID` (gabarit `.env.example`, README « Prérequis »)
 
 ## Secrets
 

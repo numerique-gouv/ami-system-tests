@@ -22,6 +22,82 @@ check-code:
     npm run lint
     npm run typecheck
 
+# ─── Appareils virtuels ─────────────────────────────────────────────────────
+# Les tests ne démarrent jamais d'appareil : on le lance avant (`just start`), on le désigne par son UDID (ANDROID_UDID / IOS_UDID, gabarit .env),
+# on l'éteint après (`just stop`). SDK Android : ANDROID_HOME, sinon l'emplacement par défaut de macOS.
+android_sdk := env("ANDROID_HOME", env("HOME") + "/Library/Android/sdk")
+
+# Exemple : just start   |   just start Pixel_modern   |   just start "iPhone 17 Pro"   (un morceau du nom suffit, ou l'UDID iOS)
+# Sans argument : liste ce qui est démarrable (AVD Android, simulateurs iOS). Avec un argument : démarre l'appareil et affiche son UDID
+# (Android : emulator-<port>, premier port pair libre à partir de 5554 ; iOS : l'UUID du simulateur). Plusieurs correspondances : la liste est affichée.
+[doc("Démarre un appareil virtuel et affiche son UDID · [NOM]")]
+[positional-arguments]
+start name="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    name="$1"
+    adb="{{android_sdk}}/platform-tools/adb"
+    emulator="{{android_sdk}}/emulator/emulator"
+    # « ios  nom [runtime]  udid » à partir de `xcrun simctl list devices` (les simulateurs temporaires d'Appium sont ignorés)
+    ios_lines() {
+      awk '/^-- .* --$/ {rt = $2 " " $3} /\([0-9A-F-]{36}\)/ && !/appiumTest/ {l = $0; sub(/^ +/, "", l); match(l, /\([0-9A-F-]{36}\)/); print "ios      " substr(l, 1, RSTART - 2) " [" rt "]  " substr(l, RSTART + 1, 36)}'
+    }
+    # « type  nom  [udid] », une ligne par appareil démarrable
+    startable() {
+      "$emulator" -list-avds | grep . | sed 's/^/android  /' || true
+      xcrun simctl list devices available | ios_lines
+    }
+    if [ -z "$name" ]; then startable; exit 0; fi
+    matches=$(startable | grep -iF -- "$name" || true)
+    count=$(printf '%s\n' "$matches" | grep -c . || true)
+    if [ "$count" -eq 0 ]; then echo "Aucun appareil ne correspond à « $name » (just start : la liste)." >&2; exit 1; fi
+    if [ "$count" -gt 1 ]; then echo "Plusieurs appareils correspondent, précisez le nom ou donnez l'UDID :" >&2; echo "$matches" >&2; exit 1; fi
+    if [ "$(echo "$matches" | awk '{print $1}')" = android ]; then
+      avd=$(echo "$matches" | awk '{print $2}')
+      port=5554
+      while "$adb" devices | grep -q "emulator-$port"; do port=$((port + 2)); done
+      nohup "$emulator" -avd "$avd" -port "$port" > /dev/null 2>&1 &
+      serial="emulator-$port"
+      for _ in $(seq 1 90); do
+        [ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { echo "$serial"; exit 0; }
+        sleep 2
+      done
+      echo "$avd n'a pas fini de démarrer après 3 minutes ($serial)." >&2; exit 1
+    else
+      udid=$(echo "$matches" | awk '{print $NF}')
+      xcrun simctl bootstatus "$udid" -b > /dev/null
+      echo "$udid"
+    fi
+
+# Exemple : just stop   |   just stop Pixel_modern   |   just stop emulator-5554   |   just stop "iPhone 17 Pro"
+# Sans argument : liste les appareils virtuels démarrés (Android et iOS). Avec un argument (nom, un morceau du nom ou UDID) : éteint celui-là.
+# Un simulateur n'est jamais supprimé, seulement éteint.
+[doc("Éteint un appareil virtuel démarré · [NOM]")]
+[positional-arguments]
+stop name="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    name="$1"
+    adb="{{android_sdk}}/platform-tools/adb"
+    # « type  nom  udid », une ligne par appareil virtuel démarré
+    running() {
+      "$adb" devices | awk '/^emulator-/ && $2 == "device" {print $1}' | while read -r serial; do
+        # nom de l'AVD : propriété de l'émulateur (images récentes : ro.boot.qemu.avd_name, anciennes : ro.kernel.qemu.avd_name)
+        avd=$("$adb" -s "$serial" shell getprop ro.boot.qemu.avd_name | tr -d '\r')
+        [ -n "$avd" ] || avd=$("$adb" -s "$serial" shell getprop ro.kernel.qemu.avd_name | tr -d '\r')
+        echo "android  $avd  $serial"
+      done
+      xcrun simctl list devices booted | awk '/^-- .* --$/ {rt = $2 " " $3} /\([0-9A-F-]{36}\)/ {l = $0; sub(/^ +/, "", l); match(l, /\([0-9A-F-]{36}\)/); print "ios      " substr(l, 1, RSTART - 2) " [" rt "]  " substr(l, RSTART + 1, 36)}'
+    }
+    if [ -z "$name" ]; then running; exit 0; fi
+    matches=$(running | grep -iF -- "$name" || true)
+    count=$(printf '%s\n' "$matches" | grep -c . || true)
+    if [ "$count" -eq 0 ]; then echo "Aucun appareil démarré ne correspond à « $name » (just stop : la liste)." >&2; exit 1; fi
+    if [ "$count" -gt 1 ]; then echo "Plusieurs appareils correspondent, précisez le nom ou donnez l'UDID :" >&2; echo "$matches" >&2; exit 1; fi
+    udid=$(echo "$matches" | awk '{print $NF}')
+    if [ "$(echo "$matches" | awk '{print $1}')" = android ]; then "$adb" -s "$udid" emu kill > /dev/null; else xcrun simctl shutdown "$udid"; fi
+    echo "arrêté : $matches"
+
 # ─── Tests ──────────────────────────────────────────────────────────────────
 # Les recettes de test sont fines : tout ce qu'elles ne lisent pas est transmis tel quel à wdio.
 #   just test-android                                        → tous les tests (une session par fichier)
