@@ -174,7 +174,7 @@ test-webvideo +args:
 # ─── Exploration et débogage (wdio session, WebdriverIO 10) ─────────────────
 # Une session `wdio session` survit à la commande qui l'a ouverte (arrêt après 30 min d'inactivité) : on enchaîne
 # de petites commandes. Cycle : explore → snapshot → actions → explore-export → test. Voir
-# `.claude/skills/wdio-session/SKILL.md` et `docs/process/migration-wdio-10.md` §4.
+# `.claude/skills/wdio-session/SKILL.md`.
 
 # Usage : just explore-webapp   |   just explore-webapp "/#/agenda"
 # Ouvre une session d'exploration sur la webapp (Chrome headless) de l'environnement AMI_ENV et navigue vers une route (hash de la SPA, entre

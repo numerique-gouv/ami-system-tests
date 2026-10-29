@@ -186,7 +186,7 @@ Importances **non confirmées** par le produit (déduites du code et des tests e
 
 ## Diff vs baseline 2026-10-15 (mise à jour du 2026-10-26)
 
-Preuves : relevé live de 32 routes (compte `avec_nom_dusage`, Chrome headless, lecture seule), DOM des pages de profil, exécution ciblée de specs webapp (profil, déconnexion, agenda, préférences, navigation, aide, accueil, suivi) et mobiles (Android : authentification + profil ; iOS : voir `docs/process/reconstruction-modele-applicatif.md`).
+Preuves : relevé live de 32 routes (compte `avec_nom_dusage`, Chrome headless, lecture seule), DOM des pages de profil, exécution ciblée de specs webapp (profil, déconnexion, agenda, préférences, navigation, aide, accueil, suivi) et mobiles (Android : authentification + profil).
 
 | Impact | Changement | Preuve |
 |---|---|---|

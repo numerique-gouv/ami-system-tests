@@ -20,8 +20,9 @@ logs/
 test-results/
 *.log
 apps/
-# …sauf la face A du modèle de la surface de test (docs/process/model/apps/ : écrans, actions, observables)
-!docs/process/model/apps/
+# réunion de stratégie de tests (10-06) et plans de scénarios webapp : gardés sur disque, hors suivi git
+docs/process/
+src/tests/webapp/**/*.md
 .playwright-mcp/
 build/
 

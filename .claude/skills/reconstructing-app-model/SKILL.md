@@ -52,7 +52,7 @@ Resolve `<target>` as the lowercase site host (from the user's URL or the projec
 6. Audit CONTRIBUTING.md / README.md / CLAUDE.md / the skills under `.claude/skills/` against the new model. For each proposed change, **ask one question per change** before applying it — never bundle multiple guideline edits into a single silent pass. State explicitly which guidelines were checked and found still valid (no invented changes).
 7. Fix factual desynchronizations in Page Objects/locators (e.g. a comment describing a selector strategy the code no longer uses) directly, without asking. For anything ambiguous (a file/export whose fate isn't obvious — keep, delete, or reserve), **ask** with the concrete options rather than picking one silently.
 8. For coverage gaps found in step 4-6, delegate to `creating-test-structure` to scaffold them under `src/tests/next/<domain>/` (or the project's existing test tree). **CHECKPOINT — prioritization.** The model's importance ratings are "non confirmé" by construction; ask the user which gaps are worth scaffolding now.
-9. Run `just check-code`; if any Page Object/locator change touched code (not just comments), run at least one real test exercising the changed import/behavior before concluding. Update the process journal in `docs/process/reconstruction-modele-applicatif.md`.
+9. Run `just check-code`; if any Page Object/locator change touched code (not just comments), run at least one real test exercising the changed import/behavior before concluding.
 
 ## User Checkpoints (Mandatory)
 
@@ -70,7 +70,7 @@ Do not skip these even in an otherwise autonomous run — they are the seam betw
 Reprise de CLAUDE.md § Documentation, non négociable :
 - Never infer actors or relationships not directly observed; mark them "non confirmé" in a dedicated section instead.
 - Never commit a locator that hasn't been validated live (`just explore-<target>` + `snapshot`, or a capture from the disposable script) — a plausible-looking selector derived only from the model is not evidence.
-- Every claim in the model or the process doc traces to either a screenshot/DOM capture with a date, or an exact file path in the code.
+- Every claim in the model traces to either a screenshot/DOM capture with a date, or an exact file path in the code.
 
 ## Project Command Mapping
 
@@ -98,11 +98,10 @@ The native-screen capture script (step 3) is:
 
 ## Outputs
 
-A complete run may touch: `references/website-analysis/<target>/website-analysis.{md,json}` (+ `.webdriverio-skills/` mirror), `docs/process/reconstruction-modele-applicatif.md` (journal entry), comments in `src/pages/locators/**`/`src/pages/*.page.ts`, new scaffolds under `src/tests/next/<domain>/`, and — only after explicit confirmation — CONTRIBUTING.md/README.md/CLAUDE.md/other `.claude/skills/*/SKILL.md`.
+A complete run may touch: `references/website-analysis/<target>/website-analysis.{md,json}` (+ `.webdriverio-skills/` mirror), comments in `src/pages/locators/**`/`src/pages/*.page.ts`, new scaffolds under `src/tests/next/<domain>/`, and — only after explicit confirmation — CONTRIBUTING.md/README.md/CLAUDE.md/other `.claude/skills/*/SKILL.md`.
 
 ## Common Mistakes
 
-- Duplicating the model's content into the process doc instead of pointing to `website-analysis.md`.
 - Inventing a locator from the model without live validation.
 - Editing a pack-vendored SKILL.md without realizing that reinstalling the pack (`npx skills add klamping/webdriverio-skills`) will overwrite it — prefer reinforcing `.webdriverio-skills/project-context.md`/`custom-rules.md` first (see Project Command Mapping).
 - Attributing an observed anomaly to a known bug without evidence (e.g. an iOS screen reappearing is not automatically "the OIDC concurrency bug" just because that bug is known to exist).
