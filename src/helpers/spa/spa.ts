@@ -45,7 +45,7 @@ export async function firstDisplayed(selector: string, opts: DisplayOptions = {}
   return found as unknown as WebdriverIO.Element
 }
 
-/** Un élément de `selector` est-il affiché sous `timeout` ms (0 : maintenant) ? `false` sans WebView. */
+/** Un élément de `selector` est-il affiché sous `timeout` ms (0 : maintenant) ? `false` sans WebView. S'enveloppe dans `inWebContext` : les flows d'authentification l'appellent depuis le natif. */
 export async function isShown(selector: string, timeout = 0, opts: Omit<DisplayOptions, 'timeout'> = {}): Promise<boolean> {
   if (!await platform().isWebContextAvailable()) return false
   return await platform().inWebContext(async () => {
@@ -60,7 +60,7 @@ export async function isShown(selector: string, timeout = 0, opts: Omit<DisplayO
   })
 }
 
-/** Clique le premier élément affiché de `selector` (attend sa présence). */
+/** Clique le premier élément affiché de `selector` (attend sa présence). S'enveloppe dans `inWebContext` : les flows d'authentification l'appellent depuis le natif. */
 export async function clickDisplayed(selector: string, opts: DisplayOptions = {}): Promise<void> {
   await platform().inWebContext(async () => {
     await (await firstDisplayed(selector, opts)).click()

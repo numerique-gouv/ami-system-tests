@@ -16,6 +16,7 @@ import {
 /**
  * Notifications côté système : permission POST_NOTIFICATIONS, notification poussée affichée par le système (Android : volet ; iOS : bannière),
  * écran natif « Paramètres » d'AMI et réglages système de l'app. Constats Android via `mobile: shell`.
+ * Les OS ne se pilotent pas de la même façon : cette page branche sur `driver.isIOS` / `driver.isAndroid` pour appeler l'utilitaire du bon OS.
  */
 class SystemNotificationsPage {
     /** Attend une notification de l'app portant ce titre ET ce texte (dumpsys notification). */

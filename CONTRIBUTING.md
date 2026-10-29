@@ -87,6 +87,7 @@ Si la variante n'existe pas, `pickLocators` lève une erreur technique (« Login
 - **Aucun sélecteur ni nom accessible en littéral** : tout vient du fichier de locators de la page. Les éléments de la SPA s'atteignent par les sélecteurs natifs de WDIO 10 définis dans le fichier `locators/` de la page (cf. §2) et par les aides de `src/helpers/spa/spa.ts`.
 - Exporté comme singleton tracé : `export default traced(new XxxPage(), 'XxxPage')`.
 - `if (driver.isIOS)` seulement quand le **comportement d'interaction** diffère vraiment, pas juste le sélecteur. Avant un branchement plateforme, chercher un signal DOM commun aux deux (la disparition d'une modale est observable partout).
+- **Exception : `SystemNotificationsPage`** (permission, notifications poussées, réglages système de l'app). Elle pilote les réglages des OS, qui ne sont pas identiques comme peuvent l'être des apps natives : elle a le droit de brancher sur `driver.isIOS` / `driver.isAndroid` pour appeler l'utilitaire du bon OS (`android-notifications.ts`, `ios-notifications.ts`).
 - Le dispatch de comportement passe par `platform()` (cf. §4).
 
 ### Niveau 3 — `tests/*.test.ts`
@@ -219,7 +220,7 @@ interface PlatformAdapter {
 ```
 
 - **`platform().inWebContext()` est la seule façon d'atteindre le DOM de la SPA**, jamais `driver.switchContext()`. Sur mobile, il bascule `NATIVE_APP` → `WEBVIEW_*` et remet le contexte d'origine dans un `finally`. Sur webapp, il est quasi-identité. Il est réentrant, d'après l'état réel du driver : dans une WebView déjà active qui convient, le callback s'exécute sans y toucher.
-- **L'enveloppe est posée par l'appelant mobile** (un `inWebContext` englobant par test, hook ou flow), jamais dans un spec webapp, ni dans les Page Objects ni les aides. Exceptions : les flows mixtes natif / WebView (`authenticate.process.ts`, pages d'onboarding et FranceConnect, `isShown`, `clickDisplayed`, `session.ts`) s'enveloppent eux-mêmes. Une aide qui retourne un élément se lit dans un `inWebContext` ouvert : l'élément ne survit pas à la sortie.
+- **L'enveloppe est posée par l'appelant mobile** (un `inWebContext` englobant par test, hook ou flow), jamais dans un spec webapp, ni dans les Page Objects ni les aides. Exceptions voulues : les flows mixtes natif / WebView d'authentification (`authenticate.process.ts`, pages d'onboarding et FranceConnect, `session.ts`) s'enveloppent eux-mêmes, car l'enveloppe du test ne peut pas couvrir leurs étapes natives. Pour eux, `isShown` et `clickDisplayed` ouvrent aussi le contexte (réentrant : sans effet dans une WebView déjà active, donc sans conséquence pour les autres Page Objects qui les appellent depuis un `inWebContext`). Une aide qui retourne un élément se lit dans un `inWebContext` ouvert : l'élément ne survit pas à la sortie.
 - **Plusieurs WebViews** : `platform().inWebContext({title: 'Titre'}, callback)` vise une WebView par son titre (chaîne « contient » ou RegExp). Sans correspondance, ou sans cible, c'est la dernière WebView hors workers.
 - Les sélecteurs CSS/XPath ne fonctionnent qu'en `WEBVIEW_*` ; les gestes et sélecteurs natifs qu'en `NATIVE_APP`. Un geste natif ne s'appelle jamais depuis un `inWebContext()`.
 - **Flow OIDC FranceConnect : un seul `platform().inWebContext()`** pour tout le flow (eIDAS, identifiants, callback). Sortir du contexte au milieu bloque ~25 s sur iOS.
