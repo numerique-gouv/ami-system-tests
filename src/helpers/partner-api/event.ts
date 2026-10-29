@@ -8,9 +8,11 @@
  * invalide à dessein, pour tester les réponses 400.
  */
 import {AssertionError} from 'node:assert'
+import {randomBytes} from 'node:crypto'
 import logger from '@wdio/logger'
 import {REQUEST_TIMEOUT_MS, authHeaders, getBackendUrl} from './client'
 import {PARTNER_AMI, checkDemarchesConsent, type PartnerId} from './consent'
+import {sentryTraceUrl} from '../reporting/sentry'
 
 const log = logger('api')
 
@@ -80,7 +82,11 @@ export async function publishEvent(payload: EventPayload, {partner = PARTNER_AMI
     const body = JSON.stringify({...payload, event_date: payload.event_date ?? new Date().toISOString()})
 
     // Identifiants lus avant la boucle : des variables manquantes doivent échouer avec leur nom, pas passer pour une absence de réponse.
-    const headers = {'Content-Type': 'application/json', ...authHeaders(partner)}
+    // Trace Sentry propre à cette publication : l'en-tête `sentry-trace` (identifiant de trace, identifiant de span, échantillonné) fait CONTINUER
+    // cette trace par le backend s'il est instrumenté ; le lien journalisé retrouve alors l'appel dans Sentry (instrumentation du backend non confirmée).
+    const traceId = randomBytes(16).toString('hex')
+    const headers = {'Content-Type': 'application/json', 'sentry-trace': `${traceId}-${randomBytes(8).toString('hex')}-1`, ...authHeaders(partner)}
+    log.info(`publishEvent → trace Sentry de l'appel : ${sentryTraceUrl(traceId)}`)
 
     let lastError: Error | undefined
     for (let attempt = 1; attempt <= PUBLISH_MAX_RETRIES; attempt++) {
