@@ -42,6 +42,16 @@ start name="":
     ios_lines() {
       awk '/^-- .* --$/ {rt = $2 " " $3} /\([0-9A-F-]{36}\)/ && !/appiumTest/ {l = $0; sub(/^ +/, "", l); match(l, /\([0-9A-F-]{36}\)/); print "ios      " substr(l, 1, RSTART - 2) " [" rt "]  " substr(l, RSTART + 1, 36)}'
     }
+    # Rappel affiché après l'UDID (sur stderr : stdout ne contient que l'UDID, utilisable par un script).
+    hint() { # $1 = variable (ANDROID_UDID | IOS_UDID), $2 = udid, $3 = recette just, $4 = config wdio, $5 = ports d'un second run en parallèle
+      {
+        echo
+        echo "Avec plusieurs appareils, il faut préciser celui visé : sans $1, Appium prend le premier appareil connecté."
+        echo "  avec just :     $1=$2 just $3 --suite mobile_short"
+        echo "  sans just :     $1=$2 npx wdio run $4 --suite mobile_short"
+        echo "Deux runs en parallèle (un appareil chacun) demandent aussi des ports différents, par exemple pour le second : $5"
+      } >&2
+    }
     # « type  nom  [udid] », une ligne par appareil démarrable
     startable() {
       "$emulator" -list-avds | grep . | sed 's/^/android  /' || true
@@ -59,7 +69,11 @@ start name="":
       nohup "$emulator" -avd "$avd" -port "$port" > /dev/null 2>&1 &
       serial="emulator-$port"
       for _ in $(seq 1 90); do
-        [ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { echo "$serial"; exit 0; }
+        [ "$("$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && {
+          echo "$serial"
+          hint ANDROID_UDID "$serial" test-android wdio.android.conf.ts "ANDROID_APPIUM_PORT=4733 ANDROID_SYSTEM_PORT=8210 ANDROID_CHROMEDRIVER_PORT=9525"
+          exit 0
+        }
         sleep 2
       done
       echo "$avd n'a pas fini de démarrer après 3 minutes ($serial)." >&2; exit 1
@@ -67,6 +81,7 @@ start name="":
       udid=$(echo "$matches" | awk '{print $NF}')
       xcrun simctl bootstatus "$udid" -b > /dev/null
       echo "$udid"
+      hint IOS_UDID "$udid" test-ios wdio.ios.conf.ts "IOS_APPIUM_PORT=4734 IOS_WDA_PORT=8110"
     fi
 
 # Exemple : just stop   |   just stop Pixel_modern   |   just stop emulator-5554   |   just stop "iPhone 17 Pro"
