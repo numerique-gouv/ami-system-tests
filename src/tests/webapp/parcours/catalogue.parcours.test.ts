@@ -2,7 +2,7 @@ import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {HTTP_CONCURRENCY, describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isLoginWall, mapWithConcurrency, titleMentionsCard, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
+import {describeDeferred, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isLoginWall, titleMentionsCard, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -67,7 +67,7 @@ describe('Non-régression — catalogue des démarches et outils (smoke)', funct
       await ServicesPage.catalogueLabels()
     }
     step(`contrôle HTTP de ${deferred.length} cible(s) interceptée(s)`)
-    const described = await mapWithConcurrency(deferred, HTTP_CONCURRENCY, async ({link}) => await describeByHttp(link))
+    const described = await describeDeferred(deferred)
     for (const [position, {label}] of deferred.entries()) judge(label, described[position])
 
     // Une page de connexion répond 200 : elle n'est pas un lien cassé, mais le signaler évite de la prendre pour un succès.

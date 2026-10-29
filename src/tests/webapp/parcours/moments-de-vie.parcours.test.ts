@@ -2,7 +2,7 @@ import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {HTTP_CONCURRENCY, describeByHttp, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isInternalErrorRoute, mapWithConcurrency, statusOf, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
+import {describeDeferred, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isInternalErrorRoute, statusOf, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -58,7 +58,7 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
       await ServicesPage.helpLabels()
     }
     step(`contrôle HTTP de ${deferred.length} cible(s) interceptée(s)`)
-    const described = await mapWithConcurrency(deferred, HTTP_CONCURRENCY, async ({link}) => await describeByHttp(link))
+    const described = await describeDeferred(deferred)
     for (const [position, {label}] of deferred.entries()) judge(label, described[position])
     if (broken.length > 0) throw new AssertionError({message: `${broken.length} entrée(s) d'aide cassée(s) sur ${labels.length} :\n${broken.join('\n')}`})
   })
