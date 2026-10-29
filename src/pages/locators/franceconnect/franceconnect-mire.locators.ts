@@ -1,18 +1,10 @@
-import type {LocatorVariants} from '../../../helpers/common/pick-locators'
 import type {Locator} from '../types'
 
-export interface FranceConnectMireLocators {
-  /** Le bouton « S'identifier avec FranceConnect ». */
-  button: Locator
-  /** Un bouton FranceConnect, quel que soit son libellé exact. */
-  anyButton: Locator
-}
-
 /**
- * Page mixte : sur Android le bouton est natif (`android`), sinon il est dans la SPA (`web`). Le Page Object choisit explicitement, car il
- * gère lui-même le passage du natif à la WebView.
+ * Page mixte : sur Android le bouton est natif (`android`), sinon il est dans la SPA (`web`). Le Page Object choisit explicitement,
+ * car il gère lui-même le passage du natif à la WebView.
  */
-export const franceConnectMireLocators: LocatorVariants<FranceConnectMireLocators> = {
+export const franceConnectMireLocators = {
   web: {
     // Sans apostrophe : droite ou typographique selon la page.
     button: 'button*=identifier avec FranceConnect',
@@ -21,7 +13,6 @@ export const franceConnectMireLocators: LocatorVariants<FranceConnectMireLocator
   },
   android: {
     button: '~franceConnect button',
-    anyButton: '~franceConnect button',
   },
 }
 

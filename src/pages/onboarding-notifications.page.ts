@@ -1,4 +1,5 @@
-import {getOnboardingNotifLocators, webOnboardingNotifLocators} from './locators/onboarding-notifications.locators'
+import {onboardingNotificationsLocators, type OnboardingNotifLocators} from './locators/onboarding-notifications.locators'
+import {nativeLocators} from '../helpers/common/pick-locators'
 import {platform} from '../platform'
 import {traced} from '../helpers/reporting/traced'
 import {clickDisplayed, isShown} from '../helpers/spa/spa'
@@ -21,9 +22,11 @@ function isPermissionUndecided(): boolean {
     }
 }
 
+const native = (): OnboardingNotifLocators => nativeLocators('OnboardingNotificationsPage', onboardingNotificationsLocators)
+
 class OnboardingNotificationsPage {
     private async isWebVisible(timeout: number): Promise<boolean> {
-        return await isShown(webOnboardingNotifLocators.heading, timeout)
+        return await isShown(onboardingNotificationsLocators.web.heading, timeout)
     }
 
     private async isOnboardingVisible(timeout = 5000): Promise<boolean> {
@@ -40,7 +43,7 @@ class OnboardingNotificationsPage {
     /** Partie native de la sonde (hors WebView) : écran natif d'un ancien build Android, bouton « plus tard » de la feuille iOS. */
     async isNativeOnboardingVisible(timeout = 5000): Promise<boolean> {
         if (platform().kind === 'webapp') return false
-        const loc = getOnboardingNotifLocators()
+        const loc = native()
         return await this.firstNative(loc.dismiss, driver.isAndroid ? Math.min(timeout, 1000) : timeout) !== null
     }
 
@@ -49,7 +52,7 @@ class OnboardingNotificationsPage {
         if (driver.isIOS && await this.dismissIOS()) return
         if (!await this.isOnboardingVisible()) return
         if (platform().kind === 'webapp' || (driver.isAndroid && await this.isWebVisible(1000))) {
-            await clickDisplayed(webOnboardingNotifLocators.laterButton, {timeout: 10000})
+            await clickDisplayed(onboardingNotificationsLocators.web.laterButton, {timeout: 10000})
             return
         }
         if (driver.isIOS) await this.acceptIOS()
@@ -81,7 +84,7 @@ class OnboardingNotificationsPage {
     }
 
     private async isNativeSheetShown(timeout: number): Promise<boolean> {
-        return await this.firstNative(getOnboardingNotifLocators().title, isPermissionUndecided() ? timeout : 300) !== null
+        return await this.firstNative(native().title, isPermissionUndecided() ? timeout : 300) !== null
     }
 
     /** Page de la SPA affichée : on passe par le DOM, plus fiable que l'arbre natif ; sinon feuille native seule. */
@@ -93,13 +96,13 @@ class OnboardingNotificationsPage {
     /** Permission non décidée : « Activer » natif ; décidée : « Activer » est sans effet, donc « Peut-être plus tard » dans le DOM. */
     private async acceptIOSWebPage(): Promise<void> {
         if (isPermissionUndecided()) return await this.activateNativeIOS()
-        await clickDisplayed(webOnboardingNotifLocators.laterButton, {timeout: 10000})
+        await clickDisplayed(onboardingNotificationsLocators.web.laterButton, {timeout: 10000})
         await this.waitForWebPageGone()
     }
 
     /** Sonde immédiate du titre de la feuille native, à traiter avant les pages d'onboarding de la SPA. */
     async isNativeSheetShownNow(): Promise<boolean> {
-        return driver.isIOS && await this.firstNative(getOnboardingNotifLocators().title, 0) !== null
+        return driver.isIOS && await this.firstNative(native().title, 0) !== null
     }
 
     /** Accepte l'alerte système de notifications si elle apparaît avant `timeout` ; `true` si acceptée. */
@@ -123,7 +126,7 @@ class OnboardingNotificationsPage {
     /** Active la feuille native iOS si elle est affichée (elle peut recouvrir l'accueil) ; à appeler une fois l'accueil atteint. */
     async dismissNativeSheet(timeout = 3000): Promise<boolean> {
         if (!driver.isIOS) return false
-        const loc = getOnboardingNotifLocators()
+        const loc = native()
         if (await this.firstNative(loc.title, isPermissionUndecided() ? timeout : Math.min(timeout, 500)) === null) return false
         await this.activateNativeIOS()
         return true
@@ -131,7 +134,7 @@ class OnboardingNotificationsPage {
 
     /** iOS : « Activer » (feuille native ou page de la SPA derrière), puis « Autoriser » dans l'alerte système. */
     private async activateNativeIOS(): Promise<void> {
-        const loc = getOnboardingNotifLocators()
+        const loc = native()
         const attempts = 3
         for (let attempt = 1; attempt <= attempts; attempt++) {
             const activate = await this.firstNative(loc.activate as string, 5000)
@@ -153,12 +156,12 @@ class OnboardingNotificationsPage {
     }
 
     private async isNativeOnboardingGone(): Promise<boolean> {
-        return (await $$(getOnboardingNotifLocators().title)).length === 0
+        return (await $$(native().title)).length === 0
     }
 
     /** Le tap sur « Peut-être plus tard » est parfois sans effet : on retape, au plus 3 fois. */
     private async dismissNative(): Promise<void> {
-        const loc = getOnboardingNotifLocators()
+        const loc = native()
         const attempts = 3
         for (let attempt = 1; attempt <= attempts; attempt++) {
             const dismissButton = await this.firstNative(loc.dismiss, 5000)

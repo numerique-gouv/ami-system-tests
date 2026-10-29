@@ -24,7 +24,7 @@ class FranceConnectMirePage {
     }
 
     private async isNativeFcButtonDisplayed(): Promise<boolean> {
-        return await $(franceConnectMireLocators.android!.button).isDisplayed()
+        return await $(franceConnectMireLocators.android.button).isDisplayed()
     }
 
     async isLoginScreenVisible(): Promise<boolean> {
@@ -35,7 +35,7 @@ class FranceConnectMirePage {
         if (driver.isIOS) {
             return await $$(iosFcButtonNativeAx).length > 0
         }
-        return await isShown(franceConnectMireLocators.web!.anyButton)
+        return await isShown(franceConnectMireLocators.web.anyButton)
     }
 
     /** Après un logout, la SPA met quelques secondes à rediriger vers `/#/login`. */
@@ -69,7 +69,7 @@ class FranceConnectMirePage {
                     const displayed = await this.isNativeFcButtonDisplayed()
                     if (displayed) {
                         tapped = true
-                        await $(franceConnectMireLocators.android!.button).click()
+                        await $(franceConnectMireLocators.android.button).click()
                     }
                     return displayed
                 },
@@ -117,7 +117,7 @@ class FranceConnectMirePage {
         let button: WebdriverIO.Element | undefined
         let home = false
         await browser.waitUntil(async () => {
-            button = (await allDisplayed(franceConnectMireLocators.web!.button))[0]
+            button = (await allDisplayed(franceConnectMireLocators.web.button))[0]
             if (button) return true
             home = (await allDisplayed(homeContentLocators.greeting)).length > 0
             return home

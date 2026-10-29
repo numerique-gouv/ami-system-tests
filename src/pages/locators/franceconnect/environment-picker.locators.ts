@@ -1,4 +1,5 @@
 import type { Locator } from '../types'
+import {pickLocators} from '../../../helpers/common/pick-locators'
 
 export interface EnvironmentPickerLocators {
   pickerSentinel:    Locator  // item « Staging », toujours en tête : confirme que le picker est affiché
@@ -14,18 +15,18 @@ const PICKER_SENTINEL = {
   ios:     '-ios predicate string:type == "XCUIElementTypeButton" AND label BEGINSWITH "Staging"',
 } satisfies Record<'android' | 'ios', Locator>
 
-/** Seul locator calculé depuis une variable d'environnement : `environmentPicker` dépend d'AMI_ENV. */
+/** Native seule (iOS et Android) : appelée hors `inWebContext`. `environmentPicker` dépend d'AMI_ENV. */
 export function getEnvironmentPickerLocators(): EnvironmentPickerLocators {
   const env = process.env.AMI_ENV || 'Staging'
-  if (driver.isIOS) {
-    return {
+  return pickLocators('EnvironmentPickerPage', {
+    ios: {
       pickerSentinel: PICKER_SENTINEL.ios,
       environmentPicker: `-ios predicate string:type == "XCUIElementTypeButton" AND label CONTAINS[c] "${env}"`,
-    }
-  }
-  return {
-    pickerSentinel: PICKER_SENTINEL.android,
-    scrollContainer: 'android=new UiSelector().scrollable(true)',
-    environmentPicker: `android=new UiSelector().clickable(true).childSelector(new UiSelector().textMatches("(?i).*${env}.*"))`,
-  }
+    },
+    android: {
+      pickerSentinel: PICKER_SENTINEL.android,
+      scrollContainer: 'android=new UiSelector().scrollable(true)',
+      environmentPicker: `android=new UiSelector().clickable(true).childSelector(new UiSelector().textMatches("(?i).*${env}.*"))`,
+    },
+  })
 }

@@ -22,7 +22,15 @@ export function pickLocators<T>(page: string, variants: LocatorVariants<T>): T {
 }
 
 /** La page a-t-elle une version native sur la plateforme courante ? */
-export function hasNativeLocators<T>(variants: LocatorVariants<T>): boolean {
+export function hasNativeLocators(variants: {android?: unknown, ios?: unknown}): boolean {
   const kind = platform().kind
   return kind !== 'webapp' && variants[kind] !== undefined
+}
+
+/** Page mixte : la variante native de la plateforme courante, quel que soit le contexte (le Page Object gère lui-même ses changements de contexte). */
+export function nativeLocators<T>(page: string, variants: {android?: T, ios?: T}): T {
+  const kind = platform().kind
+  const locators = kind === 'webapp' ? undefined : variants[kind]
+  if (!locators) throw new Error(`${page} n'a pas de locators ${kind}`)
+  return locators
 }
