@@ -2,7 +2,7 @@ import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {describeDeferred, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isInternalErrorRoute, statusOf, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
+import {describeDeferred, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, toleratedUnreachableWarning, isInternalErrorRoute, statusOf, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -39,7 +39,7 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
       } else if (isBrokenTarget(target)) {
         const line = `« ${label} » → ${describeTarget(target)} (statut ${target.status}, « ${target.title} »${target.excerpt ? ` : ${target.excerpt.slice(0, 120)}` : ''})`
         // Hôte de préproduction partenaire joignable seulement depuis un réseau privé : avertissement, pas un échec (décision 2026-10-15).
-        if (isExpectedUnreachable(target)) log.warn(`ANOMALIE tolérée (hôte joignable seulement depuis un réseau privé) : ${line}`)
+        if (isExpectedUnreachable(target)) log.warn(toleratedUnreachableWarning(line))
         else broken.push(line)
       }
     }

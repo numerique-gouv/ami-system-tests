@@ -11,7 +11,7 @@ import {platform} from '../platform'
 import type {TestUser} from '../helpers/common/test-users'
 import {getTestUser} from '../helpers/common/test-users'
 import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot, replaceWithAppRoot} from '../helpers/common/session'
-import {describeFirstScreenTimeout, HOME, isLoginCallbackUrl} from '../helpers/common/first-screen'
+import {HOME, isLoginCallbackUrl} from '../helpers/common/first-screen'
 import logger from '@wdio/logger'
 import {AssertionError} from "node:assert";
 
@@ -187,7 +187,7 @@ async function waitForFirstScreen(): Promise<string> {
     }, {timeout: FIRST_SCREEN_TIMEOUT_MS, interval: 300}).catch(() => undefined)
     const waitedMs = Date.now() - startedAt
     if (found === null || found === NATIVE_ALONE)
-        throw new AssertionError({message: `getAppToStartingState: ${describeFirstScreenTimeout(expected, await currentUrlForLog(), waitedMs)}`})
+        throw new AssertionError({message: `getAppToStartingState: aucun des écrans attendus (${expected.join(', ')}) n'est apparu en ${Math.round(waitedMs / 1000)}s (${await currentUrlForLog()})`})
     log.info(`getAppToStartingState: premier écran « ${found} » apparu après ${waitedMs}ms d'attente (${await currentUrlForLog()})`)
     return found
 }

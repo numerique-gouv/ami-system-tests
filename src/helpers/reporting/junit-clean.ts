@@ -2,12 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import {enrichRunXml, readDumps} from './junit-join'
 
-/**
- * Retire du JUnit XML les lignes brutes `COMMAND: …` / `RESULT: …` (et le séparateur `...command output...`) que le reporter
- * JUnit de WebdriverIO ajoute dans le `<system-out>` de chaque test. Il n'a pas d'option pour les désactiver, et elles noient la
- * console du scénario (`addWorkerLogs`) qui, elle, raconte ce qui s'est passé. Les commandes WebDriver restent dans les logs
- * Appium (`.wdio-logs/`). Appelé une fois tous les fichiers écrits (hook `onComplete` du lanceur).
- */
+/** Retire du JUnit les lignes `COMMAND:` / `RESULT:` que le reporter ajoute sans option pour les désactiver. */
 const RAW_LINE = /^(COMMAND|RESULT): /
 const SEPARATOR = '...command output...'
 
@@ -27,14 +22,7 @@ export function stripRawCommandLogs(junitDir: string): number {
   return cleaned
 }
 
-/**
- * Un seul rapport JUnit par run, organisé par fichier de spec : le reporter JUnit de WebdriverIO écrit un fichier par worker (donc un
- * par spec hors suite nommée) et nomme `testsuite` et `classname` d'après le titre du `describe`. Un lecteur comme celui d'IntelliJ
- * n'ouvre qu'un fichier à la fois et ne montre alors que les tests de cette spec.
- * `results-<run>-<cid>.xml` (un par worker) devient `results-<run>.xml` : un `<testsuite>` par fichier de spec, nommé comme lui
- * (`authentification.smoke.test.ts`), qui réunit les tests de tous ses `describe` ; `classname` prend le même nom, `name` reste le titre du `it`.
- * Le titre du `describe` est conservé en propriété `suiteName`. Chaque testcase reçoit en plus des `<properties>` (junit-join.ts). Appelé une fois tous les fichiers écrits (hook `onComplete`).
- */
+/** Fusionne les `results-<run>-<cid>.xml` (un par worker) en un `results-<run>.xml` avec un `<testsuite>` par fichier de spec, enrichi par junit-join.ts. */
 interface SpecSuite {
   name: string
   timestamp: string
@@ -104,7 +92,6 @@ export function mergeRunReports(junitDir: string, runName: string, runDir?: stri
     '',
   ].join('\n')
 
-  // Propriétés par testcase (plateforme, AMI_ENV, issue, lien Sentry et dump des échecs) : cf. junit-join.ts. Sans dossier de run, pas de dumps à joindre.
   const dumps = runDir ? readDumps(runDir, path.dirname(junitDir)) : []
   const enriched = enrichRunXml(out, {runName, dumps, amiEnv: process.env.AMI_ENV ?? null})
 

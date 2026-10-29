@@ -1,14 +1,6 @@
 /**
- * Comptes de test FranceConnect : ceux de la maquette FC PUBLIQUE (aucun secret, mot de passe « 123 »).
- * Source : https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-high/mocks/idp/databases/citizen/base.csv
- * La clé est la colonne `login` du CSV (identifiant saisi sur la mire de la maquette).
- *
- * fcHash = SHA-256 hex de given_name;family_name;birthdate;gender;birthplace;birthcountry (`build_fc_hash`, ami-notifications-api,
- * ami/user/utils.py:6-23, format v2 : la seule version en service), sans normalisation ni sel, avec les valeurs brutes du userinfo FC
- * (family_name = nom de NAISSANCE, pas preferred_username ; birthplace vide pour une naissance à l'étranger).
- * Vérification : avec_nom_dusage = bf530095… (ancien hash saisi à la main).
- * Alternative côté backend : GET /dev-utils/recipient-fc-hash?given_name=…&family_name=…&birthdate=…&gender=…&birthplace=…&birthcountry=…
- * (si FEATURE_FLAG_DEV_UTILS_RECIPIENT_FC_HASH est actif ; ami/utils/api_views.py:33-56). Non disponible sur staging le 2026-10-26 (404).
+ * Comptes de la maquette FranceConnect publique (mot de passe « 123 »), clé = colonne `login` du CSV :
+ * https://github.com/france-connect/sources/blob/main/docker/volumes/fcp-high/mocks/idp/databases/citizen/base.csv
  */
 import { computeFcHash, type FcPivotData } from './fc-hash'
 
@@ -92,15 +84,11 @@ export function getUser(login: FcLogin): TestUser {
   return { login, password, fcHash }
 }
 
-/**
- * Compte de test de la session : variable d'environnement `TEST_USER` (un login de `credentials`), surchargeable en ligne de commande
- * (`TEST_USER=sans_nom_dusage just test-webci …`). Sa valeur par défaut est posée par la configuration WDIO (`wdio.base.conf.ts`).
- * Les scénarios la demandent ici plutôt que de choisir un compte eux-mêmes.
- */
+/** Compte de la session : `TEST_USER` (un login ci-dessus), valeur par défaut posée par wdio.base.conf.ts. */
 export function getTestUser(): TestUser {
   const login = process.env.TEST_USER
   if (!login || !Object.hasOwn(credentials, login)) {
-    throw new Error(`TEST_USER « ${login ?? ''} » inconnu : comptes disponibles : ${Object.keys(credentials).join(', ')}`)
+    throw new Error(`TEST_USER inconnu : ${login}`)
   }
   return getUser(login as FcLogin)
 }

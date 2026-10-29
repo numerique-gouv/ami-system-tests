@@ -1,21 +1,4 @@
-/**
- * Fonctions métier au-dessus de publishEvent : chacune remplit un gabarit d'EventPayload.
- *
- * L'API n'a qu'un endpoint et qu'un schéma ; les « types » ci-dessous sont des conventions déduites
- * des champs renseignés (règles : ami-notifications-api, ami/notification/serializers.py). Les
- * champs obligatoires du serveur sont obligatoires dans les types, donc un appel qui ferait
- * répondre 400 au serveur ne compile pas. Pour envoyer volontairement un payload invalide :
- * publishEvent directement.
- *
- * Les trois publications vérifient d'abord le consentement du partenaire émetteur (`partner`, AMI par défaut), c'est-à-dire son
- * consentement aux DÉMARCHES (porte d'entrée backend des événements, cf. consent.ts), sauf `verifyPartnerConsent: false`. Pour une
- * notification simple, que le backend applique cette même porte est NON CONFIRMÉ : l'option est donc nommée d'après le partenaire,
- * pas d'après un type de consentement. Les notifications PUSH (réglage global AMI, côté app) n'ont rien à voir avec cette option.
- *
- *   publishNotification     — notification simple, sans objet associé
- *   publishDemarche         — démarche (suivi) : item_type, item_id et statut obligatoires
- *   publishDemarcheEnfant   — démarche rattachée à une démarche parente
- */
+/** Chaque fonction remplit un gabarit d'EventPayload : les champs obligatoires du serveur le sont dans les types. Pour un payload invalide, appeler publishEvent. */
 import type {PartnerId} from './consent'
 import {publishEvent, type EventPayload, type GenericStatus} from './event'
 
@@ -33,9 +16,9 @@ export interface NotificationOptions {
     eventDate?: string
     validUntil?: string
     tryPush?: boolean
-    /** Partenaire émetteur dont on vérifie le consentement ; AMI par défaut (partenaire des identifiants de test). */
+    /** Partenaire émetteur ; AMI par défaut. */
     partner?: PartnerId
-    /** Vérifie le consentement du partenaire pour ses événements (cf. consent.ts) avant publication ; true par défaut. */
+    /** Vérifie le consentement du partenaire avant publication ; true par défaut. */
     verifyPartnerConsent?: boolean
 }
 
@@ -44,18 +27,13 @@ export interface DemarcheOptions extends NotificationOptions {
     itemType: string
     /** Identifiant de l'objet chez le partenaire. */
     itemId: string
-    /** Statut générique, qui pilote le comportement de l'app (en cours, archivage…). */
+    /** Statut générique, qui pilote le comportement de l'app. */
     status: GenericStatus
-    /** Libellé affiché ; par défaut selon `status` (voir DEFAULT_STATUS_LABEL). */
+    /** Libellé affiché ; par défaut selon `status`. */
     statusLabel?: string
-    /** Canal source pour la mesure d'impact ; `AMI` par défaut. */
+    /** Canal source ; `AMI` par défaut. */
     canal?: string
-    /**
-     * Dates de l'échéance (ISO 8601). Renseigner l'une des deux crée une entrée dans l'agenda de l'usager
-     * (front : `buildAgendaItem`, ami-notifications-api/public/mobile-app/src/lib/followup.ts) : un rendez-vous
-     * n'existe pas seul, c'est une démarche avec une date. Les dates sont lues sur la DERNIÈRE notification
-     * de la démarche : une mise à jour qui ne les répète pas retire l'entrée de l'agenda.
-     */
+    /** Dates ISO 8601 de l'échéance : l'une des deux crée une entrée d'agenda. Lues sur la dernière notification de la démarche. */
     milestoneStartDate?: string
     milestoneEndDate?: string
 }

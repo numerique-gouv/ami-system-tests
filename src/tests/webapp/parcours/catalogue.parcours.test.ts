@@ -2,7 +2,7 @@ import {AssertionError} from 'node:assert'
 import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
-import {describeDeferred, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, isLoginWall, titleMentionsCard, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
+import {describeDeferred, describeTarget, isBrokenTarget, isDeferred, isExpectedUnreachable, toleratedUnreachableWarning, isLoginWall, titleMentionsCard, type DeferredLink, type LinkTarget} from '../../../helpers/webapp/link-check'
 import {step} from '../../../helpers/reporting/report'
 
 const log = logger('test')
@@ -40,7 +40,7 @@ describe('Non-régression — catalogue des démarches et outils (smoke)', funct
       if (target.internal) return
       if (isBrokenTarget(target)) {
         const line = `« ${label} » → ${describeTarget(target)} (statut ${target.status}, titre « ${target.title} »)`
-        if (isExpectedUnreachable(target)) log.warn(`ANOMALIE tolérée (hôte joignable seulement depuis un réseau privé) : ${line}`)
+        if (isExpectedUnreachable(target)) log.warn(toleratedUnreachableWarning(line))
         else broken.push(line)
       }
       else if (isLoginWall(target)) loginWalls.push(`« ${label} » → ${describeTarget(target)} (« ${target.title} »)`)

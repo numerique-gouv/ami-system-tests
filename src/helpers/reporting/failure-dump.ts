@@ -10,14 +10,8 @@ import {getBackendUrl} from '../partner-api'
 const log = logger('config')
 
 /**
- * Contexte d'un test en échec, dans `<dossier du run>/failures/<test>__<horodatage>/context.json` (publié en artefact de CI ; dossier du run =
- * `test-results/traces/<horodatage>_<plateforme>_<suite ou spec>/`, cf. `traceRootDir` dans wdio.base.conf.ts) :
- * test, étapes `step()`, erreur (jetons masqués), plateforme, appareil, backend, URL (jetons masqués), horodatage UTC, et pour un
- * contexte web les identifiants Sentry de la SPA avec le lien vers la trace.
- * Les captures, le DOM ou l'arbre natif, les éléments interactifs et le réseau ne sont plus écrits ici : le service DevTools
- * (mode trace, cf. `traceServices` dans wdio.base.conf.ts) les enregistre dans `test-results/` (cf. `devtools-artifacts-*.json`).
- * Ne change jamais de contexte : sur iOS, un changement de contexte au milieu d'un échec peut bloquer ~25 s.
- * Aucune valeur secrète (clés, mots de passe) n'est écrite.
+ * Écrit `<dossier du run>/failures/<test>__<horodatage>/context.json` : test, étapes, erreur et URL (jetons masqués), plateforme,
+ * appareil, backend, et pour un contexte web les identifiants Sentry. Aucun secret. Ne change jamais de contexte : sur iOS, cela peut bloquer ~25 s.
  */
 export interface FailedTest {
   title: string
@@ -29,7 +23,6 @@ function slugify(text: string): string {
   return text.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').slice(0, 80)
 }
 
-/** Le contexte courant est-il web (webapp, ou WebView déjà active) ? Ne change pas de contexte. */
 async function isWebContent(): Promise<boolean> {
   if (platform().kind === 'webapp') return true
   const ctx = await browser.getContext()
@@ -59,24 +52,19 @@ export async function dumpFailure(test: FailedTest, error?: Error): Promise<void
     error: error ? {name: error.name, message: maskSensitiveUrl(String(error.message)).slice(0, 2000)} : null,
   }
 
-  // Selon le contexte courant, sans changement de contexte (évite le blocage iOS ~25 s).
   try {
     if (await isWebContent()) {
       context.contextKind = 'web'
       context.url = maskSensitiveUrl(await browser.getUrl())
-      const ids = await readSentryIds().catch((err: unknown) => {
-        log.warn('failure-dump : identifiants Sentry illisibles', err)
-        return null
-      })
+      const ids = await readSentryIds().catch(() => null)
       context.sentry = ids && {...ids, url: sentryTraceUrl(ids.traceId)}
     } else {
       context.contextKind = 'native'
     }
-  } catch (err) {
-    log.warn('failure-dump : contexte illisible (contexte perdu ou session fermée ?)', err)
+  } catch {
+    // contexte perdu ou session fermée : le dump ne doit pas masquer l'échec du test
   }
 
   fs.writeFileSync(path.join(dir, 'context.json'), JSON.stringify(context, null, 2))
-  const sentryUrl = (context.sentry as {url?: string | null} | null | undefined)?.url
-  log.info(`failure-dump : ${path.relative(process.cwd(), dir)}${sentryUrl ? ` · sentry ${sentryUrl}` : ''}`)
+  log.info(`failure-dump : ${path.relative(process.cwd(), dir)}`)
 }

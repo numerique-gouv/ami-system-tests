@@ -2,24 +2,12 @@ import fs from 'fs'
 import path from 'path'
 
 /**
- * Jointure entre le rapport JUnit d'un run et les dumps d'échec du MÊME run (`<run>/failures/<test>__<horodatage>/context.json`, écrits par
- * failure-dump.ts), pour ajouter à chaque `<testcase>` des `<property>` lisibles par un outil de rapport (script `.github/scripts/e2e-comment.mjs`) :
- *
- * - `platform` (android, ios, webapp), `ami_env` (valeur d'AMI_ENV : staging, preprod, numéro de PR), `outcome` ;
- * - pour un échec relié à un dump : `dump_path` (relatif au dossier `test-results/`), `context_kind` (web ou native), et `sentry_url` pour un
- *   contexte web dont la SPA a donné un identifiant de trace ;
- * - `attempt` et `attempts` quand un même test apparaît plusieurs fois (relance par `specFileRetries`).
- *
- * `outcome` : `passed`, `failed`, `skipped`, ou `flaky` pour le dernier essai réussi d'un test dont un essai précédent a échoué (« instable »).
- * Un test échoué à tous ses essais garde `failed` à chacun.
- *
- * Jointure par TITRE : le reporter JUnit nomme le testcase d'après le titre du `it` assaini par `suiteNameFormat` (tout bloc de caractères
- * hors lettres, chiffres et `@` devient un espace, cf. wdio.base.conf.ts) ; le dump contient le titre brut. `normalizeTitle()` applique aux deux
- * la MÊME transformation. Plusieurs dumps pour un titre (relances) sont attribués dans l'ordre chronologique aux essais échoués.
+ * Ajoute à chaque `<testcase>` du JUnit d'un run des `<property>` lisibles par `.github/scripts/e2e-comment.mjs` :
+ * plateforme, AMI_ENV, issue (`passed`, `failed`, `skipped`, `flaky` pour un essai réussi après un échec), essais, et pour un échec le dump (chemin, contexte, lien Sentry).
+ * Le dump est joint par titre : `normalizeTitle()` applique au titre du dump la même transformation que `suiteNameFormat` (wdio.base.conf.ts) au testcase.
  */
 
-/** Même assainissement que `_prepareName` de @wdio/junit-reporter avec `suiteNameFormat: /[^\p{L}\p{N}@]+/u` (cf. wdio.base.conf.ts). */
-export const TITLE_SEPARATORS = /[^\p{L}\p{N}@]+/u
+const TITLE_SEPARATORS = /[^\p{L}\p{N}@]+/u
 
 export function normalizeTitle(title: string): string {
   return title.split(TITLE_SEPARATORS).filter(part => part.length > 0).join(' ')
@@ -33,12 +21,11 @@ export interface DumpInfo {
   platform: string | null
   contextKind: string | null
   sentryUrl: string | null
-  /** Chemin du dossier du dump, relatif à `rootDir`, séparateurs `/`. */
   dumpPath: string
   errorMessage: string | null
 }
 
-/** Lit les `context.json` de `<runDir>/failures/*`. Un dump illisible est ignoré (jamais d'exception : le rapport doit sortir). */
+/** Lit les `context.json` de `<runDir>/failures/*` ; un dump illisible est ignoré pour que le rapport sorte. */
 export function readDumps(runDir: string, rootDir: string): DumpInfo[] {
   const failuresDir = path.join(runDir, 'failures')
   if (!fs.existsSync(failuresDir)) return []
@@ -63,7 +50,6 @@ export function readDumps(runDir: string, rootDir: string): DumpInfo[] {
         errorMessage: typeof error?.message === 'string' ? error.message : null,
       })
     } catch {
-      // dump absent ou JSON tronqué : pas de propriété pour ce test
     }
   }
   return dumps.sort((a, b) => a.failedAtUtc.localeCompare(b.failedAtUtc))
@@ -85,7 +71,6 @@ function unescapeAttr(value: string): string {
   return value.replace(/&quot;/g, '"').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')
 }
 
-/** Plateforme déduite du nom du run (`<horodatage>_<plateforme>_<suite ou spec>`), ou `null`. */
 export function platformOfRun(runName: string): string | null {
   return runName.match(/Z_(android|ios|webapp)_/)?.[1] ?? null
 }
@@ -105,10 +90,7 @@ interface CaseRef {
   outcome: Exclude<Outcome, 'flaky'>
 }
 
-/**
- * Ajoute les `<properties>` à chaque `<testcase>` du JUnit fusionné d'un run (résultat de `mergeRunReports`). Idempotent : un testcase qui a
- * déjà un bloc `<properties>` est laissé tel quel. Renvoie le XML enrichi (inchangé s'il n'y a aucun testcase).
- */
+/** Idempotent : un testcase qui a déjà un bloc `<properties>` est laissé tel quel. */
 export function enrichRunXml(xml: string, options: EnrichOptions): string {
   const platform = platformOfRun(options.runName)
   const refs: CaseRef[] = []
@@ -122,7 +104,6 @@ export function enrichRunXml(xml: string, options: EnrichOptions): string {
     }
   }
 
-  // Essais d'un même test (même spec, même titre assaini) dans l'ordre du fichier.
   const groups = new Map<string, CaseRef[]>()
   for (const ref of refs) {
     const key = `${ref.spec}\u0000${normalizeTitle(ref.name)}`

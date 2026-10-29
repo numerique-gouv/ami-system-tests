@@ -3,7 +3,7 @@ import { traced } from '@helpers/reporting/traced'
 import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
 import logger from "@wdio/logger";
-import {publicationSentryUrl, scalingoLogsHint} from '@helpers/partner-api'
+import {publicationSentryUrl} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
 import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
 
@@ -57,7 +57,7 @@ class SuiviDemarchesPage {
             }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS})
         } catch (err) {
             const sentry = publicationSentryUrl(title)
-            throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms. ${scalingoLogsHint(startedAt)}${sentry ? ` Trace Sentry de l'envoi : ${sentry}` : ''} (${(err as Error).message})` })
+            throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms.${sentry ? ` Trace Sentry de l'envoi : ${sentry}` : ''} (${(err as Error).message})` })
         }
     }
 
@@ -80,7 +80,6 @@ class SuiviDemarchesPage {
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
     const loc = getSuiviDemarchesLocators()
-    const startedAt = Date.now()
     const statusLabelLower = statusLabel.toLowerCase()
     let lastStatus: string | null = null // null : aucune carte ne porte ce titre
     try {
@@ -100,7 +99,7 @@ class SuiviDemarchesPage {
       // `waitUntil` réessaie les erreurs WebDriver (carte périmée…) : `err` porte la dernière si la liste est restée illisible.
       const reason = (err as Error).message
       if (lastStatus === null)
-        throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)} (${reason})` })
+        throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms (${reason})` })
       throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus}) (${reason})` })
     }
   }

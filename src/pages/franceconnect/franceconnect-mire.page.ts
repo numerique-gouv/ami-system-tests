@@ -191,7 +191,7 @@ class FranceConnectMirePage {
         })
         // iOS : le clic mène à FranceConnect (autre document, la target WebKit de la page est détruite) : on constate la disparition du bouton
         // par l'arbre natif avant toute commande suivante (mesuré : 0,8 s). Le bouton NATIF d'Android a son propre chemin.
-        if (tapped && driver.isIOS) await waitForNativeAx(iosFcButtonNativeAx, 'gone', 'Bouton FranceConnect')
+        if (tapped && driver.isIOS) await waitForNativeAx(iosFcButtonNativeAx, 'gone')
         return tapped
     }
 

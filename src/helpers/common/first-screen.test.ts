@@ -1,20 +1,13 @@
 /* eslint-disable wdio/no-floating-promise -- node:test (describe/it renvoient des promesses sans les attendre) */
 import {describe, it} from 'node:test'
 import assert from 'node:assert/strict'
-import {describeFirstScreenTimeout, isBackendPageOutsideSpa, isLoginCallbackUrl} from './first-screen'
+import {isBackendPageOutsideSpa, isLoginCallbackUrl} from './first-screen'
 
 describe('first-screen', () => {
   it('reconnaît la route login-callback, avec ou sans paramètres', () => {
     assert.equal(isLoginCallbackUrl('https://ami.example/login-callback?code=***'), true)
     assert.equal(isLoginCallbackUrl('https://ami.example/#/login-callback'), true)
     assert.equal(isLoginCallbackUrl('https://ami.example/#/welcome/zones'), false)
-  })
-
-  it('décrit l\'échec : écrans attendus, durée, URL', () => {
-    const msg = describeFirstScreenTimeout(['accueil', 'passkey'], 'https://ami.example/login-callback', 25400)
-    assert.match(msg, /accueil, passkey/)
-    assert.match(msg, /25s/)
-    assert.match(msg, /login-callback/)
   })
 
   it('distingue une page serveur du backend de la SPA et des autres origines', () => {

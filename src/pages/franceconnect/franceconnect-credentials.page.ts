@@ -30,7 +30,7 @@ class FranceConnectCredentialsPage {
         })
         // La validation redirige vers l'app (autre document, plusieurs changements de target) : on constate la disparition du formulaire
         // avant toute commande suivante. Sans effet si le formulaire n'a pas été rempli (session FC ouverte : rien à attendre).
-        await waitForNativeAx(iosCredentialsFieldsNativeAx, 'gone', 'Formulaire d\'identifiants')
+        await waitForNativeAx(iosCredentialsFieldsNativeAx, 'gone')
     }
 }
 

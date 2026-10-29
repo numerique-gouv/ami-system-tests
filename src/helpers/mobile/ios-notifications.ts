@@ -1,38 +1,20 @@
 import {execFileSync} from 'node:child_process'
 import {join} from 'node:path'
 import {homedir} from 'node:os'
-import logger from '@wdio/logger'
 import {iosSystemNotificationsLocators} from '../../pages/locators/system-notifications.locators'
 
-/**
- * Notifications SYSTÈME iOS : constat des réglages (via `xcrun simctl` sur simulateur) et bannières de SpringBoard.
- * iOS seulement : à n'appeler que si `driver.isIOS`.
- *
- * Le push est émis par le BACKEND (FCM → APNs), comme sur Android : un simulateur iOS 26 / Xcode 26 reçoit de vrais push APNs (sandbox).
- *
- * Constaté le 2026-10-26 (iOS 26.5, Xcode 26) :
- *  - `simctl privacy` ne gère PAS les notifications (services : all, calendar, contacts, location, photos, microphone, motion, reminders,
- *    siri…) : on ne peut ni lire ni forcer la permission de notifications avec lui ;
- *  - la décision de l'utilisateur est lue dans `<simulateur>/data/Library/BulletinBoard/VersionedSectionInfo.plist` (NSKeyedArchiver,
- *    section `<bundleId>`, clé `authorizationStatus` = UNAuthorizationStatus : 0 non décidée, 1 refusée, 2 autorisée, 3 provisoire) ;
- *    la section n'existe pas tant que l'app n'a rien demandé ;
- *  - le journal `log show` du simulateur donne aussi l'état vu par l'app (« Authorization status: 2 (authorized) »).
- */
-
-const log = logger('helper')
+// Notifications système iOS : réglages lus sur le simulateur (xcrun simctl, base BulletinBoard) et bannières de SpringBoard.
 
 export type IosNotificationAuthorization = 'absente' | 'notDetermined' | 'denied' | 'authorized' | 'provisional' | 'ephemeral' | 'inconnue'
 
 const STATUS_NAMES: IosNotificationAuthorization[] = ['notDetermined', 'denied', 'authorized', 'provisional', 'ephemeral']
 
-/** Capacité de la session, avec ou sans le préfixe `appium:` (selon ce que le serveur renvoie). */
 function capability(name: string): string {
   const caps = driver.capabilities as Record<string, unknown>
   return (caps[`appium:${name}`] ?? caps[name]) as string
 }
 
-/** UDID du simulateur de la session (capabilities Appium), ou `booted`. */
-export function simulatorUdid(): string {
+function simulatorUdid(): string {
   return capability('udid') || 'booted'
 }
 
@@ -40,7 +22,7 @@ export function appBundleId(): string {
   return capability('bundleId')
 }
 
-/** Lit `authorizationStatus` de l'app dans la base BulletinBoard du simulateur (voir l'en-tête du fichier). */
+/** Lit `authorizationStatus` de l'app dans la base BulletinBoard du simulateur. */
 export function readNotificationAuthorization(bundleId = appBundleId(), udid = simulatorUdid()): IosNotificationAuthorization {
   const resolved = udid === 'booted'
     ? execFileSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'], {encoding: 'utf8'}).match(/"udid"\s*:\s*"([0-9A-F-]+)"/)?.[1] ?? ''
@@ -63,49 +45,44 @@ else:
   return STATUS_NAMES[Number(out)] ?? 'inconnue'
 }
 
-/** Attend (la base est écrite après la réponse à l'alerte) que l'autorisation atteigne `expected`. */
+/** La base est écrite après la réponse à l'alerte : attend que l'autorisation atteigne `expected`. */
 export async function waitForNotificationAuthorization(expected: IosNotificationAuthorization, timeout = 10000): Promise<IosNotificationAuthorization> {
   let last = 'inconnue'
   const reached = await browser.waitUntil(async () => {
-    try { last = readNotificationAuthorization() } catch (err) { last = `illisible (${err instanceof Error ? err.message.split('\n')[0] : String(err)})` }
+    try { last = readNotificationAuthorization() } catch { last = 'illisible' }
     return last === expected
   }, {timeout, interval: 500}).catch(() => false)
-  if (!reached) throw new Error(`Autorisation des notifications iOS : « ${expected} » attendue, constatée dans le simulateur : « ${last} » (simulateur ${simulatorUdid()}, app ${appBundleId()})`)
+  if (!reached) throw new Error(`Autorisation des notifications iOS : « ${expected} » attendue, « ${last} » constatée`)
   return expected
 }
 
-/** Appareil de la session : simulateur (présent dans `simctl list`) ou appareil physique ? Sans UDID de capacité, on suppose un simulateur (`booted`). */
-export function isSimulator(): boolean {
+/** Simulateur (présent dans `simctl list`) ou appareil physique ; sans UDID, un simulateur. */
+function isSimulator(): boolean {
   const udid = simulatorUdid()
   if (udid === 'booted') return true
   return execFileSync('xcrun', ['simctl', 'list', 'devices', '-j'], {encoding: 'utf8'}).includes(`"${udid}"`)
 }
 
-/** Amène SpringBoard au premier plan (l'app passe en arrière-plan) : c'est lui qui affiche les bannières. */
+/** SpringBoard affiche les bannières : l'app passe en arrière-plan. */
 export async function showSpringBoard(): Promise<void> {
   await driver.execute('mobile: activateApp', {bundleId: 'com.apple.springboard'})
 }
 
-/** Attend la bannière de la notification `title` dans SpringBoard (SpringBoard déjà au premier plan) ; retourne le délai d'attente en ms. */
+/** Attend la bannière `title` (SpringBoard au premier plan) ; retourne le délai d'attente en ms. */
 export async function waitForBanner(title: string, timeout = 15000): Promise<number> {
   const start = Date.now()
-  await $(iosSystemNotificationsLocators.banner(title)).waitForExist({timeout, timeoutMsg: `Bannière de la notification « ${title} » absente de SpringBoard après ${timeout}ms`})
+  await $(iosSystemNotificationsLocators.banner(title)).waitForExist({timeout})
   return Date.now() - start
 }
 
-/** true si la bannière de `title` apparaît dans SpringBoard pendant `durationMs` (sondage ; SpringBoard déjà au premier plan). */
+/** La bannière `title` apparaît-elle pendant `durationMs` (SpringBoard au premier plan) ? */
 export async function bannerAppearsWithin(title: string, durationMs: number): Promise<boolean> {
   return await $(iosSystemNotificationsLocators.banner(title)).waitForExist({timeout: durationMs}).then(() => true, () => false)
 }
 
-/**
- * Clique la bannière `title` et attend que l'app repasse au premier plan (le tap relance l'app et déclenche `didReceive` : app_url).
- * La bannière s'anime puis disparaît : l'élément trouvé peut devenir périmé entre la recherche et le tap (constaté). On le
- * retrouve à chaque tentative ; si l'app est déjà revenue au premier plan, le tap a eu lieu.
- */
+/** Clique la bannière `title` et attend que l'app repasse au premier plan. */
 export async function tapBanner(title: string): Promise<void> {
   const bannerSelector = iosSystemNotificationsLocators.banner(title)
-  log.info(`Bannière affichée pour « ${title} », tap`)
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       await $(bannerSelector).click()
@@ -113,36 +90,28 @@ export async function tapBanner(title: string): Promise<void> {
     } catch (err) {
       if (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()}) === 4) break
       if (attempt === 3) throw err
-      log.warn(`ANOMALIE : tap sur la bannière impossible (${attempt}/3) : ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`)
     }
   }
   await driver.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})) === 4, {
-    timeout: 15000, timeoutMsg: 'L\'app n\'est pas repassée au premier plan après le tap sur la bannière',
+    timeout: 15000, timeoutMsg: 'App pas repassée au premier plan après le tap sur la bannière',
   })
 }
 
 const SETTINGS_APP = 'com.apple.Preferences'
 
-/**
- * Bascule un interrupteur iOS désigné par sa LIGNE libellée : le tap au centre de la ligne tombe sur le texte (sans effet), le vrai contrôle étant
- * à son bord droit (constaté le 2026-10-27 ; le contrôle sans libellé, lui, se retrouvait de façon instable). Tap par coordonnées sur ce bord.
- */
+/** Tape le bord droit de la ligne libellée : le centre tombe sur le texte, sans effet. */
 async function tapSwitchRow(selector: string): Promise<void> {
   const {x, y} = await $(selector).getLocation()
   const {width, height} = await $(selector).getSize()
   await driver.execute('mobile: tap', {x: Math.round(x + width - 30), y: Math.round(y + height / 2)})
 }
 
-/**
- * App Réglages, depuis n'importe quel écran où elle a été laissée : atteint la page Apps > AMI staging > Notifications (Réglages garde
- * sa dernière position : l'ouverture depuis l'app tombe tantôt à la racine, tantôt sur la page de l'app).
- */
+/** Atteint Apps > AMI staging > Notifications dans Réglages, qui garde sa dernière position. */
 async function navigateToAppNotificationsSettings(): Promise<void> {
   try {
     await navigateToAppNotificationsSettingsOnce()
-  } catch (err) {
-    // Réglages parfois coincé (écran inattendu, constaté 1 run sur 30) : on le relance à neuf et on retente une fois.
-    log.warn(`ANOMALIE : navigation dans Réglages échouée (${err instanceof Error ? err.message : String(err)}) ; Réglages relancé`)
+  } catch {
+    // Réglages parfois coincé sur un écran inattendu : relancé à neuf, une seule nouvelle tentative.
     await driver.execute('mobile: terminateApp', {bundleId: SETTINGS_APP})
     await driver.execute('mobile: activateApp', {bundleId: SETTINGS_APP})
     await navigateToAppNotificationsSettingsOnce()
@@ -160,83 +129,58 @@ async function navigateToAppNotificationsSettingsOnce(): Promise<void> {
       if (found.length > 0) { await found[0].click(); clicked = true; break }
     }
     if (!clicked) await driver.execute('mobile: scroll', {predicateString: loc.osAppsRowQuery, direction: 'down'}).catch(() => undefined)
-    // eslint-disable-next-line wdio/no-pause -- laisser l'animation de navigation de Réglages se terminer avant de relire l'écran
+    // eslint-disable-next-line wdio/no-pause -- animation de navigation de Réglages
     await browser.pause(1000)
   }
   if (!await done()) throw new Error('Réglages iOS : page Notifications de l\'app introuvable (Apps > AMI staging > Notifications)')
 }
 
-/** Dans l'app Réglages (page de l'app atteinte), met « Autoriser les notifications » à `on`. */
 async function setOsAllowNotifications(on: boolean): Promise<void> {
   await navigateToAppNotificationsSettings()
-  // L'élément est RELU à chaque fois : la page Réglages se redessine après le tap (référence périmée : « Element does not exist in cache »).
+  // Élément relu à chaque fois : la page Réglages se redessine après le tap.
   const value = async (): Promise<string> => String(await $(iosSystemNotificationsLocators.osSettingsSwitch).getAttribute('value'))
   await $(iosSystemNotificationsLocators.osSettingsSwitch).waitForExist({timeout: 10000, timeoutMsg: 'Interrupteur « Autoriser les notifications » absent de Réglages'})
   if (await value() === (on ? '1' : '0')) return
-  // La page de Réglages se redessine encore juste après son affichage : le premier tap peut viser un élément disparu (« Malformed type for
-  // elementId », constaté). On retente le tap, élément relu, jusqu'à ce que la valeur change.
+  // Le premier tap peut viser un élément disparu pendant le redessin : on retente jusqu'à ce que la valeur change.
   await browser.waitUntil(async () => {
     if (await value().catch(() => '') === (on ? '1' : '0')) return true
     await tapSwitchRow(iosSystemNotificationsLocators.osSettingsSwitch).catch(() => undefined)
-    // eslint-disable-next-line wdio/no-pause -- laisser le temps à l'interrupteur de basculer avant de relire sa valeur
+    // eslint-disable-next-line wdio/no-pause -- temps de bascule de l'interrupteur
     await browser.pause(800)
     return await value().catch(() => '') === (on ? '1' : '0')
   }, {timeout: 15000, interval: 300, timeoutMsg: `Interrupteur « Autoriser les notifications » de Réglages pas à ${on ? '1' : '0'}`})
 }
 
 /**
- * Accepte (`on`) ou refuse les notifications DEPUIS l'écran natif « Paramètres » d'AMI (déjà ouvert), puis constate la prise en compte
- * (simulateur : autorisation lue dans BulletinBoard). Constaté en live le 2026-10-27 (SettingsView.swift, NotificationStatus.swift) :
- *   - l'interrupteur de l'app ne lit l'autorisation système QU'AU PASSAGE EN PREMIER PLAN (scenePhase .active) : à l'ouverture de la feuille il
- *     reste à 0 même si l'autorisation est `authorized` (anomalie de l'app : constatée, cause lue dans le code). On force donc un aller-retour
- *     SpringBoard -> app avant de lire son état ;
- *   - accepter : autorisation non décidée -> alerte système « Autoriser » ; déjà autorisée -> aucun effet ; REFUSÉE -> l'app ouvre l'app Réglages (l'alerte
- *     ne se représente plus) où l'on active « Autoriser les notifications » ;
- *   - refuser : taper l'interrupteur actif ouvre l'app Réglages (l'app ne peut pas révoquer elle-même) ; on y coupe « Autoriser les notifications »
- *     (autorisation `denied`). Retour à l'app par activateApp : l'interrupteur se met à jour.
- * Sur un APPAREIL PHYSIQUE : NON EXERCÉ ici (aucun appareil) ; la lecture de BulletinBoard n'existe pas, seul l'interrupteur de l'app est contrôlé.
+ * Accepte (`on`) ou refuse les notifications depuis l'écran natif « Paramètres » d'AMI (déjà ouvert), puis constate la prise en compte
+ * (sur simulateur, l'autorisation lue dans BulletinBoard). Accepter une autorisation non décidée ouvre l'alerte système, refusée ouvre Réglages ;
+ * refuser ouvre Réglages (l'app ne peut pas révoquer elle-même). Appareil physique : non exercé.
  */
 export async function setNotificationsFromAppSettings(on: boolean): Promise<'inchangé' | 'modifié'> {
   const loc = iosSystemNotificationsLocators
   const switchOn = async (): Promise<boolean> => (await $(loc.amiSettingsSwitch).getAttribute('value').catch(() => '')) === '1'
-  // Réactualiser l'interrupteur (lu au passage en premier plan seulement).
+  // L'interrupteur n'est relu qu'au passage en premier plan.
   await showSpringBoard()
   await driver.execute('mobile: activateApp', {bundleId: appBundleId()})
-  await browser.waitUntil(async () => (await $$(loc.amiSettingsTitle)).length > 0, {timeout: 10000, timeoutMsg: 'Écran « Paramètres » d\'AMI absent après le retour au premier plan'})
+  await browser.waitUntil(async () => (await $$(loc.amiSettingsTitle)).length > 0, {timeout: 10000, timeoutMsg: 'Écran « Paramètres » d\'AMI absent'})
   const simulator = isSimulator()
   if (simulator) {
     const state = readNotificationAuthorization()
     await browser.waitUntil(async () => await switchOn() === (state === 'authorized'), {timeout: 8000, interval: 500,
-      timeoutMsg: `Interrupteur d'AMI incohérent avec l'autorisation système « ${state} » après le retour au premier plan`})
+      timeoutMsg: `Interrupteur d'AMI incohérent avec l'autorisation système « ${state} »`})
   }
   if (await switchOn() === on) return 'inchangé'
   await $(loc.amiSettingsSwitch).waitForExist({timeout: 10000})
   await tapSwitchRow(loc.amiSettingsSwitch)
   if (simulator && readNotificationAuthorization() === 'notDetermined') {
-    // Permission non décidée : alerte système (« Autoriser » / « Ne pas autoriser »).
     await browser.waitUntil(async () => { try { await driver.getAlertText(); return true } catch { return false } }, {timeout: 10000, interval: 300, timeoutMsg: 'Alerte système de notifications absente'})
     if (on) await driver.acceptAlert(); else await driver.dismissAlert()
   } else if (!(on && simulator && readNotificationAuthorization() === 'authorized')) {
-    await browser.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: SETTINGS_APP})) === 4, {timeout: 10000, interval: 500, timeoutMsg: 'L\'app Réglages n\'est pas ouverte après le tap sur l\'interrupteur'})
+    await browser.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: SETTINGS_APP})) === 4, {timeout: 10000, interval: 500, timeoutMsg: 'Réglages pas ouvert après le tap sur l\'interrupteur'})
     await setOsAllowNotifications(on)
     if (simulator) await waitForNotificationAuthorization(on ? 'authorized' : 'denied')
     await driver.execute('mobile: activateApp', {bundleId: appBundleId()})
   }
-  await browser.waitUntil(async () => await switchOn() === on, {timeout: 10000, interval: 500, timeoutMsg: `Interrupteur d'AMI pas à « ${on ? 'actif' : 'éteint'} » après le changement`})
+  await browser.waitUntil(async () => await switchOn() === on, {timeout: 10000, interval: 500, timeoutMsg: `Interrupteur d'AMI pas à « ${on ? 'actif' : 'éteint'} »`})
   return 'modifié'
-}
-
-/** Attend qu'une WebView de l'app affiche la route `/#/notifications` (le tap la charge dans une WebView supplémentaire) ; retourne son contexte. */
-export async function waitForNotificationsRoute(timeout = 20000): Promise<string> {
-  let found = ''
-  await browser.waitUntil(async () => {
-    for (const context of (await driver.getContexts()).map(String).filter(c => c.startsWith('WEBVIEW'))) {
-      await driver.switchContext(context)
-      if ((await browser.getUrl()).endsWith('/#/notifications')) { found = context; return true }
-    }
-    return false
-  }, {timeout, interval: 1000, timeoutMsg: 'Aucune WebView n\'affiche /#/notifications après le tap sur la bannière'})
-  // Rendre la main en contexte NATIF : sinon `inWebContext` (déjà en WebView) ne choisirait plus la WebView et resterait sur celle-ci, cachée.
-  await driver.switchContext('NATIVE_APP')
-  return found
 }

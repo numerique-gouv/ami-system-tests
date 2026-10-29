@@ -3,19 +3,13 @@ import logger from '@wdio/logger'
 
 const log = logger('config')
 
-/**
- * Cycle de vie de l'app sur l'appareil, hors Appium : état propre au début d'une série de specs, fermeture à la fin.
- * Entre deux specs, l'app reste ouverte et connectée (`noReset: true`, cf. capabilities.ts) ; ces fonctions ne sont appelées
- * qu'une fois par run, depuis `onPrepare` / `onComplete` des configs. Elles ne touchent ni à l'émulateur ni au simulateur
- * (jamais éteints, jamais supprimés) et n'échouent jamais : un appareil absent est signalé, pas fatal.
- */
+// Appelées une fois par run (`onPrepare` / `onComplete` des configs), jamais fatales : un appareil absent est signalé.
 
 function adb(): string {
   const sdk = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT
   return sdk ? `${sdk}/platform-tools/adb` : `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`
 }
 
-/** `adb [-s <série>] …` : l'appareil visé par `ANDROID_UDID`, sinon le seul appareil connecté. */
 function runAdb(args: string[]): void {
   const serial = process.env.ANDROID_UDID
   execFileSync(adb(), [...(serial ? ['-s', serial] : []), ...args], {stdio: 'ignore'})
@@ -36,10 +30,7 @@ export function androidForceStop(packages: string[]): void {
   }
 }
 
-/**
- * Début de série : désinstalle l'app. Avec `noReset: true`, le driver la réinstalle (permissions accordées) à la première session,
- * puis la réutilise : chaque série repart d'un état propre, sans réinstallation entre deux specs.
- */
+/** Début de série : avec `noReset: true`, le driver réinstalle l'app à la première session, ce qui repart d'un état propre. */
 export function androidUninstallApp(pkg: string): void {
   try {
     runAdb(['uninstall', pkg])
@@ -55,11 +46,7 @@ export function iosBootedUdid(): string | undefined {
     .match(/[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}/i)?.[0]
 }
 
-/**
- * Début de série : désinstalle l'app (son conteneur de données part avec elle). Avec `noReset: true`, le driver n'installe l'app que
- * si elle est absente : sans cette désinstallation, une app déjà présente — éventuellement d'un ancien build — serait réutilisée.
- * La première session réinstalle donc le build courant, puis les suivantes le réutilisent.
- */
+/** Début de série : avec `noReset: true`, le driver n'installe l'app que si elle est absente, donc sans cela un ancien build serait réutilisé. */
 export function iosUninstallApp(bundleId: string): void {
   try {
     const udid = iosBootedUdid()

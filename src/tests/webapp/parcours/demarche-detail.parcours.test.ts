@@ -85,12 +85,11 @@ describe('Non-régression — détail d’une démarche', function () {
     const target = await ServicesPage.openCatalogueCardNamed('Déclaration de changement d')
     // Cible non différée (`deferExternal`) : son adresse porte un jeton à usage unique, que seul le navigateur peut suivre ; l'attente du
     // délai de connexion de Chrome (~75-90 s) quand l'hôte qualif est injoignable ne peut donc pas être évitée par un contrôle HTTP.
-    const reachability = {unreachableOk: 'réseau privé'} as const
     if (isBrokenTarget(target)) {
       const line = `Connexion silencieuse : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`
       // Seul un hôte listé (`PRIVATE_NETWORK_HOSTS`) SANS réponse est toléré ; une page d'erreur d'AMI ou un autre hôte reste un échec.
-      if (!isExpectedUnreachable(target, reachability)) throw new AssertionError({message: line})
-      log.warn(toleratedUnreachableWarning(line, reachability))
+      if (!isExpectedUnreachable(target)) throw new AssertionError({message: line})
+      log.warn(toleratedUnreachableWarning(line))
       await ServicesPage.returnFromExternal()
       return
     }

@@ -1,17 +1,8 @@
 import fs from 'fs'
 import path from 'path'
-import logger from '@wdio/logger'
 import {maskSensitiveUrl} from '../common/session'
 
-const log = logger('config')
-
-/**
- * Masquage des traces du service DevTools (`@wdio/devtools-service`, mode trace) avant leur publication en artefact : le
- * service n'a aucune option pour filtrer le réseau et enregistre tels quels les en-têtes `cookie` / `set-cookie` (donc le
- * cookie `access_key` de la webapp de staging et les cookies de session) et les paramètres des URL (`code`, `state`…).
- * Le contenu des réponses n'est pas enregistré (taille et type seulement), les corps des requêtes non plus.
- * Appelé en fin de run (`onComplete`), une fois les traces écrites par les workers.
- */
+/** Masque les cookies, en-têtes et paramètres sensibles des traces DevTools avant leur publication en artefact (appelé en fin de run). */
 const MASK = '[masqué]'
 const SENSITIVE_HEADERS = new Set(['cookie', 'set-cookie', 'authorization', 'proxy-authorization', 'x-api-key'])
 const SENSITIVE_PARAMS = /^(id_token|id_token_hint|token|access_token|code|state|nonce|access_key)$/i
@@ -40,8 +31,8 @@ function maskMessage(message: {url?: string, redirectURL?: string, headers?: Nam
   maskPairs(message.queryString, name => SENSITIVE_PARAMS.test(name))
 }
 
-/** Masque une ligne de `trace.network` (une entrée HAR par ligne) ; renvoie la ligne telle quelle si elle n'est pas du JSON. */
-export function redactNetworkLine(line: string): string {
+/** Masque une ligne de `trace.network` (une entrée HAR par ligne) ; une ligne qui n'est pas du JSON reste telle quelle. */
+function redactNetworkLine(line: string): string {
   try {
     const entry = JSON.parse(line) as {snapshot?: {request?: object, response?: object}}
     if (entry.snapshot?.request) maskMessage(entry.snapshot.request)
@@ -66,7 +57,6 @@ export function redactTraces(root = path.resolve(process.cwd(), 'test-results'))
   const secrets = SECRET_ENV_VARS.map(name => process.env[name]).filter((value): value is string => !!value)
   let redacted = 0
   for (const file of walk(root)) {
-    // Dossier de trace : `trace-<spec>-…` (une trace par spec) ou `<spec>_test-…/trace` (une trace par test).
     const inTrace = path.relative(root, file).split(path.sep).slice(0, -1).some(dir => dir === 'trace' || dir.startsWith('trace-'))
     if (!inTrace) continue
     const base = path.basename(file)
@@ -79,6 +69,5 @@ export function redactTraces(root = path.resolve(process.cwd(), 'test-results'))
       redacted++
     }
   }
-  if (redacted > 0) log.info(`trace-redact : ${redacted} fichier(s) de trace masqué(s)`)
   return redacted
 }
