@@ -21,8 +21,8 @@ Les scénarios couvrent les parcours utilisateurs complets : authentification Fr
 
 Les recettes `just` ne démarrent ni n'arrêtent aucun appareil, et n'ont aucune option `--device` : l'appareil visé se choisit par variables d'environnement (gabarit `.env`, surcharge ponctuelle `ANDROID_UDID=… just test-android …`).
 
-- **iOS** : simulateur **iPhone 17 Pro**. `IOS_UDID` (colonne entre parenthèses de `xcrun simctl list devices`) le désigne ; XCUITest le démarre lui-même s'il est arrêté (mesuré le 2026-10-27 : démarrage en 6 à 10 s, session prête en 20 à 25 s, il reste démarré après le run). `IOS_DEVICE_NAME` (nom) ne suffit pas quand plusieurs runtimes portent le même nom : sans UDID, Appium peut créer un simulateur temporaire. `appium:shutdownOtherSimulators` n'est PAS activé (les autres simulateurs ne sont jamais arrêtés).
-- **Android** : AVD de type Pixel, API 36. Soit l'émulateur tourne déjà (Android Studio ; `adb devices`) : `ANDROID_UDID` (numéro de série adb, ex. `emulator-5560`) ou `ANDROID_DEVICE_NAME` le désigne s'il y en a plusieurs ; soit `ANDROID_AVD=<nom d'AVD>` (`emulator -list-avds`) fait lancer l'AVD par Appium (mesuré le 2026-10-27 : session prête ~40 s après la demande) — l'émulateur s'arrête alors avec le run (il est enfant d'Appium) et l'app est désinstallée en fin de série. **Déconseillé pour des runs répétés** : chaque run repart d'un démarrage à froid, et `mobile_short` y a échoué dans la majorité des essais du 2026-10-27 (« Home non atteinte »), y compris avec un émulateur lancé à la main et testé aussitôt après son démarrage ; sur un émulateur déjà démarré depuis quelques minutes (Android Studio), il passe. `ANDROID_AVD_ARGS` ajoute des options à `emulator` (ex. `-port 5560 -no-snapshot-save`).
+- **iOS** : simulateur **iPhone 17 Pro**. `IOS_UDID` (colonne entre parenthèses de `xcrun simctl list devices`) le désigne, et c'est la seule variable d'appareil iOS : la documentation du driver XCUITest demande soit `udid`, soit `deviceName` + `platformVersion`, et `udid` pour des tests en parallèle ; sans UDID, Appium peut créer un simulateur temporaire. XCUITest le démarre lui-même s'il est arrêté (mesuré le 2026-10-27 : démarrage en 6 à 10 s, session prête en 20 à 25 s, il reste démarré après le run). `appium:shutdownOtherSimulators` n'est PAS activé (les autres simulateurs ne sont jamais arrêtés).
+- **Android** : AVD de type Pixel, API 36, **démarré avant le run** (Android Studio, ou `emulator -avd <nom d'AVD> -port 5560` : son numéro de série est alors `emulator-5560`). `ANDROID_UDID` (numéro de série adb, `adb devices`) le désigne ; c'est la seule variable d'appareil Android (le driver UiAutomator2 n'utilise pas `deviceName` pour choisir l'appareil, et demande `udid` pour des tests en parallèle). Sans `ANDROID_UDID`, le premier appareil connecté. Le démarrage de l'AVD par Appium (`appium:avd`) n'est plus utilisé : chaque run repartait d'un démarrage à froid, et `mobile_short` y a échoué dans la majorité des essais du 2026-10-27 (« Home non atteinte ») ; sur un émulateur déjà démarré depuis quelques minutes, il passe.
 - Arrêter un appareil : `adb -s <série> emu kill`, `xcrun simctl shutdown <udid>` (ou les IDE).
 
 ### Apps mobiles à tester (variables `ANDROID_APP_PATH` et `IOS_APP_PATH`)
@@ -36,7 +36,7 @@ Les tests mobiles ne construisent rien : ils installent l'app que désignent deu
 
 Un chemin relatif se lit depuis la racine de ce projet ; `~/` désigne le dossier personnel ; aucun motif (`*`) n'est développé. `AMI_ENV` doit correspondre à l'app visée : il détermine l'identifiant de l'app (package `fr.gouv.ami.staging` ou `fr.gouv.ami.preprod`, bundle `fr.gouv.ami.staging` ou `fr.gouv.ami.preproduction`). Les valeurs d'exemple sont dans le gabarit `.env`.
 
-Ports (facultatifs, utiles pour un second appareil en parallèle) : `ANDROID_APPIUM_PORT` (4723), `IOS_APPIUM_PORT` (4724), `ANDROID_SYSTEM_PORT` (8200), `ANDROID_CHROMEDRIVER_PORT` (9515), `IOS_WDA_PORT` (8100). L'appareil visé précisément : `ANDROID_UDID`, `ANDROID_DEVICE_NAME`, `IOS_UDID`, `IOS_DEVICE_NAME`.
+Ports (facultatifs, utiles pour un second appareil en parallèle) : `ANDROID_APPIUM_PORT` (4723), `IOS_APPIUM_PORT` (4724), `ANDROID_SYSTEM_PORT` (8200), `ANDROID_CHROMEDRIVER_PORT` (9515), `IOS_WDA_PORT` (8100). L'appareil visé précisément : `ANDROID_UDID`, `IOS_UDID`.
 
 ### Fichiers d'environnement (`.env`, `.env.<cible>`)
 
@@ -75,7 +75,7 @@ just test-webapp                                     # tests webapp, Chrome visi
 just test-webci                                      # tests webapp, headless (mode CI)
 just test-android --spec "src/tests/mobile/notifications*"   # un ou plusieurs fichiers (`--spec` répétable, glob entre guillemets)
 just test-android --suite mobile_all                 # suite nommée (`--suite` ; définies dans wdio.base.conf.ts : option native `suites`) — idem test-ios / test-webapp / test-webci
-ANDROID_UDID=emulator-5560 just test-android --suite mobile_short   # appareil précis par variable d'environnement (ANDROID_UDID/ANDROID_AVD, IOS_UDID : voir Prérequis) ; tout le reste va à wdio
+ANDROID_UDID=emulator-5560 just test-android --suite mobile_short   # appareil précis par variable d'environnement (ANDROID_UDID, IOS_UDID : voir Prérequis) ; tout le reste va à wdio
 just test-webvideo --spec src/tests/webapp/agenda.parcours.test.ts   # webapp headless avec vidéo DevTools (au moins un --spec)
 npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # appel natif d'une suite, sans just
 just check-code                                       # lint + typecheck avant commit

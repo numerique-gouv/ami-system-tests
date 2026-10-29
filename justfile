@@ -4,7 +4,7 @@
 # Convention des arguments (pas de complétion shell sur mesure : `just <Tab>` complète les NOMS de recettes, avec leur commentaire) :
 # - la cible (webapp | android | ios) est dans le NOM de la recette (test-android, explore-ios, debug-webapp…) ;
 # - les recettes de test sont fines : tout (--suite, --spec…) est transmis à wdio tel quel ; l'appareil visé se choisit par variables d'environnement
-#   (ANDROID_UDID, ANDROID_AVD, IOS_UDID… : gabarit .env, README « Prérequis »), jamais par une option ;
+#   (ANDROID_UDID, IOS_UDID : gabarit .env, README « Prérequis »), jamais par une option ;
 # - un argument obligatoire ou deux : positionnels ; un drapeau booléen est toujours nommé (`--page-objects`).
 # `just --list` et la complétion n'affichent qu'UNE ligne par recette : l'attribut `[doc("Rôle · arguments")]` quand
 # la recette a des options, sinon la DERNIÈRE ligne de commentaire. Les exemples restent en commentaires
@@ -34,9 +34,9 @@ check-code:
 # (gabarit .env.example). Le fichier d'environnement est .env, ou `just -E .env.preprod test-… ` (cf. README).
 # Relances de specs : specFileRetries = 0 en local (mesures comprises), 1 en CI (CI=true) ; forcer par WDIO_SPEC_FILE_RETRIES=N ou --specFileRetries=N.
 
-# L'appareil n'est PAS démarré par la recette : soit il tourne déjà (Android Studio, `adb devices`), soit Appium lance l'AVD de ANDROID_AVD
-# (il s'arrête alors avec le run). ANDROID_UDID / ANDROID_DEVICE_NAME visent un appareil précis (second émulateur en parallèle).
-# Exemple : just test-android --suite mobile_short   |   ANDROID_AVD=Pixel_8_API_36 just test-android --spec "src/tests/mobile/notifications*"
+# L'appareil n'est PAS démarré par la recette : il tourne déjà (Android Studio, ou `emulator -avd <nom> -port 5560`, cf. `adb devices`).
+# ANDROID_UDID vise un appareil précis (second émulateur en parallèle).
+# Exemple : just test-android --suite mobile_short   |   ANDROID_UDID=emulator-5560 just test-android --spec "src/tests/mobile/notifications*"
 [doc("Tests E2E Android · [--suite NOM | --spec GLOB…] (tout va à wdio)")]
 [positional-arguments]
 test-android *args:

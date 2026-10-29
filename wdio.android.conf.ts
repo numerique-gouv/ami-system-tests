@@ -1,13 +1,11 @@
 import path from 'path'
 import type { Options } from '@wdio/types'
-import logger from '@wdio/logger'
 import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
 import { androidCapabilities } from './src/driver/capabilities'
 import { androidForceStop, androidUninstallApp } from './src/helpers/mobile/device-app'
 
 const ANDROID_APP_PACKAGE = androidCapabilities['appium:appPackage'] as string
 
-const log = logger('config')
 // Port Appium surchargeable (ANDROID_APPIUM_PORT) pour un second émulateur en parallèle ; défaut 4723.
 const APPIUM_PORT = Number(process.env.ANDROID_APPIUM_PORT ?? 4723)
 
@@ -64,11 +62,6 @@ export const config: Options.Testrunner = {
   // (qui échoueraient en cascade, 180 s chacun mesurés sur iOS) mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
   mochaOpts: {...baseConfig.mochaOpts, bail: true},
 
-  // Fin de série : l'app, restée ouverte entre les specs, est fermée (l'appareil reste allumé). Quand Appium a lui-même démarré l'AVD
-  // (ANDROID_AVD, absent d'adb lors d'onPrepare : la désinstallation ci-dessus n'a alors pas pu se faire), l'app est aussi désinstallée
-  // ici : l'AVD survit au run (ses données restent) et sans cela le run suivant partirait d'une app encore connectée (constaté le 2026-10-27).
-  onComplete: [baseConfig.onComplete as () => void, (): void => {
-    androidForceStop([ANDROID_APP_PACKAGE])
-    if (process.env.ANDROID_AVD) androidUninstallApp(ANDROID_APP_PACKAGE)
-  }],
+  // Fin de série : l'app, restée ouverte entre les specs, est fermée (l'appareil reste allumé).
+  onComplete: [baseConfig.onComplete as () => void, (): void => androidForceStop([ANDROID_APP_PACKAGE])],
 } as Options.Testrunner

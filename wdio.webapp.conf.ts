@@ -71,7 +71,7 @@ export const config: Options.Testrunner = {
         // suivante rouvre. Avec detach:true, Chrome resterait ouvert et verrouillerait ce profil (non vérifié en mode visible).
         detach: false,
         // La SPA est conçue pour un rendu WebView mobile — émulation d'un viewport de
-        // référence (dimensions Pixel 7, cf. src/driver/capabilities.ts:ANDROID_DEVICE_NAME)
+        // référence (dimensions Pixel 7, cf. la valeur `mobileEmulation` ci-dessous)
         // plutôt qu'un rendu desktop, pour rester cohérent avec les locators partagés.
         mobileEmulation: {
           deviceMetrics: { ...deviceMetrics, pixelRatio: 2.625 },

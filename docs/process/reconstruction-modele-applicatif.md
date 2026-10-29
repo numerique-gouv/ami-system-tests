@@ -17,7 +17,7 @@ Relancer ce process quand :
 ## Prérequis
 
 - `../../.env` rempli (`AMI_ENV`, `NOTIF_*`) — ne jamais lire ni afficher son contenu, y compris via un outil.
-- Émulateur/simulateur démarrés (Android Studio / Xcode), ou lancés par Appium (`ANDROID_AVD` / `IOS_UDID`, README « Prérequis »).
+- Émulateur/simulateur démarrés (Android Studio / `emulator -avd` / Xcode ; `ANDROID_UDID` / `IOS_UDID`, README « Prérequis »).
 - Build à jour : `ANDROID_APP_PATH` / `IOS_APP_PATH` (`../../.env`) désignent l'app à tester ; le build lui-même se fait dans les dépôts frères `ami-app-android` / `ami-app-ios` (Android Studio ou `./gradlew assembleStagingDebug` ; Xcode ; cf. README « Prérequis »).
 - Un compte de test FranceConnect sandbox disponible (`src/helpers/common/test-users.ts`).
 

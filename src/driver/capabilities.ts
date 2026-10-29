@@ -56,20 +56,11 @@ export const androidCapabilities = {
   platformName: 'Android',
   'appium:automationName': 'UiAutomator2',
   // platformVersion volontairement absent : Appium détecte la version depuis l'appareil connecté.
-  // Absent sans ANDROID_DEVICE_NAME : Appium prend alors le premier appareil connecté (émulateur ou physique).
-  ...(process.env.ANDROID_DEVICE_NAME ? {'appium:deviceName': process.env.ANDROID_DEVICE_NAME} : {}),
-  // Numéro de série adb de l'appareil visé (ANDROID_UDID) : sans lui, Appium prend le premier appareil
-  // connecté, qui peut être un téléphone branché à côté de l'émulateur demandé.
+  // Appareil visé : `appium:udid` seul (ANDROID_UDID = numéro de série adb, `adb devices`). Doc du driver UiAutomator2 : `deviceName` ne sert
+  // pas à choisir l'appareil, et `udid` est à toujours renseigner pour des tests en parallèle. Sans ANDROID_UDID : le premier appareil connecté.
+  // L'émulateur est démarré avant le run (Android Studio, ou `emulator -avd <nom> -port <port>` : son numéro de série est `emulator-<port>`) ;
+  // la capability native `appium:avd` (démarrage par Appium) n'est pas utilisée : démarrage à froid à chaque run, peu fiable (README).
   ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
-  // AVD à démarrer par Appium s'il n'est pas déjà lancé (ANDROID_AVD, nom de `emulator -list-avds`) : le driver le lance, attend la fin du
-  // démarrage (délais ci-dessous, généreux pour un démarrage à froid) et retrouve son numéro de série. Sans ANDROID_AVD, l'appareil doit
-  // être déjà connecté (adb). ANDROID_AVD_ARGS : options de `emulator` (ex. `-port 5560 -no-snapshot-save`), séparées par des espaces.
-  ...(process.env.ANDROID_AVD ? {
-    'appium:avd': process.env.ANDROID_AVD,
-    'appium:avdLaunchTimeout': 240000,
-    'appium:avdReadyTimeout': 240000,
-    ...(process.env.ANDROID_AVD_ARGS ? {'appium:avdArgs': process.env.ANDROID_AVD_ARGS} : {}),
-  } : {}),
   // Ports locaux surchargeables (ANDROID_SYSTEM_PORT : serveur UiAutomator2, défaut 8200 ; ANDROID_CHROMEDRIVER_PORT : défaut 9515)
   // pour un second émulateur en parallèle sans conflit avec celui par défaut.
   ...(process.env.ANDROID_SYSTEM_PORT ? {'appium:systemPort': Number(process.env.ANDROID_SYSTEM_PORT)} : {}),
@@ -106,8 +97,8 @@ withLazyAppPath(androidCapabilities, 'ANDROID_APP_PATH')
 export const iosCapabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
-  // Nom du simulateur (IOS_DEVICE_NAME). platformVersion absent : le simulateur est visé par son UDID (ci-dessous).
-  'appium:deviceName': process.env.IOS_DEVICE_NAME,
+  // Simulateur visé : `appium:udid` seul (IOS_UDID). Doc du driver XCUITest : « soit `udid`, soit `deviceName` + `platformVersion` », et `udid` est à
+  // toujours renseigner pour des tests en parallèle ; `deviceName` et `platformVersion` sont donc absents.
   // UDID du simulateur visé (IOS_UDID ; XCUITest le démarre s'il est arrêté) : sans lui ni platformVersion, XCUITest prend le runtime iOS le plus récent
   // et, s'il ne correspond pas à celui du simulateur nommé, crée un simulateur temporaire jetable (appiumTest-…) très lent à démarrer.
   ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),

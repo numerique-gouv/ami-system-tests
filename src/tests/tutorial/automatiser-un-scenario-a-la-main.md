@@ -275,7 +275,7 @@ Le scénario est identique côté API ; seuls l'accès à l'app et la connexion 
 
 | | Android | iOS |
 |---|---|---|
-| Démarrer l'appareil | Android Studio, ou Appium (`ANDROID_AVD`) | Xcode, ou XCUITest (`IOS_UDID`) |
+| Démarrer l'appareil | Android Studio, ou `emulator -avd <nom>` | Xcode, ou XCUITest (`IOS_UDID`) |
 | Session d'exploration | `just explore-android` | `just explore-ios` (simulateur : `IOS_UDID`) |
 | Test mis en pause | `npx wdio run wdio.android.conf.ts --spec <fichier> --debug=agent` | `npx wdio run wdio.ios.conf.ts --spec <fichier> --debug=agent` |
 | Serveur Appium | port 4723 | port 4724 |
