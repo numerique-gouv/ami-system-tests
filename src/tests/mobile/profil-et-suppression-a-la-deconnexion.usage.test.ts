@@ -39,11 +39,11 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
 
       step('Capturer les données initiales du profil')
       const identityBolds = await ProfilePage.getIdentityBolds()
-      const displayName = identityBolds[0] ?? ''
-      const preferredUsername = displayName.replace(/^.+?\s/, '').replace(/,$/, '').trim()
       original = {
         identityBolds,
-        preferredUsername,
+        // Valeur réelle du champ du formulaire (vide si le compte n'a pas de nom d'usage) : la déduire du nom affiché donnait un faux nom d'usage
+        // (« Bernard Pierre LIVRE » pour naissance_Italie), que l'after() écrivait ensuite sur le compte.
+        preferredUsername: await ProfilePage.getPreferredUsernameField(),
         email: await ProfilePage.getEmailBold(),
         addressBolds: await ProfilePage.getAddressBolds(),
       }
