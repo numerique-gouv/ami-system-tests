@@ -101,10 +101,10 @@ Le périmètre est en kebab-case français (`profil-et-suppression-a-la-deconnex
 | Catégorie | Ce que fait la spec | Exemples |
 |-----------|---------------------|----------|
 | `smoke` | prouve que l'essentiel fonctionne : authentification, accueil | `authentification.smoke.test.ts` |
-| `parcours` | parcourt des pages en lecture seule (liens sans 404, pages d'erreur), sans modifier le compte | `catalogue.parcours.test.ts` |
+| `parcours` | parcourt une zone de pages, souvent dynamique (son contenu varie selon la configuration de l'environnement), pour vérifier que chaque élément mène à une page valide (liens sans 404, pages d'erreur) ; lecture seule, sans modification durable du compte | `catalogue.parcours.test.ts` |
 | `usage` | un cas d'usage de bout en bout, qui agit (démarche publiée, profil modifié, consentement, déconnexion) | `demarches-cycle-de-vie.usage.test.ts` |
 
-`src/tests/webapp/parcours/` regroupe les specs qui parcourent des zones configurées par l'administrateur (catalogue, services, détail d'une démarche, listes d'étapes). Leur contenu varie selon l'environnement et elles suivent des liens externes dont une partie n'est joignable que depuis un réseau privé : les cibles injoignables les rendent lentes (plusieurs minutes). Elles sont hors `webapp_usage`.
+**Un parcours n'est pas un scénario.** Il parcourt une zone, éventuellement dynamique (catalogue, services, listes d'étapes, détail d'une démarche : leur contenu change d'un environnement à l'autre). Ses `it` sont des parcours indépendants de cette zone, pas les étapes d'un scénario qui conserve l'état (cf. §6). Une spec peut publier ses propres démarches horodatées par l'API pour avoir de quoi parcourir. Ceux de `src/tests/webapp/parcours/` suivent des liens externes dont une partie n'est joignable que depuis un réseau privé : ils sont très longs (plusieurs minutes, une cible injoignable attend le délai de connexion du navigateur). **Aucun `*.parcours` n'est dans `webapp_usage`** (PR, merge, tag) : seule `webapp_all`, lancée hors CI, les inclut. En session de travail, ne pas les lancer sans besoin.
 
 La catégorie du nom de fichier fait entrer une spec dans une suite. `wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `connexion-silencieuse.usage.test.ts`, `zones-onboarding.usage.test.ts`) les specs qui exigent un profil Chrome vierge : à garder en phase en cas de renommage.
 
@@ -257,6 +257,7 @@ Ce projet ne fait que des **tests système E2E de parcours utilisateur** (user j
 
 - **Cas courant : le scénario.** Les `it()` d'une spec dépendent les uns des autres, en commençant par un `before` qui amène l'app dans l'état de départ (`getAppToStartingState`). Le cycle de vie d'une démarche (publiée, en cours, terminée) en est l'exemple : une étape par statut. Documenter la dépendance en commentaire du `describe`, utiliser un identifiant unique horodaté, et ne pas supposer l'état de l'app laissé par l'étape précédente quand l'API suffit à l'établir.
 - **Exception : l'`it()` indépendant**, qui s'exécute seul et dans n'importe quel ordre. Il remet l'état qu'il modifie dans l'état initial (dans le test ou dans `afterEach`).
+- **Les specs `smoke` et `parcours` ne sont pas des scénarios** : ce sont des vérifications indépendantes d'une même zone, dont chaque `it` se suffit (cf. §1).
 - Mobile : `mochaOpts.bail` — au premier `it` en échec, les suivants ne sont pas lancés (ils dépendent du précédent) ; les hooks `after` s'exécutent.
 - `specFileRetries` rejoue le **fichier entier** dans une nouvelle session, jamais un `it()` isolé (cf. §7).
 
