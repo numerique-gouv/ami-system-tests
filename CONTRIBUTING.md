@@ -333,7 +333,7 @@ Secrets et variables à créer dans le dépôt appelant (jamais de valeur dans l
 
 ## 10. Mettre au point un scénario
 
-On met un scénario au point en l'exécutant pas à pas, dans une vraie session, avant de l'écrire. Le tutoriel `src/tests/tutorial/automatiser-un-scenario-a-la-main.md` (avec `tutorial.test.ts`) déroule un exemple complet, de la spécification au test rangé dans les 3 niveaux ; la boucle ci-dessous s'applique avec ou sans lui.
+On met un scénario au point en l'exécutant pas à pas, dans une vraie session, avant de l'écrire. Le tutoriel `src/tests/tutorial/automatiser-un-scenario-a-la-main.md` (avec `empty-test.tutorial.test.ts`) déroule un exemple complet, de la spécification au test rangé dans les 3 niveaux ; la boucle ci-dessous s'applique avec ou sans lui.
 
 Une session `wdio session` survit à la commande qui l'a ouverte (arrêt après 30 min d'inactivité) : on enchaîne de petites commandes, sans relancer l'app.
 

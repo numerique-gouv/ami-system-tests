@@ -3,7 +3,7 @@
  * automatiser-un-scenario-a-la-main.md, dans ce dossier). Ce fichier suffit pour repartir sans relire le tutoriel.
  *
  * DÉMARRER
- *   cp src/tests/tutorial/tutorial.test.ts src/tests/webapp/mon-scenario.test.ts
+ *   cp src/tests/tutorial/empty-test.tutorial.test.ts src/tests/webapp/mon-scenario.test.ts
  *     (tout dossier src/tests/<dossier>/ convient : les imports relatifs ont la même profondeur)
  *   Dans la copie : retirer `.skip` du describe et renommer le describe.
  *   just debug-webapp src/tests/webapp/mon-scenario.test.ts

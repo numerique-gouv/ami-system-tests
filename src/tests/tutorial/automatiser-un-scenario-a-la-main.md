@@ -48,7 +48,7 @@ Les étapes 3 à 5 se répètent **pour chaque page**, puis on passe à la suiva
 
 ## Étape 0 — Préparer
 
-`../../../.env` contient les secrets du partenaire (`NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET`) et `WEB_APP_ACCESS_KEYS` (code d'accès du staging). Pour les `curl`, chargez-les dans **votre** terminal sans les afficher : la procédure (`$API`, `$AUTH`, `$FC`) est dans l'en-tête de [`tutorial.test.ts`](tutorial.test.ts), qui porte toutes les commandes de ce tutoriel.
+`../../../.env` contient les secrets du partenaire (`NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET`) et `WEB_APP_ACCESS_KEYS` (code d'accès du staging). Pour les `curl`, chargez-les dans **votre** terminal sans les afficher : la procédure (`$API`, `$AUTH`, `$FC`) est dans l'en-tête de [`empty-test.tutorial.test.ts`](empty-test.tutorial.test.ts), qui porte toutes les commandes de ce tutoriel.
 
 ### Ce qui est déjà fait pour vous
 
@@ -69,7 +69,7 @@ Avant d'ouvrir un navigateur, remplacer chaque mot flou par une observation vér
 
 ## Étape 2 — Explorer l'API à la main
 
-Chaque appel renvoie un code HTTP. Les `curl` (lire, donner, retirer le consentement ; créer une notification, une démarche, une démarche enfant) sont dans les `it.skip` de [`tutorial.test.ts`](tutorial.test.ts), avec l'appel de helper équivalent.
+Chaque appel renvoie un code HTTP. Les `curl` (lire, donner, retirer le consentement ; créer une notification, une démarche, une démarche enfant) sont dans les `it.skip` de [`empty-test.tutorial.test.ts`](empty-test.tutorial.test.ts), avec l'appel de helper équivalent.
 
 Séquence jouée pour ce scénario : lire le consentement, le retirer, le relire, le donner, le relire, créer une démarche. Sorties observées : `200`, `200`, `404`, `200`, `200`, puis `201` pour la création.
 
@@ -81,7 +81,7 @@ Sans consentement, `GET consent` renvoie 404 et le helper `publishEvent` refuse 
 
 ### 3.1 Démarrer : un test connecté, mis en pause
 
-On ne part pas d'une session vierge : on part d'un test. Le squelette [`tutorial.test.ts`](tutorial.test.ts) exécute le `before` standard (cookie d'accès, connexion FranceConnect, onboarding), puis s'arrête sur `browser.debug()`, dans l'app déjà connectée. Pendant cet arrêt, une session `wdio session` nommée `debug-0-0` est ouverte sur le navigateur du test ; on la pilote depuis un second terminal, car le premier reste occupé par le test.
+On ne part pas d'une session vierge : on part d'un test. Le squelette [`empty-test.tutorial.test.ts`](empty-test.tutorial.test.ts) exécute le `before` standard (cookie d'accès, connexion FranceConnect, onboarding), puis s'arrête sur `browser.debug()`, dans l'app déjà connectée. Pendant cet arrêt, une session `wdio session` nommée `debug-0-0` est ouverte sur le navigateur du test ; on la pilote depuis un second terminal, car le premier reste occupé par le test.
 
 Le fichier est un `describe.skip`, hors des campagnes : on en fait une copie dont on retire `.skip`. Les commandes (copie, lancement, exploration) sont dans son en-tête et dans sa méthode « à compléter ».
 
@@ -109,7 +109,7 @@ Paused in <fichier> › <titre du it>. Inspect with `wdio session -s debug-0-0 s
 
 ### 3.2 Les commandes de la boucle
 
-Les commandes de base (`snapshot -i`, `find`, `click`, `fill`, `wait`) sont listées dans la méthode « à compléter » de [`tutorial.test.ts`](tutorial.test.ts). Précisions.
+Les commandes de base (`snapshot -i`, `find`, `click`, `fill`, `wait`) sont listées dans la méthode « à compléter » de [`empty-test.tutorial.test.ts`](empty-test.tutorial.test.ts). Précisions.
 
 **`snapshot`** affiche l'arbre d'accessibilité de la page : une ligne par élément, avec sa ref (`button "Suivi" [ref=e4]`). Ses options :
 
@@ -230,7 +230,7 @@ describe('Démarches — consentement', function () {
   const run = `TUTO-${Date.now()}`
   const d1 = `${run}-D1`, d2 = `${run}-D2`
 
-  before(async () => {                                         // `before` standard : cf. src/tests/tutorial/tutorial.test.ts
+  before(async () => {                                         // `before` standard : cf. src/tests/tutorial/empty-test.tutorial.test.ts
     await getAppToStartingState()
   })
   after(async () => { await grantDemarchesConsent(PARTNER_AMI, user.fcHash) })       // restaurer l'état
@@ -271,7 +271,7 @@ La cause n'est pas établie : on ne sait pas si le backend filtre à l'affichage
 
 ## Android et iOS : ce qui change, et ce qui manque sur iOS
 
-Le scénario est identique côté API ; seuls l'accès à l'app et la connexion changent (`getAppToStartingState`). Les tests mobiles sont dans `src/tests/mobile/`. Le squelette `tutorial.test.ts` est écrit pour la webapp : son usage sur mobile n'a pas été essayé (**non vérifié**).
+Le scénario est identique côté API ; seuls l'accès à l'app et la connexion changent (`getAppToStartingState`). Les tests mobiles sont dans `src/tests/mobile/`. Le squelette `empty-test.tutorial.test.ts` est écrit pour la webapp : son usage sur mobile n'a pas été essayé (**non vérifié**).
 
 | | Android | iOS |
 |---|---|---|
