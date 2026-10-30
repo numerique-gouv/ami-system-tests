@@ -1,3 +1,4 @@
+import {AssertionError} from 'node:assert'
 import {onboardingNotificationsLocators, type OnboardingNotifLocators} from './locators/onboarding-notifications.locators'
 import {nativeLocators} from '../helpers/common/pick-locators'
 import {platform} from '../platform'
@@ -120,7 +121,7 @@ class OnboardingNotificationsPage {
         const gone = await browser.waitUntil(async () => !await this.isWebVisible(500) && await this.isNativeOnboardingGone(), {
             timeout: 15000, interval: 300,
         }).catch(() => false)
-        if (!gone) throw new Error('Onboarding des notifications toujours affiché après la décision')
+        if (!gone) throw new AssertionError({message: 'Onboarding des notifications toujours affiché après la décision'})
     }
 
     /** Active la feuille native iOS si elle est affichée (elle peut recouvrir l'accueil) ; à appeler une fois l'accueil atteint. */
@@ -140,19 +141,19 @@ class OnboardingNotificationsPage {
             const activate = await this.firstNative(loc.activate as string, 5000)
             if (!activate) {
                 if (await this.isNativeOnboardingGone()) return
-                throw new Error('Bouton « Activer » introuvable sur l\'onboarding des notifications')
+                throw new AssertionError({message: 'Bouton « Activer » introuvable sur l\'onboarding des notifications'})
             }
             await activate.click()
             if (await this.acceptSystemAlert(6000)) {
                 const closed = await browser.waitUntil(() => this.isNativeOnboardingGone(), {timeout: 10000, interval: 300}).catch(() => false)
                 if (closed) return
-                throw new Error('Onboarding des notifications toujours affiché après « Activer » et l\'alerte système')
+                throw new AssertionError({message: 'Onboarding des notifications toujours affiché après « Activer » et l\'alerte système'})
             }
             if (await this.isNativeOnboardingGone()) return
             if (isPermissionUndecided()) continue
             return await this.dismissNative()
         }
-        throw new Error('Onboarding des notifications toujours affiché après « Activer » (aucune alerte système)')
+        throw new AssertionError({message: 'Onboarding des notifications toujours affiché après « Activer » (aucune alerte système)'})
     }
 
     private async isNativeOnboardingGone(): Promise<boolean> {
@@ -167,13 +168,13 @@ class OnboardingNotificationsPage {
             const dismissButton = await this.firstNative(loc.dismiss, 5000)
             if (!dismissButton) {
                 if (await this.isNativeOnboardingGone()) return
-                throw new Error('Bouton « Peut-être plus tard » introuvable')
+                throw new AssertionError({message: 'Bouton « Peut-être plus tard » introuvable'})
             }
             await dismissButton.click()
             const closed = await browser.waitUntil(() => this.isNativeOnboardingGone(), {timeout: 5000, interval: 300}).catch(() => false)
             if (closed) return
         }
-        throw new Error('Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »')
+        throw new AssertionError({message: 'Écran « Activez les notifications » toujours affiché après « Peut-être plus tard »'})
     }
 
     /** Premier élément natif de `selector` : sur iOS la feuille et la page de la SPA derrière exposent le même bouton, WDIO 10 refuse `$()` sur plusieurs. */

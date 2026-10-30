@@ -1,3 +1,4 @@
+import {AssertionError} from 'node:assert'
 import {servicesLocators} from './locators/services.locators'
 import {stepsListLocators} from './locators/steps-list.locators'
 import {traced} from '../helpers/reporting/traced'
@@ -61,14 +62,14 @@ class ServicesPage {
     /** Comme `openCatalogueCard`, pour la première carte dont le libellé commence par `labelStart`. */
     async openCatalogueCardNamed(labelStart: string): Promise<LinkTarget> {
         const index = (await this.catalogueLabels()).findIndex(label => label.startsWith(labelStart))
-        if (index < 0) throw new Error(`Aucune carte du catalogue ne commence par « ${labelStart} »`)
+        if (index < 0) throw new AssertionError({message: `Aucune carte du catalogue ne commence par « ${labelStart} »`})
         return await this.openCatalogueCard(index)
     }
 
     /** Comme `openCatalogueCard`, pour la première carte dont le libellé contient `fragment`. */
     async openCatalogueCardContaining(fragment: string): Promise<LinkTarget> {
         const index = (await this.catalogueLabels()).findIndex(label => label.includes(fragment))
-        if (index < 0) throw new Error(`Aucune carte du catalogue ne contient « ${fragment} »`)
+        if (index < 0) throw new AssertionError({message: `Aucune carte du catalogue ne contient « ${fragment} »`})
         return await this.openCatalogueCard(index)
     }
 
