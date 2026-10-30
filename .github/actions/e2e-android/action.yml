@@ -50,7 +50,7 @@ runs:
         echo "ANDROID_ARCH=x86_64"                         >> "$GITHUB_ENV"
         echo "ANDROID_PROFILE=pixel_${BASH_REMATCH[1]}"    >> "$GITHUB_ENV"
 
-    # L'APK doit atterrir là où ANDROID_APP_PATH le cherche (step « Tests E2E ») : ami-app-android/app/build/outputs/apk/staging/debug/,
+    # L'APK doit atterrir là où ANDROID_APP_PATH le cherche (étape « Lancer les tests E2E ») : ami-app-android/app/build/outputs/apk/staging/debug/,
     # relatif à $GITHUB_WORKSPACE et non à ami-system-tests/.
     - name: Récupérer l'APK buildé par le workflow appelant
       if: ${{ inputs.apk-run-id == '' }}
@@ -77,7 +77,7 @@ runs:
         java-version: "17"
 
     # Cache de platform-tools. Sa clé ne suit pas la version amont : pour forcer une mise à jour, changer le suffixe (v1 → v2).
-    - name: cache Android platform-tools
+    - name: Mettre en cache platform-tools
       id: cache-platform-tools
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
@@ -98,7 +98,7 @@ runs:
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
     # Accélération matérielle de l'émulateur : KVM doit être ouvert à tous les utilisateurs (https://github.com/ReactiveCircus/android-emulator-runner).
-    - name: Enable KVM
+    - name: Ouvrir KVM à tous les utilisateurs
       shell: bash
       run: |
         echo 'KERNEL=="kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -109,7 +109,7 @@ runs:
         sudo udevadm trigger --name-match=kvm
 
     # Cache de l'AVD (image système et données de création) : sans lui, chaque run retélécharge l'image et recrée l'AVD. La clé reprend ses paramètres.
-    - name: cache AVD
+    - name: Mettre en cache l'AVD
       id: avd-cache
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
@@ -119,7 +119,7 @@ runs:
         key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}-${{ env.ANDROID_PROFILE }}
 
     # Premier run seulement (cache absent) : crée l'AVD et son snapshot de démarrage, que le cache ci-dessus conserve ; les runs suivants démarrent depuis ce snapshot.
-    - name: créer l'AVD et générer le snapshot
+    - name: Créer l'AVD et générer le snapshot
       if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
       with:
@@ -133,7 +133,7 @@ runs:
         disable-animations: false
         script: echo "Snapshot AVD généré pour mise en cache."
 
-    - name: Tests E2E
+    - name: Lancer les tests E2E
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
       # La suite passe par l'environnement (pas d'interpolation dans le script). android-emulator-runner exécute le script ligne par ligne.
       # ANDROID_APP_PATH : l'APK téléchargé plus haut ; source unique lue par src/driver/capabilities.ts.
