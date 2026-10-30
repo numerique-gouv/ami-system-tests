@@ -2,7 +2,18 @@ import fs from 'fs'
 import path from 'path'
 import {enrichRunXml, readDumps} from './junit-join'
 
-/** Retire du JUnit les lignes `COMMAND:` / `RESULT:` que le reporter ajoute sans option pour les désactiver. */
+/**
+ * Retire du JUnit les lignes `COMMAND:` / `RESULT:` que le reporter ajoute sans option pour les désactiver.
+ *
+ * Ce sont les commandes WebDriver du client WDIO (pas les logs d'Appium), que `@wdio/reporter` empile dans chaque test et que
+ * `@wdio/junit-reporter` écrit toutes dans le `<system-out>`. Elles n'apportent rien au diagnostic. Exemples relevés sur un run
+ * webapp : `COMMAND: GET /session/<id>/screenshot - {}` (213 fois), `/window` (186), `/url` (101), `/title` (71), chacune suivie
+ * d'un `RESULT: {}` vide. Sur ce run, elles font 80 % des lignes du fichier (1204 sur 1505). Ce qui raconte le scénario, c'est la
+ * console du worker (`-> it`, `page-object: call …`), conservée par `addWorkerLogs`.
+ *
+ * Filtrer le XML après coup plutôt que sous-classer le reporter : on ne dépend d'aucune méthode privée du reporter, donc rien à
+ * revoir à une montée de version de `@wdio/junit-reporter`.
+ */
 const RAW_LINE = /^(COMMAND|RESULT): /
 const SEPARATOR = '...command output...'
 
@@ -22,7 +33,16 @@ export function stripRawCommandLogs(junitDir: string): number {
   return cleaned
 }
 
-/** Fusionne les `results-<run>-<cid>.xml` (un par worker) en un `results-<run>.xml` avec un `<testsuite>` par fichier de spec, enrichi par junit-join.ts. */
+/**
+ * Fusionne les `results-<run>-<cid>.xml` (un par worker) en un `results-<run>.xml` avec un `<testsuite>` par fichier de spec, enrichi par junit-join.ts.
+ *
+ * Pourquoi plusieurs fichiers à fusionner : WDIO lance un worker (donc une session et un reporter) par fichier de spec, et chaque
+ * reporter écrit son propre XML. C'est voulu. Un worker par spec permet de relancer une spec seule (`specFileRetries`, `--spec`) et
+ * de repartir d'une app redémarrée quand le test précédent a laissé un état instable. Grouper les specs dans un seul worker
+ * (`specs: [[a, b]]`) donnerait un seul rapport, mais interdirait de relancer une spec seule, et l'instabilité d'une spec se
+ * propagerait à toutes les suivantes. Il faut donc plusieurs workers, donc plusieurs rapports JUnit, d'où ce code utilitaire
+ * (écrit avec une IA) qui les réunit en un rapport par run.
+ */
 interface SpecSuite {
   name: string
   timestamp: string
