@@ -1,7 +1,4 @@
-import {getAppToLoggedOutState, passOnboardingToHome} from '../../pages/authenticate.process'
-import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
-import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
-import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
+import {getAppToLoggedOutState, loginWithFranceConnect, passOnboardingToHome} from '../../pages/authenticate.process'
 import HomePage from '../../pages/home.page'
 import {getTestUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
@@ -21,9 +18,7 @@ describe('Authentification', function () {
     const user = getTestUser()
 
     step('1. Démarrer le flow FranceConnect (eIDAS faible)')
-    await FranceConnectMirePage.tapFranceConnect(false)
-    await FranceConnectEidasPage.selectEidasFaible()
-    await FranceConnectCredentialsPage.fillCredentials(user)
+    await loginWithFranceConnect(user)
 
     step("2. Passer les écrans d'onboarding présents (clé d'accès, zones scolaires, notifications)")
     await passOnboardingToHome()

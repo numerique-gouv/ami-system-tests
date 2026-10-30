@@ -13,6 +13,9 @@ import {getTestUser} from '../helpers/common/test-users'
 import {currentUrlForLog, hasSessionToken, isOnBackendPageOutsideSpa, openAppRoot, replaceWithAppRoot} from '../helpers/common/session'
 import {HOME, isLoginCallbackUrl} from '../helpers/common/first-screen'
 import {AssertionError} from "node:assert";
+import logger from '@wdio/logger'
+
+const log = logger('helper')
 
 // Échec après ce délai sans progrès (écran de connexion franchi, page d'onboarding fermée) : une action longue mais réussie ne le consomme pas.
 const NO_PROGRESS_TIMEOUT_MS = 30000
@@ -243,8 +246,8 @@ export async function getAppToStartingState(): Promise<void> {
 /** Remet l'app dans l'état de départ du test d'authentification : environnement choisi, non connecté, sur l'écran de connexion (déconnexion explicite si une session est ouverte). */
 export async function getAppToLoggedOutState(): Promise<void> {
     await EnvironmentPickerPage.reviewEnvironmentPicker()
-    if (!await platform().isWebContextAvailable()) return
 
+    // Juste après le choix de la revue app, la WebView n'existe pas encore : on attend l'écran de connexion ou une session, sans conclure « déconnecté ».
     const startedAt = Date.now()
     let rootOpened = false
     while (Date.now() - startedAt < UNRECOGNIZED_BEFORE_ROOT_MS * 2) {
@@ -264,4 +267,18 @@ export async function getAppToLoggedOutState(): Promise<void> {
         }
     }
     throw new AssertionError({message: `getAppToLoggedOutState: ni écran de connexion ni session reconnus (${await currentUrlForLog()})`})
+}
+
+/**
+ * Du bouton FranceConnect jusqu'aux identifiants. Une session FranceConnect déjà ouverte (SSO) renvoie directement vers l'app, sans eIDAS ni
+ * identifiants : ce n'est pas un échec, un avertissement le signale.
+ */
+export async function loginWithFranceConnect(user: TestUser): Promise<void> {
+    await FranceConnectMirePage.tapFranceConnect(false)
+    if (await FranceConnectEidasPage.waitForEidasTile()) {
+        await FranceConnectEidasPage.selectEidasFaible()
+        await FranceConnectCredentialsPage.fillCredentials(user)
+    } else {
+        log.warn('Session FranceConnect déjà ouverte (SSO) : eIDAS et identifiants non demandés')
+    }
 }

@@ -1,7 +1,5 @@
-import {getAppToLoggedOutState, passOnboardingToHome} from '../../pages/authenticate.process'
+import {getAppToLoggedOutState, loginWithFranceConnect, passOnboardingToHome} from '../../pages/authenticate.process'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
-import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
-import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
 import HomePage from '../../pages/home.page'
 import {getTestUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
@@ -20,14 +18,7 @@ describe('Authentification', function () {
     const user = getTestUser()
 
     step('1. Démarrer le flow FranceConnect (eIDAS faible)')
-    await FranceConnectMirePage.tapFranceConnect(false)
-    // Une session FranceConnect encore ouverte (SSO) renvoie directement vers l'app, sans mire eIDAS ni identifiants.
-    if (await FranceConnectEidasPage.waitForEidasTile()) {
-      await FranceConnectEidasPage.selectEidasFaible()
-      await FranceConnectCredentialsPage.fillCredentials(user)
-    } else {
-      step('(session FranceConnect déjà ouverte : eIDAS et identifiants non demandés)')
-    }
+    await loginWithFranceConnect(user)
 
     step('2. Accepter la feuille native des notifications (iOS), passer la clé d\'accès, le choix des zones puis l\'onboarding')
     await passOnboardingToHome()
