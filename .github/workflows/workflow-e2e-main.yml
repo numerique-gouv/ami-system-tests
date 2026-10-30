@@ -19,9 +19,9 @@ on:
         type: string
         default: ''
       android_device:
-        description: "AVD Android au format pixel_<profil>_api<niveau> (ex. pixel_6_api31 = ancien, pixel_8_api36 = récent)"
+        description: "AVD Android au format pixel_<profil>_api<niveau> (ex. pixel_8_api36)"
         type: string
-        default: pixel_6_api31
+        default: pixel_8_api36
       source_repo:
         description: "dépôt frère à l'origine du run (owner/nom), celui dont on commente la PR"
         type: string

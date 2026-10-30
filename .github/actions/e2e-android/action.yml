@@ -7,9 +7,9 @@ inputs:
     required: false
     default: mobile_short
   device:
-    description: "Nom de l'AVD, au format pixel_<profil>_api<niveau> (ex. pixel_6_api31 = ancien appareil, pixel_8_api36 = récent) : le profil et le niveau d'API de l'AVD en sont déduits."
+    description: "Nom de l'AVD, au format pixel_<profil>_api<niveau> (ex. pixel_8_api36) : le profil et le niveau d'API de l'AVD en sont déduits."
     required: false
-    default: pixel_6_api31
+    default: pixel_8_api36
 
   apk-run-id:
     description: "vide = l'APK est l'artefact `apk-artifact` du run COURANT (buildé par le workflow appelant). Renseigné = identifiant du run d'un AUTRE dépôt/run dont on télécharge l'artefact (nécessite apk-repository et apk-token)."
@@ -32,7 +32,6 @@ runs:
   using: composite
   steps:
     # Résout une fois les paramètres de l'appareil (API, profil, nom d'AVD), réutilisés par les steps suivants (cache AVD, création, tests).
-    # API 30 (Android 11) pour l'appareil ancien : voir docs/adr/2026-09-22-Chromedriver-legacy-webview-android-ancien.md.
     - name: Résoudre les paramètres de l'appareil Android
       shell: bash
       env:
@@ -41,7 +40,7 @@ runs:
         # Le nom de l'AVD est aussi lu par src/driver/capabilities.ts (appium:deviceName). Le profil et l'API sont déduits du nom :
         # tout `pixel_<profil>_api<niveau>` est accepté. L'émulateur est le seul appareil adb, donc pas d'ANDROID_UDID.
         if [[ ! "$DEVICE" =~ ^pixel_([0-9]+[a-z_]*)_api([0-9]+)$ ]]; then
-          echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_6_api31)"
+          echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_8_api36)"
           exit 1
         fi
         echo "ANDROID_DEVICE_NAME=$DEVICE"                 >> "$GITHUB_ENV"
