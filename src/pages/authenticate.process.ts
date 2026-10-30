@@ -1,3 +1,4 @@
+import {authenticateProbeLocators} from './locators/authenticate.locators'
 import EnvironmentPickerPage from './franceconnect/environment-picker.page'
 import FranceConnectMirePage, {FranceConnectProviderError} from './franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from './franceconnect/franceconnect-eidas.page'
@@ -80,24 +81,18 @@ async function probeFranceConnectWebScreen(): Promise<FcScreen | null> {
         // Avant le bandeau « credentials » : la page d'erreur FCP-LOW partage son bandeau.
         const providerError = await FranceConnectMirePage.detectProviderErrorBare()
         if (providerError) throw providerError
-        return driver.execute(() => {
-            if (/#\/welcome\/(zones|notifications)/.test(location.hash)) return 'home'
-            // Restreint à <button> : la mire eIDAS contient « FranceConnect » dans un lien de pied de page.
-            const hasButtonTextIncluding = (needle: string): boolean =>
-                Array.from(document.querySelectorAll('button'))
-                    .some(b => b.textContent?.toLowerCase().includes(needle))
-            if (Array.from(document.querySelectorAll('h1, p'))
-                .some(p => (p as HTMLElement).innerText?.trim().startsWith('Bonjour')))
+        return driver.execute((probe: typeof authenticateProbeLocators) => {
+            if (new RegExp(probe.welcomeRoute).test(location.hash)) return 'home'
+            const hasTextIncluding = (selector: string, needle: string): boolean =>
+                Array.from(document.querySelectorAll(selector)).some(e => e.textContent?.toLowerCase().includes(needle))
+            if (Array.from(document.querySelectorAll(probe.greetingElements))
+                .some(p => (p as HTMLElement).innerText?.trim().startsWith(probe.greetingPrefix)))
                 return 'home'
-            if (hasButtonTextIncluding('franceconnect')) return 'login'
-            if (Array.from(document.querySelectorAll('button, a'))
-                .some(el => el.textContent?.toLowerCase().includes('eidas faible')))
-                return 'eidas'
-            // `.` tolère l'apostrophe droite et la typographique
-            if (/Fournisseur d.identité de démonstration - FCP-LOW/.test(document.body.innerText))
-                return 'credentials'
+            if (hasTextIncluding(probe.loginButtons, probe.loginButtonText)) return 'login'
+            if (hasTextIncluding(probe.eidasElements, probe.eidasText)) return 'eidas'
+            if (new RegExp(probe.credentialsBanner).test(document.body.innerText)) return 'credentials'
             return null
-        }) as Promise<FcScreen | null>
+        }, authenticateProbeLocators) as Promise<FcScreen | null>
     }).catch((err: unknown) => {
         if (err instanceof FranceConnectProviderError) throw err
         return null

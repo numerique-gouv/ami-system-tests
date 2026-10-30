@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process'
 import {join} from 'node:path'
 import {homedir} from 'node:os'
-import {iosSystemNotificationsLocators} from '../../pages/locators/system-notifications.locators'
+import {systemNotificationsLocators} from '../../pages/locators/system-notifications.locators'
 
 // Notifications système iOS : réglages lus sur le simulateur (xcrun simctl, base BulletinBoard) et bannières de SpringBoard.
 
@@ -71,18 +71,18 @@ export async function showSpringBoard(): Promise<void> {
 /** Attend la bannière `title` (SpringBoard au premier plan) ; retourne le délai d'attente en ms. */
 export async function waitForBanner(title: string, timeout = 15000): Promise<number> {
   const start = Date.now()
-  await $(iosSystemNotificationsLocators.banner(title)).waitForExist({timeout})
+  await $(systemNotificationsLocators.ios.banner(title)).waitForExist({timeout})
   return Date.now() - start
 }
 
 /** La bannière `title` apparaît-elle pendant `durationMs` (SpringBoard au premier plan) ? */
 export async function bannerAppearsWithin(title: string, durationMs: number): Promise<boolean> {
-  return await $(iosSystemNotificationsLocators.banner(title)).waitForExist({timeout: durationMs}).then(() => true, () => false)
+  return await $(systemNotificationsLocators.ios.banner(title)).waitForExist({timeout: durationMs}).then(() => true, () => false)
 }
 
 /** Clique la bannière `title` et attend que l'app repasse au premier plan. */
 export async function tapBanner(title: string): Promise<void> {
-  const bannerSelector = iosSystemNotificationsLocators.banner(title)
+  const bannerSelector = systemNotificationsLocators.ios.banner(title)
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       await $(bannerSelector).click()
@@ -119,7 +119,7 @@ async function navigateToAppNotificationsSettings(): Promise<void> {
 }
 
 async function navigateToAppNotificationsSettingsOnce(): Promise<void> {
-  const loc = iosSystemNotificationsLocators
+  const loc = systemNotificationsLocators.ios
   const done = async (): Promise<boolean> => (await $$(loc.osSettingsSwitch)).length > 0
   for (let hop = 0; hop < 10 && !await done(); hop++) {
     const next = [loc.osNotificationsRow, loc.osAppRow, loc.osAppsRow]
@@ -138,13 +138,13 @@ async function navigateToAppNotificationsSettingsOnce(): Promise<void> {
 async function setOsAllowNotifications(on: boolean): Promise<void> {
   await navigateToAppNotificationsSettings()
   // Élément relu à chaque fois : la page Réglages se redessine après le tap.
-  const value = async (): Promise<string> => String(await $(iosSystemNotificationsLocators.osSettingsSwitch).getAttribute('value'))
-  await $(iosSystemNotificationsLocators.osSettingsSwitch).waitForExist({timeout: 10000, timeoutMsg: 'Interrupteur « Autoriser les notifications » absent de Réglages'})
+  const value = async (): Promise<string> => String(await $(systemNotificationsLocators.ios.osSettingsSwitch).getAttribute('value'))
+  await $(systemNotificationsLocators.ios.osSettingsSwitch).waitForExist({timeout: 10000, timeoutMsg: 'Interrupteur « Autoriser les notifications » absent de Réglages'})
   if (await value() === (on ? '1' : '0')) return
   // Le premier tap peut viser un élément disparu pendant le redessin : on retente jusqu'à ce que la valeur change.
   await browser.waitUntil(async () => {
     if (await value().catch(() => '') === (on ? '1' : '0')) return true
-    await tapSwitchRow(iosSystemNotificationsLocators.osSettingsSwitch).catch(() => undefined)
+    await tapSwitchRow(systemNotificationsLocators.ios.osSettingsSwitch).catch(() => undefined)
     // eslint-disable-next-line wdio/no-pause -- temps de bascule de l'interrupteur
     await browser.pause(800)
     return await value().catch(() => '') === (on ? '1' : '0')
@@ -157,7 +157,7 @@ async function setOsAllowNotifications(on: boolean): Promise<void> {
  * refuser ouvre Réglages (l'app ne peut pas révoquer elle-même). Appareil physique : non exercé.
  */
 export async function setNotificationsFromAppSettings(on: boolean): Promise<'inchangé' | 'modifié'> {
-  const loc = iosSystemNotificationsLocators
+  const loc = systemNotificationsLocators.ios
   const switchOn = async (): Promise<boolean> => (await $(loc.amiSettingsSwitch).getAttribute('value').catch(() => '')) === '1'
   // L'interrupteur n'est relu qu'au passage en premier plan.
   await showSpringBoard()

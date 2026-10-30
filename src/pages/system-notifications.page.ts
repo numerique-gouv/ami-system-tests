@@ -1,5 +1,5 @@
 import {traced} from '../helpers/reporting/traced'
-import {iosSystemNotificationsLocators as iosLoc, systemNotificationsLocators as loc} from './locators/system-notifications.locators'
+import {systemNotificationsLocators} from './locators/system-notifications.locators'
 import {
   activeNotificationRecords, clearLogcat, focusedWindow, isPostNotificationsGranted, logcatTag,
 } from '../helpers/mobile/android-notifications'
@@ -33,7 +33,7 @@ class SystemNotificationsPage {
     private async openShadeAndTap(title: string): Promise<void> {
         await driver.openNotifications()
         await clearLogcat()
-        const item = $(loc.shadeNotification(title))
+        const item = $(systemNotificationsLocators.android.shadeNotification(title))
         try {
             await item.waitForDisplayed({timeout: 15000, timeoutMsg: `Notification « ${title} » absente du volet des notifications`})
         } catch (e) {
@@ -55,20 +55,20 @@ class SystemNotificationsPage {
 
     /** L'écran natif « Paramètres » d'AMI est-il affiché ? */
     async isAmiSettingsDisplayed(timeout = 10000): Promise<boolean> {
-        return await $(driver.isIOS ? iosLoc.amiSettingsTitle : loc.amiSettingsTitle).waitForDisplayed({timeout}).then(() => true, () => false)
+        return await $(driver.isIOS ? systemNotificationsLocators.ios.amiSettingsTitle : systemNotificationsLocators.android.amiSettingsTitle).waitForDisplayed({timeout}).then(() => true, () => false)
     }
 
     private async amiSettingsSwitchChecked(): Promise<boolean> {
-        return (await $(loc.amiSettingsSwitch).getAttribute('checked')) === 'true'
+        return (await $(systemNotificationsLocators.android.amiSettingsSwitch).getAttribute('checked')) === 'true'
     }
 
     /** Tape « All <app> notifications » dans les réglages système et attend que l'interrupteur ait la valeur `on`. */
     private async setOsAppNotifications(on: boolean): Promise<void> {
-        const sw = $(loc.osAppNotificationsSwitch)
+        const sw = $(systemNotificationsLocators.android.osAppNotificationsSwitch)
         await sw.waitForDisplayed({timeout: 10000})
         if ((await sw.getAttribute('checked')) === String(on)) return
         await sw.click()
-        await browser.waitUntil(async () => (await $(loc.osAppNotificationsSwitch).getAttribute('checked')) === String(on), {timeout: 5000, interval: 300})
+        await browser.waitUntil(async () => (await $(systemNotificationsLocators.android.osAppNotificationsSwitch).getAttribute('checked')) === String(on), {timeout: 5000, interval: 300})
     }
 
     /**
@@ -77,14 +77,14 @@ class SystemNotificationsPage {
      */
     private async setNotificationsFromAppSettingsAndroid(on: boolean): Promise<'inchangé' | 'modifié'> {
         if (await this.amiSettingsSwitchChecked() === on) return 'inchangé'
-        await $(loc.amiSettingsSwitch).click()
+        await $(systemNotificationsLocators.android.amiSettingsSwitch).click()
         await browser.waitUntil(async () => {
             const focus = await focusedWindow()
             return focus.includes('GrantPermissionsActivity') || focus.includes('AppNotificationSettingsActivity')
         }, {timeout: 10000, interval: 300, timeoutMsg: 'Ni boîte de dialogue de permission ni réglages système après le tap sur l\'interrupteur'})
         if ((await focusedWindow()).includes('GrantPermissionsActivity')) {
             if (!on) throw new AssertionError({message: 'Refus demandé mais l\'app affiche la demande de permission système'})
-            await $(loc.permissionAllowButton).click()
+            await $(systemNotificationsLocators.android.permissionAllowButton).click()
         } else {
             await this.setOsAppNotifications(on)
             await this.backToApp()
@@ -102,7 +102,7 @@ class SystemNotificationsPage {
 
     /** Android : touche Retour ; iOS : bouton « Fermer » de la feuille. */
     async closeAppSettings(): Promise<void> {
-        if (driver.isIOS) await $(iosLoc.amiSettingsClose).click()
+        if (driver.isIOS) await $(systemNotificationsLocators.ios.amiSettingsClose).click()
         else await driver.pressKeyCode(4)
     }
 

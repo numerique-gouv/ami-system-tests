@@ -1,5 +1,5 @@
-// Éléments natifs Android liés aux notifications (aucun n'est dans la WebView).
-export const systemNotificationsLocators = {
+// Page native seule : éléments Android et iOS des notifications et de leurs réglages système (aucun n'est dans la WebView).
+const android = {
   /** Écran « Paramètres » d'AMI : son seul interrupteur est un composant Compose sans resource-id, ciblé par `checkable`. */
   amiSettingsTitle: 'android=new UiSelector().text("Paramètres")',
   amiSettingsSwitch: 'android=new UiSelector().checkable(true)',
@@ -16,7 +16,7 @@ export const systemNotificationsLocators = {
 
 // Éléments natifs iOS (libellés en français). Les interrupteurs sont exposés deux fois : la ligne libellée (dont le tap tombe sur le texte)
 // et le vrai contrôle sans libellé ; on lit la valeur de la ligne et on tape son bord droit.
-export const iosSystemNotificationsLocators = {
+const ios = {
   amiSettingsTitle: '-ios predicate string:type == "XCUIElementTypeStaticText" AND label == "Paramètres"',
   /** Un second « Fermer », invisible, appartient à la SPA derrière la feuille. */
   amiSettingsClose: '-ios predicate string:type == "XCUIElementTypeButton" AND label == "Fermer" AND visible == 1',
@@ -30,3 +30,5 @@ export const iosSystemNotificationsLocators = {
   /** Bannière SpringBoard : libellé « <APP>, maintenant, <titre>, <corps> ». */
   banner: (title: string): string => `-ios predicate string:name == "NotificationShortLookView" AND label CONTAINS ${JSON.stringify(title)}`,
 }
+
+export const systemNotificationsLocators = {android, ios}
