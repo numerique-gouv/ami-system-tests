@@ -99,7 +99,8 @@ async function syncContext(): Promise<ContextKind> {
 async function switchToWebView(webview: WebViewInfo): Promise<void> {
   await driver.switchContext(webview.id)
   remember(webview.id)
-  if (webview.webviewPageId) await browser.switchToWindow(webview.webviewPageId)
+  // Chrome ancien (API 30) : l'identifiant de page listé est refusé (« no such window ») alors que switchContext a déjà ciblé la page.
+  if (webview.webviewPageId) await browser.switchToWindow(webview.webviewPageId).catch(() => undefined)
 }
 
 /**
