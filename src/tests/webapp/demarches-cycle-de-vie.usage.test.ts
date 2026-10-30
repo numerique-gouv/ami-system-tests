@@ -16,13 +16,15 @@ describe('Cycle de vie d’une démarche', function () {
   const user = getTestUser()
   let itemId: string
   let title: string
+  let titleClosing: string
   let urlV1: string
   let urlV2: string
 
   before(async function () {
     const domainUrl = getBackendUrl()
-    itemId = `E2E-cycle-${new Date().toISOString()}`
+    itemId = `E2E-cycle-${Date.now()}` // sans « : » ni « . » : l'archivage échoue pour un identifiant qui en contient
     title = `Demarche E2E ${itemId}` // sans accent : la recherche par innerText les gère mal
+    titleClosing = `${title} 2`
     urlV1 = `${domainUrl}/demarches/${itemId}/v1`
     urlV2 = `${domainUrl}/demarches/${itemId}/v2`
     await getAppToStartingState()
@@ -64,7 +66,6 @@ describe('Cycle de vie d’une démarche', function () {
   })
 
   it('clôture la démarche (statut closed) et affiche son historique dans le détail', async () => {
-    const titleClosing = `${title} 2`
     step('1. Publier la notification de clôture')
     await publishDemarche({
       title: titleClosing, body: 'Clôture E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
@@ -84,10 +85,12 @@ describe('Cycle de vie d’une démarche', function () {
     await SuiviDemarchesPage.retourJusquAPageSuivi()
   })
 
-  it('affiche la page des démarches archivées et les partenaires suivis', async () => {
+  it('archive la démarche clôturée et la retrouve dans les démarches archivées', async () => {
+    step('1. Archiver la démarche depuis le Suivi')
+    await SuiviDemarchesPage.archiveDemarche(titleClosing)
+
+    step('2. La retrouver dans la page des démarches archivées')
     await SuiviDemarchesPage.openArchived()
-    expect(await SuiviDemarchesPage.archivedPartners()).toEqual(
-      expect.arrayContaining(['AMI', 'Démarche Numérique', 'RDV Service Public', 'Service Public'])
-    )
+    await SuiviDemarchesPage.assertArchived(titleClosing)
   })
 })

@@ -13,18 +13,12 @@ interface SuiviDemarchesLocators {
   cardContent: string
   cardTitle: string
   cardBadge: string
-  /** Accordéon « Votre démarche n’apparaît pas ? » des archivées (apostrophe évitée). */
-  archivedHelpAccordion: string
-  /** Le même accordéon replié (`aria-expanded="false"`). */
-  archivedHelpAccordionCollapsed: string
   /** Affiché tant qu'aucun consentement n'est actif. */
   followButton: string
-  /** Boutons attendus sur la page des archivées, avant de lire ses partenaires. */
-  archivedExpectedButtons: string[]
-  /** Boutons de la page des archivées qui ne sont pas des partenaires. */
-  archivedIgnoredTexts: string[]
-  /** Préfixe des boutons d'information, eux aussi ignorés. */
-  archivedInfoPrefix: string
+  /** Bouton d'options de la tuile d'une démarche (ouvre la modale qui propose « Archiver »). */
+  optionsButton: (title: string) => string
+  /** « Archiver » dans la modale d'options de la démarche. */
+  archiveButton: (title: string) => string
 }
 
 export const suiviDemarchesLocators: SuiviDemarchesLocators = {
@@ -34,12 +28,9 @@ export const suiviDemarchesLocators: SuiviDemarchesLocators = {
   archivedTitle:             'Démarches archivées',
   demarcheTile:              (title: string): string => roleSelector('button', title),
   followButton:              roleSelector('button', 'Je veux suivre mes démarches'),
-  archivedExpectedButtons:   ['AMI', 'Je veux suivre mes démarches'],
-  archivedIgnoredTexts:      ['Retour à la page précédente', 'Je veux suivre mes démarches'],
-  archivedInfoPrefix:        'Information',
+  optionsButton:             (title: string): string => roleSelector('button', `Ouvrir les options pour ${title}`),
+  archiveButton:             (title: string): string => roleSelector('button', `Archiver l'élément ${title}`),
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',
-  archivedHelpAccordion:     'button*=Votre démarche n',
-  archivedHelpAccordionCollapsed: '.fr-accordion__btn[aria-expanded="false"]',
 }

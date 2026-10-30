@@ -4,7 +4,7 @@ import { suiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
 import {publicationSentryUrl} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, visibleButtonTexts, waitForButtons, waitForHeading} from '@helpers/spa/spa'
+import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, waitForHeading} from '@helpers/spa/spa'
 
 const DEMARCHES_TIMEOUT_MS = 20000
 
@@ -23,6 +23,15 @@ class SuiviDemarchesPage {
         return await isShown(suiviDemarchesLocators.followButton, timeout)
     }
 
+    /** Recharge la page à chaque tentative jusqu'à ce que `title` figure dans son texte. */
+    private async reloadUntilTextShown(title: string): Promise<void> {
+        await browser.waitUntil(async () => {
+            await reloadPage()
+            await platform().refreshAxTree()
+            return await hasPageText(title, RELOAD_RENDER_MS)
+        }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS, timeoutMsg: `« ${title} » absent de la page après ${SUIVI_WAIT_MS}ms de rechargements`})
+    }
+
     /**
      * Attend que la démarche apparaisse sur le Suivi (pré-condition : y être déjà). La page n'a pas d'abonnement temps réel (CONTRIBUTING.md §3) :
      * on la recharge à chaque tentative, y compris pour une démarche déjà listée dont le titre ou le statut change.
@@ -31,11 +40,7 @@ class SuiviDemarchesPage {
         await this.assertDisplayed()
         const startedAt = Date.now()
         try {
-            await browser.waitUntil(async () => {
-                await reloadPage()
-                await platform().refreshAxTree()
-                return await hasPageText(title, RELOAD_RENDER_MS)
-            }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS})
+            await this.reloadUntilTextShown(title)
         } catch (err) {
             const sentry = publicationSentryUrl(title)
             throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms.${sentry ? ` Trace Sentry de l'envoi : ${sentry}` : ''} (${(err as Error).message})` })
@@ -83,15 +88,17 @@ class SuiviDemarchesPage {
     await NavigationPage.goToRoute('/followup/archived')
   }
 
-  /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
-  async archivedPartners(): Promise<string[]> {
+  /** Archive la démarche : options de sa tuile, puis « Archiver ». Elle quitte alors le Suivi pour la page des archivées. */
+  async archiveDemarche(title: string): Promise<void> {
+    await this.assertDisplayed()
+    await clickDisplayed(suiviDemarchesLocators.optionsButton(title), {timeout: 10000})
+    await clickDisplayed(suiviDemarchesLocators.archiveButton(title), {timeout: 5000})
+  }
+
+  /** La page des archivées, ouverte par `openArchived`, liste la démarche (elle non plus n'a pas d'abonnement temps réel). */
+  async assertArchived(title: string): Promise<void> {
     await waitForHeading(suiviDemarchesLocators.archivedTitle)
-    // Déplié au chargement : un clic le refermerait.
-    if (await isShown(suiviDemarchesLocators.archivedHelpAccordionCollapsed, 1000)) {
-      await clickDisplayed(suiviDemarchesLocators.archivedHelpAccordion)
-    }
-    await waitForButtons(suiviDemarchesLocators.archivedExpectedButtons)
-    return (await visibleButtonTexts()).filter(t => !suiviDemarchesLocators.archivedIgnoredTexts.includes(t) && !t.startsWith(suiviDemarchesLocators.archivedInfoPrefix))
+    await this.reloadUntilTextShown(title)
   }
 
   /** Le h1 « Mes démarches » : le h2 du même nom existe aussi sur l'Accueil, qu'un `waitForHeading` validerait à tort. */
