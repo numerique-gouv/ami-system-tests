@@ -66,39 +66,10 @@ permissions:
 # Les jobs RESTENT VERTS quand des tests échouent (garde `|| echo` des actions composites e2e-webapp / e2e-android, étape de rapport
 # avec fail_on_failure: false) : le résultat se lit dans le check « e2e (ami-system-tests) », le résumé du run et le commentaire de la PR.
 jobs:
-  # Calcul UNIQUE de la PR effective et de la clé d'isolation, partagé par les jobs e2e et report (ils ne partagent pas leurs étapes :
-  # le job report est séparé pour que checks/pull-requests: write n'existent pas dans le job qui exécute le code des tests).
-  # Même règle de nommage dans e2e-artifacts-cleanup.yml (workflow à part, ne peut pas lire ces sorties).
-  prepare:
-    if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
-    name: clé d'isolation
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: {}
-    outputs:
-      pr_number: ${{ steps.keys.outputs.pr_number }}
-      slug: ${{ steps.keys.outputs.slug }}
-    steps:
-      - name: calculer la PR effective et la clé d'isolation
-        id: keys
-        env:
-          SOURCE_REPO: ${{ inputs.source_repo }}
-          PR_NUMBER: ${{ inputs.comment_pr_number != 0 && inputs.comment_pr_number || inputs.pr_number }}
-          LABEL: ${{ inputs.report_label }}
-        run: |
-          LABEL="${LABEL//[^A-Za-z0-9_-]/}"
-          RAW="${SOURCE_REPO}-pr${PR_NUMBER}${LABEL:+-$LABEL}"
-          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
-          {
-            echo "pr_number=$PR_NUMBER"
-            echo "slug=$SLUG"
-          } >> "$GITHUB_OUTPUT"
-
   # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même dossier test-results)
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
-    needs: [prepare]
     runs-on: ubuntu-latest
     timeout-minutes: 60 # une heure de tests E2E ; au-delà, un émulateur ou un test est figé (le défaut de GitHub est de 6 h)
     permissions:
@@ -131,6 +102,18 @@ jobs:
           repository: numerique-gouv/ami-system-tests
           ref: main
           path: ami-system-tests
+
+      - name: clé d'isolation et noms des artefacts
+        id: keys
+        uses: ./ami-system-tests/.github/actions/e2e-keys
+        with:
+          source-repo: ${{ inputs.source_repo }}
+          pr-number: ${{ inputs.pr_number }}
+          comment-pr-number: ${{ inputs.comment_pr_number }}
+          report-label: ${{ inputs.report_label }}
+          run-webapp: ${{ inputs.run_webapp }}
+          run-android: ${{ inputs.run_android }}
+          run-number: ${{ github.run_number }}
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -201,7 +184,7 @@ jobs:
         if: ${{ always() && inputs.run_webapp != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-results-${{ needs.prepare.outputs.slug }}-webapp-run${{ github.run_number }}
+          name: ${{ steps.keys.outputs.artifact_webapp }}
           path: |
             ami-system-tests/test-results/junit/results-*_webapp_*.xml
             ami-system-tests/test-results/traces/*_webapp_*
@@ -213,7 +196,7 @@ jobs:
         if: ${{ always() && inputs.run_android != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-results-${{ needs.prepare.outputs.slug }}-android-run${{ github.run_number }}
+          name: ${{ steps.keys.outputs.artifact_android }}
           path: |
             ami-system-tests/test-results/junit/results-*_android_*.xml
             ami-system-tests/test-results/traces/*_android_*
@@ -226,7 +209,7 @@ jobs:
   # Le job reste vert même si des tests échouent ou si le commentaire est refusé (fork, jeton en lecture seule).
   report:
     name: rapport (check + commentaire de PR)
-    needs: [prepare, e2e]
+    needs: [e2e]
     if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -235,27 +218,10 @@ jobs:
       checks: write
       pull-requests: write
     outputs:
-      test_results: ${{ steps.names.outputs.test_results }}
-      artifact_webapp: ${{ steps.names.outputs.artifact_webapp }}
-      artifact_android: ${{ steps.names.outputs.artifact_android }}
+      test_results: ${{ steps.keys.outputs.test_results }}
+      artifact_webapp: ${{ steps.keys.outputs.artifact_webapp }}
+      artifact_android: ${{ steps.keys.outputs.artifact_android }}
     steps:
-      - name: noms des artefacts
-        id: names
-        env:
-          SLUG: ${{ needs.prepare.outputs.slug }}
-          RUN_NUMBER: ${{ github.run_number }}
-          RUN_WEBAPP: ${{ inputs.run_webapp }}
-          RUN_ANDROID: ${{ inputs.run_android }}
-        run: |
-          prefix="test-results-${SLUG}"
-          expect=""
-          {
-            echo "test_results=${prefix}-*-run${RUN_NUMBER}"
-            [ -n "$RUN_WEBAPP" ] && { echo "artifact_webapp=${prefix}-webapp-run${RUN_NUMBER}"; expect="${expect}webapp,"; }
-            [ -n "$RUN_ANDROID" ] && { echo "artifact_android=${prefix}-android-run${RUN_NUMBER}"; expect="${expect}android,"; }
-            echo "expect=${expect%,}"
-          } >> "$GITHUB_OUTPUT"
-
       # Seuls .github/ (actions et script de rapport) sont nécessaires.
       - name: checkout ami-system-tests (ref demandée)
         id: checkout-ref
@@ -276,13 +242,25 @@ jobs:
           path: ami-system-tests
           sparse-checkout: .github
 
+      - name: clé d'isolation et noms des artefacts
+        id: keys
+        uses: ./ami-system-tests/.github/actions/e2e-keys
+        with:
+          source-repo: ${{ inputs.source_repo }}
+          pr-number: ${{ inputs.pr_number }}
+          comment-pr-number: ${{ inputs.comment_pr_number }}
+          report-label: ${{ inputs.report_label }}
+          run-webapp: ${{ inputs.run_webapp }}
+          run-android: ${{ inputs.run_android }}
+          run-number: ${{ github.run_number }}
+
       # Un sous-dossier par artefact (reports/<nom de l'artefact>/junit/results-*.xml). Aucun artefact (job e2e en échec avant les tests) n'est pas une erreur.
       - name: télécharger les résultats
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: ${{ steps.names.outputs.test_results }}
+          pattern: ${{ steps.keys.outputs.test_results }}
           path: reports
 
       # Check « e2e (ami-system-tests) » rattaché au commit testé (le déclencheur `on: status` du dépôt appelant s'exécute sur la branche
@@ -307,10 +285,10 @@ jobs:
         with:
           github-token: ${{ github.token }}
           repo: ${{ inputs.source_repo }}
-          pr-number: ${{ needs.prepare.outputs.pr_number }}
+          pr-number: ${{ steps.keys.outputs.pr_number }}
           junit-dir: reports
           run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          artifacts: ${{ steps.names.outputs.artifact_webapp }},${{ steps.names.outputs.artifact_android }}
-          expect: ${{ steps.names.outputs.expect }}
+          artifacts: ${{ steps.keys.outputs.artifact_webapp }},${{ steps.keys.outputs.artifact_android }}
+          expect: ${{ steps.keys.outputs.expect }}
           sha: ${{ inputs.source_sha }}
           label: ${{ inputs.report_label }}
