@@ -76,7 +76,8 @@ jobs:
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: webapp + android (shared VM)
-    runs-on: ubuntu-latest
+    # Image épinglée : ce job dépend de l'image (KVM, cmdline-tools, émulateur x86_64).
+    runs-on: ubuntu-24.04
     timeout-minutes: 60 # une heure de tests E2E ; au-delà, un émulateur ou un test est figé (le défaut de GitHub est de 6 h)
     permissions:
       contents: read
@@ -211,7 +212,7 @@ jobs:
     name: rapport (check + commentaire de PR)
     needs: [e2e]
     if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
