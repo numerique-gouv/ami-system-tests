@@ -85,7 +85,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
   it('« Tout suivre » active tous les consentements', async function () {
     await openDemarchesConsents()
     const keys = await uncheckAllDemarchesConsents()
-    expect(keys.length).toBeGreaterThan(0)
+    expect(keys).not.toHaveLength(0)
 
     await PreferencesPage.followAllDemarches()
     await browser.waitUntil(async () => {

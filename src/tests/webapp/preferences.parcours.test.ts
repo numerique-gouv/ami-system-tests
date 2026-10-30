@@ -45,6 +45,6 @@ describe('Préférences', function () {
 
   it('« Notifications » affiche la case de réception sur l\'appareil', async () => {
     await PreferencesPage.openPushNotificationsSettings()
-    expect(typeof await PreferencesPage.pushNotificationsToggleState()).toBe('boolean')
+    expect(await PreferencesPage.pushNotificationsToggleState()).not.toBeUndefined()
   })
 })

@@ -24,7 +24,7 @@ describe('Non-régression — listes d’étapes', function () {
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const lists = await ServicesPage.stepsListLabels()
-    expect(lists.length).toBeGreaterThan(0)
+    expect(lists).not.toHaveLength(0)
 
     const broken: string[] = []
     let followed = 0

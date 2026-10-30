@@ -26,7 +26,7 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const labels = await ServicesPage.helpLabels()
-    expect(labels.length).toBeGreaterThan(0)
+    expect(labels).not.toHaveLength(0)
     const stepsLists = new Set(await ServicesPage.stepsListLabels())
 
     const broken: string[] = []
@@ -65,7 +65,7 @@ describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)'
 
     // L'entrée du diagnostic s'ouvre déjà dans le parcours précédent ; l'entrée s'ouvre ; ici le contenu embarqué : chaque source d'iframe doit répondre.
     const sources = await ServicesPage.openCyberDiagnostic()
-    expect(sources.length).toBeGreaterThan(0)
+    expect(sources).not.toHaveLength(0)
     for (const source of sources) {
       const status = await statusOf(source, `${new URL(await browser.getUrl()).origin}/`)
       const where = describeTarget({host: new URL(source).host, path: new URL(source).pathname})

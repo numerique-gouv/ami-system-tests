@@ -70,7 +70,7 @@ describe('Non-régression — zones choisies à l’onboarding', function () {
     expect(await OnboardingZonesPage.isVisible(15000)).toBe(true)
     originalZones = await OnboardingZonesPage.zoneStates()
     const wasChecked = originalZones[ZONE]
-    expect(typeof wasChecked).toBe('boolean')
+    expect(wasChecked).not.toBeUndefined()
     await OnboardingZonesPage.setZone(ZONE, !wasChecked)
     await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()

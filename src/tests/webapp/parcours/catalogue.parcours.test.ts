@@ -27,7 +27,7 @@ describe('Non-régression — catalogue des démarches et outils (smoke)', funct
     await ServicesPage.open()
     await ServicesPage.assertDisplayed()
     const labels = await ServicesPage.catalogueLabels()
-    expect(labels.length).toBeGreaterThan(0)
+    expect(labels).not.toHaveLength(0)
     expect(labels.every(label => label.length > 0)).toBe(true)
 
     const broken: string[] = []
