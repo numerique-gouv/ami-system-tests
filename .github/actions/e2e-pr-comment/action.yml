@@ -42,10 +42,6 @@ inputs:
     description: "étiquette (lettres, chiffres, - _) quand plusieurs runs e2e rapportent sur la même PR (ex. old-device) : un commentaire distinct par étiquette"
     required: false
     default: ''
-  script-path:
-    description: "Chemin du script e2e-comment.mjs (défaut : celui de ce dépôt d'actions)"
-    required: false
-    default: ''
 
 runs:
   using: composite
@@ -86,7 +82,6 @@ runs:
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
-        SCRIPT_PATH: ${{ inputs.script-path }}
         JUNIT_DIR: ${{ inputs.junit-dir }}
         REPO: ${{ inputs.repo }}
         PR: ${{ inputs.pr-number }}
@@ -97,7 +92,7 @@ runs:
         LABEL: ${{ inputs.label }}
       run: |
         set -uo pipefail
-        script="${SCRIPT_PATH:-$ACTION_PATH/../../scripts/e2e-comment.mjs}"
+        script="$ACTION_PATH/../../scripts/e2e-comment.mjs"
         # Un échec du script ne doit pas faire échouer le job (les résultats restent dans le check et l'artefact).
         if ! node "$script" --junit-dir "$JUNIT_DIR" --repo "$REPO" --pr "$PR" --run-url "$RUN_URL" --artifacts "$ARTIFACTS" --expect "$EXPECT" --sha "$SHA" ${LABEL:+--label "$LABEL"} --out "$RUNNER_TEMP/e2e-comment.md"; then
           echo "::warning::génération du commentaire impossible."
