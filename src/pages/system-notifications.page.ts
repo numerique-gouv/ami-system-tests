@@ -73,7 +73,9 @@ class SystemNotificationsPage {
         await sw.waitForDisplayed({timeout: 10000})
         if ((await sw.getAttribute('checked')) === String(on)) return
         await sw.click()
-        await browser.waitUntil(async () => (await $(systemNotificationsLocators.android.osAppNotificationsSwitch).getAttribute('checked')) === String(on), {timeout: 5000, interval: 300})
+        await browser.waitUntil(async () => (await $(systemNotificationsLocators.android.osAppNotificationsSwitch).getAttribute('checked')) === String(on), {
+            timeout: 5000, interval: 300, timeoutMsg: `Interrupteur des notifications de l'app pas à ${on} dans les réglages système`,
+        })
     }
 
     /**
@@ -166,7 +168,9 @@ class SystemNotificationsPage {
 
     private async backToApp(): Promise<void> {
         await driver.pressKeyCode(4)
-        await browser.waitUntil(async () => (await focusedWindow()).includes('fr.gouv.ami.MainActivity'), {timeout: 10000, interval: 500})
+        await browser.waitUntil(async () => (await focusedWindow()).includes('fr.gouv.ami.MainActivity'), {
+            timeout: 10000, interval: 500, timeoutMsg: "L'app n'a pas retrouvé le premier plan après le retour",
+        })
     }
 }
 
