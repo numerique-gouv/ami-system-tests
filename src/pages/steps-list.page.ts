@@ -27,7 +27,7 @@ class StepsListPage {
     }
 
     async sections(): Promise<string[]> {
-        await firstDisplayed(stepsListLocators.sectionButton, {timeout: 15000})
+        await this.assertDisplayed()
         const labels: string[] = []
         for (const section of await allDisplayed(stepsListLocators.sectionButton)) labels.push(await visibleText(section))
         return labels
@@ -35,6 +35,7 @@ class StepsListPage {
 
     /** Ouvre la section n° `index` et retourne sa route (`#/checklist/<id>/checks/<section>/`, sans requête). */
     async openSection(index: number): Promise<string> {
+        await this.assertDisplayed()
         const sections = await allDisplayed(stepsListLocators.sectionButton)
         await sections[index].click()
         await browser.waitUntil(async () => (await this.route()).includes('/checks/'), {

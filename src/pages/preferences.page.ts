@@ -13,8 +13,9 @@ class PreferencesPage {
         await NavigationPage.openPlusEntry('Préférences')
     }
 
-    async assertDisplayed(): Promise<void> {
-        await waitForHeading(preferencesLocators.pageTitle)
+    /** Les Préférences par défaut ; `title` désigne une de leurs sous-vues (consentements aux démarches, notifications). */
+    async assertDisplayed(title = preferencesLocators.pageTitle): Promise<void> {
+        await waitForHeading(title)
     }
 
     async entries(): Promise<string[]> {
@@ -36,17 +37,17 @@ class PreferencesPage {
     }
 
     async demarchesConsentStates(): Promise<Record<string, boolean>> {
-        await waitForHeading(preferencesLocators.demarchesConsentsTitle)
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
         return await checkboxStates()
     }
 
     async setDemarchesConsent(partner: PartnerId, checked: boolean): Promise<void> {
-        await waitForHeading(preferencesLocators.demarchesConsentsTitle)
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
         await setCheckbox(partner, checked)
     }
 
     async followAllDemarches(): Promise<void> {
-        await waitForHeading(preferencesLocators.demarchesConsentsTitle)
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
         await clickButton(preferencesLocators.followAllDemarchesName)
     }
 
@@ -65,14 +66,14 @@ class PreferencesPage {
     }
 
     async demarchesConsentLabels(): Promise<string[]> {
-        await waitForHeading(preferencesLocators.demarchesConsentsTitle)
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
         const text = await pageText()
         return Array.from(text.matchAll(/Suivre mes démarches (.+?) sur mon appareil mobile/g)).map(m => m[1])
     }
 
     /** État de l'interrupteur global des notifications push (Préférences > Notifications). */
     async pushNotificationsToggleState(): Promise<boolean | undefined> {
-        await waitForHeading(preferencesLocators.notificationsTitle)
+        await this.assertDisplayed(preferencesLocators.notificationsTitle)
         return (await checkboxStates())[preferencesLocators.pushNotificationsToggleName]
     }
 }

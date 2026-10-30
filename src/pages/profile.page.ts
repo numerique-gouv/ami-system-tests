@@ -14,8 +14,8 @@ class ProfilePage {
         await firstDisplayed(marker, {timeout: 5000})
     }
 
-    /** Enregistrer ou Annuler fait un retour arrière : on arrive sur la sous-page d'origine, ou sur le hub. */
-    private async waitForProfileAfterEdit(): Promise<void> {
+    /** Le profil est affiché : le hub « Mon profil » ou une de ses sous-pages (Enregistrer ou Annuler fait un retour arrière vers la sous-page d'origine, ou le hub). */
+    async assertDisplayed(): Promise<void> {
         await browser.waitUntil(
             async () => await isShown(profileLocators.hubHeading) || await isShown(profileLocators.identitySection) || await isShown(profileLocators.emailSection),
             {timeout: 5000, interval: 250, timeoutMsg: "Ni le hub « Mon profil » ni une sous-page du profil affichés après la sortie du formulaire d'édition"}
@@ -55,7 +55,7 @@ class ProfilePage {
         const input = await firstDisplayed(profileLocators.preferredUsernameInput, {timeout: 5000})
         const value = await input.getValue()
         await clickDisplayed(profileLocators.cancelButton, {timeout: 5000})
-        await this.waitForProfileAfterEdit()
+        await this.assertDisplayed()
         return value
     }
 
@@ -95,7 +95,7 @@ class ProfilePage {
         const input = await firstDisplayed(inputSelector, {timeout: 5000})
         await input.setValue(newValue)
         await clickDisplayed(profileLocators.saveButton)
-        await this.waitForProfileAfterEdit()
+        await this.assertDisplayed()
     }
 
     async editPreferredUsername(newValue: string): Promise<void> {
@@ -137,7 +137,7 @@ class ProfilePage {
         await input.setValue(query)
         await clickDisplayed(profileLocators.autocompleteFirstItem, {timeout: 6000})
         await clickDisplayed(profileLocators.saveButton)
-        await this.waitForProfileAfterEdit()
+        await this.assertDisplayed()
     }
 }
 

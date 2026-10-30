@@ -14,23 +14,27 @@ class AgendaPage {
     }
 
     async assertSectionsVisible(): Promise<void> {
+        await this.assertDisplayed()
         await waitForHeading(agendaLocators.upcomingHeading)
         await waitForHeading(agendaLocators.laterMonthsHeading)
     }
 
     /** Nombre d'évènements listés (un bouton d'ouverture de dialogue par évènement). */
     async countEvents(): Promise<number> {
+        await this.assertDisplayed()
         await firstDisplayed(agendaLocators.eventDialogButton, {timeout: 10000})
         return (await allDisplayed(agendaLocators.eventDialogButton)).length
     }
 
     /** Ouvre le dialogue du premier évènement. */
     async openFirstEvent(): Promise<void> {
+        await this.assertDisplayed()
         await clickDisplayed(agendaLocators.eventDialogButton, {timeout: 10000})
     }
 
     /** Titres affichés des éléments de l'agenda, dans l'ordre de la page (emoji final compris). */
     async eventTitles(): Promise<string[]> {
+        await this.assertDisplayed()
         await firstDisplayed(agendaLocators.eventTitles, {timeout: 10000})
         const texts: string[] = []
         for (const title of await allDisplayed(agendaLocators.eventTitles)) texts.push((await title.getText()).replace(/\s+/g, ' ').trim())
@@ -44,12 +48,14 @@ class AgendaPage {
 
     /** Tout le texte visible de l'élément (titre, catégorie, dates, zones…). */
     async eventText(title: string): Promise<string> {
+        await this.assertDisplayed()
         const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
         return (await item.getText()).replace(/\s+/g, ' ').trim()
     }
 
     /** Ouvre la modale de l'élément dont le titre commence par `title`. */
     async openEventDialog(title: string): Promise<void> {
+        await this.assertDisplayed()
         const item = await firstDisplayed(agendaLocators.eventItem(title), {timeout: 10000})
         await item.$(agendaLocators.eventOpenInItem).click()
     }

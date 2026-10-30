@@ -28,6 +28,7 @@ class SuiviDemarchesPage {
      * on la recharge à chaque tentative, y compris pour une démarche déjà listée dont le titre ou le statut change.
      */
     async waitForDemarche(title: string): Promise<void> {
+        await this.assertDisplayed()
         const startedAt = Date.now()
         try {
             await browser.waitUntil(async () => {
@@ -47,6 +48,7 @@ class SuiviDemarchesPage {
     statusLabel: string,
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
+    await this.assertDisplayed()
     const statusLabelLower = statusLabel.toLowerCase()
     let lastStatus: string | null = null // null : aucune carte ne porte ce titre
     try {

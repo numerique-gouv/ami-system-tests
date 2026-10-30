@@ -19,6 +19,7 @@ class ServicesPage {
     }
 
     async selectTab(label: string): Promise<void> {
+        await this.assertDisplayed()
         const tab = await firstDisplayed(servicesLocators.tab(label), {timeout: 10000})
         await tab.click()
         await expect(tab).toHaveAttribute('aria-selected', 'true', {wait: 5000})
@@ -137,12 +138,14 @@ class ServicesPage {
 
     /** Attend que les entrées données (fragment du texte du bouton) soient rendues dans l'onglet courant. */
     async waitForEntries(fragments: string[]): Promise<void> {
+        await this.assertDisplayed()
         for (const fragment of fragments) {
             await firstDisplayed(servicesLocators.entryContaining(fragment), {timeout: 15000})
         }
     }
 
     async assertHelpTabSections(): Promise<void> {
+        await this.assertDisplayed()
         await waitForHeading(servicesLocators.sosHeading)
         await waitForHeading(servicesLocators.checklistsHeading)
         await waitForHeading(servicesLocators.directoryHeading)

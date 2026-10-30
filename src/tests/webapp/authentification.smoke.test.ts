@@ -1,4 +1,4 @@
-import {passOnboardingToHome} from '../../pages/authenticate.process'
+import {getAppToLoggedOutState, passOnboardingToHome} from '../../pages/authenticate.process'
 import FranceConnectMirePage from '../../pages/franceconnect/franceconnect-mire.page'
 import FranceConnectEidasPage from '../../pages/franceconnect/franceconnect-eidas.page'
 import FranceConnectCredentialsPage from '../../pages/franceconnect/franceconnect-credentials.page'
@@ -13,6 +13,8 @@ import {step} from '@helpers/reporting/report'
 describe('Authentification', function () {
   this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
   before(async function () {
+    step('S\'assurer d\'être déconnecté')
+    await getAppToLoggedOutState()
   })
 
   it("s'authentifie via FranceConnect et arrive sur la page d'accueil", async function () {
@@ -27,7 +29,7 @@ describe('Authentification', function () {
     await passOnboardingToHome()
 
     step("3. Vérifier l'arrivée sur la page d'accueil")
-    await HomePage.assertHomeVisible(30000)
+    await HomePage.assertDisplayed(30000)
     expect(await HomePage.greeting()).toMatch(/^Bonjour \S+/)
   })
 })

@@ -7,10 +7,10 @@ import {AssertionError} from "node:assert";
 
 class HomePage {
     /** Échec dur avec l'URL courante. N'en ferme aucun écran de blocage (onboardings, menu « Plus ») : c'est le rôle du scénario. */
-    async assertHomeVisible(timeout = 30000): Promise<void> {
+    async assertDisplayed(timeout = 30000): Promise<void> {
         if (await this.isHomeDisplayed(timeout)) return
         const where = await currentUrlForLog()
-        throw new AssertionError({message: `assertHomeVisible: Home non atteinte (${where})`})
+        throw new AssertionError({message: `Home non atteinte (${where})`})
     }
 
     /** La salutation « Bonjour <prénom> », seule affichée par l'accueil authentifié, est-elle affichée sous `timeout` ms ? */
@@ -25,7 +25,7 @@ class HomePage {
 
     /** Vérifie les blocs de l'accueil : salutation, « Mon agenda », « Mes démarches », cloche. */
     async assertContentVisible(): Promise<void> {
-        await expect($(homeContentLocators.greeting)).toBeDisplayed()
+        await this.assertDisplayed()
         await expect($(homeContentLocators.agendaHeading)).toBeDisplayed()
         await expect($(homeContentLocators.proceduresHeading)).toBeDisplayed()
         await expect($(homeContentLocators.notificationsBell)).toBeDisplayed()
@@ -43,6 +43,7 @@ class HomePage {
 
     /** La date du jour est affichée sous la salutation (ex. « vendredi 2 octobre 2026 »). */
     async assertDateVisible(): Promise<void> {
+        await this.assertDisplayed()
         const text = await pageText()
         if (!/(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d{1,2} \p{L}+ \d{4}/u.test(text))
             throw new AssertionError({message: `Date du jour absente de l'accueil (texte : ${text.slice(0, 200)})`})

@@ -70,7 +70,7 @@ describe.skip('Non-régression — connexion FranceConnect silencieuse vers OTV'
     step('3. Terminer l’onboarding : l’accueil s’affiche')
     await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
-    await HomePage.assertHomeVisible(30000)
+    await HomePage.assertDisplayed(30000)
 
     step('4. Ouvrir la carte OTV du catalogue : Service Public affiche le formulaire, sans mire FranceConnect')
     await ServicesPage.open()

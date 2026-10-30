@@ -180,7 +180,7 @@ Le raisonnement détaillé de ces choix est dans l'ADR `docs/adr/2026-07-09-Stra
 
 **Un écran se vérifie lui-même ; une action source ne vérifie jamais sa destination.**
 
-1. Chaque méthode publique d'un Page Object commence par s'assurer qu'elle est sur sa page : une attente (`waitForHeading`, `waitForRole`) avec `timeout` sur le titre ou le rôle de l'élément qu'elle va utiliser. Jamais via `window.location.hash` (il peut changer avant que le contenu soit rendu).
+1. Chaque Page Object a une méthode `assertDisplayed()` (avec le titre en argument quand il est dynamique ou que la page a plusieurs vues). Elle attend le titre (`heading`) ou le rôle qui identifie la page, avec un `timeout`, jamais via `window.location.hash` (il peut changer avant que le contenu soit rendu). Le scénario l'appelle après une navigation, et les méthodes publiques du Page Object s'en servent en interne pour vérifier qu'elles sont sur la page attendue avant d'agir.
 2. Une méthode qui navigue ne connaît pas la page suivante : elle clique et rend la main. Les Page Objects ne s'importent pas entre eux (hors `NavigationPage` et les helpers). L'arrivée est vérifiée par la page cible, via `assertDisplayed()` (avec le titre en argument s'il est dynamique : `DemarcheDetailPage.assertDisplayed(title)`). Le scénario enchaîne les deux :
 
    ```typescript
@@ -190,7 +190,7 @@ Le raisonnement détaillé de ces choix est dans l'ADR `docs/adr/2026-07-09-Stra
 
 3. Par défaut, on ne vérifie pas qu'une action est terminée : le clic est supposé pris en compte. Exception, avec preuve : un clic dont la perte est établie. La postcondition porte sur la page d'origine (`clickButtonUntilGone` : le bouton disparaît), jamais sur la suivante.
 4. Page au contenu imprévisible (services du catalogue) : vérifier seulement que ce n'est pas une page d'erreur.
-5. Donnée asynchrone : une page abonnée au temps réel (accueil, inbox via WebSocket) se met à jour en place, attendre avec une primitive `spa.ts`. Une page sans abonnement (Suivi) ne se met à jour qu'au chargement : recharger entre deux essais avec un backoff (`SuiviDemarchesPage.waitForDemarche`).
+5. Donnée asynchrone : une page abonnée au temps réel (accueil, inbox via WebSocket) se met à jour en place, attendre avec une primitive `spa.ts`. Une page sans abonnement (Suivi) ne se met à jour qu'au chargement : recharger la page à chaque essai, à intervalle fixe de 2 s (`SuiviDemarchesPage.waitForDemarche`).
 6. Ne pas vérifier la disparition d'un composant après une action : les pages se recyclent, et résoudre un élément disparu attend la durée du timeout.
 
 ### Cas nominal et écarts
@@ -253,20 +253,17 @@ expect(typeof enabled).toBe('boolean')
 
 ## 6. Isolation des tests
 
-Avec `--spec` ou hors suite nommée, chaque fichier obtient une session fraîche. Une suite nommée est une liste plate équivalente à `--spec a --spec b` : un worker par fichier. L'état est cependant conservé d'un fichier à l'autre : profil Chrome du run en webapp, données et session de l'app sur mobile (l'app est arrêtée après chaque spec et relancée par la suivante). Seules `authentification` et `nonreg/passkey` repartent d'une session vierge. Ne pas supposer une session fraîche du seul fait d'être dans un nouveau fichier.
+Ce projet ne fait que des **tests système E2E de parcours utilisateur** (user journeys). Ce ne sont ni des tests unitaires ni des tests d'intégration isolables. Une spec raconte un scénario : **chaque `it()` en est une étape**, qui déroule une série d'actions. Les `it()` se déroulent **dans l'ordre du fichier** et **conservent l'état et la session** d'une étape à l'autre. C'est ce qui rend lisible l'étape du scénario en échec : avec un seul `it()` par spec, on verrait beaucoup moins bien où le parcours a cassé.
 
-```
-Les tests modifient l'état ?
-  ├── oui et reset bon marché (terminateApp) → beforeEach
-  └── non ou reset coûteux (login OIDC)     → before + nettoyage explicite (after)
-```
+- **Cas courant : le scénario.** Les `it()` d'une spec dépendent les uns des autres, en commençant par un `before` qui amène l'app dans l'état de départ (`getAppToStartingState`). Le cycle de vie d'une démarche (publiée, en cours, terminée) en est l'exemple : une étape par statut. Documenter la dépendance en commentaire du `describe`, utiliser un identifiant unique horodaté, et ne pas supposer l'état de l'app laissé par l'étape précédente quand l'API suffit à l'établir.
+- **Exception : l'`it()` indépendant**, qui s'exécute seul et dans n'importe quel ordre. Il remet l'état qu'il modifie dans l'état initial (dans le test ou dans `afterEach`).
+- Mobile : `mochaOpts.bail` — au premier `it` en échec, les suivants ne sont pas lancés (ils dépendent du précédent) ; les hooks `after` s'exécutent.
+- `specFileRetries` rejoue le **fichier entier** dans une nouvelle session, jamais un `it()` isolé (cf. §7).
 
-- `before` : navigation coûteuse faite une fois (onboarding, login OIDC ~30 s).
-- `beforeEach` : reset avant chaque test. `driver.reset()` est déprécié dans Appium 3 : `terminateApp` + `activateApp`, ou `fullReset: true`.
-- Mobile : `mochaOpts.bail` (au premier `it` en échec, les suivants ne sont pas lancés ; les hooks `after` s'exécutent).
-- **Indépendance des `it()` : règle absolue.** Chaque `it()` s'exécute dans n'importe quel ordre et seul. Un `it()` qui modifie l'état le remet dans l'état initial.
-- Exception : le cycle de vie d'une entité backend (`new → wip → closed`). La dépendance est structurelle : la documenter en commentaire du `describe`, utiliser un identifiant unique horodaté, vérifier que `specFileRetries` rejoue tout le fichier.
-- Un test ne fait jamais `xcrun simctl` ni `adb` directement. Il s'appuie sur l'environnement préparé avant le run (appareil démarré, app installée par Appium depuis `ANDROID_APP_PATH` / `IOS_APP_PATH`).
+**Entre fichiers de spec.** Avec `--spec` ou hors suite nommée, chaque fichier obtient une session fraîche. Une suite nommée est une liste plate équivalente à `--spec a --spec b` : un worker par fichier. L'état est cependant conservé d'un fichier à l'autre : profil Chrome du run en webapp, données et session de l'app sur mobile (l'app est arrêtée après chaque spec et relancée par la suivante). Seules `authentification` et `nonreg/passkey` repartent d'une session vierge. Ne pas supposer une session fraîche du seul fait d'être dans un nouveau fichier.
+
+- `before` : la navigation coûteuse faite une fois (onboarding, login OIDC ~30 s). `beforeEach` : un reset avant chaque `it()`, pour les specs faites d'`it()` indépendants. `driver.reset()` est déprécié dans Appium 3 : `terminateApp` + `activateApp`, ou `fullReset: true`.
+- **Un test ne fait pas `xcrun simctl` ni `adb` directement.** Il s'appuie sur l'environnement préparé avant le run (appareil démarré, app installée par Appium depuis `ANDROID_APP_PATH` / `IOS_APP_PATH`). Exception : un test qui vérifie l'effet sur l'appareil ou l'OS (notifications système, un jour le local storage) passe par un helper de `src/helpers/mobile/`.
 - **Idempotence backend** : un test qui publie des données utilise un identifiant ou titre unique horodaté (`` `AMI-vanilla-${Date.now()}` ``), sinon un backend en `get_or_create` renvoie le record d'un run précédent.
 
 ---
@@ -284,7 +281,7 @@ Les tests modifient l'état ?
 - Retry court en Page Object : le `catch` porte une décision (réessayer, ou « absent ») et une ligne dit laquelle. Un `catch {}` vide masque un vrai bug.
 - Ne pas retrier les aides `spa.ts` : elles attendent déjà (`timeout`). Augmenter ce timeout.
 - Ne pas corriger chaque échec temporaire : un échec isolé dû à l'infrastructure ne justifie pas un correctif. Corriger sur une récurrence mesurée, avec une cause établie.
-- `specFileRetries` (`wdio.base.conf.ts`) : 0 par défaut et pour toute mesure, 1 en CI (`CI=true`). `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer. Un échec rejoué à l'identique en CI est un bug reproductible ; un échec qui passe au 2e essai, un test instable.
+- `specFileRetries` (`wdio.base.conf.ts`) : 0 par défaut et pour toute mesure, 1 en CI (`CI=true`). `WDIO_SPEC_FILE_RETRIES=N` ou `--specFileRetries=N` pour forcer. Un échec rejoué à l'identique en CI est un bug reproductible ou un test instable : il s'investigue. Un échec qui passe au 2e essai est un test instable : il se note pour mesurer sa récurrence.
 
 ---
 
@@ -297,7 +294,7 @@ Deux catégories d'échec, à ne pas mélanger dans le type d'exception :
 | **Erreur de test** | l'application n'a pas fait ce qu'on attendait | `expect(...).toXxx()` ou, hors `expect-webdriverio` (boucle de polling, réponse HTTP), `AssertionError` (`node:assert`) |
 | **Erreur technique** | le test n'a pas pu s'exécuter (infra, environnement, configuration) | `Error` |
 
-Le type dit s'il faut suivre un bug applicatif ou réparer le test ou l'environnement. `expect(...)` reste le premier choix ; `AssertionError` est réservé aux échecs métier hors `expect()` (sortie d'une boucle de backoff, réponse HTTP inattendue de l'API partenaire). `Error` est réservé au technique (aucune WebView, variable d'environnement manquante).
+Le type dit s'il faut suivre un bug applicatif ou réparer le test ou l'environnement. `expect(...)` reste le premier choix ; `AssertionError` est réservé aux échecs métier hors `expect()` (sortie d'une boucle d'attente, réponse HTTP inattendue de l'API partenaire). `Error` est réservé au technique (aucune WebView, variable d'environnement manquante).
 
 Le message reste court et brut : ce qui a été attendu et ce qui a été observé. L'erreur d'origine n'est pas enveloppée.
 
@@ -396,9 +393,9 @@ Ce que le code ne peut pas dire de lui-même. Chaque piège est une cause établ
 ### Sélecteurs et WebView
 
 - `role/…[name=…]` compare le nom **exactement**, tel que le moteur le calcule : sans le texte des icônes `aria-hidden`, et Chrome garde une espace finale pour un bouton icône + texte (`<button role="link">` eIDAS) : utiliser `button*=texte`. Un `&nbsp;` dans un titre est normalisé différemment selon le moteur : `h1*=Où habitez-vous`. Refusé en contexte natif.
-- Une liste d'éléments au même nom est normale (boutons icône, clones d'un carrousel Splide `splide__slide--clone`). `$()` lève alors une violation du mode strict : `firstDisplayed(sélecteur)`, ou pour le carrousel `li.splide__slide.is-visible:not(.splide__slide--clone)`.
+- Plusieurs éléments peuvent avoir le même nom (boutons icône « Ouvrir la modale… », cartes d'un carrousel Splide, dupliquées en `splide__slide--clone`). `$(sélecteur)` attend un seul résultat et lève sinon une « strict mode violation » ; `$$(sélecteur)` renvoie la liste. Pour agir sur le premier élément affiché : `firstDisplayed(sélecteur)`. Pour le carrousel : un parent unique, `li.splide__slide.is-visible:not(.splide__slide--clone)`.
 - Une chaîne `$(parent).$(enfant)` gardée dans une variable garde son parent résolu : la reconstruire à chaque appel (`const carte = () => $(parent).$(enfant)`).
-- Après une navigation qui remplace le document (déconnexion), un élément déjà résolu devient « belongs to different document » : attendre avec `$(sélecteur).waitForDisplayed({reverse: true})`, pas avec l'élément cliqué.
+- Après une déconnexion, la page est remplacée et un élément déjà trouvé n'est plus valide (« belongs to different document »). Pour attendre sa disparition, le chercher à nouveau par son sélecteur : `$(sélecteur).waitForDisplayed({reverse: true})`, pas `élément.waitForDisplayed(…)`.
 - Un élément transparent (`opacity: 0`, flèches Splide hors survol) n'est pas « affiché » mais reste cliquable : `waitForExist` puis `click()`.
 - `aria/<libellé>` renvoie parfois un élément non éditable pour un champ (« invalid element state » au `clearValue()`) : cibler le champ par un attribut (`input[name=…]`).
 - iOS : `getComputedLabel()` et `toHaveComputedLabel` n'existent pas dans la WebView : lire `getText()`.
@@ -406,7 +403,8 @@ Ce que le code ne peut pas dire de lui-même. Chaque piège est une cause établ
 - Webapp : `driver.execute(() => window.location.reload())` échoue (« Cannot find context with specified id », WDIO 10 passe par BiDi et la page est détruite pendant l'appel) : `browser.refresh()`.
 - Un clic perdu par un re-rendu concurrent (liste « Services ») : `clickButtonUntilGone` est une exception réservée aux clics dont la perte est avérée.
 - Une liste rendue après un appel API : le titre de section peut s'afficher avant ses entrées.
-- Webapp : un onglet dont le débogueur JS est en pause (DevTools ouvert sur cet onglet, breakpoint) bloque toute commande WebDriver qui exécute du script, sans indice, jusqu'au timeout Mocha (`ENSURE_APP_WINDOW_TIMEOUT_MS`, 20 s dans `browser.adapter.ts`, borne `ensureAppWindow()`). Un partenaire OIDC peut ouvrir son flow dans un nouvel onglet : l'adaptateur revient au handle capturé de la SPA.
+- Webapp : un onglet dont le débogueur JS est en pause (DevTools ouvert sur cet onglet, breakpoint) bloque toute commande WebDriver qui exécute du script, sans indice, jusqu'au timeout Mocha. L'adaptateur borne `ensureAppWindow()` à 20 s (`ENSURE_APP_WINDOW_TIMEOUT_MS`, `browser.adapter.ts`) pour transformer ce blocage en erreur.
+- Webapp, indépendamment : un partenaire OIDC peut ouvrir son flow dans un nouvel onglet, et les commandes suivantes partiraient dans le mauvais. L'adaptateur mémorise l'onglet de la SPA au départ (`captureAppWindow`) et y revient avant chaque `inWebContext`.
 - Le délai Mocha se pose au niveau du `describe` : `this.timeout()` dans un `it` ou un hook est sans effet avec WDIO. Une connexion initiale peut durer ~105 s sur une machine lente : 180 s pour les specs de login.
 
 ### Contextes mobiles
@@ -435,7 +433,7 @@ Ce que le code ne peut pas dire de lui-même. Chaque piège est une cause établ
 
 - Après la connexion FranceConnect (`login-callback`), l'app charge avant d'afficher son premier écran (un geo.api.gouv.fr lent retarde l'écran « clé d'accès ») : attendre ce premier écran plutôt que sonder par page et recharger la racine, ce qui interrompt le chargement.
 - La page d'erreur technique FCP-LOW partage le bandeau du vrai formulaire de login : la détecter avant de conclure à « formulaire », sinon la boucle tourne jusqu'au délai. La mire eIDAS contient « FranceConnect » dans un lien de pied de page : chercher dans les `<button>`.
-- Une session FranceConnect encore ouverte (SSO) renvoie directement vers l'app, sans mire eIDAS ni identifiants : le test d'authentification doit accepter ce cas.
+- Une session FranceConnect encore ouverte (SSO) renvoie directement vers l'app, sans mire eIDAS ni identifiants : `getAppToStartingState` accepte ce cas. Le test d'authentification, lui, se déconnecte dans son `before` (`getAppToLoggedOutState`, en webapp comme sur mobile) pour tester le process d'authentification.
 - Cookie de session `token` : HttpOnly, invisible pour `document.cookie`, lisible par WebDriver (`browser.getCookies`) et seulement depuis l'origine du backend ; ailleurs, la réponse est « inconnu », pas « déconnecté ». iOS le garde d'un démarrage à l'autre.
 - Android, FranceConnect : le bouton est normalement natif mais la SPA peut aussi rendre le sien ; après le tap natif, la page de login de la SPA peut demander un 2e tap ; après une déconnexion la WebView reste sur `/?is_logged_out#/` (page vide), seul un chargement complet de la racine redirige vers `#/login`.
 - iOS, onboarding des notifications : la feuille native SwiftUI et la page SPA `/#/welcome/notifications` sont toutes deux dans l'arbre natif, mêmes libellés (`hittable == 1` ne garde que la feuille). Si la permission est déjà décidée, la feuille ne vient pas et la route reste vide : seul un rechargement de la racine en sort, et seul « Peut-être plus tard » ferme. Le tap sur « Peut-être plus tard » est parfois sans effet : retaper (3 fois). L'app re-présente la feuille à chaque lancement tant que la permission est non décidée, et elle peut recouvrir l'accueil (accueil lisible, WebView muette) : la fermer d'abord. Après l'alerte système, le sélecteur d'environnement revient seul : re-choisir l'environnement, le cookie rouvre l'accueil.

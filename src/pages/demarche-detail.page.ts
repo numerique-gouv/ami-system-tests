@@ -45,7 +45,7 @@ class DemarcheDetailPage {
 
   /** Vérifie statut, titre, partenaire, référence dossier et historique chronologique des messages, sans quitter la SPA. */
   async assertDetail(expected: {title: string; statusLabel: string; reference: string; messages: string[]}): Promise<void> {
-    await waitForPageText('référence dossier')
+    await this.assertDisplayed(expected.title)
     const text = await pageText()
     for (const part of [expected.statusLabel.toUpperCase(), expected.title, 'AMI', `référence dossier : ${expected.reference}`, 'Messages', ...expected.messages]) {
       if (!text.includes(part))

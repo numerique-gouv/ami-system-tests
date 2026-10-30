@@ -12,7 +12,7 @@ export async function openDemarchesConsents(): Promise<void> {
 /** Sort de Préférences par l'Accueil et y revient : la SPA relit le serveur à l'entrée dans l'écran, sans recharger la page. */
 export async function reopenDemarchesConsents(): Promise<void> {
   await NavigationPage.goToRoute('/')
-  await HomePage.assertHomeVisible()
+  await HomePage.assertDisplayed()
   await openDemarchesConsents()
 }
 

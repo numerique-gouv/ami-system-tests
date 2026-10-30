@@ -38,7 +38,7 @@ describe('Notifications', function () {
   async function setNotifications(on: boolean): Promise<void> {
     await platform().inWebContext(async () => {
       await NavigationPage.goToRoute('/')
-      await HomePage.assertHomeVisible()
+      await HomePage.assertDisplayed()
       await PreferencesPage.open()
       await PreferencesPage.openPushNotificationsSettings()
     })
@@ -52,7 +52,7 @@ describe('Notifications', function () {
   async function publishAndWaitInCenter(title: string, body: string): Promise<{publishedAt: number, centerDelayMs: number}> {
     return await platform().inWebContext(async () => {
       await NavigationPage.goToRoute('/')
-      await HomePage.assertHomeVisible()
+      await HomePage.assertDisplayed()
       await NotificationsInboxPage.openFromHome()
       // Avant de publier : l'inbox ouvre son WebSocket au montage, une notification publiée plus tôt serait perdue.
       await NotificationsInboxPage.assertDisplayed()

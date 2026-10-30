@@ -137,14 +137,14 @@ class SystemNotificationsPage {
         if (!driver.isIOS) return await this.assertTapOpenedApp()
         await OnboardingNotificationsPage.dismissNativeSheet(2000)
         expect(await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})).toBe(4)
-        await platform().inWebContext(() => HomePage.assertHomeVisible())
+        await platform().inWebContext(() => HomePage.assertDisplayed())
     }
 
     /** Revient à l'accueil après le clic. iOS : l'accueil est déjà dans la WebView visible ; Android : retour à la racine. */
     async leavePushArrival(): Promise<void> {
         await platform().inWebContext(async () => {
             if (!driver.isIOS) await NavigationPage.goToRoute('/')
-            await HomePage.assertHomeVisible()
+            await HomePage.assertDisplayed()
         })
     }
 

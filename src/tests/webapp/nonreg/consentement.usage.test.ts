@@ -46,7 +46,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
 
     step('2. Accueil et Suivi proposent de suivre ses démarches')
     await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     expect(await HomePage.isFollowButtonShown(10000)).toBe(true)
     await HomePage.ouvreSuivi()
     expect(await SuiviDemarchesPage.isFollowButtonShown(10000)).toBe(true)
@@ -57,7 +57,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
 
     step('4. Le bouton n’est plus proposé sur l’Accueil ni sur le Suivi')
     await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     await browser.waitUntil(async () => !await HomePage.isFollowButtonShown(), {
       timeout: 10000, interval: 300, timeoutMsg: 'Le bouton « Je veux suivre mes démarches » est resté affiché sur l’Accueil avec un consentement actif',
     })
@@ -106,7 +106,7 @@ describe('Non-régression — consentement et suivi des démarches', function ()
     /** Constat sur l'Accueil puis sur le Suivi : D4 y est-elle listée ? Aucune assertion (règle de gestion non définie). */
     async function observeD4(moment: string): Promise<void> {
       await NavigationPage.goToRoute('/')
-      await HomePage.assertHomeVisible()
+      await HomePage.assertDisplayed()
       const surAccueil = await hasPageText(title, 5000)
       await HomePage.ouvreSuivi()
       let surSuivi: boolean | 'page Suivi non confirmée' = 'page Suivi non confirmée'

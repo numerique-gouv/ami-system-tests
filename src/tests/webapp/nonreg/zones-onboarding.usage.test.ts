@@ -74,13 +74,13 @@ describe('Non-régression — zones choisies à l’onboarding', function () {
     await OnboardingZonesPage.setZone(ZONE, !wasChecked)
     await OnboardingZonesPage.dismiss()
     await OnboardingNotificationsPage.dismiss()
-    await HomePage.assertHomeVisible(30000)
+    await HomePage.assertDisplayed(30000)
 
     step('3. Les préférences reflètent le choix de l’onboarding, en revenant sur l’écran aussi')
     await openZones()
     expect((await ZonesPage.zoneStates())[ZONE]).toBe(!wasChecked)
     await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     await openZones()
     expect((await ZonesPage.zoneStates())[ZONE]).toBe(!wasChecked)
 

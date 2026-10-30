@@ -55,7 +55,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
   /** Préférences s'ouvre par le menu Plus (barre basse) : on repart de l'Accueil, car le Suivi et les Notifications n'ont pas toujours cette barre. */
   const ouvrirLesPreferences = async (): Promise<void> => {
     await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     await openDemarchesConsents()
   }
 
@@ -108,7 +108,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     /** Revient à l'Accueil (barre basse absente des Préférences et des Notifications) puis ouvre le Suivi, vérifié par son h1. */
     const ouvrirLeSuivi = async (): Promise<void> => {
       await NavigationPage.goToRoute('/')
-      await HomePage.assertHomeVisible()
+      await HomePage.assertDisplayed()
       await HomePage.ouvreSuivi()
       await SuiviDemarchesPage.assertDisplayed()
     }
@@ -132,7 +132,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     await marquer()
 
     step('2. Garde côté appelant : un partenaire réel s’arrête avant le PUT (pas de consentement)')
-    await expect(publishDemarche(primeOptions)).rejects.toThrow(/pas de consentement/)
+    await expect(publishDemarche(primeOptions)).rejects.toThrow(/pas de consentement/i)
 
     step('3. D1 prime, presque pleine (corps, sous-titre, lien), publiée sans consentement : le BACKEND refuse (404)')
     // `verifyPartnerConsent: false` saute la garde et force le PUT, pour vérifier que c'est bien le backend qui refuse.
@@ -143,7 +143,7 @@ describe('Non-régression — démarche publiée sans consentement : refusée et
     // eslint-disable-next-line wdio/no-pause -- délai imposé par le scénario de l'équipe : laisser au backend le temps de traiter l'événement
     await browser.pause(4000)
     await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     await assertPrimeJamaisRecue('avant consentement')
 
     step('5. Donner le consentement du partenaire, le backend le confirme')

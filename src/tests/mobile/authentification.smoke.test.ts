@@ -34,7 +34,7 @@ describe('Authentification', function () {
     await FranceConnectMirePage.tapFranceConnect(true )
 
     step('3. Vérifier l\'arrivée sur la page d\'accueil')
-    await platform().inWebContext(() => HomePage.assertHomeVisible(30000))
+    await platform().inWebContext(() => HomePage.assertDisplayed(30000))
 
     // iOS : l'onboarding accepte les notifications, constaté dans le simulateur.
     if (driver.isIOS) {

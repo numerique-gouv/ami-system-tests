@@ -24,6 +24,7 @@ class NotificationsInboxPage {
      * iOS seulement : le WebSocket peut rester « zombie » après un retour d'arrière-plan (WKWebView), un reload force alors un fetch frais.
      */
     async assertNotificationReceived(title: string, timeoutMs = 25000): Promise<void> {
+        await this.assertDisplayed()
         if (await hasPageText(title, timeoutMs)) return
         if (!driver.isIOS) {
             throw new AssertionError({ message: `Notification not received:${title}.` })
@@ -40,6 +41,7 @@ class NotificationsInboxPage {
 
     /** Pré-condition : la notification est visible (`assertNotificationReceived`). L'arrivée est vérifiée par la page cible. */
     async clickNotification(title: string): Promise<void> {
+        await this.assertDisplayed()
         await clickDisplayed(notificationsLocators.notificationTitle(title), {timeout: 10000})
     }
 

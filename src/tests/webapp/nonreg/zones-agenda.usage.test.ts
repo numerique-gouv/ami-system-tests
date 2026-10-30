@@ -48,7 +48,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
   async function waitForAgendaEvent(title: string): Promise<void> {
     await browser.waitUntil(async () => {
       await NavigationPage.goToRoute('/')
-      await HomePage.assertHomeVisible()
+      await HomePage.assertDisplayed()
       await AgendaPage.open()
       return await AgendaPage.isEventListed(title, 4000)
     }, {timeout: 40000, interval: 1000, timeoutMsg: `L'élément « ${title} » n'est pas apparu dans l'agenda après 40000ms`})
@@ -90,7 +90,7 @@ describe('Non-régression — zones scolaires et agenda', function () {
     await openZones()
     await ZonesPage.setZone('Zone B', false)
     await NavigationPage.goToRoute('/')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     await openZones()
     expect((await ZonesPage.zoneStates())['Zone B']).toBe(false)
 

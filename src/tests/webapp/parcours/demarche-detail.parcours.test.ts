@@ -46,12 +46,12 @@ describe('Non-régression — détail d’une démarche', function () {
 
   it('depuis l’Accueil puis depuis le Suivi, la tuile ouvre le détail de la bonne démarche, et le retour revient à l’écran d’origine', async function () {
     step('1. Depuis l’Accueil : ouvrir le détail, puis le retour revient à l’Accueil')
-    await HomePage.assertHomeVisible()
+    await HomePage.assertDisplayed()
     await SuiviDemarchesPage.ouvreDemarche(title)
     await DemarcheDetailPage.assertDisplayed(title)
     await DemarcheDetailPage.assertReference(itemId)
     await NavigationPage.goBack()
-    await HomePage.assertHomeVisible(15000)
+    await HomePage.assertDisplayed(15000)
 
     step('2. Depuis le Suivi : ouvrir le détail, puis le retour revient à la liste')
     await HomePage.ouvreSuivi()

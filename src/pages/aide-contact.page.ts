@@ -6,19 +6,24 @@ import NavigationPage from './navigation.page'
 
 /** Aide et contact, Contact et pages légales (données personnelles, accessibilité). */
 class AideContactPage {
+    /** Aide et contact par défaut ; `title` désigne une autre vue (Nous contacter, pages légales). */
+    async assertDisplayed(title = aideContactLocators.helpTitle): Promise<void> {
+        await waitForHeading(title)
+    }
+
     async openHelpCenter(): Promise<void> {
         await NavigationPage.openPlusEntry('Aide et contact')
     }
 
     /** Entrées de Aide et contact, hors bouton de retour. */
     async helpEntries(): Promise<string[]> {
-        await waitForHeading(aideContactLocators.helpTitle)
+        await this.assertDisplayed()
         return (await visibleButtonTexts()).filter(t => t !== 'Retour à la page précédente')
     }
 
     /** Clique « J’ai besoin de l’aide de l’administration » (lien externe) et décrit la page atteinte. */
     async openAdministrationHelp(): Promise<LinkTarget> {
-        await waitForHeading(aideContactLocators.helpTitle)
+        await this.assertDisplayed()
         return await followAndDescribe(async () => {
             await clickButton(aideContactLocators.helpAdministrationEntry)
         })
@@ -27,7 +32,7 @@ class AideContactPage {
     /** Revient sur Aide et contact après un lien externe. */
     async returnFromExternal(): Promise<void> {
         await browser.url('/#/help-center')
-        await waitForHeading(aideContactLocators.helpTitle)
+        await this.assertDisplayed()
     }
 
     /** Depuis Aide et contact, « Je rencontre un problème sur l'application » ouvre Contact. */
@@ -37,7 +42,7 @@ class AideContactPage {
 
     /** Ouvre le dialogue « Contacter notre équipe » et retourne ses actions proposées. */
     async openContactDialog(): Promise<string[]> {
-        await waitForHeading(aideContactLocators.contactTitle)
+        await this.assertDisplayed(aideContactLocators.contactTitle)
         await clickButton(aideContactLocators.contactTeamButtonName)
         await waitForRole('button', aideContactLocators.contactOnlineRequestName, {timeout: 5000})
         const texts = await visibleButtonTexts()
@@ -46,7 +51,7 @@ class AideContactPage {
 
     /** Sections d'une page légale, hors bouton de retour. */
     async legalSections(pageTitle: string): Promise<string[]> {
-        await waitForHeading(pageTitle)
+        await this.assertDisplayed(pageTitle)
         return (await visibleButtonTexts()).filter(t => t !== 'Retour à la page précédente')
     }
 }

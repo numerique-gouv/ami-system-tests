@@ -12,6 +12,7 @@ class ZonesPage {
 
     /** États des cases de zones, par nom de zone. */
     async zoneStates(): Promise<Record<string, boolean>> {
+        await this.assertDisplayed()
         return await checkboxStates()
     }
 
