@@ -4,7 +4,7 @@ import HomePage from '../../pages/home.page'
 import {getTestUser} from '../../helpers/common/test-users'
 import {step} from '@helpers/reporting/report'
 import {platform} from '../../platform'
-import {waitForNotificationAuthorization} from '../../helpers/mobile/ios-notifications'
+import SystemNotificationsPage from '../../pages/system-notifications.page'
 
 /** Le flow FranceConnect complet aboutit sur la page d'accueil (l'authentification elle-même est l'affaire d'une autre équipe). */
 describe('Authentification', function () {
@@ -27,11 +27,8 @@ describe('Authentification', function () {
     step('3. Vérifier l\'arrivée sur la page d\'accueil')
     await platform().inWebContext(() => HomePage.assertDisplayed(30000))
 
-    // iOS : l'onboarding accepte les notifications, constaté dans le simulateur.
-    if (driver.isIOS) {
-      step('4. Vérifier que les notifications sont autorisées (réglage système du simulateur)')
-      await waitForNotificationAuthorization('authorized')
-    }
+    step('4. Vérifier que les notifications sont autorisées (réglage système du simulateur iOS)')
+    await SystemNotificationsPage.assertAuthorizedAfterOnboarding()
   })
 
 })

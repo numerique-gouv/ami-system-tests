@@ -68,7 +68,7 @@ export async function clickDisplayed(selector: string, opts: DisplayOptions = {}
 }
 
 /** Clique l'élément de rôle `role` et de nom accessible `name` (exact). */
-export async function clickRole(role: string, name: string, opts: DisplayOptions = {}): Promise<void> {
+async function clickRole(role: string, name: string, opts: DisplayOptions = {}): Promise<void> {
   await clickDisplayed(roleSelector(role, name), opts)
 }
 

@@ -10,7 +10,7 @@ import HomePage from './home.page'
 import {platform} from '../platform'
 import {
     bannerAppearsWithin, setNotificationsFromAppSettings as setIosNotificationsFromAppSettings, showSpringBoard, tapBanner,
-    waitForBanner, appBundleId,
+    waitForBanner, appBundleId, waitForNotificationAuthorization,
 } from '../helpers/mobile/ios-notifications'
 
 /**
@@ -19,6 +19,11 @@ import {
  * Les OS ne se pilotent pas de la même façon : cette page branche sur `driver.isIOS` / `driver.isAndroid` pour appeler l'utilitaire du bon OS.
  */
 class SystemNotificationsPage {
+    /** iOS : l'onboarding accepte les notifications, ce que le simulateur confirme. Sans effet sur Android. */
+    async assertAuthorizedAfterOnboarding(): Promise<void> {
+        if (driver.isIOS) await waitForNotificationAuthorization('authorized')
+    }
+
     /** Attend une notification de l'app portant ce titre ET ce texte (dumpsys notification). */
     private async waitForSystemNotification(title: string, body: string, timeoutMs: number): Promise<void> {
         let found = ''

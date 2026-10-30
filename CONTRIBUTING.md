@@ -144,7 +144,7 @@ npx wdio run wdio.webapp.conf.ts --suite webapp_smoke   # sans just
   | élément sans nom accessible stable | `[data-testid="x"]` (dernier recours) |
   | dans un conteneur | `$(conteneur).$(élément)` ou l'option `within` des aides |
 
-  Les aides de `src/helpers/spa/spa.ts` s'appellent dans le `inWebContext` de l'appelant mobile : `waitForHeading`, `waitForRole`, `clickRole`, `clickButton`, `waitForButtons`, `waitForPageText` (attendent) ; `isShown`, `hasPageText` (sondes) ; `firstDisplayed`, `allDisplayed` (retournent un élément, à utiliser dans un `inWebContext` ouvert) ; `clickDisplayed`, `visibleButtonTexts`, `checkboxStates`.
+  Les aides de `src/helpers/spa/spa.ts` s'appellent dans le `inWebContext` de l'appelant mobile : `waitForHeading`, `waitForRole`, `clickButton`, `waitForButtons`, `waitForPageText` (attendent) ; `isShown`, `hasPageText` (sondes) ; `firstDisplayed`, `allDisplayed` (retournent un élément, à utiliser dans un `inWebContext` ouvert) ; `clickDisplayed`, `visibleButtonTexts`, `checkboxStates`.
 - **Natif** (hors WebView) : `accessibility id` (`~xxx`) de préférence à un XPath par texte ou un resource-id brut. Les sélecteurs `role/…` et `driver.execute()` n'ont pas de prise sur le natif : `$()` avec des sélecteurs natifs y est obligatoire. Ne pas `await` le `$()` lui-même : il se re-résout à chaque commande.
 - Pour atteindre un élément hors écran d'une liste native : `element.scrollIntoView({direction: 'up', maxScrolls})`, pas de boucle de swipe écrite à la main (exemple : `EnvironmentPickerPage.reviewEnvironmentPicker`).
 
@@ -162,7 +162,7 @@ Testing Library (`tl()`) est retiré : ne plus importer `setupBrowser`, ni écri
 
 ### `data-testid` : dernier recours
 
-Essayer d'abord `clickRole`, `waitForRole`, `waitForPageText` (rôle, nom, texte) et ne basculer que si cette requête échoue réellement. Cas justifiés : rôle et nom dupliqués sur la page, ou texte imprévisible. Documenter l'échec observé à côté du champ.
+Essayer d'abord `clickButton`, `waitForRole`, `waitForPageText` (rôle, nom, texte) et ne basculer que si cette requête échoue réellement. Cas justifiés : rôle et nom dupliqués sur la page, ou texte imprévisible. Documenter l'échec observé à côté du champ.
 
 ### Classes CSS
 
@@ -224,7 +224,7 @@ interface PlatformAdapter {
 - **Plusieurs WebViews** : `platform().inWebContext({title: 'Titre'}, callback)` vise une WebView par son titre (chaîne « contient » ou RegExp). Sans correspondance, ou sans cible, c'est la dernière WebView hors workers.
 - Les sélecteurs CSS/XPath ne fonctionnent qu'en `WEBVIEW_*` ; les gestes et sélecteurs natifs qu'en `NATIVE_APP`. Un geste natif ne s'appelle jamais depuis un `inWebContext()`.
 - **Flow OIDC FranceConnect : un seul `platform().inWebContext()`** pour tout le flow (eIDAS, identifiants, callback). Sortir du contexte au milieu bloque ~25 s sur iOS.
-- Naviguer par un vrai clic utilisateur (`clickRole(…)`) plutôt que par `driver.execute(() => el.click())` : le clic JS est silencieux sur iOS en cas d'échec.
+- Naviguer par un vrai clic utilisateur (`clickButton(…)`) plutôt que par `driver.execute(() => el.click())` : le clic JS est silencieux sur iOS en cas d'échec.
 - Les éléments ne survivent pas à un changement de contexte.
 
 ---
