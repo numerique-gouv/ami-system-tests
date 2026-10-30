@@ -1,0 +1,13 @@
+# Les actions sont épinglées par SHA de commit (le commentaire donne la version) : Dependabot propose chaque semaine, en une seule PR,
+# le nouveau SHA et le nouveau commentaire. Sans lui, les SHA ne seraient jamais mis à jour.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
