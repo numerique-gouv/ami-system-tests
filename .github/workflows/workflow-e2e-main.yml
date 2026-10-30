@@ -50,6 +50,25 @@ on:
         description: "ref (branche/tag/sha) d'ami-system-tests à checkout — doit correspondre au ref utilisé dans le uses: qui pointe vers ce workflow"
         type: string
         required: true
+    secrets:
+      NOTIF_PARTNER_ID:
+        description: "identifiant du partenaire AMI de l'API partenaire"
+        required: false
+      NOTIF_PARTNER_SECRET:
+        description: "secret du partenaire AMI"
+        required: false
+      NOTIF_PARTNER_DINUM_DN_ID:
+        description: "identifiant du second partenaire (consentement activé) : sans lui, les scénarios qui en ont besoin sont sautés"
+        required: false
+      NOTIF_PARTNER_DINUM_DN_SECRET:
+        description: "secret du second partenaire"
+        required: false
+      WEB_APP_ACCESS_KEYS:
+        description: "clé d'accès à la webapp de staging (run_webapp seulement)"
+        required: false
+      AMI_REVIEWAPPS_PRIVATE_KEY:
+        description: "clé PEM de la GitHub App ami-reviewapps (apk_source = latest-tag seulement)"
+        required: false
     outputs:
       test_results:
         description: "motif (glob) des artefacts de résultats de ce run : test-results-<slug>-*-run<N>, utilisable comme `pattern:` de actions/download-artifact. Chaque artefact contient junit/ (JUnit XML enrichi) et traces/<run>/failures/ (dumps des échecs)."
