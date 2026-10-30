@@ -79,4 +79,18 @@ describe('Non-régression — zones scolaires et agenda', function () {
     await AgendaPage.assertDisplayed()
     expect(await AgendaPage.eventText(zoneTile)).toContain('Zone B')
   })
+
+  it('aucune zone cochée : les vacances qui les citaient disparaissent de l’agenda', async function () {
+    step('1. La zone B est cochée : repérer une tuile de l’agenda qui la cite')
+    const zoneTile = await zoneBTileOrSkip(this)
+
+    step('2. Décocher toutes les zones')
+    await openZones()
+    for (const zone of Object.keys(await ZonesPage.zoneStates())) await ZonesPage.setZone(zone, false)
+
+    step('3. La tuile n’est plus dans l’agenda')
+    await NavigationPage.goToRoute('/agenda')
+    await AgendaPage.assertDisplayed()
+    expect(await AgendaPage.isEventListed(zoneTile, 4000)).toBe(false)
+  })
 })
