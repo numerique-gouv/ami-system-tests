@@ -31,43 +31,15 @@ inputs:
 runs:
   using: composite
   steps:
-    # Résout une seule fois les paramètres de l'appareil (ancien vs récent), réutilisés par les
-    # 3 steps plus bas (cache AVD, création AVD + snapshot, Tests E2E) — sans ce step, ces 5
-    # valeurs (api-level/target/arch/profile/avd-name) étaient dupliquées dans 6 steps distincts
-    # (3 par branche ancien/récent), avec le risque de les faire diverger entre cache et
-    # exécution réelle. `$GITHUB_ENV` (pas `$GITHUB_OUTPUT`) : disponible via `${{ env.X }}`
-    # dans les `with:` des steps `uses:` suivants, contrairement aux outputs d'un step qui
-    # demanderaient de préfixer chaque référence par `steps.<id>.outputs.`.
-    #
-    # API 30 (Android 11), pas 28 (Android 9) pour l'appareil ancien — cf.
-    # docs/adr/2026-09-22-Chromedriver-legacy-webview-android-ancien.md. L'API 28 embarquait un
-    # WebView Chrome 66-69 (2018), antérieur de ~2 ans à ES2020 (optional chaining/nullish
-    # coalescing, apparus avec Chrome 80/V8 8.0, fév. 2020) et pile dans la plage des binaires
-    # Chromedriver 2.39-2.44 cassés (bug "alpha"/`ready` manquant côté Google, jamais corrigé
-    # pour ces versions précises) — combinaison qui rendait tout pilotage Appium de cette WebView
-    # impossible sans hack (transpilation de dépendances tierces, jugée trop coûteuse à
-    # maintenir).
-    # API 29 initialement retenue (WebView 91.0.4472.114 vérifié empiriquement sur AVD arm64
-    # local — même valeur qu'API 30) puis abandonnée : un run CI réel (x86_64, l'architecture
-    # des runners GitHub-hosted) a montré `chrome=74.0.3729.185` sur cette même API 29, très en
-    # dessous du seuil ES2020 — le SyntaxError `?.` est réapparu. Les images x86_64 restent
-    # apparemment figées près de leur version de sortie AOSP initiale (74 pour l'API 29,
-    # confirmé par le dépôt `external/chromium-webview`, tag `android-10.0.0_r1`) alors que les
-    # images arm64 reçoivent des révisions de maintenance plus fréquentes — un écart
-    # d'architecture qui n'existait pas à ce point sur l'API 28 (66 arm64 vs 69 x86_64,
-    # écart mineur). API 30 est donc retenue : sa sortie AOSP initiale (`android-11.0.0_r1`)
-    # est déjà à 83 (> 80), donc viable même si l'image x86_64 CI reste figée sur ce build
-    # initial comme observé pour l'API 29.
+    # Résout une fois les paramètres de l'appareil (API, profil, nom d'AVD), réutilisés par les steps suivants (cache AVD, création, tests).
+    # API 30 (Android 11) pour l'appareil ancien : voir docs/adr/2026-09-22-Chromedriver-legacy-webview-android-ancien.md.
     - name: Résoudre les paramètres de l'appareil Android
       shell: bash
       env:
         DEVICE: ${{ inputs.device }}
       run: |
-        # ANDROID_DEVICE_NAME sert à la fois de nom d'AVD (`with: avd-name:` des steps suivants)
-        # et de valeur lue par src/driver/capabilities.ts (appium:deviceName) — un seul nom pour
-        # les deux usages. L'émulateur est démarré par android-emulator-runner (pas par Appium :
-        # ni ANDROID_AVD ni just start-*) ; il est le seul appareil adb, donc pas d'ANDROID_UDID. Le profil et le niveau d'API sont déduits du nom : n'importe quel
-        # appareil `pixel_<profil>_api<niveau>` est accepté, sans liste à maintenir ici.
+        # Le nom de l'AVD est aussi lu par src/driver/capabilities.ts (appium:deviceName). Le profil et l'API sont déduits du nom :
+        # tout `pixel_<profil>_api<niveau>` est accepté. L'émulateur est le seul appareil adb, donc pas d'ANDROID_UDID.
         if [[ ! "$DEVICE" =~ ^pixel_([0-9]+[a-z_]*)_api([0-9]+)$ ]]; then
           echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_2_api30)"
           exit 1
@@ -78,12 +50,8 @@ runs:
         echo "ANDROID_ARCH=x86_64"                         >> "$GITHUB_ENV"
         echo "ANDROID_PROFILE=pixel_${BASH_REMATCH[1]}"    >> "$GITHUB_ENV"
 
-    # nom produit par Gradle (basename de l'APK stagingDebug). `path` est résolu par
-    # actions/download-artifact relatif à $GITHUB_WORKSPACE (racine du checkout du repo
-    # appelant, ex. ami-app-android) et non à `ami-system-tests/` — `working-directory` n'a
-    # aucun effet sur un step `uses:`. Le chemin doit donc placer l'APK dans
-    # $GITHUB_WORKSPACE/ami-app-android/..., le dossier frère que ANDROID_APP_PATH
-    # (step « Tests E2E » plus bas) désigne.
+    # L'APK doit atterrir là où ANDROID_APP_PATH le cherche (step « Tests E2E ») : ami-app-android/app/build/outputs/apk/staging/debug/,
+    # relatif à $GITHUB_WORKSPACE et non à ami-system-tests/.
     - name: Récupérer l'APK buildé par le workflow appelant
       if: ${{ inputs.apk-run-id == '' }}
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -91,7 +59,7 @@ runs:
         name: ${{ inputs.apk-artifact }}
         path: ami-app-android/app/build/outputs/apk/staging/debug
 
-    # APK d'un autre run (ex. dernier tag d'ami-app-android, utilisé par les PR/merge d'ami-notifications-api) : même destination.
+    # APK d'un autre run (dernier tag d'ami-app-android) : même destination.
     - name: Récupérer l'APK d'un autre run
       if: ${{ inputs.apk-run-id != '' }}
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -102,17 +70,13 @@ runs:
         run-id: ${{ inputs.apk-run-id }}
         github-token: ${{ inputs.apk-token }}
 
-    # adb (platform-tools) requis par `onPrepare` de wdio.android.conf.ts et par Appium. Ne pas compter sur un SDK
-    # préinstallé sur le runner : cette étape installe et exporte ANDROID_HOME/ANDROID_SDK_ROOT.
+    # adb est requis par `onPrepare` de wdio.android.conf.ts et par Appium : on installe le SDK plutôt que de compter sur le runner.
     - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
       with:
         distribution: temurin
         java-version: "17"
 
-    # `platform-tools` n'est pas versionné dans ce repo (toujours "latest" côté sdkmanager) —
-    # la clé de cache n'est donc pas invalidée automatiquement à une nouvelle version amont.
-    # Cache volontairement "sticky" (gain : évite un aller-retour réseau à chaque run) ; si une
-    # mise à jour de platform-tools est nécessaire, changer manuellement le suffixe de clé (v1 → v2).
+    # Cache de platform-tools. Sa clé ne suit pas la version amont : pour forcer une mise à jour, changer le suffixe (v1 → v2).
     - name: cache Android platform-tools
       id: cache-platform-tools
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -120,36 +84,20 @@ runs:
         path: ${{ env.ANDROID_SDK_ROOT }}/platform-tools
         key: ${{ runner.os }}-android-platform-tools-v1
 
-    # packages: 'platform-tools' (au lieu du défaut 'tools platform-tools') — le paquet
-    # legacy `tools` dépend d'`emulator`, indisponible pour linux-aarch64, ce qui fait échouer
-    # sdkmanager avec exit code 1. `adb` (seul besoin ici) vient de
-    # `platform-tools`. Source : https://github.com/android-actions/setup-android/issues/283
+    # Seul `platform-tools` est installé (adb) : le paquet `tools` dépend d'`emulator`, indisponible sur linux-aarch64
+    # (https://github.com/android-actions/setup-android/issues/283).
     - if: steps.cache-platform-tools.outputs.cache-hit != 'true'
       uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
       with:
         packages: "platform-tools"
 
-    # reactivecircus/android-emulator-runner (step "Tests E2E" plus bas) exécute
-    # `avdmanager create avd --device pixel_8`. Il ne réinstalle son propre cmdline-tools que si
-    # $ANDROID_HOME/cmdline-tools n'existe pas du tout — or setup-android (step ci-dessus) a
-    # déjà créé ce dossier parent (avec son propre cmdline-tools récent dans un sous-dossier
-    # versionné, ex. cmdline-tools/20.0). android-emulator-runner saute donc sa réinstallation
-    # et pointe en dur son PATH vers cmdline-tools/latest, qui est ici l'ancien cmdline-tools
-    # préinstallé sur l'image GitHub-hosted (trop vieux pour connaître le profil "pixel_8" —
-    # "Error: No device found matching --device pixel_8").
-    # sdkmanager --install cmdline-tools;latest ne corrige pas ça : il refuse d'écraser en place
-    # un paquet d'une autre révision et installe à côté (cmdline-tools/latest-2), sans jamais
-    # toucher à `latest`.
-    # Fix : supprimer ce `cmdline-tools/latest` obsolète. La résolution du PATH par
-    # android-emulator-runner retombe alors sur le cmdline-tools installé par setup-android
-    # (déjà sur le PATH, sans avoir à connaître son numéro de version).
+    # Contournement : android-emulator-runner utilise le cmdline-tools/latest préinstallé sur le runner, trop ancien pour le profil `pixel_8`
+    # (« No device found matching --device »). On le supprime pour qu'il retombe sur celui de setup-android.
     - name: Supprimer le cmdline-tools/latest obsolète préinstallé sur le runner
       shell: bash
       run: rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
 
-    # KVM requis par reactivecircus/android-emulator-runner sur runner Linux (accélération
-    # matérielle) — les runners GitHub-hosted x86_64 l'exposent mais il faut ouvrir les
-    # permissions du device node. https://github.com/ReactiveCircus/android-emulator-runner
+    # Accélération matérielle de l'émulateur : KVM doit être ouvert à tous les utilisateurs (https://github.com/ReactiveCircus/android-emulator-runner).
     - name: Enable KVM
       shell: bash
       run: |
@@ -160,11 +108,7 @@ runs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
-    # Cache de l'AVD (image système + données de création) — sans lui, chaque run retélécharge
-    # l'image système complète et recrée l'AVD depuis zéro avant même de démarrer les tests
-    # (poste le plus coûteux en temps de ce job). Clé incluant tous les paramètres qui
-    # déterminent le contenu de l'AVD : un changement d'API level/target/arch/profile régénère
-    # naturellement un cache neuf (ils viennent tous du step de résolution ci-dessus).
+    # Cache de l'AVD (image système et données de création) : sans lui, chaque run retélécharge l'image et recrée l'AVD. La clé reprend ses paramètres.
     - name: cache AVD
       id: avd-cache
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -174,9 +118,7 @@ runs:
           ~/.android/adb*
         key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}-${{ env.ANDROID_PROFILE }}
 
-    # Ne s'exécute qu'au premier run (cache miss) : crée l'AVD et génère un snapshot de boot,
-    # capturés ensuite par le step actions/cache ci-dessus (post-job). Les runs suivants
-    # démarrent directement depuis ce snapshot au lieu de rebooter à froid.
+    # Premier run seulement (cache absent) : crée l'AVD et son snapshot de démarrage, que le cache ci-dessus conserve ; les runs suivants démarrent depuis ce snapshot.
     - name: créer l'AVD et générer le snapshot
       if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
@@ -193,10 +135,8 @@ runs:
 
     - name: Tests E2E
       uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-      # La suite passe par l'environnement (pas d'interpolation ${{ }} dans le script, qui s'exécute dans un shell). Le script est lu par
-      # android-emulator-runner ligne par ligne (chaque ligne = une commande `sh -c`) : variables et `||` restent valides ligne à ligne.
-      # ANDROID_APP_PATH : l'APK téléchargé plus haut (même chemin que `path:` des deux steps de téléchargement) ; source unique lue par
-      # src/driver/capabilities.ts (le justfile ne calcule plus aucun chemin d'app).
+      # La suite passe par l'environnement (pas d'interpolation dans le script). android-emulator-runner exécute le script ligne par ligne.
+      # ANDROID_APP_PATH : l'APK téléchargé plus haut ; source unique lue par src/driver/capabilities.ts.
       env:
         E2E_SUITE: ${{ inputs.suite }}
         ANDROID_APP_PATH: ${{ github.workspace }}/ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk

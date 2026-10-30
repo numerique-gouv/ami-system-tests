@@ -1,12 +1,10 @@
 name: E2E cleanup (artefacts de tests)
 
-# Appelé par les dépôts frères (notification-api / ios / android) sur la fermeture de leur PR
-# (pull_request: types: [closed]) — supprime les artefacts de tests associés (JUnit et dumps d'échec publiés
-# par workflow-e2e-main.yml : `test-results-<slug>-<plateforme>-run<N>`) pour ne pas les laisser s'accumuler
-# indéfiniment une fois la PR fermée. `retention-days` reste un filet de sécurité si ce dispatch échoue ou n'est
-# jamais câblé côté dépôt frère (cf. docs/adr/2026-08-04-Integration-continue-Github-Actions.md).
-# Ancien nom : allure-cleanup.yml (renommé lors du passage à WDIO 10 / JUnit : les dépôts frères qui le déclenchent par
-# son nom doivent être mis à jour ; aucun des trois dépôts ne le référence encore à la date de ce renommage — vérifié par grep).
+# Supprime les artefacts de tests (`test-results-<slug>-*`, publiés par workflow-e2e-main.yml) d'une PR fermée, pour qu'ils ne s'accumulent pas.
+# À déclencher (workflow_dispatch avec source_repo et pr_number) depuis les dépôts frères à la fermeture de leur PR (`pull_request: types: [closed]`).
+# La rétention de 14 jours reste un filet de sécurité si ce déclenchement n'est pas câblé ou échoue.
+#
+# Renommage proposé, non fait (il ne prend effet qu'après un merge sur main) : `name:` → « Nettoyage des artefacts E2E d'une PR fermée ».
 on:
   workflow_dispatch:
     inputs:
@@ -21,8 +19,7 @@ on:
 
 permissions:
   contents: read
-  # La suppression a lieu dans CE dépôt (les artifacts y ont été publiés) — le GITHUB_TOKEN
-  # natif suffit, pas besoin de token cross-dépôt.
+  # La suppression a lieu dans ce dépôt : le GITHUB_TOKEN suffit, pas besoin d'un jeton inter-dépôts.
   actions: write
 
 jobs:
