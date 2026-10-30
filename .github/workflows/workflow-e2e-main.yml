@@ -94,6 +94,8 @@ jobs:
   # webapp et Android partagent un seul job : même VM, même checkout, même node_modules, même dossier test-results.
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
+    # Le nom date de l'époque où les deux plateformes partageaient ce job. Chaque plateforme n'y tourne que si sa suite est renseignée (run_webapp, run_android) :
+    # un appelant Android seul ne lance aucun test webapp. Renommage proposé (à faire après le merge sur main, il change le nom du check) : « e2e (webapp, Android) ».
     name: webapp + android (shared VM)
     # Image épinglée : ce job dépend de l'image (KVM, cmdline-tools, émulateur x86_64).
     runs-on: ubuntu-24.04
