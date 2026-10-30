@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// POURQUOI CE SCRIPT, alors que mikepenz/action-junit-report fait déjà le check : il affiche proprement le rapport JUnit en tableau, avec le lien
+// Sentry de chaque échec. Ce n'est pas notre cœur de métier. On le garde tant qu'il est stable et qu'une IA peut le maintenir ; sinon on s'en
+// tient à ce que proposent les actions du marché (mikepenz/action-junit-report, déjà utilisée pour le check) et on le supprime avec son action
+// (.github/actions/e2e-pr-comment) et son test.
 // Commentaire de PR « tests E2E » à partir des JUnit enrichis par src/helpers/reporting/junit-join.ts. Aucune dépendance externe.
 //
 //   node e2e-comment.mjs --junit-dir <dossier> [--junit-dir …] --repo owner/nom --pr 123 --out comment.md

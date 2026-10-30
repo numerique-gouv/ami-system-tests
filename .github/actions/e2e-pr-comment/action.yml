@@ -1,3 +1,5 @@
+# Pourquoi cette action et le script e2e-comment.mjs : voir l'en-tête du script (tableau JUnit avec lien Sentry ; à supprimer si on ne peut
+# plus les maintenir, au profit de mikepenz/action-junit-report).
 name: e2e-pr-comment
 description: >-
   Crée ou met à jour UN commentaire de PR « tests E2E » (tableau test | résultat | durée | lien Sentry) à partir des JUnit enrichis
