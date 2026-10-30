@@ -3,16 +3,10 @@ import NavigationPage from '../../../pages/navigation.page'
 import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
 import DemarcheDetailPage from '../../../pages/demarche-detail.page'
 import NotificationsInboxPage from '../../../pages/notifications.page'
-import ServicesPage from '../../../pages/services.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche, publishDemarcheEnfant} from '../../../helpers/partner-api'
-import {describeTarget, isBrokenTarget, isExpectedUnreachable, isLoginWall, toleratedUnreachableWarning} from '../../../helpers/webapp/link-check'
 import {getTestUser} from '../../../helpers/common/test-users'
 import {step} from '../../../helpers/reporting/report'
-import {AssertionError} from 'node:assert'
-import logger from '@wdio/logger'
-
-const log = logger('test')
 
 /**
  * Redirections vers le détail d'une démarche. Assertion clé : la référence dossier publiée est retrouvée sur l'écran de détail atteint.
@@ -71,26 +65,6 @@ describe('Non-régression — détail d’une démarche', function () {
     await NotificationsInboxPage.clickNotification(title)
     await DemarcheDetailPage.assertDisplayed(title)
     await DemarcheDetailPage.assertReference(itemId)
-  })
-
-  it('la carte « Déclaration de changement d’adresse » ne passe pas par la mire FranceConnect (connexion silencieuse)', async function () {
-    // Assertion à valider avec l'équipe : seule la page finale est observée, pas les redirections.
-    await ServicesPage.open()
-    await ServicesPage.assertDisplayed()
-    const target = await ServicesPage.openCatalogueCardNamed('Déclaration de changement d')
-    // Cible non différée : son adresse porte un jeton à usage unique que seul le navigateur peut suivre (sans contrôle HTTP, l'attente de Chrome sur un hôte injoignable ~75-90 s est inévitable).
-    if (isBrokenTarget(target)) {
-      const line = `Connexion silencieuse : ${describeTarget(target)} répond ${target.status} (« ${target.title} »)`
-      // Seul un hôte listé (`PRIVATE_NETWORK_HOSTS`) SANS réponse est toléré ; une page d'erreur d'AMI ou un autre hôte reste un échec.
-      if (!isExpectedUnreachable(target)) throw new AssertionError({message: line})
-      log.warn(toleratedUnreachableWarning(line))
-      await ServicesPage.returnFromExternal()
-      return
-    }
-    expect(target.host).not.toContain('franceconnect')
-    // Page de connexion (200) : la connexion silencieuse n'aboutit pas. Pas encore un critère d'échec (désactivée ou en échec, non confirmé).
-    if (isLoginWall(target)) log.warn(`ANOMALIE ? La connexion silencieuse aboutit sur une page de connexion (${describeTarget(target)}, « ${target.title} »)`)
-    await ServicesPage.returnFromExternal()
   })
 
   it('une démarche enfant est listée sous sa démarche parente, et pas sous une autre', async function () {

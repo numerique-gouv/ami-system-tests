@@ -106,7 +106,7 @@ Le périmètre est en kebab-case français (`profil-et-suppression-a-la-deconnex
 
 `src/tests/webapp/parcours/` regroupe les specs qui parcourent des zones configurées par l'administrateur (catalogue, services, détail d'une démarche, listes d'étapes). Leur contenu varie selon l'environnement et elles suivent des liens externes dont une partie n'est joignable que depuis un réseau privé : les cibles injoignables les rendent lentes (plusieurs minutes). Elles sont hors `webapp_usage`.
 
-La catégorie du nom de fichier fait entrer une spec dans une suite. `wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `otv-connexion-silencieuse.usage.test.ts`, `zones-onboarding.usage.test.ts`) les specs qui exigent un profil Chrome vierge : à garder en phase en cas de renommage.
+La catégorie du nom de fichier fait entrer une spec dans une suite. `wdio.webapp.conf.ts` repère par le nom de fichier (`authentification.smoke.test.ts`, `connexion-silencieuse.usage.test.ts`, `zones-onboarding.usage.test.ts`) les specs qui exigent un profil Chrome vierge : à garder en phase en cas de renommage.
 
 #### Suites nommées
 
@@ -260,7 +260,7 @@ Ce projet ne fait que des **tests système E2E de parcours utilisateur** (user j
 - Mobile : `mochaOpts.bail` — au premier `it` en échec, les suivants ne sont pas lancés (ils dépendent du précédent) ; les hooks `after` s'exécutent.
 - `specFileRetries` rejoue le **fichier entier** dans une nouvelle session, jamais un `it()` isolé (cf. §7).
 
-**Entre fichiers de spec.** Avec `--spec` ou hors suite nommée, chaque fichier obtient une session fraîche. Une suite nommée est une liste plate équivalente à `--spec a --spec b` : un worker par fichier. L'état est cependant conservé d'un fichier à l'autre : profil Chrome du run en webapp, données et session de l'app sur mobile (l'app est arrêtée après chaque spec et relancée par la suivante). En webapp, seules les specs repérées par `wdio.webapp.conf.ts` (authentification, otv-connexion-silencieuse, zones-onboarding) repartent d'un profil Chrome vierge. Ne pas supposer une session fraîche du seul fait d'être dans un nouveau fichier.
+**Entre fichiers de spec.** Avec `--spec` ou hors suite nommée, chaque fichier obtient une session fraîche. Une suite nommée est une liste plate équivalente à `--spec a --spec b` : un worker par fichier. L'état est cependant conservé d'un fichier à l'autre : profil Chrome du run en webapp, données et session de l'app sur mobile (l'app est arrêtée après chaque spec et relancée par la suivante). En webapp, seules les specs repérées par `wdio.webapp.conf.ts` (authentification, connexion-silencieuse, zones-onboarding) repartent d'un profil Chrome vierge. Ne pas supposer une session fraîche du seul fait d'être dans un nouveau fichier.
 
 - `before` : la navigation coûteuse faite une fois (onboarding, login OIDC ~30 s). `beforeEach` : un reset avant chaque `it()`, pour les specs faites d'`it()` indépendants. `driver.reset()` est déprécié dans Appium 3 : `terminateApp` + `activateApp`, ou `fullReset: true`.
 - **Un test ne fait pas `xcrun simctl` ni `adb` directement.** Il s'appuie sur l'environnement préparé avant le run (appareil démarré, app installée par Appium depuis `ANDROID_APP_PATH` / `IOS_APP_PATH`). Exception : un test qui vérifie l'effet sur l'appareil ou l'OS (notifications système, un jour le local storage) passe par un helper de `src/helpers/mobile/`.

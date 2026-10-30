@@ -124,10 +124,10 @@ export const config: Options.Testrunner = {
     await captureAppWindow()
   },
 
-  // authentification.smoke.test.ts, nonreg/otv-connexion-silencieuse.usage.test.ts et nonreg/zones-onboarding.usage.test.ts supposent une session vierge (la webapp démarre sur l'écran de connexion) : le
+  // authentification.smoke.test.ts, nonreg/connexion-silencieuse.usage.test.ts et nonreg/zones-onboarding.usage.test.ts supposent une session vierge (la webapp démarre sur l'écran de connexion) : le
   // profil Chrome conservé, qui porte la session ouverte par les specs précédentes, est supprimé avant le démarrage du navigateur.
   beforeSession: (_config, _capabilities, specs): void => {
-    if (specs.some(spec => spec.endsWith('authentification.smoke.test.ts') || spec.endsWith('otv-connexion-silencieuse.usage.test.ts') || spec.endsWith('zones-onboarding.usage.test.ts'))) removeChromeProfile()
+    if (specs.some(spec => spec.endsWith('authentification.smoke.test.ts') || spec.endsWith('connexion-silencieuse.usage.test.ts') || spec.endsWith('zones-onboarding.usage.test.ts'))) removeChromeProfile()
   },
 
   // Une spec en échec laisse sa session (cookies, stockage de la SPA) dans le profil conservé : la suivante repart d'un profil neuf plutôt que
