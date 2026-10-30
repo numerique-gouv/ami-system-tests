@@ -323,7 +323,7 @@ Un check « e2e (ami-system-tests) » et un commentaire de PR (test | résultat 
 
 | Déclencheur | Webapp | Android | Appareil |
 |---|---|---|---|
-| PR ou tag (API, app Android) | `webapp_usage` (API) | `mobile_all` | ancien `pixel_2_api30` |
+| PR ou tag (API, app Android) | `webapp_usage` (API) | `mobile_all` | ancien `pixel_6_api31` |
 | merge (API, app Android) | `webapp_usage` (API) | `mobile_all` | récent `pixel_8_api36` |
 | manuel (`workflow_dispatch`) | `webapp_short` | `mobile_short` | au choix |
 

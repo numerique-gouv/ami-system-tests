@@ -7,9 +7,9 @@ inputs:
     required: false
     default: mobile_short
   device:
-    description: "Nom de l'AVD, au format pixel_<profil>_api<niveau> (ex. pixel_2_api30 = ancien appareil, pixel_8_api36 = récent) : le profil et le niveau d'API de l'AVD en sont déduits."
+    description: "Nom de l'AVD, au format pixel_<profil>_api<niveau> (ex. pixel_6_api31 = ancien appareil, pixel_8_api36 = récent) : le profil et le niveau d'API de l'AVD en sont déduits."
     required: false
-    default: pixel_2_api30
+    default: pixel_6_api31
 
   apk-run-id:
     description: "vide = l'APK est l'artefact `apk-artifact` du run COURANT (buildé par le workflow appelant). Renseigné = identifiant du run d'un AUTRE dépôt/run dont on télécharge l'artefact (nécessite apk-repository et apk-token)."
@@ -41,7 +41,7 @@ runs:
         # Le nom de l'AVD est aussi lu par src/driver/capabilities.ts (appium:deviceName). Le profil et l'API sont déduits du nom :
         # tout `pixel_<profil>_api<niveau>` est accepté. L'émulateur est le seul appareil adb, donc pas d'ANDROID_UDID.
         if [[ ! "$DEVICE" =~ ^pixel_([0-9]+[a-z_]*)_api([0-9]+)$ ]]; then
-          echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_2_api30)"
+          echo "::error::device « $DEVICE » invalide : format attendu pixel_<profil>_api<niveau> (ex. pixel_6_api31)"
           exit 1
         fi
         echo "ANDROID_DEVICE_NAME=$DEVICE"                 >> "$GITHUB_ENV"
