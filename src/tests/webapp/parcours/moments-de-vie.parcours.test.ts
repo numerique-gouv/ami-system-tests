@@ -15,7 +15,7 @@ const log = logger('test')
  * Même principe que le catalogue : chaque entrée est cliquée pour obtenir sa cible ; une cible externe sans jeton est interceptée au clic
  * puis contrôlée en HTTP (concurrence bornée), une route interne ou une adresse à jeton est suivie par le navigateur.
  */
-describe('Non-régression — moments de vie, « Trouver de l’aide » (smoke)', function () {
+describe('Non-régression — moments de vie, « Trouver de l’aide »', function () {
   this.timeout(900000)
 
   beforeEach(async function () {

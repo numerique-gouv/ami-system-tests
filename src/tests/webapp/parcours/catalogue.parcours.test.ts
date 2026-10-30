@@ -16,7 +16,7 @@ const log = logger('test')
  * bornée). Une adresse à jeton à usage unique (catalogue Service Public) est suivie par le navigateur (`followAndDescribe`).
  * Seuls `hôte + chemin` sont affichés.
  */
-describe('Non-régression — catalogue des démarches et outils (smoke)', function () {
+describe('Non-régression — catalogue des démarches et outils', function () {
   this.timeout(900000)
 
   beforeEach(async function () {
