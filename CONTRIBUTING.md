@@ -327,7 +327,7 @@ Un check « e2e (ami-system-tests) » et un commentaire de PR (test | résultat 
 | merge (API, app Android) | `webapp_usage` (API) | `mobile_all` | `pixel_8_api36` |
 | manuel (`workflow_dispatch`) | `webapp_short` | `mobile_short` | au choix |
 
-Secrets et variables à créer dans le dépôt appelant (jamais de valeur dans le code) : `NOTIF_PARTNER_ID` et `NOTIF_PARTNER_SECRET`, `NOTIF_PARTNER_DINUM_DN_ID` et `NOTIF_PARTNER_DINUM_DN_SECRET` (partenaire à consentement activé, sinon les scénarios concernés sont sautés), `WEB_APP_ACCESS_KEYS`, et pour l'APK du dernier tag la variable `AMI_REVIEWAPPS_APP_ID` et le secret `AMI_REVIEWAPPS_PRIVATE_KEY` (GitHub App `ami-reviewapps`, limitée à `actions: read` sur `ami-app-android`).
+Secrets à créer dans le dépôt appelant (jamais de valeur dans le code) : `NOTIF_PARTNER_ID` et `NOTIF_PARTNER_SECRET`, `NOTIF_PARTNER_DINUM_DN_ID` et `NOTIF_PARTNER_DINUM_DN_SECRET` (partenaire à consentement activé, sinon les scénarios concernés sont sautés), `WEB_APP_ACCESS_KEYS`, et pour l'APK du dernier tag les secrets `AMI_REVIEWAPPS_APP_ID` et `AMI_REVIEWAPPS_PRIVATE_KEY` (GitHub App `ami-reviewapps`, limitée à `actions: read` sur `ami-app-android`).
 
 ---
 

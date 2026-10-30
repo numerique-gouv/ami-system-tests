@@ -35,7 +35,7 @@ on:
         type: number
         default: 0
       apk_source:
-        description: "origine de l'APK Android : `build` = artefact `app-staging-debug` du run appelant (l'appelant l'a buildé : ami-app-android) ; `latest-tag` = APK du dernier tag d'ami-app-android (artefact `app-staging-debug-<tag>`, rétention 90 jours), retrouvé avec un jeton de la GitHub App ami-reviewapps (variable AMI_REVIEWAPPS_APP_ID, secret AMI_REVIEWAPPS_PRIVATE_KEY du dépôt appelant ; permission actions:read sur ami-app-android)"
+        description: "origine de l'APK Android : `build` = artefact `app-staging-debug` du run appelant (l'appelant l'a buildé : ami-app-android) ; `latest-tag` = APK du dernier tag d'ami-app-android (artefact `app-staging-debug-<tag>`, rétention 90 jours), retrouvé avec un jeton de la GitHub App ami-reviewapps (secrets AMI_REVIEWAPPS_APP_ID et AMI_REVIEWAPPS_PRIVATE_KEY du dépôt appelant ; permission actions:read sur ami-app-android)"
         type: string
         default: build
       report_label:
@@ -65,6 +65,9 @@ on:
         required: false
       WEB_APP_ACCESS_KEYS:
         description: "clé d'accès à la webapp de staging (run_webapp seulement)"
+        required: false
+      AMI_REVIEWAPPS_APP_ID:
+        description: "identifiant de la GitHub App ami-reviewapps (apk_source = latest-tag seulement)"
         required: false
       AMI_REVIEWAPPS_PRIVATE_KEY:
         description: "clé PEM de la GitHub App ami-reviewapps (apk_source = latest-tag seulement)"
@@ -159,7 +162,7 @@ jobs:
 
       # APK du dernier tag d'ami-app-android (apk_source = latest-tag) : l'artefact `app-staging-debug-<tag>` le plus récent non expiré
       # (rétention 90 jours, dépôt privé). Le jeton vient de la GitHub App `ami-reviewapps`, limité à la lecture des artefacts d'ami-app-android.
-      # À créer dans le dépôt appelant, jamais dans le code : variable AMI_REVIEWAPPS_APP_ID et secret AMI_REVIEWAPPS_PRIVATE_KEY (clé PEM brute).
+      # À créer dans le dépôt appelant, jamais dans le code : secrets AMI_REVIEWAPPS_APP_ID et AMI_REVIEWAPPS_PRIVATE_KEY (clé PEM brute).
       # Un échec ici n'arrête pas le job : l'étape Android échouera visiblement, faute d'APK.
       - name: jeton de lecture des artefacts d'ami-app-android
         id: app-token
@@ -167,7 +170,7 @@ jobs:
         continue-on-error: true
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
-          app-id: ${{ vars.AMI_REVIEWAPPS_APP_ID }}
+          app-id: ${{ secrets.AMI_REVIEWAPPS_APP_ID }}
           private-key: ${{ secrets.AMI_REVIEWAPPS_PRIVATE_KEY }}
           owner: numerique-gouv
           repositories: ami-app-android
