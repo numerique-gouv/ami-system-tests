@@ -33,14 +33,14 @@ import {
   PARTNER_AMI, checkDemarchesConsent, grantDemarchesConsent, revokeDemarchesConsent, publishDemarche, publishDemarcheEnfant, publishNotification,
 } from '../../helpers/partner-api'
 
-describe.skip('Mon scénario', () => {
+describe.skip('Mon scénario', function () {
+  this.timeout(180000)   // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe (un hook peut devoir se reconnecter)
   const user = getTestUser()
 
   // `beforeEach` standard des tests webapp (cf. src/tests/webapp/aide-contact.parcours.test.ts) : connecte l'app si besoin, puis remet l'app dans l'état de départ avant chaque test : le test précédent a pu s'arrêter n'importe où (page hors SPA,
   // déconnexion, onboarding). Repart de l'état courant : la vraie connexion n'a lieu qu'au premier appel, ensuite la session
   // est reprise (rechargement de la racine).
-  beforeEach(async function () {
-    this.timeout(180000)   // un hook peut devoir se reconnecter : le délai par défaut (120 s) serait juste
+  beforeEach(async () => {
     await getAppToStartingState()
   })
 

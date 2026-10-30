@@ -101,7 +101,6 @@ describe('Profil usager — suppression des modifications à la déconnexion', f
   })
 
   it('se reconnecte avec le même compte', async function () {
-    this.timeout(180000)
     step('Lancer le flow FranceConnect')
     await getAppToStartingState()
 

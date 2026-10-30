@@ -224,13 +224,13 @@ C'est un **brouillon** : il garde les sélecteurs générés, n'inclut ni le `be
 Squelette du test, **non exécuté** :
 
 ```typescript
-describe('Démarches — consentement', () => {
+describe('Démarches — consentement', function () {
+  this.timeout(180000)                                         // le délai se pose au niveau du describe, pas dans un it/hook
   const user = getUser('avec_nom_dusage')
   const run = `TUTO-${Date.now()}`
   const d1 = `${run}-D1`, d2 = `${run}-D2`
 
-  before(async function () {                                   // `before` standard : cf. src/tests/tutorial/tutorial.test.ts
-    this.timeout(180000)
+  before(async () => {                                         // `before` standard : cf. src/tests/tutorial/tutorial.test.ts
     await getAppToStartingState()
   })
   after(async () => { await grantDemarchesConsent(PARTNER_AMI, user.fcHash) })       // restaurer l'état
