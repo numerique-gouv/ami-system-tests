@@ -1,7 +1,10 @@
 import {execFileSync} from 'node:child_process'
 import {join} from 'node:path'
 import {homedir} from 'node:os'
+import logger from '@wdio/logger'
 import {systemNotificationsLocators} from '../../pages/locators/system-notifications.locators'
+
+const log = logger('ios-notifications')
 
 // Notifications système iOS : réglages lus sur le simulateur (xcrun simctl, base BulletinBoard) et bannières de SpringBoard.
 
@@ -92,9 +95,32 @@ export async function tapBanner(title: string): Promise<void> {
       if (attempt === 3) throw err
     }
   }
-  await driver.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})) === 4, {
-    timeout: 15000, timeoutMsg: 'App pas repassée au premier plan après le tap sur la bannière',
-  })
+  if (await appComesToForeground()) return
+  // La bannière est éphémère et son tap n'ouvre souvent pas l'app : on retrouve la notification dans le centre de notifications (vide au début du test), où elle reste.
+  const inCenter = await openNotificationCenterAndFind(title)
+  if (!inCenter) throw new Error(`Notification « ${title} » absente du centre de notifications, et le tap sur la bannière n'a pas ramené l'app au premier plan`)
+  log.warn(`Notification « ${title} » vue dans le centre de notifications : le tap sur la bannière n'a pas ouvert l'app`)
+  await $(systemNotificationsLocators.ios.banner(title)).click()
+  if (await appComesToForeground()) return
+  log.warn(`Le tap sur « ${title} » dans le centre de notifications n'a pas ouvert l'app en ${APP_OPEN_WAIT_MS / 1000}s : ouverture directe`)
+  await driver.execute('mobile: activateApp', {bundleId: appBundleId()})
+}
+
+const APP_OPEN_WAIT_MS = 5000
+
+async function appComesToForeground(): Promise<boolean> {
+  return await driver.waitUntil(async () => (await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})) === 4, {timeout: APP_OPEN_WAIT_MS}).then(() => true, () => false)
+}
+
+/** Ouvre le centre de notifications (glissement depuis le haut) et cherche la notification `title`. */
+async function openNotificationCenterAndFind(title: string): Promise<boolean> {
+  const {width, height} = await driver.getWindowSize()
+  const x = Math.round(width * 0.2)
+  await driver.action('pointer', {parameters: {pointerType: 'touch'}})
+    .move({duration: 0, x, y: 1}).down({button: 0})
+    .move({duration: 300, x, y: 60}).move({duration: 500, x, y: Math.round(height * 0.6)})
+    .up({button: 0}).perform()
+  return await $(systemNotificationsLocators.ios.banner(title)).waitForExist({timeout: 5000}).then(() => true, () => false)
 }
 
 const SETTINGS_APP = 'com.apple.Preferences'
