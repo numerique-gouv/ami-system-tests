@@ -73,6 +73,7 @@ jobs:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
     name: clé d'isolation
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions: {}
     outputs:
       pr_number: ${{ steps.keys.outputs.pr_number }}
@@ -99,6 +100,7 @@ jobs:
     name: webapp + android (shared VM)
     needs: [prepare]
     runs-on: ubuntu-latest
+    timeout-minutes: 60 # une heure de tests E2E ; au-delà, un émulateur ou un test est figé (le défaut de GitHub est de 6 h)
     permissions:
       contents: read
     env:
@@ -227,6 +229,7 @@ jobs:
     needs: [prepare, e2e]
     if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       checks: write

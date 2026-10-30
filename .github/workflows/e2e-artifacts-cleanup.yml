@@ -29,6 +29,7 @@ jobs:
   cleanup:
     name: Supprimer les artefacts de tests de la PR
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       # Même calcul que dans workflow-e2e-main.yml — les deux doivent rester identiques pour
       # cibler les mêmes artefacts.
