@@ -8,6 +8,7 @@ import NavigationPage from '../../pages/navigation.page'
 import HomePage from '../../pages/home.page'
 import PreferencesPage from '../../pages/preferences.page'
 import SystemNotificationsPage from '../../pages/system-notifications.page'
+import OnboardingNotificationsPage from '../../pages/onboarding-notifications.page'
 
 /**
  * Notifications mobiles, sans consentement de démarche. A : acceptées, la notification arrive dans le centre de notifications et en push natif,
@@ -96,8 +97,10 @@ describe('Notifications', function () {
 
     step('A5. Cliquer la notification native et constater la page d\'arrivée')
     await SystemNotificationsPage.tapNativePush(title)
+    await OnboardingNotificationsPage.dismissNativeSheet(2000) // iOS : la feuille native des notifications peut recouvrir l'accueil
     await SystemNotificationsPage.assertPushArrival()
     await SystemNotificationsPage.leavePushArrival()
+    await platform().inWebContext(() => HomePage.assertDisplayed())
   })
 
   it("B. notifications refusées : aucun push natif, notification quand même dans le centre de notifications", async function () {

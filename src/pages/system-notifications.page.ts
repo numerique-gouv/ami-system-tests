@@ -4,9 +4,7 @@ import {
   activeNotificationRecords, clearLogcat, focusedWindow, isPostNotificationsGranted, logcatTag,
 } from '../helpers/mobile/android-notifications'
 import {AssertionError} from 'node:assert'
-import OnboardingNotificationsPage from './onboarding-notifications.page'
 import NavigationPage from './navigation.page'
-import HomePage from './home.page'
 import {platform} from '../platform'
 import {
     bannerAppearsWithin, setNotificationsFromAppSettings as setIosNotificationsFromAppSettings, showSpringBoard, tapBanner,
@@ -137,22 +135,17 @@ class SystemNotificationsPage {
     }
 
     /**
-     * Après le clic sur la notification native. Android : MainActivity a reçu l'intent. iOS : l'app est au premier plan et l'accueil affiché ;
+     * Après le clic sur la notification native. Android : MainActivity a reçu l'intent. iOS : l'app est au premier plan ;
      * sur staging la page Notifications n'est pas affichée par l'app, donc pas d'assertion plus forte.
      */
     async assertPushArrival(): Promise<void> {
         if (!driver.isIOS) return await this.assertTapOpenedApp()
-        await OnboardingNotificationsPage.dismissNativeSheet(2000)
         expect(await driver.execute('mobile: queryAppState', {bundleId: appBundleId()})).toBe(4)
-        await platform().inWebContext(() => HomePage.assertDisplayed())
     }
 
-    /** Revient à l'accueil après le clic. iOS : l'accueil est déjà dans la WebView visible ; Android : retour à la racine. */
+    /** Android : retour à la racine après le clic. iOS : l'accueil est déjà dans la WebView visible, rien à faire. */
     async leavePushArrival(): Promise<void> {
-        await platform().inWebContext(async () => {
-            if (!driver.isIOS) await NavigationPage.goToRoute('/')
-            await HomePage.assertDisplayed()
-        })
+        if (!driver.isIOS) await platform().inWebContext(() => NavigationPage.goToRoute('/'))
     }
 
     private async assertNoSystemNotification(title: string, durationMs: number): Promise<void> {
