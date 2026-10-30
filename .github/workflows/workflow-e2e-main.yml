@@ -1,23 +1,29 @@
+# Workflow réutilisable : lance les tests E2E webapp (Chrome headless) et/ou Android (émulateur) pour un dépôt frère, puis publie le rapport.
+# Appel : `uses: numerique-gouv/ami-system-tests/.github/workflows/workflow-e2e-main.yml@<ref>` avec `secrets: inherit`.
+# Les jobs restent verts quand des tests échouent : le résultat se lit dans le check « e2e (ami-system-tests) », le résumé du run et le commentaire de la PR.
+#
+# Renommages proposés, non faits (ils ne prennent effet qu'après un merge sur main et les dépôts appelants référencent le nom actuel) :
+#   - fichier workflow-e2e-main.yml → e2e.yml, et `name:` → « Tests E2E — webapp et Android » ;
+#   - job `e2e` « webapp + android (shared VM) » → « webapp et Android sur une même VM » ;
+#   - étapes « checkout … (fallback main) » → « récupérer ami-system-tests (main si la branche n'existe pas) ».
 name: workflow-e2e-main.yml
 on:
   workflow_call:
     inputs:
       run_webapp:
-        description: "nom de la suite webapp à lancer (test-suites.ts, ex: short, CI, all) — vide = ne pas lancer"
+        description: "nom de la suite webapp à lancer (suite nommée définie dans wdio.base.conf.ts : webapp_short = mise au point, webapp_usage = PR/merge/tag, webapp_smoke, webapp_all) — vide = ne pas lancer"
         type: string
         default: ''
       run_android:
-        description: "nom de la suite android à lancer (test-suites.ts) — vide = ne pas lancer"
+        description: "nom de la suite android à lancer (suite nommée définie dans wdio.base.conf.ts : mobile_short = mise au point, mobile_all = PR/merge/tag, mobile_smoke) — vide = ne pas lancer"
         type: string
         default: ''
-      run_old_device:
-        type: boolean
-        default: true
-      run_ios:
-        description: "nom de la suite ios à lancer (test-suites.ts) — vide = ne pas lancer"
+      android_device:
+        description: "AVD Android au format pixel_<profil>_api<niveau> (ex. pixel_8_api36)"
         type: string
-        default: ''
+        default: pixel_8_api36
       source_repo:
+        description: "dépôt frère à l'origine du run (owner/nom), celui dont on commente la PR"
         type: string
         required: true
       source_sha:
@@ -25,56 +31,94 @@ on:
         type: string
         required: true
       pr_number:
+        description: "numéro de la PR de source_repo à commenter ; 0 = pas de PR (push/tag) : pas de commentaire"
+        type: number
+        default: 0
+      apk_source:
+        description: "origine de l'APK Android : `build` = artefact `app-staging-debug` du run appelant (l'appelant l'a buildé : ami-app-android) ; `latest-tag` = APK du dernier tag d'ami-app-android (artefact `app-staging-debug-<tag>`, rétention 90 jours), retrouvé avec un jeton de la GitHub App ami-reviewapps (secrets AMI_REVIEWAPPS_APP_ID et AMI_REVIEWAPPS_PRIVATE_KEY du dépôt appelant ; permission actions:read sur ami-app-android)"
+        type: string
+        default: build
+      report_label:
+        description: "étiquette (lettres, chiffres, - _) quand le même appelant lance plusieurs runs e2e pour la même PR (ex. old-device) : distingue les artefacts, le check et le commentaire"
+        type: string
+        default: ''
+      comment_pr_number:
+        description: "numéro de PR à commenter et clé des artefacts quand il diffère de pr_number (ex. tests Android toujours lancés sur staging avec pr_number 0 mais rattachés à une PR) ; 0 = pr_number"
         type: number
         default: 0
       checkout_ref:
         description: "ref (branche/tag/sha) d'ami-system-tests à checkout — doit correspondre au ref utilisé dans le uses: qui pointe vers ce workflow"
         type: string
         required: true
+    secrets:
+      NOTIF_PARTNER_ID:
+        description: "identifiant du partenaire AMI de l'API partenaire"
+        required: false
+      NOTIF_PARTNER_SECRET:
+        description: "secret du partenaire AMI"
+        required: false
+      NOTIF_PARTNER_DINUM_DN_ID:
+        description: "identifiant du second partenaire (consentement activé) : sans lui, les scénarios qui en ont besoin sont sautés"
+        required: false
+      NOTIF_PARTNER_DINUM_DN_SECRET:
+        description: "secret du second partenaire"
+        required: false
+      WEB_APP_ACCESS_KEYS:
+        description: "clé d'accès à la webapp de staging (run_webapp seulement)"
+        required: false
+      AMI_REVIEWAPPS_APP_ID:
+        description: "identifiant de la GitHub App ami-reviewapps (apk_source = latest-tag seulement)"
+        required: false
+      AMI_REVIEWAPPS_PRIVATE_KEY:
+        description: "clé PEM de la GitHub App ami-reviewapps (apk_source = latest-tag seulement)"
+        required: false
     outputs:
-      allure_report:
-        description: "nom de l'artefact allure-results publié par le job e2e, à télécharger par le workflow appelant"
-        value: ${{ jobs.e2e.outputs.allure_report }}
+      test_results:
+        description: "motif (glob) des artefacts de résultats de ce run : test-results-<slug>-*-run<N>, utilisable comme `pattern:` de actions/download-artifact. Chaque artefact contient junit/ (JUnit XML enrichi) et traces/<run>/failures/ (dumps des échecs)."
+        value: ${{ jobs.report.outputs.test_results }}
+      artifact_webapp:
+        description: "nom de l'artefact des résultats webapp (vide si run_webapp est vide)"
+        value: ${{ jobs.report.outputs.artifact_webapp }}
+      artifact_android:
+        description: "nom de l'artefact des résultats Android (vide si run_android est vide)"
+        value: ${{ jobs.report.outputs.artifact_android }}
 
-# Un groupe par PR (source_repo + pr_number : sérialise les runs d'une même PR, la
-# restauration/publication de l'historique Allure étant un cycle lecture-modification-écriture
-# non concurrent-safe. Les autres PR ont chacune leur propre groupe, donc ne s'attendent pas.
+# Un seul run à la fois par PR (dépôt source + numéro) : les runs d'une même PR partagent le même environnement Scalingo de review.
 concurrency:
-  group: allure-${{ inputs.source_repo }}-${{ inputs.pr_number }}
+  group: e2e-${{ inputs.source_repo }}-${{ inputs.pr_number }}
   cancel-in-progress: false
 
-jobs:
-  # iOS reste isolé : reusable workflow classique → job/VM macOS dédié (pas de partage de
-  # disque avec webapp/android), tant que la CI macOS est en pause.
-  ios:
-    if: ${{ inputs.run_ios != '' }}
-    uses: ./.github/workflows/workflow-e2e-ios.yml
-    with:
-      checkout_ref: ${{ inputs.checkout_ref }}
-      suite: ${{ inputs.run_ios }}
-    secrets: inherit
+# Permissions minimales ; le job `report` ajoute checks et pull-requests. Le workflow appelant doit les accorder (un workflow appelé ne peut
+# pas dépasser les permissions de son appelant).
+permissions:
+  contents: read
 
-  # webapp + android partagent un seul job (même VM, même checkout, même node_modules, même allure-report)
-  # iOS a besoin d'un MacOs (10x plus cher qu'Ubuntu), donc d'une autre VM, donc d'un autre job avec transimission de rapport Aluure par upload et download d'artefacts.
+jobs:
+  # webapp et Android partagent un seul job : même VM, même checkout, même node_modules, même dossier test-results.
   e2e:
     if: ${{ inputs.run_webapp != '' || inputs.run_android != '' }}
+    # Le nom date de l'époque où les deux plateformes partageaient ce job. Chaque plateforme n'y tourne que si sa suite est renseignée (run_webapp, run_android) :
+    # un appelant Android seul ne lance aucun test webapp. Renommage proposé (à faire après le merge sur main, il change le nom du check) : « e2e (webapp, Android) ».
     name: webapp + android (shared VM)
-    runs-on: ubuntu-latest
+    # Image épinglée : ce job dépend de l'image (KVM, cmdline-tools, émulateur x86_64).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60 # une heure de tests E2E ; au-delà, un émulateur ou un test est figé (le défaut de GitHub est de 6 h)
+    permissions:
+      contents: read
     env:
       AMI_ENV: ${{ inputs.pr_number != 0 && inputs.pr_number || 'staging' }}
       NOTIF_PARTNER_ID: ${{ secrets.NOTIF_PARTNER_ID }}
       NOTIF_PARTNER_SECRET: ${{ secrets.NOTIF_PARTNER_SECRET }}
+      # Second partenaire (consentement activé) : sans ses identifiants, les scénarios qui en ont besoin sont sautés.
+      NOTIF_PARTNER_DINUM_DN_ID: ${{ secrets.NOTIF_PARTNER_DINUM_DN_ID }}
+      NOTIF_PARTNER_DINUM_DN_SECRET: ${{ secrets.NOTIF_PARTNER_DINUM_DN_SECRET }}
       WEB_APP_ACCESS_KEYS: ${{ secrets.WEB_APP_ACCESS_KEYS }}
-    outputs:
-      allure_report: ${{ steps.publish-allure.outputs.allure_report }}
     steps:
-      # checkout_ref porte le nom de branche de source_repo (ex. notifications-api),
-      # On tente d'abord la ref demandée ; si elle n'existe pas, actions/checkout 
-      # échoue et le step suivant (déclenché par outcome == 'failure') retombe sur main.
+      # checkout_ref est le nom de branche du dépôt appelant. S'il n'existe pas dans ami-system-tests, l'étape suivante prend main.
       - name: checkout ami-system-tests (ref demandée)
         id: checkout-ref
         continue-on-error: true
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: numerique-gouv/ami-system-tests
           ref: ${{ inputs.checkout_ref }}
@@ -82,120 +126,192 @@ jobs:
 
       - name: checkout ami-system-tests (fallback main)
         if: steps.checkout-ref.outcome == 'failure'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: numerique-gouv/ami-system-tests
           ref: main
           path: ami-system-tests
 
-      - uses: actions/setup-node@v7
+      - name: clé d'isolation et noms des artefacts
+        id: keys
+        uses: ./ami-system-tests/.github/actions/e2e-keys
         with:
-          node-version: 24
+          source-repo: ${{ inputs.source_repo }}
+          pr-number: ${{ inputs.pr_number }}
+          comment-pr-number: ${{ inputs.comment_pr_number }}
+          report-label: ${{ inputs.report_label }}
+          run-webapp: ${{ inputs.run_webapp }}
+          run-android: ${{ inputs.run_android }}
+          run-number: ${{ github.run_number }}
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ami-system-tests/.nvmrc
           cache: npm
           cache-dependency-path: ami-system-tests/package-lock.json
 
       - working-directory: ami-system-tests
         run: npm ci
 
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
       - if: ${{ inputs.run_webapp != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-webapp
         with:
           suite: ${{ inputs.run_webapp }}
 
+      # APK du dernier tag d'ami-app-android (apk_source = latest-tag) : l'artefact `app-staging-debug-<tag>` le plus récent non expiré
+      # (rétention 90 jours, dépôt privé). Le jeton vient de la GitHub App `ami-reviewapps`, limité à la lecture des artefacts d'ami-app-android.
+      # À créer dans le dépôt appelant, jamais dans le code : secrets AMI_REVIEWAPPS_APP_ID et AMI_REVIEWAPPS_PRIVATE_KEY (clé PEM brute).
+      # Un échec ici n'arrête pas le job : l'étape Android échouera visiblement, faute d'APK.
+      - name: jeton de lecture des artefacts d'ami-app-android
+        id: app-token
+        if: ${{ inputs.run_android != '' && inputs.apk_source == 'latest-tag' }}
+        continue-on-error: true
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.AMI_REVIEWAPPS_APP_ID }}
+          private-key: ${{ secrets.AMI_REVIEWAPPS_PRIVATE_KEY }}
+          owner: numerique-gouv
+          repositories: ami-app-android
+          permission-actions: read
+
+      - name: trouver l'APK du dernier tag d'ami-app-android
+        id: apk
+        if: ${{ inputs.run_android != '' && inputs.apk_source == 'latest-tag' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          line=$(gh api "repos/numerique-gouv/ami-app-android/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select((.name | startswith("app-staging-debug-")) and (.expired | not))] | sort_by(.created_at) | last | [.name, .workflow_run.id] | @tsv')
+          [ -n "$line" ] || { echo "::error::aucun artefact app-staging-debug-<tag> non expiré dans ami-app-android"; exit 1; }
+          name=${line%%$'\t'*}
+          run_id=${line##*$'\t'}
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "APK Android utilisé : $name (run $run_id de ami-app-android)" >> "$GITHUB_STEP_SUMMARY"
+
       - if: ${{ inputs.run_android != '' }}
         uses: ./ami-system-tests/.github/actions/e2e-android
         with:
           suite: ${{ inputs.run_android }}
-          run_old_device: ${{ inputs.run_old_device }}
+          device: ${{ inputs.android_device }}
+          apk-artifact: ${{ steps.apk.outputs.name || 'app-staging-debug' }}
+          apk-run-id: ${{ steps.apk.outputs.run_id }}
+          apk-repository: numerique-gouv/ami-app-android
+          apk-token: ${{ steps.app-token.outputs.token }}
 
-      - if: ${{ inputs.run_ios != '' }}
-        name: download iOS allure results
-        run: echo TODO download allure artefact
-
-      # source_repo (contient "/") + pr_number → identifiant utilisable comme nom d'artifact
-      - name: calculer la clé d'isolation (slug)
-        id: slug
-        run: |
-          RAW="${{ inputs.source_repo }}-pr${{ inputs.pr_number }}"
-          SLUG=$(echo "$RAW" | sed 's/[\/:<>|*?\\"]/-/g')
-          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
-
-      - name: chercher l'historique Allure de la PR
-        id: history
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ARTIFACT=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=allure-history-${{ steps.slug.outputs.slug }}&per_page=100" \
-            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last')
-          if [ -z "$ARTIFACT" ] || [ "$ARTIFACT" = "null" ]; then
-            echo "Aucun historique existant — premier run de cette PR, ou artifact renommé/expiré."
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "artifact_id=$(echo "$ARTIFACT" | jq -r '.id')" >> "$GITHUB_OUTPUT"
-          fi
-
-      # continue-on-error : l'artifact repéré ci-dessus peut avoir expiré/être supprimé entre les
-      # deux steps (course bénigne) — un historique manquant ne doit jamais faire échouer le run,
-      # seulement repartir sans tendances pour ce run.
-      - name: restaurer l'historique Allure de la PR
-        if: steps.history.outputs.found == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@v4
+      # Un artefact par plateforme : JUnit enrichi et dumps des échecs. Les dossiers de run sont nommés <horodatage>_<plateforme>_<suite> :
+      # le motif `*_webapp_*` ne prend que ceux de la webapp.
+      - name: publier les résultats webapp
+        if: ${{ always() && inputs.run_webapp != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          artifact-ids: ${{ steps.history.outputs.artifact_id }}
-          path: ami-system-tests/.allure
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Legacy mais toujours lu par Allure 3 (cf. how-it-works-executor-file) : sans lui, les
-      # points de la courbe de tendance ne sont pas identifiables (build, lien vers le run).
-      - name: écrire executor.json
-        working-directory: ami-system-tests
-        run: |
-          mkdir -p allure-results
-          cat > allure-results/executor.json <<EOF
-          {
-            "name": "GitHub Actions",
-            "type": "github",
-            "buildName": "PR #${{ inputs.pr_number }} — run ${{ github.run_number }}",
-            "buildOrder": ${{ github.run_number }},
-            "buildUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }
-          EOF
-
-      - name: build allure report
-        shell: bash
-        working-directory: ami-system-tests
-        run: just generate-report
-
-      - name: publier le rapport Allure (artefact complet)
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}
-          path: ami-system-tests/allure-report
+          name: ${{ steps.keys.outputs.artifact_webapp }}
+          path: |
+            ami-system-tests/test-results/junit/results-*_webapp_*.xml
+            ami-system-tests/test-results/traces/*_webapp_*
           retention-days: 14
+          overwrite: true
           if-no-files-found: warn
 
-      # Consommé par le step "restaurer l'historique" ci-dessus au run suivant de cette PR —
-      # seul .allure/history.jsonl (quelques Ko) est conservé, pas le rapport HTML complet
-      # (captures d'écran d'échec, ~20 Mo). Rétention longue : doit survivre toute la durée
-      # de vie réaliste d'une PR, sinon une PR ouverte plus de 14 jours perdrait sa tendance.
-      - name: publier l'historique Allure
-        uses: actions/upload-artifact@v4
+      - name: publier les résultats Android
+        if: ${{ always() && inputs.run_android != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: allure-history-${{ steps.slug.outputs.slug }}
-          path: ami-system-tests/.allure/history.jsonl
-          retention-days: 90
+          name: ${{ steps.keys.outputs.artifact_android }}
+          path: |
+            ami-system-tests/test-results/junit/results-*_android_*.xml
+            ami-system-tests/test-results/traces/*_android_*
+          retention-days: 14
+          overwrite: true
           if-no-files-found: warn
 
-      # Nom de l'artefact "rapport complet" (pas les allure-results bruts) exposé en output
-      # `allure_report` — à télécharger côté appelant (ex. job e2e-report de
-      # workflow-e2e-webapp-shared.yml dans ami-notifications-api), qui appelle lui-même
-      # allure-framework/allure-action sur ami-system-tests/allure-report/summary.json (plugin
-      # `awesome` d'Allure 3, format désormais compatible avec ce que lit l'action).
-      - name: set artifact name
-        id: publish-allure
-        run: echo "allure_report=allure-report-${{ steps.slug.outputs.slug }}-run${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+  # Rapport : check GitHub avec annotations (mikepenz/action-junit-report) et commentaire unique de PR (action e2e-pr-comment).
+  # Ce workflow est appelé : github.token est celui du dépôt appelant, donc le commentaire arrive bien sur sa PR.
+  # Le job reste vert si le commentaire est refusé (fork, jeton en lecture seule).
+  report:
+    name: rapport (check + commentaire de PR)
+    needs: [e2e]
+    if: ${{ always() && (inputs.run_webapp != '' || inputs.run_android != '') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    outputs:
+      test_results: ${{ steps.keys.outputs.test_results }}
+      artifact_webapp: ${{ steps.keys.outputs.artifact_webapp }}
+      artifact_android: ${{ steps.keys.outputs.artifact_android }}
+    steps:
+      # Seul .github/ est nécessaire (actions et script de rapport).
+      - name: checkout ami-system-tests (ref demandée)
+        id: checkout-ref
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: numerique-gouv/ami-system-tests
+          ref: ${{ inputs.checkout_ref }}
+          path: ami-system-tests
+          sparse-checkout: .github
+
+      - name: checkout ami-system-tests (fallback main)
+        if: steps.checkout-ref.outcome == 'failure'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: numerique-gouv/ami-system-tests
+          ref: main
+          path: ami-system-tests
+          sparse-checkout: .github
+
+      - name: clé d'isolation et noms des artefacts
+        id: keys
+        uses: ./ami-system-tests/.github/actions/e2e-keys
+        with:
+          source-repo: ${{ inputs.source_repo }}
+          pr-number: ${{ inputs.pr_number }}
+          comment-pr-number: ${{ inputs.comment_pr_number }}
+          report-label: ${{ inputs.report_label }}
+          run-webapp: ${{ inputs.run_webapp }}
+          run-android: ${{ inputs.run_android }}
+          run-number: ${{ github.run_number }}
+
+      # Un sous-dossier par artefact (reports/<nom>/junit/). Pas d'artefact (job e2e tombé avant les tests) : ce n'est pas une erreur.
+      - name: télécharger les résultats
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: ${{ steps.keys.outputs.test_results }}
+          path: reports
+
+      # Check « e2e (ami-system-tests) » rattaché au commit testé, avec annotations et résumé dans la page du run. Action tierce épinglée par SHA :
+      # ne jamais la référencer par tag. Le check peut être rouge sans que le job le soit (fail_on_failure: false).
+      - name: check et annotations (JUnit)
+        if: ${{ always() }}
+        uses: mikepenz/action-junit-report@b7b80d7ac5b1da46d6aaff9fb57ad50d8453bcb3 # v6.6.0
+        with:
+          report_paths: reports/**/junit/results-*.xml
+          commit: ${{ inputs.source_sha }}
+          check_name: e2e (ami-system-tests)${{ inputs.report_label != '' && format(' {0}', inputs.report_label) || '' }}
+          job_summary: true
+          detailed_summary: true
+          fail_on_failure: false
+          require_tests: false
+
+      - name: commentaire de PR
+        if: ${{ always() }}
+        uses: ./ami-system-tests/.github/actions/e2e-pr-comment
+        with:
+          github-token: ${{ github.token }}
+          repo: ${{ inputs.source_repo }}
+          pr-number: ${{ steps.keys.outputs.pr_number }}
+          junit-dir: reports
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          artifacts: ${{ steps.keys.outputs.artifact_webapp }},${{ steps.keys.outputs.artifact_android }}
+          expect: ${{ steps.keys.outputs.expect }}
+          sha: ${{ inputs.source_sha }}
+          label: ${{ inputs.report_label }}

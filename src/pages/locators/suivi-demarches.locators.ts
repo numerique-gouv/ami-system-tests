@@ -1,27 +1,36 @@
-/**
- * Sélecteurs WebView de la page de suivi des démarches (liste).
- * Les sélecteurs de la page de détail sont dans `demarche-detail.locators.ts`.
- *
- */
-export interface SuiviDemarchesLocators {
-  /** Titre principal de la page **/
+import {roleSelector} from '../../helpers/spa/selectors'
+
+interface SuiviDemarchesLocators {
   pageTitle: string
-  /** Conteneurs de carte scopés au tabpanel actif */
+  /** Le même titre en `role/heading`. « Mes démarches » est aussi un h2 de l'Accueil. */
+  pageTitleHeading: string
+  /** Titre h1 : le seul à ne pas exister sur l'Accueil. */
+  pageTitleH1: string
+  /** Titre de la page des démarches archivées. */
+  archivedTitle: string
+  /** Tuile d'une démarche : bouton dont le nom accessible est son titre (unique, horodaté). */
+  demarcheTile: (title: string) => string
   cardContent: string
-  /** Titre visible dans une carte (peut contenir un <a>, peut ne pas en avoir) */
   cardTitle: string
-  /** Badge de statut dans une carte */
   cardBadge: string
+  /** Affiché tant qu'aucun consentement n'est actif. */
+  followButton: string
+  /** Bouton d'options de la tuile d'une démarche (ouvre la modale qui propose « Archiver »). */
+  optionsButton: (title: string) => string
+  /** « Archiver » dans la modale d'options de la démarche. */
+  archiveButton: (title: string) => string
 }
 
-export const demarchesLocators: SuiviDemarchesLocators = {
+export const suiviDemarchesLocators: SuiviDemarchesLocators = {
   pageTitle:                 'Mes démarches',
+  pageTitleHeading:          roleSelector('heading', 'Mes démarches'),
+  pageTitleH1:               'h1*=Mes démarches',
+  archivedTitle:             'Démarches archivées',
+  demarcheTile:              (title: string): string => roleSelector('button', title),
+  followButton:              roleSelector('button', 'Je veux suivre mes démarches'),
+  optionsButton:             (title: string): string => roleSelector('button', `Ouvrir les options pour ${title}`),
+  archiveButton:             (title: string): string => roleSelector('button', `Archiver l'élément ${title}`),
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',
-}
-
-/** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */
-export function getSuiviDemarchesLocators(): SuiviDemarchesLocators {
-  return demarchesLocators
 }

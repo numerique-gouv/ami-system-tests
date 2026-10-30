@@ -1,6 +1,8 @@
 # Variables d'environnement locales
-.*local
+.*local*
 *.local.ts
+.env*
+!.env.example
 
 # ide
 .idea/
@@ -15,15 +17,16 @@ node_modules/
 dist/
 .wdio-logs/
 logs/
-allure-results/
-allure-report/
-.allure/
+test-results/
 *.log
 apps/
+# réunion de stratégie de tests (10-06) et plans de scénarios webapp : gardés sur disque, hors suivi git
+docs/process/
+src/tests/webapp/**/*.md
 .playwright-mcp/
 build/
 
-# cache des navigateurs/drivers téléchargés par WDIO (Chrome for Testing, cf. .chrome-version)
+# cache des navigateurs/drivers téléchargés par WDIO (Chrome for Testing)
 .cache/
 
 # campagnes d'analyse d'instabilité (skill analyzing-test-flakiness)
@@ -31,8 +34,7 @@ flaky-runs/
 flaky-test*
 __pycache__/
 
-# Variables d'environnement locales
-.env.local
-
 # macOS
 .DS_Store
+.wdio/
+exports/

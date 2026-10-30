@@ -3,13 +3,16 @@ description: Lance la suite E2E webapp (Chrome headless) — exécuté inline da
 
 inputs:
   suite:
-    description: "Suite nommée (test-suites.ts), ex: all, CI"
+    description: "Suite nommée webapp (définie dans wdio.base.conf.ts), ex: webapp_short (mise au point), webapp_usage (PR/merge/tag), webapp_smoke, webapp_all"
     required: false
-    default: all
+    default: webapp_short
 
 runs:
   using: composite
   steps:
+    # Les jobs restent verts même si des tests échouent (`|| echo`) : le résultat se lit dans le check et le commentaire de PR.
     - shell: bash
       working-directory: ami-system-tests
-      run: just test-webci-suite "${{ inputs.suite }}" || echo "Test suite has failed"
+      env:
+        E2E_SUITE: ${{ inputs.suite }}
+      run: just test-webci --suite "$E2E_SUITE" || echo "Test suite has failed"

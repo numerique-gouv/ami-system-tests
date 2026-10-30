@@ -1,31 +1,32 @@
 export type PlatformKind = 'android' | 'ios' | 'webapp'
 
-/**
- * Isole les points de couplage Appium/mobile identifiés lors de l'exploration
- * (docs/adr/2026-07-09-Strategie-de-selection-des-elements.md et CLAUDE.md §Architecture) :
- * bascule de contexte WebView, gestes natifs, dispatch iOS/Android du bouton FranceConnect.
- * Un seul membre par point de couplage réellement constaté dans les Page Objects — pas
- * d'anticipation de besoins futurs.
- */
+/** `web` : webapp, ou WebView sur mobile (dans un `inWebContext`) ; `native` : mobile hors WebView. */
+export type ContextKind = 'web' | 'native'
+
+/** WebView visée par `inWebContext`, désignée par son titre (contient, ou RegExp) ; à défaut, la dernière WebView hors workers. */
+export interface WebViewTarget {
+  title?: string | RegExp
+}
+
+/** Isole ce qui diffère entre Android, iOS et webapp ; un membre par point de couplage constaté dans les Page Objects. */
 export interface PlatformAdapter {
   readonly kind: PlatformKind
 
-  /** true sur Android (bouton FC natif) ; false sur iOS et en webapp (bouton dans le DOM). */
-  readonly fcButtonIsNative: boolean
+  /** Contexte courant, lu en mémoire : mis à jour à chaque lecture de `driver.getContext()` et à chaque bascule de l'adaptateur. */
+  context(): ContextKind
 
-  /**
-   * Exécute `callback` dans le contexte contenant le DOM de la SPA.
-   * Mobile : bascule Appium NATIVE_APP → WEBVIEW_* puis restaure. Webapp : identité,
-   * la session entière est déjà ce contexte.
-   */
+  /** Relit `driver.getContext()` et met la mémoire à jour (après un changement de contexte hors de l'adaptateur). */
+  syncContext(): Promise<ContextKind>
+
+  /** Exécute `callback` dans le contexte contenant le DOM de la SPA (webapp : identité). */
   inWebContext<T>(callback: () => Promise<T>): Promise<T>
+  inWebContext<T>(target: WebViewTarget, callback: () => Promise<T>): Promise<T>
 
-  /** true si le DOM de la SPA est atteignable depuis l'état courant de la session. */
   isWebContextAvailable(): Promise<boolean>
 
-  /** Force le recalcul de l'arbre d'accessibilité (no-op hors iOS). */
+  /** iOS : force le recalcul de l'arbre d'accessibilité. */
   refreshAxTree(): Promise<void>
 
-  /** Déclenche le rafraîchissement "tirer vers le bas" de la SPA. */
+  /** Rafraîchissement « tirer vers le bas ». */
   pullToRefresh(): Promise<void>
 }

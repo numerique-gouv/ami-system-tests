@@ -1,309 +1,143 @@
-import {platform} from '../platform'
-import {traced} from '../helpers/traced'
-import {getProfileLocators} from './locators/profile.locators'
-import {AssertionError} from "node:assert";
-import logger from "@wdio/logger";
-import {findLabel, findRole, findTestId} from '../helpers/spa'
-
-const log = logger('page-object')
+import {traced} from '../helpers/reporting/traced'
+import {profileLocators} from './locators/profile.locators'
+import {clickDisplayed, firstDisplayed, isShown, waitForHeading} from '../helpers/spa/spa'
+import NavigationPage from './navigation.page'
 
 class ProfilePage {
-    /** Vérifie l'arrivée sur la page « Mon profil » (titre). */
+    /** Rejoint la sous-page « Mon identité » ou « Mes coordonnées » : par le menu du hub, après avoir rejoint le hub si on n'y est pas. */
+    private async openSection(section: 'identity' | 'contact'): Promise<void> {
+        const marker = section === 'identity' ? profileLocators.identitySection : profileLocators.emailSection
+        const menuButton = section === 'identity' ? profileLocators.identityMenuButton : profileLocators.contactMenuButton
+        if (await isShown(marker)) return
+        if (!await isShown(profileLocators.hubHeading)) await this.navigateToProfileDirect()
+        await clickDisplayed(menuButton, {timeout: 5000})
+        await firstDisplayed(marker, {timeout: 5000})
+    }
+
+    /** Le profil est affiché : le hub « Mon profil » ou une de ses sous-pages (Enregistrer ou Annuler fait un retour arrière vers la sous-page d'origine, ou le hub). */
     async assertDisplayed(): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await findRole('heading', loc.pageTitle, {timeout: 10000})
-        })
-    }
-
-    /** Vérifie l'arrivée sur le formulaire d'adresse (titre « Où habitez-vous ? »). */
-    async assertAddressFormDisplayed(): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await findRole('heading', loc.addressFormTitle, {timeout: 10000})
-        })
-    }
-
-    /**
-     * Navigue vers la page "Mon profil" depuis la home :
-     *   clic toggle-menu-button → attente profile-button → clic profile-button → attente conteneur profil.
-     *
-     * Toute la navigation est dans un seul inWebContext — la page /#/profile est dans la même
-     * WebView que la home, la navigation hash ne nécessite pas de re-switch de contexte.
-     */
-    async navigate(): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            // Le menu avatar peut déjà être ouvert (ex. re-navigation après un logout) —
-            // ne cliquer toggleMenuButton que si "Mon profil" n'est pas déjà visible.
-            await findTestId(loc.profileMenuButtonTestId, {timeout: 500})
-                .then(async () => {
-                    await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
-                    await $(loc.toggleMenuButton).click()
-                })
-                .catch(() => {})
-
-            // 2-3. Attendre le bouton "Mon profil" dans le menu ouvert puis le cliquer —
-            // findTestId attend la résolution avant de retourner le handle, pas besoin
-            // d'un waitUntil séparé.
-            const profileBtn = await findTestId(loc.profileMenuButtonTestId, {timeout: 5000})
-            await profileBtn.click()
-
-            // 4. Attendre le conteneur de la page profil
-            await findRole('heading', loc.pageTitle, {timeout: 10000})
-        })
-    }
-
-    /**
-     * Retourne les textes des balises <b> de la section "Mon identité".
-     * Ordre attendu : [nom usuel, nom de naissance, date naissance, lieu naissance].
-     */
-    async getIdentityBolds(): Promise<string[]> {
-        const loc = getProfileLocators()
-        return await platform().inWebContext(async () => {
-            const texts: string[] = []
-            for await (const b of $$(`${loc.identitySection} b`)) {
-                const text = (await b.getText()).trim()
-                if (text) texts.push(text)
-            }
-            return texts
-        })
-    }
-
-    /**
-     * Retourne le texte de la balise <b> de la section "Contact" (adresse email).
-     */
-    async getEmailBold(): Promise<string> {
-        const loc = getProfileLocators()
-        return await platform().inWebContext(async () =>
-            (await $(`${loc.emailSection} b`).getText().catch(() => '')).trim()
+        await browser.waitUntil(
+            async () => await isShown(profileLocators.hubHeading) || await isShown(profileLocators.identitySection) || await isShown(profileLocators.emailSection),
+            {timeout: 5000, interval: 250, timeoutMsg: "Ni le hub « Mon profil » ni une sous-page du profil affichés après la sortie du formulaire d'édition"}
         )
     }
 
-    /**
-     * Retourne les textes des balises <b> de la section "Mon adresse".
-     * Ordre attendu : [rue, code postal + ville] — ou tableau vide si l'usager n'a pas d'adresse
-     * connue (donnée Caf vide, cf. +page.svelte `{#if address}` : la carte s'affiche toujours,
-     * son contenu <b> est conditionnel, 0 <b> est un état légitime et non une erreur de chargement).
-     */
+    async assertAddressFormDisplayed(): Promise<void> {
+        await firstDisplayed(profileLocators.addressFormHeading)
+    }
+
+    /** Menu avatar → « Mon profil ». À appeler dans un `inWebContext`. */
+    async navigate(): Promise<void> {
+        await NavigationPage.openPlusMenu()
+        await clickDisplayed(profileLocators.profileMenuButton, {timeout: 5000})
+        await waitForHeading(profileLocators.pageTitle)
+    }
+
+    private async boldTexts(section: string): Promise<string[]> {
+        const texts: string[] = []
+        for await (const b of $$(profileLocators.boldIn(section))) {
+            const text = (await b.getText()).trim()
+            if (text) texts.push(text)
+        }
+        return texts
+    }
+
+    /** Ordre : [nom usuel, nom de naissance, date naissance, lieu naissance]. */
+    async getIdentityBolds(): Promise<string[]> {
+        await this.openSection('identity')
+        return await this.boldTexts(profileLocators.identitySection)
+    }
+
+    /** Valeur du champ « Nom d'usage » du formulaire d'édition, quitté par « Annuler » : la sous-page « Mon identité » affiche le nom FranceConnect et ne reflète pas la modification. */
+    async getPreferredUsernameField(): Promise<string> {
+        await this.openSection('identity')
+        await clickDisplayed(profileLocators.preferredUsernameEditButton, {timeout: 5000})
+        const input = await firstDisplayed(profileLocators.preferredUsernameInput, {timeout: 5000})
+        const value = await input.getValue()
+        await clickDisplayed(profileLocators.cancelButton, {timeout: 5000})
+        await this.assertDisplayed()
+        return value
+    }
+
+    async getEmailBold(): Promise<string> {
+        await this.openSection('contact')
+        return (await $(profileLocators.boldIn(profileLocators.emailSection)).getText()).trim()
+    }
+
+    /** Ordre : [rue, code postal + ville] ; tableau vide si l'usager n'a pas d'adresse connue, ce qui est légitime. */
     async getAddressBolds(): Promise<string[]> {
-        const loc = getProfileLocators()
-        return await platform().inWebContext(async () => {
-            // Sentinelle : `identity`/`address` sont posés dans le même onMount synchrone
-            // (+page.svelte) mais le rendu de la carte peut encore être en cours juste après
-            // l'arrivée sur la page — on attend que le HTML de la section soit identique sur deux
-            // lectures rapprochées avant de lire les <b>, plutôt que d'exiger `>0` balise (qui
-            // traiterait une adresse légitimement vide comme un échec, cf. CONTRIBUTING.md §5).
-            let previousHtml: string | null = null
-            await browser.waitUntil(
-                async () => {
-                    const html = await $(loc.addressSection).getHTML({includeSelectorTag: false}).catch((ex) => {
-                        log.warn('getAddressBolds: lecture du HTML de la section « Mon adresse » en échec, on retente', ex)
-                        return null
-                    })
-                    const stable = html !== null && html === previousHtml
-                    previousHtml = html
-                    return stable
-                },
-                {timeout: 5000, interval: 300, timeoutMsg: 'Section "Mon adresse" jamais stabilisée'}
-            )
-
-            const texts: string[] = []
-            for await (const b of $$(`${loc.addressSection} b`)) {
-                const text = (await b.getText()).trim()
-                if (text) texts.push(text)
-            }
-            return texts
-        })
+        await this.openSection('contact')
+        // Le rendu de la carte peut être en cours : on attend deux lectures identiques du HTML plutôt que des balises <b> (une adresse peut être vide).
+        let previousHtml: string | null = null
+        await browser.waitUntil(
+            async () => {
+                const html = await $(profileLocators.addressSection).getHTML({includeSelectorTag: false}).catch(() => null)
+                const stable = html !== null && html === previousHtml
+                previousHtml = html
+                return stable
+            },
+            {timeout: 5000, interval: 300, timeoutMsg: 'Section "Mon adresse" jamais stabilisée'}
+        )
+        return await this.boldTexts(profileLocators.addressSection)
     }
 
-    /**
-     * Ouvre le menu avatar et clique le bouton "Paramètres".
-     * Après le clic, l'app quitte la WebView pour l'écran natif Paramètres —
-     * les interactions suivantes (ex. logout) doivent cibler des éléments natifs.
-     */
-    async navigateToSettings(): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            await platform().refreshAxTree()
-            await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})
-            await $(loc.toggleMenuButton).click()
-
-            const settingsBtn = await findTestId(loc.settingsMenuButtonTestId, {timeout: 5000})
-            await settingsBtn.click()
+    /** Navigation par le hash : aucun bouton ne mène au profil depuis un formulaire d'édition. */
+    private async navigateToProfileDirect(): Promise<void> {
+        await driver.execute(() => {
+            window.location.hash = '/profile'
         })
+        await waitForHeading(profileLocators.pageTitle, 5000)
     }
 
-    /**
-     * Navigue directement vers /#/profile via le hash SvelteKit.
-     * Utilisable depuis n'importe quelle page d'édition ou après un échec de test.
-     */
-    async navigateToProfileDirect(): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            // driver.execute : pas de bouton menant au profil depuis une page d'édition ou après un échec —
-            // les primitives de spa.ts ne suffisent pas, navigation directe par hash.
-            await driver.execute(() => {
-                window.location.hash = '/profile'
-            })
-            await findRole('heading', loc.pageTitle, {timeout: 5000})
-        })
+    private async editField(section: 'identity' | 'contact', editButton: string, inputSelector: string, newValue: string): Promise<void> {
+        await this.openSection(section)
+        await clickDisplayed(editButton)
+        const input = await firstDisplayed(inputSelector, {timeout: 5000})
+        await input.setValue(newValue)
+        await clickDisplayed(profileLocators.saveButton)
+        await this.assertDisplayed()
     }
 
-    /**
-     * Ouvre le formulaire d'édition d'un bloc (« Modifier ») sans rien saisir ni enregistrer, et
-     * attend son titre. Les 3 boutons « Modifier » ont le même nom : data-testid (cf. ProfileLocators).
-     */
-    async openEditForm(block: 'identity' | 'email' | 'address'): Promise<void> {
-        const loc = getProfileLocators()
-        const testId = {identity: loc.preferredUsernameEditButtonTestId, email: loc.emailEditButtonTestId, address: loc.addressEditButtonTestId}[block]
-        const heading = {identity: 'Mon identité', email: 'Contact', address: /Où habitez-vous/}[block]
-        await platform().inWebContext(async () => {
-            const editBtn = await findTestId(testId, {timeout: 5000})
-            await editBtn.click()
-            await findRole('heading', heading, {timeout: 5000})
-        })
-    }
-
-    /** « Annuler » dans un formulaire d'édition : retour au profil sans modification. */
-    async cancelEdit(): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            const cancel = await findRole('button', 'Annuler', {timeout: 5000})
-            await cancel.click()
-            await findRole('heading', loc.pageTitle, {timeout: 5000})
-        })
-    }
-
-    /**
-     * Ouvre le formulaire d'édition du nom d'usage, saisit la valeur, enregistre,
-     * et attend le retour sur la page profil.
-     *
-     * Pattern : findTestId pour le bouton « Modifier » et le conteneur du formulaire, findRole/findLabel
-     * pour les interactions sur la page stable (sémantique + résiliente aux refactorings DOM).
-     */
     async editPreferredUsername(newValue: string): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            // Clic "Modifier" : data-testid requis (findTestId), les 3 boutons ont le même texte
-            // "Modifier" — un findRole('button', 'Modifier') ne pourrait pas les distinguer.
-            const editBtn = await findTestId(loc.preferredUsernameEditButtonTestId)
-            await editBtn.click()
-
-            // Sentinelle : attendre que le formulaire soit rendu
-            await findTestId(loc.editContainerTestId, {timeout: 5000})
-
-            // Page stable → findLabel : label "Nom d'usage" associé à l'input via for/id
-            const input = await findLabel(/Nom d.usage/)
-            await input.setValue(newValue)
-
-            const submitBtn = await findRole('button', 'Enregistrer')
-            await submitBtn.click()
-
-            // Sentinelle retour profil
-            await findRole('heading', loc.pageTitle, {timeout: 5000})
-        })
+        await this.editField('identity', profileLocators.preferredUsernameEditButton, profileLocators.preferredUsernameInput, newValue)
     }
 
-    /**
-     * Ouvre le formulaire d'édition de l'email, remplace la valeur, enregistre,
-     * et attend le retour sur la page profil.
-     */
     async editEmail(newValue: string): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            const editBtn = await findTestId(loc.emailEditButtonTestId)
-            await editBtn.click()
-
-            await findTestId(loc.editContainerTestId, {timeout: 5000})
-
-            // Label "E-mail" — libellé observé sur le build staging (différent du code source Svelte)
-            const input = await findLabel('E-mail')
-            await input.setValue(newValue)
-
-            const submitBtn = await findRole('button', 'Enregistrer')
-            await submitBtn.click()
-
-            await findRole('heading', loc.pageTitle, {timeout: 5000})
-        })
+        await this.editField('contact', profileLocators.emailEditButton, profileLocators.emailInput, newValue)
     }
 
-    /**
-     * Ouvre le menu avatar et clique "Me déconnecter".
-     * Le bouton est dans la WebView SPA (menu avatar, même niveau que "Mon profil" et "Paramètres").
-     *
-     * Pas de branchement iOS/Android pour confirmer la fin du logout : la disparition de la
-     * modale de confirmation (ci-dessous) est un signal DOM observable identiquement sur les
-     * deux plateformes, plus simple et plus fiable qu'un branchement qui aurait comparé
-     * `driver.getContexts()` (iOS, réapparition d'un contexte WEBVIEW) au bouton FranceConnect
-     * natif (Android) — deux chemins de code pour un seul événement métier.
-     */
+    /** Menu avatar → « Me déconnecter » → confirmation. Le signal de fin est la disparition de la modale, identique sur les deux plateformes. */
     async logout(): Promise<void> {
-        const loc = getProfileLocators()
-
-        await platform().inWebContext(async () => {
-            if (!await $(loc.toggleMenuButton).waitForClickable({timeout: 5000})) {
-                log.warn("avatar menu is not clickable...")
-                return
-            }
-            await $(loc.toggleMenuButton).click()
-            const logoutBtn = await findRole('button', 'Me déconnecter')
-            await logoutBtn.click()
-
-            const modaleAffichee = await browser.waitUntil(
-                async () => driver.execute((heading) =>
-                    Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, [role="heading"]'))
-                        .some(h => h.textContent?.trim() === heading),
-                    'Suppression de vos données'
-                ) as unknown as boolean,
-                {timeout: 5000, interval: 300}
-            ).catch(() => false)
-
-            if (modaleAffichee) {
-                const confirmBtn = await findRole('button', 'Confirmer')
-                await confirmBtn.click()
-                await confirmBtn.waitForDisplayed({timeout: 15000, reverse: true})
-            } else {
-                throw new AssertionError({ message: "La modale de confirmation de suppression des données ne s'affiche pas." })
-            }
-        })
+        await NavigationPage.openPlusMenu()
+        await clickDisplayed(profileLocators.logoutButton)
+        await firstDisplayed(profileLocators.deletionHeading, {timeout: 5000})
+        await clickDisplayed(profileLocators.confirmButton)
+        // `$()` et non l'élément cliqué : la déconnexion remplace le document, un élément déjà résolu y deviendrait périmé.
+        await $(profileLocators.confirmButton).waitForDisplayed({timeout: 15000, reverse: true})
     }
 
-    /**
-     * Ouvre le formulaire d'édition de l'adresse, saisit la requête BAN,
-     * sélectionne le premier résultat de l'autocomplétion, enregistre,
-     * et attend le retour sur la page profil.
-     *
-     * L'input déclenche un debounce Svelte de 750 ms avant l'appel BAN →
-     * le waitUntil autocomplete attend jusqu'à 6 s.
-     * L'item autocomplete est ciblé par data-testid (texte imprévisible dépendant de l'API BAN).
-     */
+    /** Remet le profil dans son état d'origine (hook `after`). Chaque étape est indépendante : un échec partiel ne bloque pas les autres. `email` absent : non modifié. */
+    async restore(original: {preferredUsername: string; email?: string}): Promise<void> {
+        const attempt = async (action: () => Promise<void>): Promise<void> => {
+            try { await action() } catch { /* étape indépendante */ }
+        }
+        await attempt(() => this.navigateToProfileDirect())
+        await attempt(() => this.editPreferredUsername(original.preferredUsername))
+        if (original.email !== undefined) await attempt(() => this.editEmail(original.email as string))
+    }
+
+    /** Le debounce Svelte de 750 ms précède l'appel BAN : l'item d'autocomplétion est attendu jusqu'à 6 s. */
     async editAddress(query: string): Promise<void> {
-        const loc = getProfileLocators()
-        await platform().inWebContext(async () => {
-            const editBtn = await findTestId(loc.addressEditButtonTestId)
-            // waitForClickable vérifie aussi qu'aucun élément (info-tip laissé par une étape
-            // précédente du scénario) ne recouvre le bouton au point de clic.
-            await editBtn.waitForClickable({timeout: 5000})
-            await editBtn.click()
-
-            await findTestId(loc.editContainerTestId, {timeout: 5000})
-
-            // Label "Adresse" — setValue envoie des keystrokes qui déclenchent oninput + debounce
-            const input = await findLabel('Adresse')
-            await input.setValue(query)
-
-            // Sentinelle autocomplete : debounce 750 ms + latence API BAN, data-testid requis
-            // (texte de l'item inconnu à l'avance, retour BAN variable) — findTestId attend et
-            // résout en un seul appel.
-            const firstItem = await findTestId(loc.autocompleteFirstItemButtonTestId, {timeout: 6000})
-            await firstItem.click()
-
-            const submitBtn = await findRole('button', 'Enregistrer')
-            await submitBtn.click()
-
-            await findRole('heading', loc.pageTitle, {timeout: 5000})
-        })
+        await this.openSection('contact')
+        const editBtn = await firstDisplayed(profileLocators.addressEditButton)
+        // Vérifie aussi qu'aucun élément (info-tip) ne recouvre le bouton au point de clic.
+        await editBtn.waitForClickable({timeout: 5000})
+        await editBtn.click()
+        const input = await firstDisplayed(profileLocators.addressInput, {timeout: 5000})
+        await input.setValue(query)
+        await clickDisplayed(profileLocators.autocompleteFirstItem, {timeout: 6000})
+        await clickDisplayed(profileLocators.saveButton)
+        await this.assertDisplayed()
     }
 }
 

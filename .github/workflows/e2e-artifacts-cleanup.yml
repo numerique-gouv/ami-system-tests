@@ -1,0 +1,58 @@
+name: E2E cleanup (artefacts de tests)
+
+# Supprime les artefacts de tests (`test-results-<slug>-*`, publiés par workflow-e2e-main.yml) d'une PR fermée, pour qu'ils ne s'accumulent pas.
+# À déclencher (workflow_dispatch avec source_repo et pr_number) depuis les dépôts frères à la fermeture de leur PR (`pull_request: types: [closed]`).
+# La rétention de 14 jours reste un filet de sécurité si ce déclenchement n'est pas câblé ou échoue.
+#
+# Renommage proposé, non fait (il ne prend effet qu'après un merge sur main) : `name:` → « Nettoyage des artefacts E2E d'une PR fermée ».
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "Dépôt frère à l'origine de la PR fermée (owner/repo)"
+        type: string
+        required: true
+      pr_number:
+        description: "Numéro de la PR fermée dans source_repo"
+        type: number
+        required: true
+
+permissions:
+  contents: read
+  # La suppression a lieu dans ce dépôt : le GITHUB_TOKEN suffit, pas besoin d'un jeton inter-dépôts.
+  actions: write
+
+jobs:
+  cleanup:
+    name: Supprimer les artefacts de tests de la PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github
+
+      - name: Calculer la clé d'isolation (slug)
+        id: slug
+        uses: ./.github/actions/e2e-keys
+        with:
+          source-repo: ${{ inputs.source_repo }}
+          pr-number: ${{ inputs.pr_number }}
+
+      - name: Supprimer les artefacts test-results-<slug>-*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLUG: ${{ steps.slug.outputs.slug }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          IDS=$(gh api "repos/$REPOSITORY/actions/artifacts?per_page=100" --paginate | \
+            jq -r --arg slug "$SLUG" \
+              '.artifacts[] | select(.name | startswith("test-results-" + $slug + "-")) | .id')
+          if [ -z "$IDS" ]; then
+            echo "Aucun artefact de tests trouvé pour $SLUG."
+            exit 0
+          fi
+          for id in $IDS; do
+            echo "Suppression de l'artefact $id"
+            gh api -X DELETE "repos/$REPOSITORY/actions/artifacts/$id"
+          done

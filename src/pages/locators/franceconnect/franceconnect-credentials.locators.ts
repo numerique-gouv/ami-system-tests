@@ -1,22 +1,10 @@
-/**
- * Sélecteurs du formulaire FCP-LOW mock (identifiant/mot de passe FranceConnect sandbox).
- *
- * WebView, structure identique Android/iOS (mock OIDC hors app AMI).
- *
- * Note : les champs identifiant/mot de passe et le bouton de soumission sont ciblés via
- * findLabel / findRole directement dans le Page Object, pas ici.
- */
-
-export interface FranceConnectCredentialsLocators {
-  fcpLowHeadingText: string     // texte de confirmation que la page FCP-LOW est chargée (logs/messages)
-  fcpLowHeadingPattern: RegExp  // même texte, pour le matching réel — tolérant à l'apostrophe
+// Formulaire du mock FCP-LOW, même DOM sur Android et iOS. Champs par leur attribut `name` : `aria/<libellé>` renvoie sur mobile un élément non éditable.
+export const fcCredentialsLocators = {
+  identifierField: 'input[name="login"]',
+  passwordField: 'input[name="password"]',
+  submitButton: 'button.*=valider',
 }
 
-export const fcCredentialsLocators: FranceConnectCredentialsLocators = {
-  // Texte de titre de la page FCP-LOW (confirme que la navigation eiDAS a abouti)
-  fcpLowHeadingText: "Fournisseur d'identité de démonstration - FCP-LOW",
-  // `.` à la place de l'apostrophe : tolère apostrophe droite (') et typographique (’)
-  fcpLowHeadingPattern: /Fournisseur d.identité de démonstration - FCP-LOW/,
-}
-
-// Pas de getXxxLocators() — un seul jeu cross-platform
+/** iOS : les champs du formulaire lus dans l'arbre natif (cf. `iosEidasLinkNativeAx`). */
+export const iosCredentialsFieldsNativeAx =
+  '-ios predicate string:type == "XCUIElementTypeTextField" OR type == "XCUIElementTypeSecureTextField"'

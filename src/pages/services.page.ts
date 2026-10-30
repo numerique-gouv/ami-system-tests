@@ -1,41 +1,152 @@
+import {AssertionError} from 'node:assert'
 import {servicesLocators} from './locators/services.locators'
-import {platform} from '../platform'
-import {traced} from '../helpers/traced'
-import {checkboxStates, clickButtonUntilGone, visibleButtonTexts, waitForButtons, waitForHeading, findRole} from '../helpers/spa'
+import {stepsListLocators} from './locators/steps-list.locators'
+import {traced} from '../helpers/reporting/traced'
+import {allDisplayed, checkboxStates, clickButton, clickButtonUntilGone, firstDisplayed, normalizeSpaces, visibleButtonTexts, waitForHeading} from '../helpers/spa/spa'
+import {followAndDescribe, type DeferredLink, type LinkTarget} from '../helpers/webapp/link-check'
 import NavigationPage from './navigation.page'
 
-/** Page Object de Services : onglets, checklists éditoriales, fiche d'un service partenaire. */
+async function visibleText(element: WebdriverIO.Element): Promise<string> {
+    return normalizeSpaces(await element.getText())
+}
+
 class ServicesPage {
     async open(): Promise<void> {
         await NavigationPage.goToTab('Services')
     }
 
-    /** Vérifie l'arrivée sur la page Services (titre). */
     async assertDisplayed(): Promise<void> {
         await waitForHeading(servicesLocators.pageTitle)
     }
 
-    /** Sélectionne un onglet (`role=tab`) et attend qu'il soit actif. */
     async selectTab(label: string): Promise<void> {
-        await platform().inWebContext(async () => {
-            const tab = await findRole('tab', label, {timeout: 10000})
-            await tab.click()
-            await browser.waitUntil(async () => (await tab.getAttribute('aria-selected')) === 'true', {
-                timeout: 5000, interval: 200, timeoutMsg: `Onglet "${label}" non sélectionné`,
+        await this.assertDisplayed()
+        const tab = await firstDisplayed(servicesLocators.tab(label), {timeout: 10000})
+        await tab.click()
+        await expect(tab).toHaveAttribute('aria-selected', 'true', {wait: 5000})
+    }
+
+    /** Revient sur Services après un lien externe (la session FranceConnect est conservée par le profil du navigateur). */
+    async returnFromExternal(): Promise<void> {
+        await browser.url('/#/services')
+        await this.assertDisplayed()
+    }
+
+    /** Libellés des cartes de l'onglet « Démarches et outils », dans l'ordre. */
+    async catalogueLabels(): Promise<string[]> {
+        await this.selectTab(servicesLocators.catalogueTabName)
+        const within = servicesLocators.tabpanel(servicesLocators.catalogueTabName)
+        await firstDisplayed(servicesLocators.catalogueCard, {within, timeout: 15000})
+        const labels: string[] = []
+        for (const card of await allDisplayed(servicesLocators.catalogueCard, {within})) {
+            labels.push(await visibleText(card))
+        }
+        return labels
+    }
+
+    /**
+     * Clique la carte n° `index` (rang dans `catalogueLabels()`) et décrit la page atteinte, sans exposer son URL (jetons : voir `followAndDescribe`).
+     * `deferExternal` : une cible externe sans jeton est interceptée, l'appelant reçoit un `DeferredLink` à contrôler par `describeByHttp`.
+     */
+    async openCatalogueCard(index: number): Promise<LinkTarget>
+    async openCatalogueCard(index: number, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+    async openCatalogueCard(index: number, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
+        const click = async (): Promise<void> => {
+            const within = servicesLocators.tabpanel(servicesLocators.catalogueTabName)
+            const cards = await allDisplayed(servicesLocators.catalogueCard, {within})
+            await cards[index].click()
+        }
+        return options ? await followAndDescribe(click, options) : await followAndDescribe(click)
+    }
+
+    /** Comme `openCatalogueCard`, pour la première carte dont le libellé commence par `labelStart`. */
+    async openCatalogueCardNamed(labelStart: string): Promise<LinkTarget> {
+        const index = (await this.catalogueLabels()).findIndex(label => label.startsWith(labelStart))
+        if (index < 0) throw new AssertionError({message: `Aucune carte du catalogue ne commence par « ${labelStart} »`})
+        return await this.openCatalogueCard(index)
+    }
+
+    /** Comme `openCatalogueCard`, pour la première carte dont le libellé contient `fragment`. */
+    async openCatalogueCardContaining(fragment: string): Promise<LinkTarget> {
+        const index = (await this.catalogueLabels()).findIndex(label => label.includes(fragment))
+        if (index < 0) throw new AssertionError({message: `Aucune carte du catalogue ne contient « ${fragment} »`})
+        return await this.openCatalogueCard(index)
+    }
+
+    /** Libellés de tous les boutons de l'onglet « Trouver de l’aide » : SOS, checklists, annuaire. */
+    async helpLabels(): Promise<string[]> {
+        await this.selectTab(servicesLocators.helpTabName)
+        const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
+        await firstDisplayed(servicesLocators.anyButton, {within, timeout: 15000})
+        const labels: string[] = []
+        for (const entry of await allDisplayed(servicesLocators.anyButton, {within})) labels.push(await visibleText(entry))
+        return labels
+    }
+
+    /** Libellés des entrées de « Trouver de l’aide » qui ouvrent une liste d'étapes (« Comment faire si… »), dans l'ordre. */
+    async stepsListLabels(): Promise<string[]> {
+        await this.selectTab(servicesLocators.helpTabName)
+        const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
+        await firstDisplayed(stepsListLocators.listEntry, {within, timeout: 15000})
+        const labels: string[] = []
+        for (const entry of await allDisplayed(stepsListLocators.listEntry, {within})) labels.push(await visibleText(entry))
+        return labels
+    }
+
+    /** Ouvre la liste d'étapes n° `index` (rang dans `stepsListLabels()`). L'arrivée est vérifiée par `StepsListPage.assertDisplayed()`. */
+    async openStepsList(index: number): Promise<void> {
+        await this.selectTab(servicesLocators.helpTabName)
+        const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
+        await (await allDisplayed(stepsListLocators.listEntry, {within}))[index].click()
+    }
+
+    /**
+     * Clique l'entrée n° `index` (rang dans `helpLabels()`) de « Trouver de l’aide » et décrit la page atteinte, sans exposer l'URL complète.
+     * Défilement en JavaScript : celui de WDIO laisse la dernière entrée sous la barre de navigation basse (clic intercepté, défaut du test et non de l'app).
+     * `deferExternal` : comme pour `openCatalogueCard`.
+     */
+    async openHelpEntry(index: number): Promise<LinkTarget>
+    async openHelpEntry(index: number, options: {deferExternal: true}): Promise<LinkTarget | DeferredLink>
+    async openHelpEntry(index: number, options?: {deferExternal: true}): Promise<LinkTarget | DeferredLink> {
+        const click = async (): Promise<void> => {
+            const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
+            // Les entrées sont rendues progressivement après un rechargement.
+            let entries: WebdriverIO.Element[] = []
+            await browser.waitUntil(async () => (entries = await allDisplayed(servicesLocators.anyButton, {within})).length > index, {
+                timeout: 15000, interval: 300,
+                timeoutMsg: `L'entrée n° ${index} de « Trouver de l’aide » n'est pas affichée après 15000ms`,
             })
-        })
+            const entry = entries[index]
+            await browser.execute((el: HTMLElement) => el.scrollIntoView({block: 'center'}), entry as unknown as HTMLElement)
+            // Clic JavaScript : le « click » WebDriver attend la fin du chargement de la cible, qui peut ne jamais répondre ; `followAndDescribe` attend la navigation.
+            await browser.execute((el: HTMLElement) => el.click(), entry as unknown as HTMLElement)
+        }
+        return options ? await followAndDescribe(click, options) : await followAndDescribe(click)
     }
 
-    /** Attend que les entrées données (texte exact ou préfixe) soient rendues dans l'onglet courant. */
-    async waitForEntries(names: Array<string | RegExp>): Promise<void> {
-        await waitForButtons(names)
+    /** Ouvre « Je suis victime de cybermalveillance » (route interne) et retourne l'adresse de ses iframes. */
+    async openCyberDiagnostic(): Promise<string[]> {
+        await this.selectTab(servicesLocators.helpTabName)
+        await clickButton(servicesLocators.cyberDiagnosticName)
+        await firstDisplayed(servicesLocators.cyberIframe, {timeout: 15000})
+        const sources: string[] = []
+        for (const frame of await allDisplayed(servicesLocators.cyberIframe)) {
+            const src = await frame.getAttribute('src')
+            if (src) sources.push(src)
+        }
+        return sources
     }
 
-    async buttonTexts(): Promise<string[]> {
-        return await visibleButtonTexts()
+    /** Attend que les entrées données (fragment du texte du bouton) soient rendues dans l'onglet courant. */
+    async waitForEntries(fragments: string[]): Promise<void> {
+        await this.assertDisplayed()
+        for (const fragment of fragments) {
+            await firstDisplayed(servicesLocators.entryContaining(fragment), {timeout: 15000})
+        }
     }
 
     async assertHelpTabSections(): Promise<void> {
+        await this.assertDisplayed()
         await waitForHeading(servicesLocators.sosHeading)
         await waitForHeading(servicesLocators.checklistsHeading)
         await waitForHeading(servicesLocators.directoryHeading)
@@ -46,10 +157,7 @@ class ServicesPage {
         await clickButtonUntilGone(label)
     }
 
-    /**
-     * Sections de la checklist ouverte (boutons terminés par un compteur « n/m »). Attend qu'au moins
-     * une section soit rendue : la méthode s'assure elle-même d'être sur la bonne page.
-     */
+    /** Sections de la checklist ouverte (boutons terminés par un compteur « n/m »). */
     async checklistSections(): Promise<string[]> {
         let sections: string[] = []
         await browser.waitUntil(async () => {
@@ -64,10 +172,7 @@ class ServicesPage {
         await clickButtonUntilGone(sectionLabel)
     }
 
-    /**
-     * Nombre de cases à cocher de la section ouverte, et combien sont cochées — sans y toucher. Attend
-     * qu'au moins une case soit rendue.
-     */
+    /** Nombre de cases à cocher de la section ouverte, et combien sont cochées. */
     async checklistProgress(): Promise<{total: number; checked: number}> {
         let states: boolean[] = []
         await browser.waitUntil(async () => {
@@ -77,20 +182,14 @@ class ServicesPage {
         return {total: states.length, checked: states.filter(Boolean).length}
     }
 
-    /**
-     * Ouvre la fiche interne du service « Opération Tranquillité Vacances » par sa route. La carte de
-     * l'onglet « Démarches et outils » quitte la SPA (navigation externe, destination non confirmée) ;
-     * seule celle du carrousel de l'accueil mène à cette fiche (cf. HomePage.openOtvCard).
-     */
+    /** La carte du catalogue quitte la SPA : la fiche interne n'est atteinte que par sa route. */
     async openOperationTranquilliteVacances(): Promise<void> {
         await NavigationPage.goToRoute(servicesLocators.otvRoute)
     }
 
     async assertBenefitButtonOffered(): Promise<void> {
-        await platform().inWebContext(async () => {
-            await findRole('heading', servicesLocators.otvServiceTitle, {timeout: 10000})
-            await findRole('button', servicesLocators.otvBenefitButtonName, {timeout: 10000})
-        })
+        await firstDisplayed(servicesLocators.otvServiceHeading)
+        await firstDisplayed(servicesLocators.otvBenefitButton)
     }
 }
 

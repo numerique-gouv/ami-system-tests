@@ -1,240 +1,124 @@
 import { platform } from '../platform'
-import { traced } from '@helpers/traced'
-import { getSuiviDemarchesLocators } from '@locators/suivi-demarches.locators'
-import HomePage from './home.page'
+import { traced } from '@helpers/reporting/traced'
+import { suiviDemarchesLocators } from '@locators/suivi-demarches.locators'
 import {AssertionError} from "node:assert";
-import logger from "@wdio/logger";
-import {scalingoLogsHint} from '@helpers/notifications-api'
+import {publicationSentryUrl} from '@helpers/partner-api'
 import NavigationPage from './navigation.page'
-import {clickButton, visibleButtonTexts, waitForButtons, waitForHeading, findRole, queryRole} from '@helpers/spa'
-
-const log = logger('page-object')
+import {clickDisplayed, firstDisplayed, hasPageText, isShown, reloadPage, waitForHeading} from '@helpers/spa/spa'
 
 const DEMARCHES_TIMEOUT_MS = 20000
 
+// Attente de la démarche : traitement serveur de la notification, puis rechargements ; rendu de la page rechargée.
+const SUIVI_WAIT_MS = 30000
+const RELOAD_RENDER_MS = 8000
+const RELOAD_INTERVAL_MS = 2000
+
 class SuiviDemarchesPage {
-    /**
-     * Attend que la démarche identifiée par son titre apparaisse sur la page Suivi courante.
-     * Pré-condition : déjà sur la page Suivi (appeler `HomePage.ouvreSuivi()` avant).
-     *
-     * La page Suivi n'a pas d'abonnement temps réel, elle ne se met à jour qu'au chargement (cf. CONTRIBUTING.md §3, règle 5) :
-     * poll par backoff exponentiel avec rafraîchissement explicite à chaque tentative — même
-     * stratégie que `NotificationsInboxPage.assertNotificationReceived`. La présence du titre est lue
-     * par `driver.execute` (texte visible de la page) après chaque rechargement : un seul aller-retour
-     * synchrone, sans handle d'élément susceptible de devenir périmé pendant le rendu. Contrairement à
-     * `assertVisibleDemarcheWith`, aucun badge ni lien voisin n'est lu ici.
-     */
-    async waitForDemarche(title: string): Promise<void> {
-        const startedAt = Date.now()
-        const backoffMs = [0, 500, 1000, 2000, 4000, 4000, 8000]
-        let elapsed = 0
-        // Dernière erreur WebDriver/rendu de l'avant-dernière tentative non rendue : si la page n'a jamais
-        // pu être lue, l'échec ne dit rien du traitement serveur (pas de renvoi vers les logs Scalingo).
-        let lastRenderError: string | null = null
-        let lastAttemptRendered = false
-        for (const delay of backoffMs) {
-            await browser.pause(delay) // hors inWebContext : laisse la page respirer entre deux rafraîchissements
-            elapsed += delay
-            // Un reload lent (cold-start backend, etc.) ne doit pas interrompre le backoff : on le
-            // traite comme "pas encore trouvé" et on retente, au lieu de laisser l'AssertionError
-            // du waitUntil interne remonter et court-circuiter les tentatives restantes.
-            const rendered = await platform().inWebContext(async () => {
-                await driver.execute(() => window.location.reload())
-                // `readyState === 'complete'` ne signale que la fin du chargement du bundle JS,
-                // pas le montage Svelte ni la résolution du fetch de la liste — juste après reload,
-                // document.body.innerText est encore vide la quasi-totalité du temps (constaté en
-                // debug). On attend un contenu textuel réel (liste ou état vide rendu) avant de
-                // lire la page, sans quoi chaque tentative lit un DOM non peint et échoue à tort.
-                return await browser.waitUntil(
-                    () => driver.execute(() => document.body.innerText.trim().length > 0) as Promise<boolean>,
-                    {timeout: 8000, interval: 200, timeoutMsg: 'Page Suivi non rendue après reload (contenu toujours vide)'}
-                ).then(() => true).catch((err: Error) => {
-                    lastRenderError = err.message
-                    return false
-                })
-            })
-            lastAttemptRendered = rendered
-            if (!rendered) {
-                log.log(`[suivi] reload non rendu, on retente (≤ ${elapsed}ms)`)
-                continue
-            }
-
-            const found = await platform().inWebContext(async () => {
-                // Le reload qui précède peut laisser un arbre d'accessibilité WKWebView périmé sur
-                // iOS (cf. refreshAxTree()) — no-op sur Android.
-                await platform().refreshAxTree()
-                return driver.execute((t: string) => document.body.innerText.includes(t), title) as Promise<boolean>
-            })
-
-            if (found) {
-                log.log(`[suivi] démarche "${title}" visible (≤ ${elapsed}ms)`)
-                return
-            }
-            log.log(`[suivi] démarche "${title}" toujours pas visible (≤ ${elapsed}ms)`)
-        }
-        if (!lastAttemptRendered)
-            throw new AssertionError({ message: `Page Suivi illisible après ${elapsed}ms (dernière erreur : ${lastRenderError}) — la présence de la démarche "${title}" n'a pas pu être vérifiée.` })
-        throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${elapsed}ms. ${scalingoLogsHint(startedAt)}` })
+    /** Le titre de la démarche est-il dans le texte du Suivi sous `timeout` ms ? Pré-condition : `assertDisplayed()` (l'Accueil a aussi un bloc « Mes démarches »). */
+    async isDemarcheListed(title: string, timeout = 1000): Promise<boolean> {
+        return await hasPageText(title, timeout)
     }
 
-  /**
-   * Attend qu'une carte de démarche visible corresponde à `title` et `statusLabel`.
-   *
-   * $$()/card.$() plutôt que findRole : on ne sait pas à l'avance quelle carte contient `title`,
-   * il faut donc lire le titre de chaque carte pour le comparer. Une fois la bonne carte
-   * trouvée, lire le badge. $$() donne directement la carte, le badge
-   * se lit dedans sans remonter le DOM.
-   *
-   * Les 2 critères (titre, statut) sont vérifiés dans le même `waitUntil` avec un seul
-   * `failReason`, plutôt que 2 méthodes séparées à un critère chacune : ça évite de reparcourir
-   * la liste de cartes 2 fois, et le message d'échec pointe précisément lequel des 2 critères
-   * n'a jamais été atteint (au lieu d'un "timeout" générique sur le dernier appel).
-   */
+    async isFollowButtonShown(timeout = 0): Promise<boolean> {
+        return await isShown(suiviDemarchesLocators.followButton, timeout)
+    }
+
+    /** Recharge la page à chaque tentative jusqu'à ce que `title` figure dans son texte. */
+    private async reloadUntilTextShown(title: string): Promise<void> {
+        await browser.waitUntil(async () => {
+            await reloadPage()
+            await platform().refreshAxTree()
+            return await hasPageText(title, RELOAD_RENDER_MS)
+        }, {timeout: SUIVI_WAIT_MS, interval: RELOAD_INTERVAL_MS, timeoutMsg: `« ${title} » absent de la page après ${SUIVI_WAIT_MS}ms de rechargements`})
+    }
+
+    /**
+     * Attend que la démarche apparaisse sur le Suivi (pré-condition : y être déjà). La page n'a pas d'abonnement temps réel (CONTRIBUTING.md §3) :
+     * on la recharge à chaque tentative, y compris pour une démarche déjà listée dont le titre ou le statut change.
+     */
+    async waitForDemarche(title: string): Promise<void> {
+        await this.assertDisplayed()
+        const startedAt = Date.now()
+        try {
+            await this.reloadUntilTextShown(title)
+        } catch (err) {
+            const sentry = publicationSentryUrl(title)
+            throw new AssertionError({ message: `Démarche "${title}" non visible sur le Suivi après ${Date.now() - startedAt}ms.${sentry ? ` Trace Sentry de l'envoi : ${sentry}` : ''} (${(err as Error).message})` })
+        }
+    }
+
+  /** Attend qu'une carte corresponde à `title` et `statusLabel`, les deux critères dans un même `waitUntil` pour que le message dise lequel manque. */
   async assertVisibleDemarcheWith(
     title: string,
     statusLabel: string,
     timeoutMs = DEMARCHES_TIMEOUT_MS
   ): Promise<void> {
-    const loc = getSuiviDemarchesLocators()
-    const startedAt = Date.now()
-    await platform().inWebContext(async () => {
-      let failReason: 'card-not-found' | 'status-not-found' = 'card-not-found'
-      let lastStatus: string | null = null
-      // Erreur WebDriver de la dernière tentative (contexte perdu, élément périmé…) : distincte de
-      // « carte absente », elle ne doit pas renvoyer vers les logs Scalingo.
-      let lastError: string | null = null
-      const statusLabelLower = statusLabel.toLowerCase()
-      try {
-        await browser.waitUntil(
-          async () => {
-            failReason = 'card-not-found'
-            lastStatus = null
-            lastError = null
-            try {
-              for await (const card of $$(loc.cardContent)) {
-                const titleText = await card.$(loc.cardTitle).getText()
-                if (!titleText.includes(title)) continue
-                failReason = 'status-not-found'
-                lastStatus = (await card.$(loc.cardBadge).getText()).trim().toLowerCase()
-                return lastStatus.includes(statusLabelLower)
-              }
-            } catch (err) {
-              lastError = (err as Error).message
-            }
-            return false
-          },
-          {
-            timeout: timeoutMs,
-            interval: 2000,
-            timeoutMsg: `Démarche "${title}" (statut "${statusLabel}") non trouvée après ${timeoutMs}ms`
+    await this.assertDisplayed()
+    const statusLabelLower = statusLabel.toLowerCase()
+    let lastStatus: string | null = null // null : aucune carte ne porte ce titre
+    try {
+      await browser.waitUntil(
+        async () => {
+          lastStatus = null
+          for await (const card of $$(suiviDemarchesLocators.cardContent)) {
+            if (!(await card.$(suiviDemarchesLocators.cardTitle).getText()).includes(title)) continue
+            lastStatus = (await card.$(suiviDemarchesLocators.cardBadge).getText()).trim().toLowerCase()
+            return lastStatus.includes(statusLabelLower)
           }
-        )
-      } catch (err) {
-        log.warn('Suivi : démarche/statut non trouvé', err)
-        if (lastError)
-          throw new AssertionError({ message: `Liste du Suivi illisible après ${timeoutMs}ms (dernière erreur : ${lastError}) — la démarche "${title}" n'a pas pu être vérifiée.` })
-        if (failReason === 'card-not-found')
-          throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms. ${scalingoLogsHint(startedAt)}` })
-        throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus})` })
-      }
-    })
+          return false
+        },
+        { timeout: timeoutMs, interval: 2000 }
+      )
+    } catch (err) {
+      const reason = (err as Error).message
+      if (lastStatus === null)
+        throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" après ${timeoutMs}ms (${reason})` })
+      throw new AssertionError({ message: `Statut "${statusLabel}" non trouvé pour "${title}" après ${timeoutMs}ms (dernière valeur : ${lastStatus}) (${reason})` })
+    }
   }
 
-  /**
-   * Depuis la page Suivi, ouvre la page de détail de la démarche `title` en cliquant sa tuile.
-   * Ne vérifie pas l'arrivée sur la page de détail : cette sentinelle appartient à la page cible
-   * (`DemarcheDetailPage.assertDisplayed(title)`, ou la méthode qui utilise réellement un élément de
-   * cette page, ex. `DemarcheDetailPage.assertLienExterne`).
-   * Le scénario appelant enchaîne donc, par exemple :
-   * - suiviDemarchesPage.ouvreDemarche(...)
-   * - demarcheDetailPage.assertDisplayed(...)
-   */
+  /** Ouvre le détail de la démarche `title` en cliquant sa tuile (nom accessible unique, horodaté). L'arrivée se vérifie par `DemarcheDetailPage.assertDisplayed(title)`. */
   async ouvreDemarche(title: string, timeoutMs = DEMARCHES_TIMEOUT_MS): Promise<void> {
-    await platform().inWebContext(async () => {
-      // Arrivée depuis une autre page (Suivi via reload, ou détail précédent) — même staleness
-      // potentielle de l'arbre d'accessibilité WKWebView qu'après un redirect OIDC sur iOS.
-      await platform().refreshAxTree()
-      // findRole par rôle+nom plutôt que data-testid (CONTRIBUTING §2) : le titre de la tuile est le
-      // texte accessible du lien, et il est unique (horodatage) — pas besoin d'itérer les cartes.
-      try {
-        const link = await findRole('button', title, { timeout: timeoutMs })
-        await link.click()
-      } catch (err) {
-        log.warn('Suivi : ouverture de la démarche impossible', err)
-        throw new AssertionError({ message: `Carte introuvable : aucune démarche avec le titre "${title}" à ouvrir` })
-      }
-    })
+    await platform().refreshAxTree()
+    await clickDisplayed(suiviDemarchesLocators.demarcheTile(title), { timeout: timeoutMs })
   }
 
-  /**
-   * Ouvre la page des démarches archivées (`/#/followup/archived`). Aucun bouton de la SPA n'y mène
-   * de façon confirmée (cf. website-analysis.md § Démarches archivées) : navigation directe par route.
-   */
+  /** Aucun bouton de la SPA n'y mène de façon confirmée : navigation directe par route. */
   async openArchived(): Promise<void> {
     await NavigationPage.goToRoute('/followup/archived')
   }
 
-  /** Partenaires listés par l'encart « Votre démarche n'apparaît pas ? » de la page des archivées. */
-  async archivedPartners(): Promise<string[]> {
-    await waitForHeading('Démarches archivées')
-    // L'encart est un accordéon fermé par défaut : les partenaires ne sont visibles qu'une fois déplié.
-    await clickButton(/Votre démarche n.apparaît pas/)
-    await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
-    const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
-    return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))
+  /** Archive la démarche : options de sa tuile, puis « Archiver ». Elle quitte alors le Suivi pour la page des archivées. */
+  async archiveDemarche(title: string): Promise<void> {
+    await this.assertDisplayed()
+    await clickDisplayed(suiviDemarchesLocators.optionsButton(title), {timeout: 10000})
+    await clickDisplayed(suiviDemarchesLocators.archiveButton(title), {timeout: 5000})
   }
 
-  /** Vérifie l'arrivée sur la page Suivi (titre « Mes démarches »). */
+  /** La page des archivées, ouverte par `openArchived`, liste la démarche (elle non plus n'a pas d'abonnement temps réel). */
+  async assertArchived(title: string): Promise<void> {
+    await waitForHeading(suiviDemarchesLocators.archivedTitle)
+    await this.reloadUntilTextShown(title)
+  }
+
+  /** Le h1 « Mes démarches » : le h2 du même nom existe aussi sur l'Accueil, qu'un `waitForHeading` validerait à tort. */
   async assertDisplayed(): Promise<void> {
-    await waitForHeading(getSuiviDemarchesLocators().pageTitle)
+    await firstDisplayed(suiviDemarchesLocators.pageTitleH1, {timeout: 10000})
   }
 
-  /**
-   * Retourne sur la page d'accueil. Délègue à `HomePage.goToHomeFromAnywhere()` : certaines
-   * pages (ex. détail d'une démarche) n'ont pas de nav basse avec un lien "Accueil" cliquable,
-   * cette méthode gère déjà le repli hash et le sentinel d'arrivée.
-   */
-  async goToHome(): Promise<void> {
-    await HomePage.goToHomeFromAnywhere(15000)
-  }
-
-    /**
-     * Revient sur la page Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur
-     * la page du lien externe de la démarche. Observé 2026-10-06 (Android, staging) : cette page est une
-     * page serveur « Not Found » (404 HTML, hors SPA) — sans bouton de retour, et des `browser.back()`
-     * répétés toutes les 500 ms ressortaient de l'app avant que la SPA ait fini de se recharger.
-     * Un seul retour est donc tenté ; si le titre de la page Suivi n'est pas revenu, la route SPA
-     * `#/followup` est rechargée depuis l'origine de la page courante (même origine que l'app).
-     */
+    /** Revient sur le Suivi après `DemarcheDetailPage.assertLienExterne()`, qui laisse la WebView sur la page du lien externe (404 serveur hors SPA, sans bouton de retour). */
     async retourJusquAPageSuivi(): Promise<void> {
-        const demarchesLocators = getSuiviDemarchesLocators()
-        const isSuiviVisible = (): Promise<boolean> => queryRole('heading', demarchesLocators.pageTitle)
-            .then((el) => el !== null)
-            .catch((ex) => {
-                log.warn('retourJusquAPageSuivi: sonde du titre de la page Suivi en échec', ex)
-                return false
-            })
-
-        await platform().inWebContext(async () => {
-            if (await isSuiviVisible()) return
+        const pageTitle = suiviDemarchesLocators.pageTitle
+        if (await isShown(suiviDemarchesLocators.pageTitleHeading)) return
+        // Sur mobile le retour arrière est sans effet : seule la webapp le tente.
+        if (platform().kind === 'webapp') {
             await browser.back()
-            const backOk = await browser.waitUntil(isSuiviVisible, {
-                timeout: 4000, interval: 500,
-                timeoutMsg: `Page Suivi (titre "${demarchesLocators.pageTitle}") non revenue après browser.back()`,
-            }).then(() => true).catch((ex) => {
-                log.debug('retourJusquAPageSuivi: page Suivi non revenue après browser.back()', ex)
-                return false
-            })
-            if (backOk) return
+            if (await isShown(suiviDemarchesLocators.pageTitleHeading, 4000)) return
+        }
 
-            const origin = await driver.execute(() => location.origin) as string
-            log.warn(`ANOMALIE : retour arrière sans effet (page hors SPA, ex. 404 du lien externe), rechargement de ${origin}/#/followup — constaté sur Android staging le 2026-10-06, cause non confirmée.`)
-            await browser.url(`${origin}/#/followup`)
-            await browser.waitUntil(isSuiviVisible, {
-                timeout: 20000, interval: 500,
-                timeoutMsg: `Page Suivi (titre "${demarchesLocators.pageTitle}") non atteinte après rechargement de ${origin}/#/followup`,
-            })
-        })
+        const origin = await driver.execute(() => location.origin) as string
+        await browser.url(`${origin}/#/followup`)
+        await waitForHeading(pageTitle, 20000)
     }
 }
 

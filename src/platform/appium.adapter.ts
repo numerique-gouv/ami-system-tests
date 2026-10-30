@@ -1,118 +1,171 @@
-import logger from '@wdio/logger'
-import type { PlatformAdapter } from './types'
+import {isUnambiguous, lastVisible} from '../helpers/spa/webview-choice'
+import type { ContextKind, PlatformAdapter, WebViewTarget } from './types'
 
-const log = logger('page-object')
-
-/**
- * Implémentation mobile (Android/iOS) de PlatformAdapter — logique historiquement
- * dans src/helpers/webview.ts, déplacée ici pour isoler tous les appels Appium
- * (`driver.switchContext`, `driver.getContexts`, gestes natifs) derrière l'interface
- * commune. Voir CLAUDE.md §Architecture et docs/adr/2026-07-09-…
- */
-
-// 25 s : chaque appel getContexts() prend ~3 s avec webkitResponseTimeout=3000,
-// soit ~8 tentatives effectives avant timeout.
-const WEBVIEW_WAIT_MS = 25000
+const WEBVIEW_WAIT_MS = 15000
 const WEBVIEW_POLL_MS = 500
+const WEBVIEW_TITLE_WAIT_MS = 5000
 
-/**
- * Attend qu'au moins un contexte WEBVIEW_* soit disponible, avec timeout.
- */
-async function waitForWebViewContext(): Promise<string[]> {
-  await browser.waitUntil(
-    async () => (await driver.getContexts() as string[]).some((c) => c.startsWith('WEBVIEW_')),
-    {
-      timeout: WEBVIEW_WAIT_MS,
-      interval: WEBVIEW_POLL_MS,
-      timeoutMsg: `Aucun contexte WEBVIEW_* après ${WEBVIEW_WAIT_MS}ms`,
+interface WebViewInfo {
+  id: string
+  title?: string
+  url?: string
+  webviewPageId?: string
+  androidWebviewData?: {attached: boolean; visible: boolean}
+}
+
+const isWorker = (webview: WebViewInfo): boolean =>
+  /\bworker\b/i.test(webview.title ?? '') || /worker\.js(\?|$)/i.test(webview.url ?? '')
+
+/** Les WebViews candidates, sans le contexte natif ni les workers ; sur Android, de préférence celles attachées et visibles. */
+async function listWebViews(): Promise<WebViewInfo[]> {
+  const contexts = await driver.getContexts({
+    returnDetailedContexts: true, isAndroidWebviewVisible: false, returnAndroidDescriptionData: true, waitForWebviewMs: 0,
+  } as never) as unknown as WebViewInfo[]
+  const webviews = contexts.filter((c) => c.id !== 'NATIVE_APP')
+  const pages = webviews.filter((c) => !isWorker(c))
+  const candidates = pages.length > 0 ? pages : webviews
+  const seen = candidates.filter((c) => !c.androidWebviewData || (c.androidWebviewData.attached && c.androidWebviewData.visible))
+  return seen.length > 0 ? seen : candidates
+}
+
+const titleMatches = (webview: WebViewInfo, title: string | RegExp): boolean =>
+  title instanceof RegExp ? title.test(webview.title ?? '') : (webview.title ?? '').includes(title)
+
+/** Relit les WebViews jusqu'à `ready` ou la fin du délai, et rend la dernière lecture. */
+async function waitForWebViews(ready: (webviews: WebViewInfo[]) => boolean, timeout: number): Promise<WebViewInfo[]> {
+  let last: WebViewInfo[] = []
+  await browser.waitUntil(async () => ready(last = await listWebViews()), {timeout, interval: WEBVIEW_POLL_MS})
+    .catch(() => undefined)
+  return last
+}
+
+/** La dernière WebView, ou s'il y en a plusieurs la dernière réellement visible (`document.visibilityState`). Le choix pur est dans `lastVisible`. */
+async function lastVisibleWebView(webviews: WebViewInfo[]): Promise<WebViewInfo> {
+  if (webviews.length < 2) return webviews[webviews.length - 1]
+  const readVisibilities = async (): Promise<boolean[]> => {
+    const visibilities: boolean[] = []
+    for (const webview of webviews) {
+      await switchToWebView(webview)
+      visibilities.push(await browser.execute(() => document.visibilityState).catch(() => 'visible') === 'visible')
     }
-  ).catch((err: unknown) => log.warn('waitForWebViewContext : aucun contexte WEBVIEW_* détecté dans le délai', err))
-  // Relecture finale : fournit la liste des contextes pour le message d'erreur technique de inWebContext().
-  return await driver.getContexts() as string[]
+    return visibilities
+  }
+  // Au retour d'arrière-plan, aucune WebView n'est visible, puis parfois deux : on attend qu'il n'en reste qu'une.
+  let visibilities = await readVisibilities()
+  await browser.waitUntil(async () => isUnambiguous(visibilities = await readVisibilities()), {timeout: 8000, interval: 500}).catch(() => undefined)
+  return lastVisible(webviews, visibilities) as WebViewInfo
+}
+
+/** Avec un titre : la première WebView qui correspond ; sinon la dernière hors workers. Lève une erreur technique s'il n'y en a aucune. */
+async function pickWebView(target?: WebViewTarget): Promise<WebViewInfo> {
+  let webviews = await waitForWebViews((list) => list.length > 0, WEBVIEW_WAIT_MS)
+  if (webviews.length === 0) {
+    throw new Error(`Aucune WebView trouvée après ${WEBVIEW_WAIT_MS}ms`)
+  }
+  const title = target?.title
+  if (title === undefined) return await lastVisibleWebView(webviews)
+
+  webviews = await waitForWebViews((list) => list.some((w) => titleMatches(w, title)), WEBVIEW_TITLE_WAIT_MS)
+  const found = webviews.find((w) => titleMatches(w, title))
+  if (found) return found
+  return webviews[webviews.length - 1]
+}
+
+// Une session Appium démarre sur NATIVE_APP.
+let known: {session: string, context: string} | undefined
+
+function remember(context: string): void {
+  known = {session: driver.sessionId, context}
+}
+
+function context(): ContextKind {
+  const current = known?.session === driver.sessionId ? known.context : 'NATIVE_APP'
+  return current.startsWith('WEBVIEW') ? 'web' : 'native'
+}
+
+async function currentContext(): Promise<string> {
+  const current = await driver.getContext()
+  const id = typeof current === 'string' ? current : current.id
+  remember(id)
+  return id
+}
+
+async function syncContext(): Promise<ContextKind> {
+  await currentContext()
+  return context()
+}
+
+/** iOS : un contexte par page ; Android : contexte du package puis page. */
+async function switchToWebView(webview: WebViewInfo): Promise<void> {
+  await driver.switchContext(webview.id)
+  remember(webview.id)
+  // Chrome ancien (API 30) : l'identifiant de page listé est refusé (« no such window ») alors que switchContext a déjà ciblé la page.
+  if (webview.webviewPageId) await browser.switchToWindow(webview.webviewPageId).catch(() => undefined)
 }
 
 /**
- * Exécute `callback` dans le premier contexte WEBVIEW_* disponible,
- * puis restaure NATIVE_APP. Lance si aucune WebView n'est détectée.
- *
- * Appium expose deux contextes pour les apps hybrides :
- *   NATIVE_APP  — éléments natifs Android/iOS (UIAutomator2 / XCUITest)
- *   WEBVIEW_*   — contenu web (DOM CSS/XPath, comme dans un navigateur)
- *
- * Sur Android, `appium:chromedriverAutodownload: true` est requis dans les capabilities
- * pour que le context switch réussisse (Chromedriver doit correspondre au WebView embarqué).
+ * Exécute `callback` dans une WebView, puis remet le contexte (et la page) d'origine. Réentrant d'après l'état réel du driver :
+ * une WebView déjà active qui convient n'est pas touchée ; une autre WebView active est quittée puis retrouvée ; depuis NATIVE_APP, on bascule
+ * vers la WebView choisie et on remet NATIVE_APP dans un `finally`.
  */
-async function inWebContext<T>(callback: () => Promise<T>): Promise<T> {
-  const contexts = await waitForWebViewContext()
-  const webviewContext = contexts.find((c) => c.startsWith('WEBVIEW_'))
-  if (!webviewContext) {
-    throw new Error(
-      `Aucun contexte WEBVIEW_* trouvé après ${WEBVIEW_WAIT_MS}ms. Contextes disponibles : [${contexts.join(', ')}]. ` +
-      'Vérifier appium:chromedriverAutodownload (Android) ou appium:webkitResponseTimeout / isInspectable=true (iOS).'
-    )
+async function inWebContext<T>(callback: () => Promise<T>): Promise<T>
+async function inWebContext<T>(target: WebViewTarget, callback: () => Promise<T>): Promise<T>
+async function inWebContext<T>(targetOrCallback: WebViewTarget | (() => Promise<T>), maybeCallback?: () => Promise<T>): Promise<T> {
+  const target = typeof targetOrCallback === 'function' ? undefined : targetOrCallback
+  const callback = typeof targetOrCallback === 'function' ? targetOrCallback : maybeCallback as () => Promise<T>
+
+  const previousContext = await currentContext()
+  let previousPage: string | undefined
+  if (previousContext.startsWith('WEBVIEW_')) {
+    const title = target?.title
+    if (title === undefined) return await callback()
+    // Une WebView est active : si c'est la bonne, on n'y touche pas ; sinon on la quittera, et on y reviendra.
+    const activeTitle = await browser.getTitle().catch(() => '')
+    if (titleMatches({id: previousContext, title: activeTitle}, title)) return await callback()
+    previousPage = await browser.getWindowHandle().catch(() => undefined)
   }
-  await driver.switchContext(webviewContext)
-  // iOS/WKWebView : le scriptTimeout se réinitialise à ~0 ms après chaque switch de contexte.
-  // Android/Chromedriver : le défaut est 30 000 ms.
-  // Plafond des scripts exécutés dans la page (`execute` / `executeAsync`) : 60 s sur les deux plateformes.
-  await browser.setTimeout({ script: 60000 }).catch((err: unknown) => log.warn('inWebContext : setTimeout({script}) a échoué', err))
-  // Après le switch, re-sélectionner le dernier window handle disponible.
-  // Pendant le flow OIDC, le tab callback se ferme juste après le redirect ;
-  // sans ce step, Chromedriver pointe sur un handle stale ("no such window").
-  const handles = await browser.getWindowHandles()
-  if (handles.length > 0) {
-    await browser.switchToWindow(handles[handles.length - 1])
-  }
+
+  const webview = await pickWebView(target)
+  await switchToWebView(webview)
   let callbackFailed = false
   try {
+    // Le scriptTimeout iOS retombe à ~0 ms à chaque changement de contexte.
+    await browser.setTimeout({ script: 60000 }).catch(() => undefined)
+    if (driver.isIOS) {
+      const handles = await browser.getWindowHandles()
+      // Le handle de la WebView choisie (`<pid>.<n>`, comme son contexte), à défaut le dernier : l'ancien peut être périmé après un flow OIDC.
+      const wanted = webview.id.replace(/^WEBVIEW_/, '')
+      if (handles.length > 0) await browser.switchToWindow(handles.includes(wanted) ? wanted : handles[handles.length - 1])
+    }
     return await callback()
   } catch (err) {
     callbackFailed = true
     throw err
   } finally {
     try {
-      await driver.switchContext('NATIVE_APP')
+      await driver.switchContext(previousContext)
+      remember(previousContext)
+      if (previousPage) await browser.switchToWindow(previousPage)
     } catch (err) {
-      // Le contexte reste alors WEBVIEW_* : les requêtes natives suivantes échoueront (« Unsupported locator
-      // strategy: -ios predicate string »). On le trace, et on ne masque jamais l'erreur d'origine du callback.
-      log.error('inWebContext : retour au contexte NATIVE_APP impossible, la session reste en WebView', err)
+      // On ne masque jamais l'erreur d'origine du callback.
       if (!callbackFailed) throw err
     }
   }
 }
 
 async function isWebContextAvailable(): Promise<boolean> {
+  // getContexts rejoue la recherche des pages : inutile dans une WebView déjà active.
+  if ((await currentContext()).startsWith('WEBVIEW_')) return true
   const contexts = await driver.getContexts() as string[]
   return contexts.some((c) => c.startsWith('WEBVIEW_'))
 }
 
-/**
- * Force le recalcul de l'arbre d'accessibilité WKWebView sur iOS.
- *
- * Symptôme corrigé : après un redirect OIDC (ex. page eIDAS → FCP-LOW), `$(selector)`
- * retourne "not found" alors que la page est visuellement rendue — WKWebView en mode
- * automation interroge un AX tree périmé jusqu'à ce qu'un trigger force la re-sync.
- */
 async function refreshAxTree(): Promise<void> {
   if (!driver.isIOS) return
-  // getPageSource() sérialise le DOM courant via WKRDP et invalide le snapshot AX périmé.
-  // driver.execute(() => 0) seul est insuffisant — il fait un round-trip WKRDP sans forcer
-  // la re-sérialisation de l'arbre d'accessibilité après un redirect de page.
-  try {
-    await driver.getPageSource()
-  } catch (err) {
-    // Best-effort : l'échec du rafraîchissement n'est pas bloquant, mais il est tracé.
-    log.warn('refreshAxTree : getPageSource a échoué', err)
-  }
+  await driver.getPageSource().catch(() => undefined)
 }
 
-/**
- * Geste natif vers le bas pour déclencher le SwipeRefreshLayout Android.
- * Doit être appelé hors inWebContext : le geste est intercepté par la WebView
- * si on est en contexte WebView, et n'atteint pas le conteneur natif.
- * Sur iOS, préférer `driver.execute(() => window.location.reload())` en WebView —
- * un `UIRefreshControl` peut bloquer ce geste de swipe.
- */
+/** Geste natif vers le bas (SwipeRefreshLayout Android), à appeler hors inWebContext. */
 async function pullToRefresh(): Promise<void> {
   const { width, height } = await driver.getWindowSize()
   await driver.action('pointer', { parameters: { pointerType: 'touch' } })
@@ -127,9 +180,8 @@ export const appiumAdapter: PlatformAdapter = {
   get kind() {
     return driver.isIOS ? 'ios' : 'android'
   },
-  get fcButtonIsNative() {
-    return !driver.isIOS
-  },
+  context,
+  syncContext,
   inWebContext,
   isWebContextAvailable,
   refreshAxTree,

@@ -4,7 +4,7 @@ _Dernière mise à jour : 2026-09-08_
 
 ## Résumé
 
-Tests E2E WebdriverIO v9 + Appium 3 + TypeScript pour l'app AMI (mobile Android/iOS + webapp Chrome). Toutes les commandes passent par `just` (jamais `npm`/`npx`/`adb`/`xcrun`/`appium` directement).
+Tests E2E WebdriverIO v9 + Appium 3 + TypeScript pour l'app AMI (mobile Android/iOS + webapp Chrome). Les cibles `just` sont les points d'entrée documentés pour les humains ; un agent peut aussi appeler directement `npm`/`npx wdio`/`adb`/`xcrun` (CLAUDE.md).
 
 ## Modèle du site testé (déjà construit — ne pas re-scanner)
 
@@ -24,13 +24,13 @@ Avant toute tâche de planification de test (`creating-test-structure`) ou d'inv
 
 | Fichier | Rôle |
 |---|---|
-| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms (24h si `WDIO_DEBUG=1`), `specFileRetries` 0, reporters `spec` + `allure` (`outputDir: allure-results`, `addConsoleLogs: true`) |
+| `wdio.base.conf.ts` | config partagée : `waitforTimeout` 15000ms, `connectionRetryTimeout` 120000ms, `connectionRetryCount` 3, `mochaOpts.timeout` 120000ms, `specFileRetries` piloté par l'environnement (0 par défaut/mesures, 1 si `CI`/`GITHUB_ACTIONS`, forçable par `WDIO_SPEC_FILE_RETRIES` ou `--specFileRetries`), reporters `spec` + `junit` (`outputDir: test-results/junit`) ; hook `afterTest` : dump d'échec dans `test-results/failures/` |
 | `wdio.android.conf.ts` | capabilities Android, service Appium port 4723 |
 | `wdio.ios.conf.ts` | capabilities iOS, service Appium port 4724 |
 | `wdio.webapp.conf.ts` | capabilities Chrome, `baseUrl` dérivée de `AMI_ENV` via `resolveEnvironment()`, pas de service Appium |
-| `test-suites.ts` | suites nommées consommées via `WDIO_SUITE` : `all`, `short`, `CI` (auth+notifications+demarches+profile), `auth`, `api` (notifications+demarches) |
+| `wdio.base.conf.ts` (option `suites`) | suites nommées natives de WDIO, lancées par `--suite <nom>` : listes plates de specs (un worker par spec) : `mobile_all`, `mobile_short`, `mobile_smoke`, `webapp_short`, `webapp_smoke`, `webapp_usage`, `webapp_all` (tableau : CONTRIBUTING.md « Suites nommées ») |
 
-⚠️ **`allure-results/` et `.wdio-logs/*.log` ne sont jamais nettoyés automatiquement avant un run** (pas de `rm -rf` dans le justfile avant `test-*`) — les résultats/captures/logs Appium s'accumulent entre runs et entre plateformes (android/ios/webapp partagent le même `outputDir`). Un rapport Allure généré sans nettoyage préalable peut mélanger plusieurs jours/plateformes. Voir `health-recommendations.md`.
+⚠️ **`test-results/` et `.wdio-logs/*.log` ne sont jamais nettoyés automatiquement avant un run** (pas de `rm -rf` dans le justfile avant `test-*`) — les résultats/captures/logs Appium s'accumulent entre runs et entre plateformes (android/ios/webapp partagent le même `outputDir`). Un rapport Allure généré sans nettoyage préalable peut mélanger plusieurs jours/plateformes. Voir `health-recommendations.md`.
 
 ## Scripts npm pertinents
 
@@ -39,25 +39,24 @@ test:android / test:ios / test:webapp       — wdio run <conf>
 test:android:staging / test:ios:staging     — idem avec APP_ENV=staging
 lint / lint:fix                             — eslint src --ext .ts
 typecheck                                   — tsc --noEmit
-appium:install / appium:update / appium:start
-report                                      — rm -rf allure-report && allure generate + open
-open-report                                 — allure open (sans régénérer)
+appium:start
+failures                                    — liste les tests en échec du dernier run (dumps d'échec)
 ```
-Mais l'usage prescrit passe par `just` (voir CLAUDE.md racine) — ces scripts npm sont encapsulés par le justfile, ne pas les appeler directement.
+Le `justfile` les encapsule pour les humains (voir CLAUDE.md racine) ; un agent peut les appeler directement.
 
 ### Correspondance skills du pack tiers → commandes `just`
 
-Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent des commandes génériques (`npx wdio`, `wdio.conf.js`, `--suite=...`) qui ne s'appliquent pas telles quelles ici — ce projet interdit `npm`/`npx`/`appium` en direct (CLAUDE.md) et a 4 configs `wdio.*.conf.ts` + des suites définies dans `test-suites.ts` (pas dans une propriété `suites` de config WDIO). Table de correspondance à utiliser avant d'exécuter une commande suggérée par un skill :
+Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent des commandes génériques (`npx wdio`, `wdio.conf.js`, `--suite=...`) qui ne s'appliquent pas telles quelles ici — ce projet n'impose plus de passer par `just` (CLAUDE.md), mais a 4 configs `wdio.*.conf.ts` + des suites natives (propriété `suites` de `wdio.base.conf.ts`). Table de correspondance à utiliser avant d'exécuter une commande suggérée par un skill :
 
 | Prescription générique du pack | Équivalent AMI |
 |---|---|
 | `npx wdio` | `just test-android` / `just test-ios` / `just test-webapp` / `just test-webci` |
 | `npx wdio --spec=<f>` | `just test-android "<glob>"` (idem `test-ios`/`test-webapp`) |
-| `npx wdio --suite=<s>` | `just test-android-suite <s>` (suite définie dans `test-suites.ts`, lue via `WDIO_SUITE`) |
+| `npx wdio --suite=<s>` | `just test-android --suite <s>` (suite définie dans `wdio.base.conf.ts` ; appel direct : `npx wdio run wdio.<plateforme>.conf.ts --suite <s>`) |
 | `wdio.conf.js` | `wdio.base.conf.ts` (partagé) + `wdio.{android,ios,webapp}.conf.ts` (par plateforme) |
 | lint/typecheck générique | `just check-code` |
 | génération de rapport | `just open-report` (ou `just report` pour régénérer) |
-| exploration DOM/inspection | `just inspect` |
+| exploration DOM/inspection | `just explore-<cible>` puis `just s <cible> snapshot -i` · DevTools (WebView) |
 
 ## Conventions de code (lint)
 
@@ -72,21 +71,21 @@ Certains skills du pack `klamping/webdriverio-skills` (ex. `running-webdriverio-
 
 | Fichier | Rôle |
 |---|---|
-| `src/helpers/webview.ts` | `tl()` (Testing Library sur WebView), `retourJusquATexteVisible()` (navigation retour avec timeout local 10s, indépendant du réseau) |
-| `src/helpers/notifications-api.ts` | Client HTTP API partenaire (`checkConsent`, `grantConsent`, `publishNotification` avec retry sur 5xx). **Timeout de requête ajouté le 2026-09-08** (`REQUEST_TIMEOUT_MS = 15000`, via `AbortSignal.timeout()`) suite à une investigation de flakiness liée à une coupure réseau — avant ce fix, un `fetch()` bloqué remontait jusqu'au timeout Mocha du hook englobant (120-180s), causant des cascades de hooks en échec. |
-| `src/helpers/environment.ts` | `resolveEnvironment()` — dérive `webappUrl`/`apiUrl` depuis `AMI_ENV` (numérique → review app PR, sinon staging) |
-| `src/helpers/access-code.ts` | gestion du code d'accès webapp (`WEB_APP_ACCESS_KEYS`, gate `window.prompt` côté staging) |
-| `src/helpers/spa.ts` | primitives communes aux Page Objects de la SPA : `clickButton`, `waitForHeading`, `waitForButtons`, `clickButtonInDialog`, `visibleButtonTexts`, `pageText`, `checkboxStates` (toutes par nom accessible / DOM visible) |
+| `src/helpers/spa/webview.ts` | `describeCurrentPage()` : décrit l'écran courant (natif hors WebView, ou URL masquée de la SPA) pour enrichir les messages d'erreur ; best-effort, ne lève jamais. `tl()` et `retourJusquATexteVisible()` n'existent plus. |
+| `src/helpers/partner-api/` (`client.ts`, `consent.ts`, `event.ts`, `publish.ts`, `index.ts`) | Client HTTP API partenaire : `publishEvent` (retry sur 5xx, 5 essais / 10 s), `publishNotification`/`publishDemarche`/`publishDemarcheEnfant`, `checkDemarchesConsent`/`grantDemarchesConsent`/`revokeDemarchesConsent`, multi-partenaire (`PARTNER_AMI`, `PARTNER_DN`). Remplace l'ancien `notifications-api.ts`. **Timeout de requête ajouté le 2026-09-08** (`REQUEST_TIMEOUT_MS = 15000` dans `client.ts`, via `AbortSignal.timeout()`) suite à une investigation de flakiness liée à une coupure réseau — avant ce fix, un `fetch()` bloqué remontait jusqu'au timeout Mocha du hook englobant (120-180s), causant des cascades de hooks en échec. |
+| `src/helpers/common/environment.ts` | `resolveEnvironment()` — dérive `webappUrl`/`apiUrl` depuis `AMI_ENV` (numérique → review app PR, sinon staging) |
+| `src/helpers/webapp/access-code.ts` | gestion du code d'accès webapp (`WEB_APP_ACCESS_KEYS`, gate `window.prompt` côté staging) |
+| `src/helpers/spa/spa.ts` | primitives communes aux Page Objects de la SPA : `clickButton`, `waitForHeading`, `waitForButtons`, `visibleButtonTexts`, `pageText`, `checkboxStates` (toutes par nom accessible / DOM visible) ; sélecteurs natifs WDIO 10 dans `src/helpers/spa/selectors.ts` (`roleSelector`) |
 | `src/pages/navigation.page.ts` | barre basse, menu Plus (`openPlusEntry`), navigation par route (`goToRoute`) — partagé par tous les Page Objects « onglet » |
 | `src/pages/onboarding-{passkey,zones,notifications}.page.ts` | écrans d'onboarding : clé d'accès, zones scolaires (`/welcome/zones`), notifications (natif sur mobile, `/welcome/notifications` en webapp) |
-| `src/helpers/traced.ts` | wrapper des singletons Page Object (`traced(new XxxPage(), 'XxxPage')`) |
+| `src/helpers/reporting/traced.ts` | wrapper des singletons Page Object (`traced(new XxxPage(), 'XxxPage')`) |
 | `src/pages/authenticate.process.ts` | `getAppToStartingState()` — séquence FranceConnect avec re-détection d'écran, retry borné (`MAX_ATTEMPTS`), timeouts dédiés (`AUTHENTICATE_TIMEOUT_MS` 60000, `FINAL_HOME_TIMEOUT_MS` 15000) |
 
 ## Variables d'environnement (noms uniquement — jamais de valeurs)
 
-`AMI_ENV`, `ANDROID_DEVICE_NAME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `IOS_DEVICE_NAME`, `RUN_OLD_DEVICE`, `WDIO_DEBUG`, `WEBAPP_HEADLESS`, `WEB_APP_ACCESS_KEYS`, `NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET` (les deux derniers via `requireEnv()` dans `notifications-api.ts`, jamais loggés).
+`AMI_ENV`, `ANDROID_DEVICE_NAME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `IOS_DEVICE_NAME`, `RUN_OLD_DEVICE`, `WEBAPP_HEADLESS`, `WEB_APP_ACCESS_KEYS`, `NOTIF_PARTNER_ID`, `NOTIF_PARTNER_SECRET` (les deux derniers via `requireEnv()` dans `notifications-api.ts`, jamais loggés).
 
-Rappel projet : ne jamais lire `.env.local` ni afficher ses valeurs, y compris via un outil.
+Rappel projet : ne jamais lire `../.env` ni afficher ses valeurs, y compris via un outil.
 
 ## Serveurs / environnements cibles
 
@@ -104,4 +103,4 @@ Rappel projet : ne jamais lire `.env.local` ni afficher ses valeurs, y compris v
 
 12 fichiers, un par parcours usager : `authentication`, `navigation`, `accueil`, `agenda`, `services`, `suivi`, `notifications`, `profil`, `preferences`, `aide-contact`, `deconnexion`, `erreurs`. Chaque fichier s'authentifie seul (`getAppToStartingState()`), les actions mutantes (profil, déconnexion) restaurent l'état en `after()`. Les liens sortants (service-public.gouv.fr, demarche.numerique.gouv.fr) ne sont jamais suivis : seule leur présence est testée.
 
-Commandes utiles : `just test-webci` (tous, headless), `just test-webapp "<glob>"` (Chrome visible). Chrome for Testing est épinglé dans `.chrome-version` (la recette `_ensure-chrome`, appelée par les `just test-web*`, installe Chrome + chromedriver dans `.cache/` avec `unzip` — l'extraction de WDIO plante sous Node 26 —, indépendamment du Chrome installé) ; `just update-chrome` liste les versions disponibles, `just update-chrome <version>` change l'épinglage. Pour un script d'exploration long (> 120 s), `WDIO_DEBUG=1` porte le timeout Mocha à 24 h (`this.timeout()` dans un `it` n'est pas pris en compte).
+Commandes utiles : `just test-webci` (tous, headless), `just test-webapp "<glob>"` (Chrome visible). Chrome pour les tests webapp est choisi et téléchargé par WDIO 10 dans `.cache/` (aucun épinglage : ni `.chrome-version` ni recette `update-chrome`). Pour un script d'exploration long (> 120 s)`this.timeout()` dans un `it` n'est pas pris en compte).

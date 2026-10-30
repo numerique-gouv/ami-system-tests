@@ -1,59 +1,34 @@
-import {fcEidasLocators} from '../locators/franceconnect/franceconnect-eidas.locators'
-import {traced} from '../../helpers/traced'
+import {fcEidasLocators, iosEidasLinkNativeAx, iosEidasOrNotificationSheetNativeAx} from '../locators/franceconnect/franceconnect-eidas.locators'
+import {AssertionError} from 'node:assert'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
-import {findRole} from '../../helpers/spa'
+import {clickDisplayed, isShown} from '../../helpers/spa/spa'
+import {waitForNativeAx} from '../../helpers/mobile/native-ax'
 
 class FranceConnectEidasPage {
-    /**
-     * Sonde dédiée eIDAS — bare (à appeler depuis un inWebContext déjà ouvert : un
-     * inWebContext imbriqué re-switcherait vers NATIVE_APP dans son `finally` et casserait
-     * le reste du bloc appelant, cf. commentaire équivalent dans franceconnect-mire.page.ts).
-     */
-    private async isEidasTileVisibleBare(): Promise<boolean> {
-        const labelLower = fcEidasLocators.eidasFaibleLabel.toLowerCase()
-        return await driver.execute(
-            (label: string) => Array.from(document.querySelectorAll('button, a'))
-                .some(el => el.textContent?.toLowerCase().includes(label)),
-            labelLower
-        ) as boolean
-    }
-
-    /**
-     * Sonde dédiée publique, réutilisée par authenticate() (détection d'écran).
-     */
-    async isEidasVisible(): Promise<boolean> {
-        if (!await platform().isWebContextAvailable()) return false
-        return await platform().inWebContext(() => this.isEidasTileVisibleBare()).catch(() => false)
-    }
-
-    /**
-     * Attend que la mire eIDAS soit affichée. `false` si elle ne vient pas : FranceConnect a pu
-     * authentifier directement (session SSO déjà ouverte), sans demander eIDAS ni identifiants.
-     */
+    /** `false` si la mire eIDAS ne vient pas : FranceConnect a pu authentifier directement (session SSO déjà ouverte). */
     async waitForEidasTile(timeout = 15000): Promise<boolean> {
-        return await browser.waitUntil(() => this.isEidasVisible(), {
-            timeout, interval: 500, timeoutMsg: `Mire eIDAS non affichée après ${timeout}ms`,
-        })
-            .then(() => true).catch(() => false)
+        if (driver.isIOS) return await this.waitForNativeEidas(timeout)
+        return await isShown(fcEidasLocators.eidasFaibleLink, timeout)
+    }
+
+    /** iOS : la page eIDAS (vrai) ou, à sa place, la feuille de notifications d'une session déjà ouverte (faux, tout de suite) ; faux aussi au délai. Hors iOS : vrai. */
+    private async waitForNativeEidas(timeout: number): Promise<boolean> {
+        if (!driver.isIOS) return true
+        await waitForNativeAx(iosEidasOrNotificationSheetNativeAx, 'present', Math.min(timeout, 6000))
+        return (await $$(iosEidasLinkNativeAx)).length > 0
     }
 
     async selectEidasFaible(): Promise<void> {
+        // iOS : la page eIDAS est attendue par l'arbre natif, aucune commande WebView avant que la page précédente soit remplacée.
+        if (!await this.waitForNativeEidas(5000)) {
+            throw new AssertionError({message: 'page eIDAS absente (session FranceConnect déjà ouverte ?)'})
+        }
         await platform().inWebContext(async () => {
-            // Écran atteint juste après le redirect OIDC login → eIDAS — no-op sur Android,
-            // cf. commentaire de refreshAxTree() dans appium.adapter.ts.
             await platform().refreshAxTree()
-            const tileTimeoutMs = 10000
-            await browser.waitUntil(
-                () => this.isEidasTileVisibleBare(),
-                {
-                    timeout: tileTimeoutMs,
-                    interval: 300,
-                    timeoutMsg: `Tuile "${fcEidasLocators.eidasFaibleLabel}" non visible après ${tileTimeoutMs}ms`
-                }
-            )
-            const eidasLink = await findRole('link', new RegExp(fcEidasLocators.eidasFaibleLabel, 'i'))
-            await eidasLink.click()
+            await clickDisplayed(fcEidasLocators.eidasFaibleLink, {timeout: 10000})
         })
+        await waitForNativeAx(iosEidasLinkNativeAx, 'gone')
     }
 }
 

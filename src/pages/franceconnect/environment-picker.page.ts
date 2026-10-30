@@ -1,83 +1,46 @@
 import {getEnvironmentPickerLocators} from '../locators/franceconnect/environment-picker.locators'
-import {traced} from '../../helpers/traced'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
-import {setBackendUrl} from '../../helpers/notifications-api'
-import logger from '@wdio/logger'
+import {setBackendUrl} from '../../helpers/partner-api'
+import {backendUrlFor} from '../../helpers/common/environment'
 
-const log = logger('page-object')
+/** Seule sonde qui contourne le mode strict de `$()` : la tuile « Staging » porte deux textes identiques, la violation doit remonter et non passer pour « picker absent ». */
+function rethrowStrictViolation(err: unknown): void {
+    if (err instanceof Error && /strict mode violation/i.test(err.message)) throw err
+}
 
 class EnvironmentPickerPage {
-    /**
-     * Sonde dédiée, réutilisée par authenticate() (détection d'écran) et par
-     * reviewEnvironmentPicker() elle-même (même sentinelle, un seul appel).
-     */
+    /** Écran natif, absent en webapp : l'URL de la session y détermine déjà l'environnement. */
     async isEnvironmentPickerVisible(timeout = 10000): Promise<boolean> {
-        // Écran natif — inexistant en webapp, où l'URL de la session détermine déjà l'environnement.
         if (platform().kind === 'webapp') return false
         const loc = getEnvironmentPickerLocators()
-        // "Staging" est toujours le premier item — sa présence confirme que le picker est affiché.
-        return await $(loc.pickerSentinel).waitForDisplayed({timeout}).catch(() => false)
+        return await $(loc.pickerSentinel).waitForDisplayed({timeout}).catch((err: unknown) => {
+            rethrowStrictViolation(err)
+            return false
+        })
     }
 
-    /**
-     * Sélectionne l'environnement dans le review-picker staging si visible (no-op sinon).
-     * Le picker apparaît uniquement sur les builds staging avec plusieurs review apps.
-     *
-     * Étape 1 — détecte si l'écran picker est affiché : attend l'item "Staging" (toujours
-     * en tête de liste). Si absent après 10 s → build sans picker, retour silencieux.
-     *
-     * Étape 2 — scroll jusqu'à l'item AMI_ENV et cliquer. Si l'item cible est introuvable
-     * malgré le scroll, l'erreur se propage (configuration AMI_ENV incorrecte).
-     */
+    /** Choisit l'environnement AMI_ENV dans le picker des builds staging ; sans picker, ne fait rien. Un item introuvable après le scroll est une erreur de configuration. */
     async reviewEnvironmentPicker(): Promise<void> {
-        if (!await this.isEnvironmentPickerVisible()) return // Écran picker absent — build sans picker, no-op
+        if (!await this.isEnvironmentPickerVisible()) return
         const loc = getEnvironmentPickerLocators()
 
         const picker = $(loc.environmentPicker)
-        await this.scrollToPickerTile(picker)
+        // Les items hors viewport ne sont pas dans l'arbre d'accessibilité ; 5 swipes bornent l'échec si AMI_ENV est faux (chacun coûte >10 s sur Android).
+        await picker.scrollIntoView({
+            direction: 'up', maxScrolls: 5,
+            ...(loc.scrollContainer && {scrollableElement: $(loc.scrollContainer)}),
+        })
         const title = await picker.getText()
         setBackendUrl(reviewTitleToApiUrl(title))
         await picker.click()
     }
-
-    /**
-     * Swipe vers le bas (doigt monte) jusqu'à ce que la tile du picker soit visible.
-     * Gère les listes longues (LazyColumn Android, ScrollView iOS) où les items
-     * hors viewport ne sont pas encore rendus dans l'arbre d'accessibilité.
-     */
-    async scrollToPickerTile(selector: ChainablePromiseElement): Promise<void> {
-        const {width, height} = await driver.getWindowSize()
-        await browser.waitUntil(
-            async () => {
-                // Tile hors du viewport ou liste encore en chargement : isDisplayed() vaut false.
-                if (await selector.isDisplayed().catch((err: unknown) => {
-                    log.warn('scrollToPickerTile : isDisplayed a échoué', err)
-                    return false
-                })) return true
-                await driver.action('pointer', {parameters: {pointerType: 'touch'}})
-                    .move({duration: 0, x: Math.round(width / 2), y: Math.round(height * 0.7)})
-                    .down({button: 0})
-                    .move({duration: 600, x: Math.round(width / 2), y: Math.round(height * 0.3)})
-                    .up({button: 0})
-                    .perform()
-                return false
-            },
-            {timeout: 30000, interval: 200, timeoutMsg: 'Tile du picker introuvable après scroll'}
-        )
-    }
-
 }
 
-/**
- * Dérive l'URL backend depuis le titre d'un item du review-picker.
- * Format titre : "Staging" → URL staging, "PR{n}: ..." → URL review app PR.
- */
+/** « Staging » donne l'URL staging, « PR{n}: … » celle de la review app. */
 function reviewTitleToApiUrl(title: string): string {
     const prMatch = title.match(/^PR(\d+):/i)
-    if (prMatch) {
-        return `https://ami-back-staging-pr${prMatch[1]}.osc-fr1.scalingo.io`
-    }
-    return 'https://ami-back-staging.osc-fr1.scalingo.io'
+    return backendUrlFor(prMatch ? prMatch[1] : title)
 }
 
 export default traced(new EnvironmentPickerPage(), 'EnvironmentPickerPage')

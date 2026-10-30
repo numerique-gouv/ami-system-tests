@@ -1,14 +1,13 @@
-import {traced} from '../helpers/traced'
-import {waitForHeading} from '../helpers/spa'
+import {traced} from '../helpers/reporting/traced'
+import {waitForHeading} from '../helpers/spa/spa'
 import NavigationPage from './navigation.page'
 
-/** Pages d'erreur de la SPA (`/network-error`, `/technical-error`, `/forbidden`), ouvertes par leur route. */
+/** Pages d'erreur de la SPA (`/network-error`, `/technical-error`, `/forbidden`). */
 class ErrorPage {
     async openRoute(route: string): Promise<void> {
         await NavigationPage.goToRoute(route)
     }
 
-    /** Vérifie l'arrivée sur la page d'erreur. Le titre dépend de l'erreur : il est passé en argument. */
     async assertDisplayed(title: string): Promise<void> {
         await waitForHeading(title)
     }

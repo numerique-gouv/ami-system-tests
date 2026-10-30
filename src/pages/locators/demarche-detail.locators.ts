@@ -1,32 +1,16 @@
-/**
- * Sélecteurs WebView de la page de détail d'une démarche.
- *
- * Structure DOM (DSFR, Svelte) observée via `just inspect` (2026-07-27) :
- *
- *   Détail (/#/followup/item/dinum-ami/OTV/<itemId>) :
- *   <h1>                                        ← titre
- *   button#external-item-button                 ← nom accessible "Accéder à ma démarche", sans href ;
- *                                                  la navigation vers l'URL partenaire se fait en JS et
- *                                                  remplace l'URL de la WebView courante
- *   .demarche--events                           ← liste des événements
- *   button[data-testid="back-button"]           ← nom accessible "Retour à la page précédente"
- */
+import {roleSelector} from '../../helpers/spa/selectors'
 
-export interface DemarcheDetailLocators {
-  /**
-   * Nom accessible du bouton "Accéder à ma démarche" sur la page de détail.
-   * Sélectionné par rôle+nom via `findRole('button', name)` dans le PO
-   * (CONTRIBUTING §2 : sélecteur sémantique avant data-testid). Fallback documenté si le nom
-   * accessible s'avère instable : `#external-item-button`.
-   */
+interface DemarcheDetailLocators {
+  /** Libellé qui n'existe que sur le détail : le titre est aussi dans la liste du Suivi, affichée un instant après le clic. */
+  referenceLabel: string
+  /** « Accéder à ma démarche » (`#external-item-button`, sans href : la navigation vers l'URL partenaire se fait en JS et remplace l'URL de la WebView). */
+  detailExternalButton: string
+  /** Son nom, pour les messages d'échec. */
   detailExternalButtonName: string
 }
 
 export const demarcheDetailLocators: DemarcheDetailLocators = {
+  referenceLabel:            'référence dossier',
+  detailExternalButton:      roleSelector('button', 'Accéder à ma démarche'),
   detailExternalButtonName:  'Accéder à ma démarche',
-}
-
-/** Locators partagés (WebView commune Android/iOS) — pas de dispatch plateforme nécessaire. */
-export function getDemarcheDetailLocators(): DemarcheDetailLocators {
-  return demarcheDetailLocators
 }

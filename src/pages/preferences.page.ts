@@ -1,17 +1,21 @@
 import {preferencesLocators} from './locators/preferences.locators'
-import {traced} from '../helpers/traced'
-import {checkboxStates, clickButton, pageText, visibleButtonTexts, waitForHeading} from '../helpers/spa'
+import {traced} from '../helpers/reporting/traced'
+import {checkboxStates, clickButton, pageText, setCheckbox, visibleButtonTexts, waitForHeading, waitForPageText} from '../helpers/spa/spa'
 import NavigationPage from './navigation.page'
+import type {PartnerId} from '../helpers/partner-api'
 
-/** Page Object de Préférences : suivi des démarches (consentements), notifications, zones scolaires. */
+/**
+ * Préférences : les cases « Suivi des démarches » sont les consentements aux démarches, un par partenaire ; le réglage « Notifications »
+ * est l'interrupteur push GLOBAL à AMI, sans endpoint, qui dépend de la permission du système.
+ */
 class PreferencesPage {
     async open(): Promise<void> {
         await NavigationPage.openPlusEntry('Préférences')
     }
 
-    /** Vérifie l'arrivée sur la page Préférences (titre). */
-    async assertDisplayed(): Promise<void> {
-        await waitForHeading(preferencesLocators.pageTitle)
+    /** Les Préférences par défaut ; `title` désigne une de leurs sous-vues (consentements aux démarches, notifications). */
+    async assertDisplayed(title = preferencesLocators.pageTitle): Promise<void> {
+        await waitForHeading(title)
     }
 
     async entries(): Promise<string[]> {
@@ -20,35 +24,57 @@ class PreferencesPage {
         return texts.filter(t => preferencesLocators.entries.includes(t))
     }
 
-    async openConsents(): Promise<void> {
+    async openDemarchesConsents(): Promise<void> {
         await clickButton(preferencesLocators.entries[0])
     }
 
-    async openNotifications(): Promise<void> {
+    async openPushNotificationsSettings(): Promise<void> {
         await clickButton(preferencesLocators.entries[1])
     }
 
-    /** Vérifie l'arrivée sur la page des préférences de notifications (titre). */
-    async assertNotificationsDisplayed(): Promise<void> {
-        await waitForHeading(preferencesLocators.notificationsTitle)
+    async openZones(): Promise<void> {
+        await clickButton(preferencesLocators.entries[2])
     }
 
-    /** États des cases de consentement par identifiant de partenaire (`name`), sans les modifier. */
-    async consentStates(): Promise<Record<string, boolean>> {
-        await waitForHeading(preferencesLocators.consentsTitle)
+    async demarchesConsentStates(): Promise<Record<string, boolean>> {
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
         return await checkboxStates()
     }
 
-    /** Libellés « Suivre mes démarches {partenaire} sur mon appareil mobile » affichés. */
-    async consentLabels(): Promise<string[]> {
-        await waitForHeading(preferencesLocators.consentsTitle)
+    async setDemarchesConsent(partner: PartnerId, checked: boolean): Promise<void> {
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
+        await setCheckbox(partner, checked)
+    }
+
+    async followAllDemarches(): Promise<void> {
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
+        await clickButton(preferencesLocators.followAllDemarchesName)
+    }
+
+    /** Remet les cases dans l'état `states` (clé = `name`/`id`) en ne touchant qu'à celles qui diffèrent : toutes celles du snapshot, car « Tout suivre » les active toutes. */
+    async restoreDemarchesConsents(states: Record<string, boolean>): Promise<void> {
+        const current = await this.demarchesConsentStates()
+        for (const [key, checked] of Object.entries(states)) {
+            if (key in current && current[key] !== checked) await this.setDemarchesConsent(key, checked)
+        }
+    }
+
+    /** Toast « Attention » affiché en retirant le consentement AMI : il annonce la conservation de l'historique. */
+    async assertDemarchesConsentWarningDisplayed(): Promise<void> {
+        await waitForPageText(preferencesLocators.demarchesConsentWarning)
+        await waitForPageText(preferencesLocators.demarchesConsentWarningHistory)
+    }
+
+    async demarchesConsentLabels(): Promise<string[]> {
+        await this.assertDisplayed(preferencesLocators.demarchesConsentsTitle)
         const text = await pageText()
         return Array.from(text.matchAll(/Suivre mes démarches (.+?) sur mon appareil mobile/g)).map(m => m[1])
     }
 
-    async notificationToggleState(): Promise<boolean | undefined> {
-        await this.assertNotificationsDisplayed()
-        return (await checkboxStates())[preferencesLocators.notificationToggleName]
+    /** État de l'interrupteur global des notifications push (Préférences > Notifications). */
+    async pushNotificationsToggleState(): Promise<boolean | undefined> {
+        await this.assertDisplayed(preferencesLocators.notificationsTitle)
+        return (await checkboxStates())[preferencesLocators.pushNotificationsToggleName]
     }
 }
 

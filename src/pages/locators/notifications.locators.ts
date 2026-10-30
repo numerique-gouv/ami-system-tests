@@ -1,17 +1,15 @@
-/**
- * Sélecteurs natifs de l'inbox notifications.
- *
- * Les sélecteurs WebView (cloche, items, heading) vivent directement dans
- * notifications.page.ts, pas ici :
- *   findRole('button', /notifications/i)  — cloche (openFromHome)
- *   driver.execute(...)                                    — items et heading
- *     (pas findRole/findText : la page reçoit des mises à jour WebSocket en continu et
- *     l'inbox est reload()-ée pour rafraîchir, ce qui invaliderait une requête Testing
- *     Library en cours — voir les commentaires de notifications.page.ts pour le détail)
- *
- * Ce fichier ne conserve que les sélecteurs natifs spécifiques à la plateforme,
- * si l'app expose un jour des éléments natifs pour ces vues.
- */
-
-// Pas de sélecteurs natifs pour l'instant — la vue notifications est 100% WebView SPA.
-// Les requêtes dans notifications.page.ts suffisent.
+/** Inbox notifications (`/#/notifications`), entièrement dans la WebView. */
+export const notificationsLocators = {
+  pageTitle: 'Notifications',
+  /** Chaque notification de la liste est un <h3>. */
+  notificationItem: 'h3',
+  /** Éléments dont le premier, hors navigation, est le titre de la notification du haut. */
+  topTitleCandidates: 'h1, h2, h3, [role="heading"], a[href]',
+  /** Textes de navigation à exclure des candidats. */
+  navigationTexts: ['Retour à la page précédente', 'Gérer', 'Notifications', ''],
+  /** Titre imprévisible (horodaté) : XPath sur le texte propre exact. */
+  notificationTitle: (title: string): string => {
+    if (title.includes('"')) throw new Error(`Titre de notification avec guillemet non géré : ${title}`)
+    return `//*[normalize-space(text())="${title}"]`
+  },
+}

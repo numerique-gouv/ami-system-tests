@@ -1,41 +1,27 @@
 import {onboardingZonesLocators} from './locators/onboarding-zones.locators'
-import {platform} from '../platform'
-import {traced} from '../helpers/traced'
-import {findRole} from '../helpers/spa'
+import {traced} from '../helpers/reporting/traced'
+import {checkboxStates, clickDisplayed, isShown, setCheckbox} from '../helpers/spa/spa'
 
-/**
- * Page Object de l'écran d'onboarding « Zones scolaires » (`/#/welcome/zones`).
- *
- * Premier écran du parcours d'accueil d'une première connexion (`user_first_login=true`, cf.
- * login-callback/+page.svelte) ; il précède l'onboarding des notifications
- * (OnboardingNotificationsPage). Absent quand le compte s'est déjà connecté : tout est un no-op
- * silencieux. « Passer » ne modifie aucune préférence de zone.
- */
+/** Onboarding « Zones scolaires » (`/#/welcome/zones`), premier écran d'une première connexion ; absent sinon. « Passer » ne modifie aucune zone. */
 class OnboardingZonesPage {
-    private async isOnZonesRoute(): Promise<boolean> {
-        if (!await platform().isWebContextAvailable()) return false
-        return await platform().inWebContext(() =>
-            driver.execute(() => /#\/welcome\/zones/.test(location.hash)) as Promise<boolean>
-        ).catch(() => false)
-    }
-
-    /** Sonde dédiée, réutilisée par dismiss() et HomePage.assertHomeVisible(). */
     async isVisible(timeout = 3000): Promise<boolean> {
-        return await browser.waitUntil(() => this.isOnZonesRoute(), {timeout, interval: 300})
-            .then(() => true)
-            .catch(() => false)
+        return await isShown(onboardingZonesLocators.heading, timeout)
     }
 
-    /** Passe l'écran (no-op si absent sous `timeout`) et attend d'en être sorti. */
+    /** États des cases de zones, par nom de zone. */
+    async zoneStates(): Promise<Record<string, boolean>> {
+        return await checkboxStates()
+    }
+
+    /** Coche ou décoche la zone `name` (ex. « Zone B »), enregistrée sans validation. */
+    async setZone(name: string, checked: boolean): Promise<void> {
+        await setCheckbox(name, checked)
+    }
+
+    /** Passe l'écran, sans effet s'il est absent sous `timeout`. */
     async dismiss(timeout = 3000): Promise<void> {
         if (!await this.isVisible(timeout)) return
-        await platform().inWebContext(async () => {
-            const skip = await findRole('button', onboardingZonesLocators.skipButtonName, {timeout: 10000})
-            await skip.click()
-        })
-        await browser.waitUntil(async () => !await this.isOnZonesRoute(), {
-            timeout: 10000, interval: 300, timeoutMsg: 'Écran « Zones scolaires » toujours affiché après « Passer »',
-        })
+        await clickDisplayed(onboardingZonesLocators.skipButton, {timeout: 10000})
     }
 }
 

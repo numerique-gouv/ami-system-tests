@@ -1,0 +1,96 @@
+import HomePage from '../../pages/home.page'
+import SuiviDemarchesPage from '@pages/suivi-demarches.page'
+import DemarcheDetailPage from '../../pages/demarche-detail.page'
+import {getBackendUrl, PARTNER_AMI, grantDemarchesConsent, publishDemarche} from '../../helpers/partner-api'
+import {getTestUser} from '../../helpers/common/test-users'
+import {getAppToStartingState} from '../../pages/authenticate.process'
+import {step} from '@helpers/reporting/report'
+
+/**
+ * Suivi des démarches : cycle de vie d'une démarche partenaire (new → wip → closed), détail et historique, démarches archivées.
+ * Exception à l'indépendance des it() (CONTRIBUTING.md §6) : les 3 premiers tests partagent le même `itemId` horodaté, chacun publie
+ * sa notification et valide la liste sans supposer l'état laissé par le précédent. Pré-requis : variables NOTIF_* dans .env.
+ */
+describe('Cycle de vie d’une démarche', function () {
+  this.timeout(180000) // WDIO lit le délai avant d'exécuter un it/hook : il se pose au niveau du describe
+  const user = getTestUser()
+  let itemId: string
+  let title: string
+  let titleClosing: string
+  let urlV1: string
+  let urlV2: string
+
+  before(async function () {
+    const domainUrl = getBackendUrl()
+    itemId = `E2E-cycle-${Date.now()}` // sans « : » ni « . » : l'archivage échoue pour un identifiant qui en contient
+    title = `Demarche E2E ${itemId}` // sans accent : la recherche par innerText les gère mal
+    titleClosing = `${title} 2`
+    urlV1 = `${domainUrl}/demarches/${itemId}/v1`
+    urlV2 = `${domainUrl}/demarches/${itemId}/v2`
+    await getAppToStartingState()
+    await grantDemarchesConsent(PARTNER_AMI, user.fcHash)
+  })
+
+  it('crée une démarche visible dans le suivi (statut new)', async () => {
+    const titleNew = `${title} 0`
+    step('1. Ouvrir le suivi puis publier la notification avec tous les champs')
+    await HomePage.ouvreSuivi()
+    await publishDemarche({
+      title: titleNew, body: 'Corps de la notification E2E', recipientFcHash: user.fcHash,
+      privateBody: 'Contenu privé E2E', icon: 'fr-icon-notification-3-line', contentLink: urlV1,
+      itemType: 'OTV', itemId, status: 'new',
+    })
+
+    step('2. Attendre la démarche, vérifier son statut puis son lien externe V1')
+    await SuiviDemarchesPage.waitForDemarche(titleNew)
+    await SuiviDemarchesPage.assertVisibleDemarcheWith(titleNew, 'Brouillon')
+    await SuiviDemarchesPage.ouvreDemarche(titleNew)
+    await DemarcheDetailPage.assertLienExterne(urlV1)
+    await SuiviDemarchesPage.retourJusquAPageSuivi()
+  })
+
+  it("met à jour l'URL externe de la démarche (statut wip)", async () => {
+    const titleUpdate = `${title} 1`
+    step('1. Publier la notification avec la nouvelle URL')
+    await publishDemarche({
+      title: titleUpdate, body: 'Mise à jour E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
+      itemType: 'OTV', itemId, status: 'wip',
+    })
+
+    step('2. Attendre la démarche, vérifier son statut puis son lien externe V2')
+    await SuiviDemarchesPage.waitForDemarche(titleUpdate)
+    await SuiviDemarchesPage.assertVisibleDemarcheWith(titleUpdate, 'En cours')
+    await SuiviDemarchesPage.ouvreDemarche(titleUpdate)
+    await DemarcheDetailPage.assertLienExterne(urlV2)
+    await SuiviDemarchesPage.retourJusquAPageSuivi()
+  })
+
+  it('clôture la démarche (statut closed) et affiche son historique dans le détail', async () => {
+    step('1. Publier la notification de clôture')
+    await publishDemarche({
+      title: titleClosing, body: 'Clôture E2E', recipientFcHash: user.fcHash, contentLink: urlV2,
+      itemType: 'OTV', itemId, status: 'closed',
+    })
+
+    step('2. Attendre la démarche et vérifier son statut')
+    await SuiviDemarchesPage.waitForDemarche(titleClosing)
+    await SuiviDemarchesPage.assertVisibleDemarcheWith(titleClosing, 'Terminé')
+
+    step("3. Ouvrir le détail : statut, référence et historique des 3 mises à jour")
+    await SuiviDemarchesPage.ouvreDemarche(titleClosing)
+    await DemarcheDetailPage.assertDetail({
+      title: titleClosing, statusLabel: 'Terminé', reference: itemId,
+      messages: ['Corps de la notification E2E', 'Mise à jour E2E', 'Clôture E2E'],
+    })
+    await SuiviDemarchesPage.retourJusquAPageSuivi()
+  })
+
+  it('archive la démarche clôturée et la retrouve dans les démarches archivées', async () => {
+    step('1. Archiver la démarche depuis le Suivi')
+    await SuiviDemarchesPage.archiveDemarche(titleClosing)
+
+    step('2. La retrouver dans la page des démarches archivées')
+    await SuiviDemarchesPage.openArchived()
+    await SuiviDemarchesPage.assertArchived(titleClosing)
+  })
+})

@@ -1,0 +1,83 @@
+name: e2e-keys
+description: >-
+  Calcule en un seul endroit la PR effective, la clé d'isolation (slug) et les noms des artefacts de résultats d'un run E2E.
+  Utilisée par le job e2e (noms des uploads), le job report (téléchargement et commentaire) et le nettoyage des artefacts : tous
+  doivent désigner les mêmes artefacts `test-results-<slug>-<plateforme>-run<N>`.
+
+inputs:
+  source-repo:
+    description: "Dépôt frère à l'origine du run (owner/nom)"
+    required: true
+  pr-number:
+    description: "Numéro de la PR du dépôt frère ; 0 = pas de PR"
+    required: false
+    default: '0'
+  comment-pr-number:
+    description: "Numéro de PR à commenter quand il diffère de pr-number ; 0 = pr-number"
+    required: false
+    default: '0'
+  report-label:
+    description: "Étiquette (lettres, chiffres, - _) quand le même appelant lance plusieurs runs pour la même PR"
+    required: false
+    default: ''
+  run-webapp:
+    description: "Suite webapp lancée ; vide = pas de webapp"
+    required: false
+    default: ''
+  run-android:
+    description: "Suite Android lancée ; vide = pas d'Android"
+    required: false
+    default: ''
+  run-number:
+    description: "github.run_number du run en cours"
+    required: false
+    default: '0'
+
+outputs:
+  pr_number:
+    description: "PR à commenter et clé des artefacts"
+    value: ${{ steps.keys.outputs.pr_number }}
+  slug:
+    description: "Clé d'isolation : <dépôt>-pr<N>[-<étiquette>], sans caractère interdit dans un nom d'artefact"
+    value: ${{ steps.keys.outputs.slug }}
+  test_results:
+    description: "Motif (glob) des artefacts du run : test-results-<slug>-*-run<N>"
+    value: ${{ steps.keys.outputs.test_results }}
+  artifact_webapp:
+    description: "Nom de l'artefact webapp (vide si pas de webapp)"
+    value: ${{ steps.keys.outputs.artifact_webapp }}
+  artifact_android:
+    description: "Nom de l'artefact Android (vide si pas d'Android)"
+    value: ${{ steps.keys.outputs.artifact_android }}
+  expect:
+    description: "Plateformes attendues, séparées par des virgules (webapp,android)"
+    value: ${{ steps.keys.outputs.expect }}
+
+runs:
+  using: composite
+  steps:
+    - id: keys
+      shell: bash
+      env:
+        SOURCE_REPO: ${{ inputs.source-repo }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        COMMENT_PR_NUMBER: ${{ inputs.comment-pr-number }}
+        LABEL: ${{ inputs.report-label }}
+        RUN_WEBAPP: ${{ inputs.run-webapp }}
+        RUN_ANDROID: ${{ inputs.run-android }}
+        RUN_NUMBER: ${{ inputs.run-number }}
+      run: |
+        pr="$PR_NUMBER"
+        [ "$COMMENT_PR_NUMBER" != 0 ] && pr="$COMMENT_PR_NUMBER"
+        label="${LABEL//[^A-Za-z0-9_-]/}"
+        slug=$(echo "${SOURCE_REPO}-pr${pr}${label:+-$label}" | sed 's/[\/:<>|*?\\"]/-/g')
+        prefix="test-results-${slug}"
+        expect=""
+        {
+          echo "pr_number=$pr"
+          echo "slug=$slug"
+          echo "test_results=${prefix}-*-run${RUN_NUMBER}"
+          [ -n "$RUN_WEBAPP" ] && { echo "artifact_webapp=${prefix}-webapp-run${RUN_NUMBER}"; expect="${expect}webapp,"; }
+          [ -n "$RUN_ANDROID" ] && { echo "artifact_android=${prefix}-android-run${RUN_NUMBER}"; expect="${expect}android,"; }
+          echo "expect=${expect%,}"
+        } >> "$GITHUB_OUTPUT"

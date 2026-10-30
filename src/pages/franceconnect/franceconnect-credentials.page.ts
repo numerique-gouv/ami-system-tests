@@ -1,62 +1,27 @@
-import {fcCredentialsLocators} from '../locators/franceconnect/franceconnect-credentials.locators'
-import {traced} from '../../helpers/traced'
+import {fcCredentialsLocators, iosCredentialsFieldsNativeAx} from '../locators/franceconnect/franceconnect-credentials.locators'
+import {traced} from '../../helpers/reporting/traced'
 import {platform} from '../../platform'
-import type {TestUser} from '../../helpers/test-users'
-import logger from "@wdio/logger";
-import {findLabel, findRole} from '../../helpers/spa'
-
-const log = logger('page-object')
+import type {TestUser} from '../../helpers/common/test-users'
+import {clickDisplayed, firstDisplayed} from '../../helpers/spa/spa'
+import {waitForNativeAx} from '../../helpers/mobile/native-ax'
 
 class FranceConnectCredentialsPage {
-    /**
-     * Sonde dédiée credentials — bare, même raison de ne pas ouvrir son propre inWebContext
-     * qu'isEidasTileVisibleBare() (franceconnect-eidas.page.ts) / isFranceConnectTextVisible()
-     * (franceconnect-mire.page.ts).
-     */
-    private async isCredentialsPageTextVisibleBare(): Promise<boolean> {
-        return await driver.execute(
-            (pattern: string) => new RegExp(pattern).test(document.body?.textContent ?? ''),
-            fcCredentialsLocators.fcpLowHeadingPattern.source
-        ) as boolean
-    }
-
-    /**
-     * Sonde dédiée publique, réutilisée par authenticate() (détection d'écran).
-     */
-    async isCredentialsVisible(): Promise<boolean> {
-        if (!await platform().isWebContextAvailable()) return false
-        return await platform().inWebContext(() => this.isCredentialsPageTextVisibleBare()).catch(() => false)
-    }
-
     async fillCredentials(user: TestUser): Promise<void> {
         await platform().inWebContext(async () => {
             try {
-                // La sonde passe par driver.execute (synchrone, sans élément en cache) : elle survit
-                // à une navigation en cours, contrairement à une requête d'élément.
-                await browser.waitUntil(
-                    () => this.isCredentialsPageTextVisibleBare(),
-                    {
-                        timeout: 10000,
-                        interval: 300,
-                        timeoutMsg: `Page FCP-LOW non chargée — texte "${fcCredentialsLocators.fcpLowHeadingText}" absent après 10s`
-                    }
-                )
-                const idField = await findLabel(/identifiant/i)
+                const idField = await firstDisplayed(fcCredentialsLocators.identifierField)
                 await idField.clearValue()
                 await idField.setValue(user.login)
-                const pwdField = await findLabel(/mot de passe/i)
+                const pwdField = await firstDisplayed(fcCredentialsLocators.passwordField)
                 await pwdField.clearValue()
                 await pwdField.setValue(user.password)
-                // pas de fallback driver.execute nécessaire ici (cf. franceconnect-credentials.locators.ts).
-                const submitBtn = await findRole('button', /valider/i)
-                await submitBtn.click()
+                await clickDisplayed(fcCredentialsLocators.submitButton)
             } catch {
-                // Best-effort : la session FC peut déjà être ouverte (cf. franceconnect-eidas.page.ts
-                // selectEidasFaible). Loggé quand même — une vraie erreur d'interaction (champ/bouton
-                // introuvable) sur cette chaîne critique ne doit pas se confondre avec ce cas attendu.
-                log.warn('fillCredentials: échec sur la page credentials')
+                // La session FranceConnect peut déjà être ouverte : pas de formulaire, la boucle de connexion ré-observe l'écran.
             }
         })
+        // Sans effet si le formulaire n'a pas été rempli.
+        await waitForNativeAx(iosCredentialsFieldsNativeAx, 'gone')
     }
 }
 

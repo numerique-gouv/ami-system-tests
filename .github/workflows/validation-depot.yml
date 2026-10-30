@@ -1,0 +1,43 @@
+name: Validation du dépôt
+
+# Vérifie ce dépôt lui-même, sur chaque PR et sur main : lint, compilation, tests unitaires, syntaxe des workflows.
+# Les tests E2E, eux, ne tournent que lorsqu'un dépôt frère appelle workflow-e2e-main.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  code:
+    name: lint, compilation, tests unitaires
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      # Script du commentaire de PR (.github/scripts/e2e-comment.mjs)
+      - run: npm run test:unit:ci
+
+  workflows:
+    name: syntaxe des workflows (actionlint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Image Docker épinglée par version (pas par SHA) : à mettre à jour avec les nouvelles versions d'actionlint.
+      - uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color

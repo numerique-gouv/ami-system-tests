@@ -1,43 +1,17 @@
 import {onboardingPasskeyLocators} from './locators/onboarding-passkey.locators'
-import {platform} from '../platform'
-import {traced} from '../helpers/traced'
-import {findRole} from '../helpers/spa'
+import {traced} from '../helpers/reporting/traced'
+import {clickDisplayed, isShown} from '../helpers/spa/spa'
 
-/**
- * Page Object pour l'écran de proposition de création de clé d'accès (passkey).
- *
- * Apparaît après l'authentification FranceConnect, avant l'onboarding des notifications —
- * cf. `login-callback/+page.svelte` (app AMI). Conditionné par un feature flag applicatif :
- * peut être absent selon l'environnement/l'utilisateur, d'où le no-op silencieux de dismiss().
- */
+/** Proposition de clé d'accès après FranceConnect, conditionnée par un feature flag : absente selon l'environnement. */
 class OnboardingPasskeyPage {
-    /**
-     * Sonde dédiée, réutilisée par dismiss() (même sentinelle, un seul appel).
-     */
     async isVisible(timeout = 5000): Promise<boolean> {
-        if (!await platform().isWebContextAvailable()) return false
-        return await platform().inWebContext(() =>
-            browser.waitUntil(
-                () => driver.execute(
-                    (pattern: string) => Array.from(document.querySelectorAll('button'))
-                        .some(b => new RegExp(pattern, 'i').test(b.textContent ?? '')),
-                    onboardingPasskeyLocators.createButtonName.source
-                ) as Promise<boolean>,
-                {timeout, interval: 300}
-            ).then(() => true)
-        ).catch(() => false)
+        return await isShown(onboardingPasskeyLocators.createButton, timeout)
     }
 
-    /**
-     * Ferme l'écran en tapant "Peut-être plus tard" (no-op si absent sous 5s — écran conditionné
-     * par un feature flag applicatif, cf. classdoc). Aucune clé d'accès n'est créée.
-     */
+    /** « Peut-être plus tard » : aucune clé d'accès n'est créée ; sans effet si l'écran est absent. */
     async dismiss(): Promise<void> {
         if (!await this.isVisible()) return
-        await platform().inWebContext(async () => {
-            const later = await findRole('button', onboardingPasskeyLocators.laterButtonName)
-            await later.click()
-        })
+        await clickDisplayed(onboardingPasskeyLocators.laterButton)
     }
 }
 

@@ -1,0 +1,130 @@
+# Pourquoi cette action et le script e2e-comment.mjs : voir l'en-tête du script (tableau JUnit avec lien Sentry ; à supprimer si on ne peut
+# plus les maintenir, au profit de mikepenz/action-junit-report).
+name: e2e-pr-comment
+description: >-
+  Crée ou met à jour UN commentaire de PR « tests E2E » (tableau test | résultat | durée | lien Sentry) à partir des JUnit enrichis
+  (cf. .github/scripts/e2e-comment.mjs). Le commentaire est retrouvé par son marqueur `<!-- e2e-report:<repo>:pr-<N> -->`.
+  Ignoré proprement (sans erreur) s'il n'y a pas de PR, si la PR vient d'un fork, ou si l'écriture est refusée (jeton en lecture seule).
+  Prérequis du job appelant : `permissions: pull-requests: write` et un `actions/checkout` d'ami-system-tests (le script y est lu) ; Node est
+  préinstallé sur les runners GitHub-hosted. Toutes les entrées passent par `env:` — jamais d'expression GitHub interpolée dans un `run:`.
+
+inputs:
+  github-token:
+    description: "Jeton ayant le droit d'écrire sur les PR du dépôt `repo` (github.token du job appelant suffit si `repo` est le dépôt courant)"
+    required: true
+  repo:
+    description: "Dépôt de la PR (owner/nom)"
+    required: true
+  pr-number:
+    description: "Numéro de la PR ; vide ou 0 = pas de PR, l'action ne fait rien"
+    required: false
+    default: '0'
+  junit-dir:
+    description: "Dossier contenant (récursivement) les results-*.xml"
+    required: true
+  run-url:
+    description: "URL du run GitHub Actions"
+    required: false
+    default: ''
+  artifacts:
+    description: "Noms d'artefacts à citer, séparés par des virgules"
+    required: false
+    default: ''
+  expect:
+    description: "Plateformes attendues (webapp,android) : celles sans résultat sont signalées"
+    required: false
+    default: ''
+  sha:
+    description: "SHA du commit testé (affichage)"
+    required: false
+    default: ''
+  label:
+    description: "étiquette (lettres, chiffres, - _) quand plusieurs runs e2e rapportent sur la même PR (ex. old-device) : un commentaire distinct par étiquette"
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: décider si on commente
+      id: gate
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        PR: ${{ inputs.pr-number }}
+      run: |
+        set -uo pipefail
+        echo "comment=false" >> "$GITHUB_OUTPUT"
+        if [[ ! "$PR" =~ ^[1-9][0-9]{0,8}$ ]]; then
+          echo "Pas de PR associée (pr-number=$PR) : pas de commentaire."
+          exit 0
+        fi
+        if [[ ! "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+          echo "::warning::repo « $REPO » invalide : pas de commentaire."
+          exit 0
+        fi
+        # PR venant d'un fork : le jeton est en lecture seule (et le contenu n'est pas de confiance) → on ne commente pas.
+        heads=$(gh api "repos/$REPO/pulls/$PR" --jq '[.head.repo.full_name // "", .base.repo.full_name] | @tsv' 2>/dev/null) || {
+          echo "::warning::PR $REPO#$PR illisible avec ce jeton : pas de commentaire."
+          exit 0
+        }
+        head_repo=${heads%%$'\t'*}
+        base_repo=${heads##*$'\t'}
+        if [ -z "$head_repo" ] || [ "$head_repo" != "$base_repo" ]; then
+          echo "PR issue d'un fork ($head_repo → $base_repo) : pas de commentaire."
+          exit 0
+        fi
+        echo "comment=true" >> "$GITHUB_OUTPUT"
+
+    - name: générer le commentaire
+      if: ${{ steps.gate.outputs.comment == 'true' }}
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        JUNIT_DIR: ${{ inputs.junit-dir }}
+        REPO: ${{ inputs.repo }}
+        PR: ${{ inputs.pr-number }}
+        RUN_URL: ${{ inputs.run-url }}
+        ARTIFACTS: ${{ inputs.artifacts }}
+        EXPECT: ${{ inputs.expect }}
+        SHA: ${{ inputs.sha }}
+        LABEL: ${{ inputs.label }}
+      run: |
+        set -uo pipefail
+        script="$ACTION_PATH/../../scripts/e2e-comment.mjs"
+        # Un échec du script ne doit pas faire échouer le job (les résultats restent dans le check et l'artefact).
+        if ! node "$script" --junit-dir "$JUNIT_DIR" --repo "$REPO" --pr "$PR" --run-url "$RUN_URL" --artifacts "$ARTIFACTS" --expect "$EXPECT" --sha "$SHA" ${LABEL:+--label "$LABEL"} --out "$RUNNER_TEMP/e2e-comment.md"; then
+          echo "::warning::génération du commentaire impossible."
+          rm -f "$RUNNER_TEMP/e2e-comment.md"
+          exit 0
+        fi
+        # Aussi dans la page du run.
+        cat "$RUNNER_TEMP/e2e-comment.md" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: créer ou mettre à jour le commentaire
+      if: ${{ steps.gate.outputs.comment == 'true' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        PR: ${{ inputs.pr-number }}
+        LABEL: ${{ inputs.label }}
+      run: |
+        set -uo pipefail
+        body="$RUNNER_TEMP/e2e-comment.md"
+        [ -f "$body" ] || { echo "Pas de corps de commentaire."; exit 0; }
+        marker="<!-- e2e-report:${REPO}:pr-${PR}${LABEL:+:$LABEL} -->"
+        export marker
+        payload="$RUNNER_TEMP/e2e-comment.json"
+        jq -n --rawfile body "$body" '{body: $body}' > "$payload"
+        # Dernier commentaire dont le corps COMMENCE par le marqueur (un marqueur cité plus loin dans un autre commentaire ne compte pas).
+        existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+          --jq '[.[] | select(.body | startswith(env.marker))] | last | .id // empty' 2>/dev/null) || existing=""
+        if [ -n "$existing" ] && gh api -X PATCH "repos/$REPO/issues/comments/$existing" --input "$payload" > /dev/null; then
+          echo "Commentaire $existing mis à jour."
+        elif gh api -X POST "repos/$REPO/issues/$PR/comments" --input "$payload" > /dev/null; then
+          echo "Commentaire créé."
+        else
+          echo "::warning::écriture du commentaire refusée (jeton en lecture seule ?) : le résultat reste dans le check et l'artefact."
+        fi

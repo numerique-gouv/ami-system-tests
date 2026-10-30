@@ -1,21 +1,11 @@
-/**
- * Sélecteurs de l'écran eIDAS de la mire FranceConnect (sélection eIDAS faible).
- *
- * WebView, structure identique Android/iOS (page hors app AMI, hors contrôle du DSFR).
- */
-
-export interface FranceConnectEidasLocators {
-  eidasFaibleLabel: string  // nom accessible du lien eIDAS faible (pour findRole dans le PO)
+// Chaque IDP est un `<button type="submit" role="link">` dont Chrome calcule le nom accessible avec une espace finale : `role/link[name="…"]` ne le trouve pas, d'où le texte « contient ».
+export const fcEidasLocators = {
+  eidasFaibleLink: 'button*=eIDAS faible',
 }
 
-/**
- * Nom accessible confirmé via just inspect (2026-06-26).
- * L'IDP eIDAS faible expose role="link" + nom accessible "Démonstration eIDAS faible".
- * Pas d'aria-label HTML — ciblage par rôle+nom via TL :
- *   findRole('link', new RegExp(fcEidasLocators.eidasFaibleLabel, 'i'))
- */
-export const fcEidasLocators: FranceConnectEidasLocators = {
-  eidasFaibleLabel: 'eIDAS faible',
-}
+/** iOS : le même bouton lu dans l'arbre natif, sans passer par le débogueur WebKit : constate l'apparition de la page eIDAS et sa disparition après le clic. */
+export const iosEidasLinkNativeAx = '-ios predicate string:label CONTAINS[c] "eidas faible"'
 
-// Pas de getXxxLocators() — un seul jeu cross-platform
+/** iOS : la page eIDAS OU la feuille native « Activez les notifications » (session FranceConnect déjà ouverte : aucune page eIDAS à attendre). */
+export const iosEidasOrNotificationSheetNativeAx =
+  '-ios predicate string:label CONTAINS[c] "eidas faible" OR label CONTAINS[c] "notifications pour suivre"'

@@ -1,13 +1,5 @@
-/**
- * Sélecteurs de la navigation principale de la SPA (barre basse + menu « Plus »).
- *
- * WebView/webapp, DOM identique : un seul jeu (pas de getXxxLocators()). Tout est exposé en
- * <button> avec un nom accessible — aucun <a href> interne (vérifié en live le 2026-10-02) —
- * donc ciblage par `findRole('button', name)` (CONTRIBUTING.md §2).
- *
- * Le menu « Plus » est un <dialog> DSFR titré « La suite de la navigation » ; fermé, ses boutons
- * sont masqués et donc ignorés par `findRole` (éléments non accessibles exclus).
- */
+import {roleSelector} from '../../helpers/spa/selectors'
+
 export type TabName = 'Accueil' | 'Agenda' | 'Services' | 'Suivi'
 
 export type PlusEntry =
@@ -17,15 +9,17 @@ export type PlusEntry =
   | 'Données personnelles et sécurité'
   | 'Accessibilité'
 
-export interface NavigationLocators {
-  plusButtonName: string
-  plusDialogHeading: string
-  /** Nom accessible de la barre de navigation basse. */
-  bottomBarName: string
-}
+/** Le menu « Plus » est un <dialog> DSFR, ouvert quand il porte la classe `fr-modal--opened`. */
+const PLUS_DIALOG_OPENED = 'dialog[id^="modal-main-nav-plus"].fr-modal--opened'
 
-export const navigationLocators: NavigationLocators = {
-  plusButtonName: 'Plus',
-  plusDialogHeading: 'La suite de la navigation',
-  bottomBarName: 'Menu principal',
+export const navigationLocators = {
+  /** Les boutons de la barre basse se cherchent dans elle (`within`). */
+  bottomBar: roleSelector('navigation', 'Menu principal'),
+  tab: (tab: TabName | 'Plus'): string => roleSelector('button', tab),
+  /** Les entrées du menu « Plus » se cherchent dans lui (`within`). */
+  plusDialog: roleSelector('dialog', 'La suite de la navigation'),
+  plusEntry: (entry: PlusEntry): string => roleSelector('button', entry),
+  plusDialogOpened: PLUS_DIALOG_OPENED,
+  plusDialogClose: `${PLUS_DIALOG_OPENED} button[aria-label="Fermer"]`,
+  back: roleSelector('button', 'Retour à la page précédente'),
 }

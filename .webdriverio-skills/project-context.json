@@ -17,8 +17,7 @@
       "connectionRetryTimeout": 120000,
       "connectionRetryCount": 3,
       "mochaOptsTimeout": 120000,
-      "mochaOptsTimeoutDebug": "24h si WDIO_DEBUG=1",
-      "specFileRetries": 0
+      "specFileRetries": "0 par défaut ; 1 si CI/GITHUB_ACTIONS ; WDIO_SPEC_FILE_RETRIES ou --specFileRetries pour forcer"
     },
     {
       "file": "wdio.android.conf.ts",
@@ -42,10 +41,9 @@
       "name": "spec"
     },
     {
-      "name": "allure",
-      "outputDir": "allure-results",
-      "addConsoleLogs": true,
-      "note": "outputDir jamais nettoyé automatiquement avant un run, partagé entre android/ios/webapp"
+      "name": "junit",
+      "outputDir": "test-results/junit",
+      "note": "un fichier par processus, nommé avec la plateforme ; dumps des échecs dans test-results/failures/ ; dossier jamais nettoyé automatiquement avant un run"
     }
   ],
   "services": [
@@ -76,30 +74,27 @@
     "test:webapp": "wdio run wdio.webapp.conf.ts",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "report": "rm -rf allure-report && allure generate allure-results && allure open allure-report",
-    "note": "usage prescrit via justfile (just test-android/test-ios/test-webapp/test-webci/check-code/open-report), pas npm direct"
+        "note": "usage prescrit via justfile (just test-android/test-ios/test-webapp/test-webci/check-code/open-report), pas npm direct"
   },
   "testSuites": {
-    "source": "test-suites.ts",
-    "envVar": "WDIO_SUITE",
+    "source": "wdio.base.conf.ts (option native `suites`)",
+    "envVar": null,
+    "cliFlag": "--suite <nom>",
     "named": {
-      "all": "authentication.test.ts + tous les tests mobile, session partagée",
-      "short": "authentication.test.ts seul",
-      "CI": "authentication + notifications + demarches + profile",
-      "auth": "authentication.test.ts en session séparée",
-      "api": "notifications + demarches"
+      "mobile_short": "authentification.smoke.test.ts seul",
+      "mobile_smoke": "tests mobile *.smoke.test.ts",
+      "mobile_all": "tous les tests mobile",
+      "webapp_short": "authentification.smoke.test.ts seul",
+      "webapp_smoke": "tests webapp *.smoke.test.ts",
+      "webapp_usage": "tests webapp *.smoke + *.usage (nonreg compris)",
+      "webapp_all": "tous les tests webapp"
     }
   },
   "customCommands": [
     {
-      "name": "tl()",
-      "file": "src/helpers/webview.ts",
-      "purpose": "Testing Library sur WebView"
-    },
-    {
-      "name": "retourJusquATexteVisible()",
-      "file": "src/helpers/webview.ts",
-      "purpose": "navigation retour répétée jusqu'à sentinel, timeout local 10s indépendant du réseau"
+      "name": "describeCurrentPage()",
+      "file": "src/helpers/spa/webview.ts",
+      "purpose": "décrit l'écran courant (natif ou URL masquée de la SPA) pour les messages d'erreur ; best-effort"
     },
     {
       "name": "getAppToStartingState()",
@@ -108,26 +103,26 @@
     },
     {
       "name": "traced()",
-      "file": "src/helpers/traced.ts",
+      "file": "src/helpers/reporting/traced.ts",
       "purpose": "wrap les singletons Page Object pour tracing"
     }
   ],
   "apiInterfaces": [
     {
-      "name": "checkConsent",
-      "file": "src/helpers/notifications-api.ts",
+      "name": "checkDemarchesConsent",
+      "file": "src/helpers/partner-api/consent.ts",
       "endpoint": "GET /api/v1/consent/{fc_hash}",
       "timeoutMs": 15000
     },
     {
-      "name": "grantConsent",
-      "file": "src/helpers/notifications-api.ts",
+      "name": "grantDemarchesConsent",
+      "file": "src/helpers/partner-api/consent.ts",
       "endpoint": "POST /api/v1/consent/{fc_hash}",
       "timeoutMs": 15000
     },
     {
-      "name": "publishNotification",
-      "file": "src/helpers/notifications-api.ts",
+      "name": "publishEvent",
+      "file": "src/helpers/partner-api/event.ts",
       "endpoint": "PUT /api/v2/event",
       "timeoutMs": 15000,
       "retries": 5,
@@ -142,7 +137,6 @@
     "ANDROID_SDK_ROOT",
     "IOS_DEVICE_NAME",
     "RUN_OLD_DEVICE",
-    "WDIO_DEBUG",
     "WEBAPP_HEADLESS",
     "WEB_APP_ACCESS_KEYS",
     "NOTIF_PARTNER_ID",
@@ -162,11 +156,11 @@
     }
   ],
   "notes": [
-    "allure-results/ et .wdio-logs/*.log ne sont jamais nettoyés automatiquement avant un run — accumulation cross-run et cross-plateforme, voir health-recommendations.md",
-    "Ne jamais lire .env.local ni afficher ses valeurs, y compris via un outil",
+    "test-results/ et .wdio-logs/*.log ne sont jamais nettoyés automatiquement avant un run — accumulation cross-run et cross-plateforme, voir health-recommendations.md",
+    "Ne jamais lire .env ni afficher ses valeurs, y compris via un outil",
     "Le modèle du site (websiteModel ci-dessus) doit être lu par les skills de planification/investigation avant toute nouvelle exploration du site",
     "Tests webapp: 12 fichiers dans src/tests/webapp (authentication, navigation, accueil, agenda, services, suivi, notifications, profil, preferences, aide-contact, deconnexion, erreurs), mis en place le 2026-10-02",
     "Le nom accessible d'un bouton de la SPA peut différer de son texte visible (aria-label) — vérifier le DOM rendu avant de choisir un sélecteur par nom",
-    "Chromedriver: si WDIO échoue au téléchargement, just fix-chromedriver <version exacte de Chrome>; WDIO_DEBUG=1 pour dépasser le timeout Mocha de 120 s"
+    "Chromedriver: si WDIO échoue au téléchargement, just fix-chromedriver <version exacte de Chrome>"
   ]
 }

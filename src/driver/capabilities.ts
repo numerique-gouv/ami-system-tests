@@ -1,75 +1,78 @@
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
+import {isPreprod} from '../helpers/common/environment'
 
-// Chemins vers les apps buildées par les projets mobiles frères
-const ANDROID_APP_PATH = path.resolve(
-  __dirname,
-  '../../../ami-app-android/app/build/outputs/apk/staging/debug/app-staging-debug.apk'
-)
+// AMI_ENV=preprod vise l'app préprod, sinon staging (review apps comprises). AMI_ENV doit correspondre à l'app de ANDROID_APP_PATH / IOS_APP_PATH.
+const preprod = isPreprod()
 
-// Le projet iOS construit avec -derivedDataPath ../build depuis ami-app-ios/, donc à côté
-// de ami-app-ios/ (sibling sous ami/), pas dans ami-app-ios/build/.
-const IOS_APP_PATH = path.resolve(
-  __dirname,
-  '../../../build/Build/Products/Debug-iphonesimulator/AMI-Production.app'
-)
+/** Chemin de l'app buildée dans `name` : relatif à la racine du projet, `~/` pour le dossier personnel. */
+function appPathFromEnv(name: 'ANDROID_APP_PATH' | 'IOS_APP_PATH'): string {
+  const raw = process.env[name]?.trim()
+  if (!raw) {
+    throw new Error(`${name} est absente`)
+  }
+  const value = path.resolve(path.resolve(__dirname, '../..'), raw.startsWith('~/') ? path.join(os.homedir(), raw.slice(2)) : raw)
+  if (!fs.existsSync(value)) {
+    throw new Error(`${name} désigne un chemin inexistant : ${value}`)
+  }
+  return value
+}
 
-// ─── Android ────────────────────────────────────────────────────────────────
+/** `appium:app` est lu paresseusement : la variable n'est exigée que pour un run de cette plateforme. */
+function withLazyAppPath(caps: WebdriverIO.Capabilities, name: 'ANDROID_APP_PATH' | 'IOS_APP_PATH'): void {
+  const plain = (value: string): PropertyDescriptor => ({value, enumerable: true, writable: true, configurable: true})
+  Object.defineProperty(caps, 'appium:app', {
+    enumerable: true,
+    configurable: true,
+    get(): string {
+      const value = appPathFromEnv(name)
+      Object.defineProperty(caps, 'appium:app', plain(value))
+      return value
+    },
+    set(value: string) {
+      Object.defineProperty(caps, 'appium:app', plain(value))
+    },
+  })
+}
 
-// `as WebdriverIO.Capabilities` plutôt qu'annotation `: WebdriverIO.Capabilities` —
-// les capabilities Appium non standard (ex. chromedriverAutodownload) ne sont pas dans
-// les types @wdio/types mais sont valides à l'exécution.
+// `as` plutôt qu'une annotation : les capabilities Appium non standard ne sont pas dans les types @wdio/types.
 export const androidCapabilities = {
   platformName: 'Android',
   'appium:automationName': 'UiAutomator2',
-  // Nom de l'AVD défini dans le justfile racine (android_avd := "Pixel_modern").
-  // platformVersion volontairement absent : Appium détecte la version depuis l'appareil connecté.
-  'appium:deviceName': process.env.ANDROID_DEVICE_NAME ?? 'Pixel_modern',
-  'appium:app': ANDROID_APP_PATH,
-  'appium:appPackage': 'fr.gouv.ami.staging',
+  ...(process.env.ANDROID_UDID ? {'appium:udid': process.env.ANDROID_UDID} : {}),
+  ...(process.env.ANDROID_SYSTEM_PORT ? {'appium:systemPort': Number(process.env.ANDROID_SYSTEM_PORT)} : {}),
+  ...(process.env.ANDROID_CHROMEDRIVER_PORT ? {'appium:chromedriverPort': Number(process.env.ANDROID_CHROMEDRIVER_PORT)} : {}),
+  'appium:appPackage': preprod ? 'fr.gouv.ami.preprod' : 'fr.gouv.ami.staging',
   'appium:appActivity': 'fr.gouv.ami.MainActivity',
-  'appium:noReset': false,
+  'appium:noReset': true,
   'appium:fullReset': false,
   'appium:newCommandTimeout': 240,
   'appium:androidInstallTimeout': 90000,
   'appium:autoGrantPermissions': true,
   'appium:disableWindowAnimation': true,
-  // Requis pour switchContext('WEBVIEW_*') — télécharge automatiquement le Chromedriver
-  // correspondant à la version du WebView Android embarqué dans l'app.
   'appium:chromedriverAutodownload': true,
-  // Diagnostic de la boucle "Chromedriver exited unexpectedly ... signal SIGTERM" observée en
-  // CI (cf. commentaires action.yml côté ami-system-tests) : fait remonter la sortie du process
-  // chromedriver dans le log Appium (voir `logLevel: 'debug'` dans wdio.android.conf.ts) pour
-  // voir la commande/version réellement lancée et la raison du crash.
   'appium:showChromedriverLog': true,
-  // Délais étendus pour les émulateurs qui chargent depuis un snapshot —
-  // UiAutomation peut mettre plus de 5 s à se connecter après le boot.
   'appium:uiautomator2ServerLaunchTimeout': 60000,
   'appium:uiautomator2ServerInstallTimeout': 60000,
 } as WebdriverIO.Capabilities
+withLazyAppPath(androidCapabilities, 'ANDROID_APP_PATH')
 
-// ─── iOS ────────────────────────────────────────────────────────────────────
-
-export const iosCapabilities: WebdriverIO.Capabilities = {
+export const iosCapabilities = {
   platformName: 'iOS',
   'appium:automationName': 'XCUITest',
-  // Doit correspondre au simulateur booté par ios-start / ios_simulator dans le justfile racine.
-  'appium:deviceName': process.env.IOS_DEVICE_NAME ?? 'iPhone 17 Pro',
-  // Obligatoire dès que plusieurs runtimes iOS sont installés (ex. après une mise à jour Xcode
-  // qui ajoute un nouveau runtime sans retirer l'ancien) : sans cette capability, XCUITest prend
-  // par défaut le runtime le plus récent supporté par Xcode et, s'il ne correspond pas à celui du
-  // simulateur existant, crée un simulateur temporaire jetable au lieu de réutiliser celui-ci.
-  'appium:platformVersion': process.env.IOS_PLATFORM_VERSION ?? '27.0',
-  'appium:app': IOS_APP_PATH,
-  'appium:bundleId': 'fr.gouv.ami.staging',
-  'appium:noReset': false,
+  ...(process.env.IOS_UDID ? {'appium:udid': process.env.IOS_UDID} : {}),
+  ...(process.env.IOS_WDA_PORT ? {'appium:wdaLocalPort': Number(process.env.IOS_WDA_PORT)} : {}),
+  'appium:bundleId': preprod ? 'fr.gouv.ami.preproduction' : 'fr.gouv.ami.staging',
+  'appium:noReset': true,
   'appium:fullReset': false,
+  'appium:isHeadless': true,
   'appium:newCommandTimeout': 240,
   'appium:wdaLaunchTimeout': 120000,
   'appium:wdaConnectionTimeout': 120000,
-  'appium:shouldTerminateApp': true,
-  'appium:autoAcceptAlerts': false,  // géré manuellement dans les tests
-  // Réduit le délai par requête au débogueur WebKit (défaut ~10 s sur simulateur).
-  // Sans cette valeur, chaque appel à getContexts() bloque ~10 s, ce qui rend
-  // le polling de waitForWebViewContext() inefficace (une seule itération effective).
-  'appium:webkitResponseTimeout': 3000,
-}
+  'appium:shouldTerminateApp': false,
+  'appium:forceAppLaunch': false,
+  'appium:autoAcceptAlerts': false,
+  'appium:webviewConnectRetries': Number(process.env.IOS_WEBVIEW_RETRIES ?? 3),
+} as WebdriverIO.Capabilities
+withLazyAppPath(iosCapabilities, 'IOS_APP_PATH')

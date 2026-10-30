@@ -1,0 +1,191 @@
+import PreferencesPage from '../../../pages/preferences.page'
+import HomePage from '../../../pages/home.page'
+import NavigationPage from '../../../pages/navigation.page'
+import SuiviDemarchesPage from '../../../pages/suivi-demarches.page'
+import DemarcheDetailPage from '../../../pages/demarche-detail.page'
+import NotificationsInboxPage from '../../../pages/notifications.page'
+import {getAppToStartingState} from '../../../pages/authenticate.process'
+import {openDemarchesConsents, restoreDemarchesConsents, waitForBackendDemarchesConsent} from '../../../pages/consents.process'
+import {PARTNER_DN, getBackendUrl, publicationOutcome, grantDemarchesConsent, publishDemarche, revokeDemarchesConsent, skipUnlessPartnerCredentials} from '../../../helpers/partner-api'
+import {getTestUser} from '../../../helpers/common/test-users'
+import {step} from '../../../helpers/reporting/report'
+
+
+/** Partenaire à consentement activé. */
+const PARTNER = PARTNER_DN
+
+/**
+ * Démarche publiée par un partenaire SANS consentement de l'usager : le backend la refuse (404) et l'app ne la reçoit jamais, avant comme après le
+ * consentement. Deux scénarios au déroulé identique, qui ne diffèrent que par la façon de retirer puis donner le consentement : l'API partenaire,
+ * ou les cases de Préférences › Suivi des démarches.
+ *
+ * Déroulé : « D1 prime » (corps, sous-titre, lien) est publiée sans consentement : la garde côté appelant s'arrête avant le PUT, et le PUT forcé est
+ * refusé par le backend. Une fois le consentement donné, « D1 bis » (même `item_id`, corps seul) est reçue : le détail porte le champ vide de D1 bis
+ * et non la valeur de D1 prime, preuve que l'app n'a jamais eu D1 prime. Le lien externe d'une démarche est le dernier `content_link` non vide de ses
+ * notifications : si D1 prime avait été reçue, « Accéder à ma démarche » serait proposé. Que D1 bis apparaisse au Suivi et dans le centre de
+ * notifications est normal (une démarche est une notification).
+ *
+ * Partenaire `dinum-dn` (consentement activé) : le partenaire AMI est un partenaire système, dont le consentement est ignoré. Identifiants
+ * NOTIF_PARTNER_DINUM_DN_ID / _SECRET dans .env ; absents, les scénarios sont sautés.
+ *
+ * Modifie le consentement DN et AMI du compte partagé `avec_nom_dusage` : état d'origine relevé au `before()`, rétabli à l'`after()`. Les
+ * démarches publiées (titres horodatés) restent sur le compte.
+ */
+describe('Non-régression — démarche publiée sans consentement : refusée et jamais reçue', function () {
+  this.timeout(420000)
+
+  const user = getTestUser()
+  let original: Record<string, boolean> = {}
+
+  /** Retire et donne le consentement du partenaire : seule différence entre les deux scénarios. */
+  type PilotageDuConsentement = {retirer: () => Promise<void>, donner: () => Promise<void>}
+
+  /** Par l'API partenaire. Les écrans ouverts ensuite (Suivi, centre de notifications) relisent le serveur à leur ouverture. */
+  const parLApi: PilotageDuConsentement = {
+    retirer: async () => {
+      await revokeDemarchesConsent(PARTNER, user.fcHash)
+      await waitForBackendDemarchesConsent(PARTNER, user.fcHash, false)
+    },
+    donner: async () => {
+      await grantDemarchesConsent(PARTNER, user.fcHash)
+      await waitForBackendDemarchesConsent(PARTNER, user.fcHash, true)
+    },
+  }
+
+  /** Préférences s'ouvre par le menu Plus (barre basse) : on repart de l'Accueil, car le Suivi et les Notifications n'ont pas toujours cette barre. */
+  const ouvrirLesPreferences = async (): Promise<void> => {
+    await NavigationPage.goToRoute('/')
+    await HomePage.assertDisplayed()
+    await openDemarchesConsents()
+  }
+
+  /** Par les cases de Préférences › Suivi des démarches. */
+  const parLesPreferences: PilotageDuConsentement = {
+    retirer: async () => {
+      await ouvrirLesPreferences()
+      await PreferencesPage.setDemarchesConsent(PARTNER, false)
+      await waitForBackendDemarchesConsent(PARTNER, user.fcHash, false)
+    },
+    donner: async () => {
+      await ouvrirLesPreferences()
+      await PreferencesPage.setDemarchesConsent(PARTNER, true)
+      await waitForBackendDemarchesConsent(PARTNER, user.fcHash, true)
+    },
+  }
+
+  before(async function () {
+    await getAppToStartingState()
+    await openDemarchesConsents()
+    original = await PreferencesPage.demarchesConsentStates()
+  })
+
+  beforeEach(async function () {
+    await getAppToStartingState()
+  })
+
+  after(async function () {
+    await getAppToStartingState()
+    await restoreDemarchesConsents(original, user.fcHash)
+  })
+
+  /** Déroulé commun : D1 prime refusée sans consentement et jamais reçue ; D1 bis reçue après consentement. */
+  async function scenarioDemarcheSansConsentement(consentement: PilotageDuConsentement): Promise<void> {
+    const stamp = new Date().toISOString()
+    const itemId = `E2E-sans-consentement-${stamp}`
+    const prime = {title: `Demarche E2E ${stamp} D1prime sans consentement`, body: `Corps de D1 prime ${stamp}`, subheading: `Service D1 prime ${stamp}`,
+      link: `${getBackendUrl()}/demarches/${itemId}/prime`}
+    const bis = {title: `Demarche E2E ${stamp} D1bis apres consentement`, body: `Corps de D1 bis ${stamp}`}
+    const primeOptions = {
+      title: prime.title, body: prime.body, subheading: prime.subheading, contentLink: prime.link, recipientFcHash: user.fcHash,
+      itemType: 'OTV', itemId, status: 'new' as const, partner: PARTNER,
+    }
+
+    /** Tient l'écran courant pour qu'il soit lisible dans la vidéo. */
+    const marquer = async (): Promise<void> => {
+      // eslint-disable-next-line wdio/no-pause -- pause voulue : tenir l'écran lisible dans la vidéo, aucune condition à attendre
+      await browser.pause(1500)
+    }
+    /** Revient à l'Accueil (barre basse absente des Préférences et des Notifications) puis ouvre le Suivi, vérifié par son h1. */
+    const ouvrirLeSuivi = async (): Promise<void> => {
+      await NavigationPage.goToRoute('/')
+      await HomePage.assertDisplayed()
+      await HomePage.ouvreSuivi()
+      await SuiviDemarchesPage.assertDisplayed()
+    }
+    /** Depuis une page à barre basse, revient à l'Accueil puis ouvre le centre de notifications. */
+    const ouvrirLesNotifications = async (): Promise<void> => {
+      await NavigationPage.goToTab('Accueil')
+      await NotificationsInboxPage.openFromHome()
+      await NotificationsInboxPage.assertDisplayed()
+    }
+    /** D1 prime n'est ni au Suivi des démarches ni dans le centre de notifications. */
+    const assertPrimeJamaisRecue = async (moment: string): Promise<void> => {
+      step(`D1 prime absente du Suivi et du centre de notifications (${moment})`)
+      await ouvrirLeSuivi()
+      expect(await SuiviDemarchesPage.isDemarcheListed(prime.title, 3000)).toBe(false)
+      await ouvrirLesNotifications()
+      expect(await NotificationsInboxPage.isNotificationListed(prime.title, 3000)).toBe(false)
+    }
+
+    step('1. Retirer le consentement du partenaire, le backend le confirme')
+    await consentement.retirer()
+    await marquer()
+
+    step('2. Garde côté appelant : un partenaire réel s’arrête avant le PUT (pas de consentement)')
+    await expect(publishDemarche(primeOptions)).rejects.toThrow(/pas de consentement/i)
+
+    step('3. D1 prime, presque pleine (corps, sous-titre, lien), publiée sans consentement : le BACKEND refuse (404)')
+    // `verifyPartnerConsent: false` saute la garde et force le PUT, pour vérifier que c'est bien le backend qui refuse.
+    const issuePrime = await publicationOutcome(() => publishDemarche({...primeOptions, verifyPartnerConsent: false}))
+    expect(issuePrime).toBe('refusée')
+
+    step('4. Attendre 4 secondes, revenir à l’Accueil : D1 prime est absente (consentement retiré)')
+    // eslint-disable-next-line wdio/no-pause -- délai imposé par le scénario de l'équipe : laisser au backend le temps de traiter l'événement
+    await browser.pause(4000)
+    await NavigationPage.goToRoute('/')
+    await HomePage.assertDisplayed()
+    await assertPrimeJamaisRecue('avant consentement')
+
+    step('5. Donner le consentement du partenaire, le backend le confirme')
+    await consentement.donner()
+    await marquer()
+
+    step('6. Publier D1 bis (même item_id), presque vide : corps seul, sans sous-titre ni lien')
+    await publishDemarche({
+      title: bis.title, body: bis.body, recipientFcHash: user.fcHash,
+      itemType: 'OTV', itemId, status: 'wip', partner: PARTNER,
+    })
+
+    step('7. D1 bis est reçue au Suivi ; D1 prime reste absente')
+    await ouvrirLeSuivi()
+    await SuiviDemarchesPage.waitForDemarche(bis.title)
+    expect(await SuiviDemarchesPage.isDemarcheListed(prime.title, 3000)).toBe(false)
+
+    step('8. Détail de la démarche : le lien est VIDE comme dans D1 bis, et rien de D1 prime')
+    await SuiviDemarchesPage.ouvreDemarche(bis.title)
+    await DemarcheDetailPage.assertDisplayed(bis.title)
+    await DemarcheDetailPage.assertReference(itemId)
+    expect(await DemarcheDetailPage.hasText(bis.body, 5000)).toBe(true)
+    expect(await DemarcheDetailPage.isLienExterneProposed(3000)).toBe(false)
+    expect(await DemarcheDetailPage.hasText(prime.body, 1000)).toBe(false)
+    expect(await DemarcheDetailPage.hasText(prime.subheading, 1000)).toBe(false)
+    await marquer()
+
+    step('9. Centre de notifications : D1 bis est reçue (normal : une démarche est une notification) ; D1 prime n’y est jamais')
+    await NavigationPage.goBack()
+    await SuiviDemarchesPage.assertDisplayed()
+    await ouvrirLesNotifications()
+    await NotificationsInboxPage.assertNotificationReceived(bis.title)
+    expect(await NotificationsInboxPage.isNotificationListed(prime.title, 3000)).toBe(false)
+  }
+
+  it('démarche D1 sans consentement : refusée par le backend et jamais reçue, consentement retiré puis donné par l’API partenaire', async function () {
+    skipUnlessPartnerCredentials(this, PARTNER)
+    await scenarioDemarcheSansConsentement(parLApi)
+  })
+
+  it('démarche D1 sans consentement : refusée par le backend et jamais reçue, consentement retiré puis donné par les Préférences de l’app', async function () {
+    skipUnlessPartnerCredentials(this, PARTNER)
+    await scenarioDemarcheSansConsentement(parLesPreferences)
+  })
+})

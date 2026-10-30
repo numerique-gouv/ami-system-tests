@@ -11,7 +11,7 @@ Plusieurs contraintes structurent la solution :
   (macOS 3-4 core : $0,062/min contre $0,006/min pour Linux 2-core — cf. doc de facturation
   GitHub), ce qui pousse à garder iOS en stub le plus longtemps possible et à traiter Android
   sur `ubuntu-latest`.
-- `.env.local` est requis par le `justfile` (`set dotenv-required`) pour tout usage local, mais
+- `../../.env.staging` est requis par le `justfile` (`set dotenv-required`) pour tout usage local, mais
   matérialiser un tel fichier en CI serait un anti-pattern (secret sur disque, risque de fuite
   dans les logs/artefacts) — la bonne pratique GitHub est d'injecter les secrets/variables via
   `env:`, alimenté par des secrets/variables scopés à un **Environment** GitHub correspondant à
@@ -99,11 +99,13 @@ publiée par Google pour API ≥ 31 sur Linux).
   [reactivecircus/android-emulator-runner](https://github.com/ReactiveCircus/android-emulator-runner))
   précède le boot de l'émulateur — l'accélération matérielle est disponible nativement sur les
   runners GitHub-hosted `ubuntu-latest` (x86_64) depuis 2023.
-- Le `justfile` n'impose plus `.env.local` de façon inconditionnelle
+- Le `justfile` n'impose plus `../../.env.staging` de façon inconditionnelle
   (`set dotenv-required := false`, littéral requis par `just` — pas d'expression conditionnable
   sur `CI`) ; l'obligation en local est réimplémentée par une recette de garde `_require-dotenv`,
   qui tolère l'absence du fichier dès que `CI` ou `GITHUB_ACTIONS` est présent dans
   l'environnement.
+
+  > Note du 2026-10-27 : la recette de garde `_require-dotenv` et le réglage `dotenv-required` ont été retirés du `justfile` (le code lève déjà des erreurs explicites sur les variables absentes) ; `../../.env.staging` absent est simplement ignoré, en local comme en CI.
 
 ### Garde `env.ACT` — limites assumées de test local
 
@@ -196,6 +198,8 @@ dispatch de cleanup échoue ou n'est jamais câblé côté dépôt frère.
 Nouveau target `just generate-report` (`allure generate allure-results --clean -o allure-report`,
 sans le `allure open` de `npm run report`, qui bloquerait un job CI en démarrant un serveur) —
 conforme à la règle CLAUDE.md d'encapsulation des appels `npm`/`npx` dans le `justfile`.
+
+> Note du 2026-10-27 : Allure a été retiré (migration WDIO 10) et la recette `just generate-report` n'existe plus ; la règle d'encapsulation dans le `justfile` a été abandonnée (le `CLAUDE.md` actuel autorise `npm`/`npx`/`adb`/`xcrun` directs). Cette section est conservée comme historique.
 
 ## Statut
 
@@ -416,3 +420,41 @@ Accepté. Non vérifié faute de run GitHub réel au moment de cette révision :
   par défaut (`main`) — invisible tant que la branche de travail n'est pas mergée.
 - Commande de test local de référence (limites ci-dessus comprises) :
   `act workflow_dispatch -W .github/workflows/system-tests-E2E.yml --container-architecture linux/amd64 --input ref_name=staging --input run_android=true`.
+
+## Mise à jour — 2026-10-27 : WDIO 10, JUnit, commentaire de PR maison (note datée, l'historique ci-dessus n'est pas réécrit)
+
+Allure a été retiré (2026-10-08) : tout ce qui précède sur `allure_report`, `allure-action`, `allure-history-*`, `executor.json` et
+`summary.json` est **obsolète**. État actuel (écrit, non vérifié en CI réelle — voir la liste en fin de note) :
+
+- **Reporting** : le reporter JUnit de WDIO 10 produit un JUnit par run, enrichi par `src/helpers/reporting/junit-join.ts`
+  (`platform`, `ami_env`, `outcome`, tentatives, `dump_path`, `context_kind`, `sentry_url`). Un artefact par plateforme
+  (`test-results-<slug>-webapp-run<N>`, `...-android-run<N>`) ; sorties `test_results` (motif), `artifact_webapp`, `artifact_android`, `artifact_ios`.
+- **Le reporting est dans `workflow-e2e-main.yml`** (job `report`), pas dans les appelants : `github.token` et `github.repository` d'un
+  `workflow_call` sont ceux du dépôt APPELANT, donc le job peut créer le check sur le commit testé et commenter la PR d'origine sans jeton
+  cross-dépôt. Les appelants doivent accorder `checks: write` et `pull-requests: write` au job qui appelle (un workflow appelé ne peut pas
+  dépasser les permissions de son appelant). `pr_number` pilote `AMI_ENV` ; `comment_pr_number` permet de commenter une PR sans
+  changer d'environnement (tests Android, toujours sur staging).
+- **Check et annotations** : `mikepenz/action-junit-report` (épinglée par SHA) avec `commit: source_sha` (le déclencheur `on: status` de
+  l'API s'exécute sur la branche par défaut, pas sur le commit testé), `fail_on_failure: false`.
+- **Commentaire** : décision de l'équipe : commentaire maison UNIQUE (action `.github/actions/e2e-pr-comment`, script
+  `.github/scripts/e2e-comment.mjs`), retrouvé par le marqueur `<!-- e2e-report:<dépôt>:pr-<N> -->` en tête de corps, plutôt qu'un commentaire
+  par plateforme ou par outil. Échappement strict des noms de tests et messages (code modifiable dans une PR), taille bornée (< 65 536),
+  ignoré sans erreur pour un fork, sans PR ou si l'écriture est refusée. Lien Sentry seulement pour les échecs en contexte web ; « écran natif,
+  pas de trace web » sinon. Le filtre d'environnements Sentry n'inclut pas les review apps (leur `SENTRY_ENV` n'est pas dans le dépôt de l'API : non confirmé).
+- **Jobs verts** : `|| echo` conservé dans les actions composites ; le résultat se lit dans le check et le commentaire (pas dans le statut du job).
+- **Suites** (note du 2026-10-27 : `test-suites.ts`, `WDIO_SUITE`, `all`, `api` et `just list-suite` ont été supprimés ; les sept suites `mobile_short|smoke|all` et `webapp_short|smoke|usage|all` sont désormais l'option native `suites` de `wdio.base.conf.ts`, lancées par `--suite <nom>` ; les noms restent le contrat des workflows) : `test-suites.ts` ne regroupe plus les specs en un worker (`[[a, b]]` supprimé) ; listes plates équivalentes à `--spec a --spec b`.
+  `CI` devient `mobile_ci`, `short` devient `mobile_short` / `webapp_short` ; l'API lance `webapp_smoke` sur PR. `run_old_device` est remplacé par
+  `android_device` (nom d'AVD), seul input réellement déclaré par `workflow-e2e-main.yml`. PR : `webapp_nonreg` et un seul passage `mobile_nonreg` sur l'appareil ANCIEN (`pixel_2_api30`) ; merge : `webapp_nonreg` et un seul passage `mobile_nonreg` sur l'appareil RÉCENT (`pixel_8_api36`) ; tag : `webapp_short` (API), `mobile_ci` (app Android). L'API utilise l'APK du dernier tag d'ami-app-android (jeton de la GitHub App `ami-reviewapps`, `actions: read`, voir CONTRIBUTING.md § 9). iOS : non développé, `run_ios` n'est qu'un point d'extension inactif (le job macOS factice est supprimé).
+- `allure-cleanup.yml` est renommé `e2e-artifacts-cleanup.yml` (aucun dépôt frère ne le référençait encore).
+- Actions épinglées par SHA de commit dans les fichiers modifiés ; `permissions` minimales par job. Les prototypes de `.github/workflows-samples/` restent des archives.
+
+**Note du 2026-10-27 (suites par déclencheur, remplace les choix de suites ci-dessus ; l'historique n'est pas réécrit)** : PR, merge et tag lancent `webapp_usage`
+(smoke + usage) et `mobile_all` (API ; l'app Android ne lance que `mobile_all`), un seul passage Android par déclencheur : appareil ANCIEN `pixel_2_api30` sur
+PR et sur tag (hypothèse pour le tag : la demande ne précisait pas l'appareil), RÉCENT `pixel_8_api36` sur merge (vieux contre jeune). Les lancements manuels
+(`workflow_dispatch`) prennent par défaut `webapp_short` / `mobile_short` (authentification seule, mise au point de la CI). Hors CI : `webapp_smoke` +
+`mobile_smoke` pour valider un déploiement, `webapp_all` + `mobile_all` pour le tester. Suites `mobile_ci`, `mobile_nonreg`, `webapp_nonreg`, `mobile_auth`,
+`webapp_auth` et `auth` supprimées. Le préfixe `webapp_` est conservé (convention existante). Tableau suite → usage : CONTRIBUTING.md, « Suites nommées ».
+
+À vérifier en CI réelle : voir la liste dans le rapport de mise à jour (check créé sur `source_sha` par mikepenz et sa conclusion avec `fail_on_failure: false` ;
+lecture des `<properties>` de testcase par mikepenz ; résolution de `uses: ./.github/workflows/workflow-e2e-ios.yml` dans un workflow appelé depuis un autre dépôt ;
+`download-artifact` avec `pattern` sans correspondance ; écriture du commentaire avec `github.token` ; script `android-emulator-runner` lisant `$E2E_SUITE`).

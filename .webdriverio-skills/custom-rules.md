@@ -4,8 +4,8 @@ _Template initial généré par `managing-project-customizations` le 2026-09-08.
 
 ## Sélecteurs
 
-- Préférer les sélecteurs stables DOM/accessibilité (`findRole`, `findText`, etc., cf. `src/helpers/spa.ts`) plutôt que des valeurs codées en dur (ex. éviter `/suivi` en dur ou la traversée arbitraire de `parentElement`).
-- Inspecter le HTML réellement rendu (`just inspect`) avant de choisir une stratégie de sélecteur.
+- Préférer les sélecteurs stables DOM/accessibilité (`role/…`, `tag*=texte`, `aria/…`, `[data-testid]`, cf. `src/helpers/spa/selectors.ts` et `spa.ts`) plutôt que des valeurs codées en dur (ex. éviter `/suivi` en dur ou la traversée arbitraire de `parentElement`).
+- Inspecter le HTML réellement rendu (`just explore-<cible>` puis `just s <cible> snapshot -i`) avant de choisir une stratégie de sélecteur.
 - Cf. `CONTRIBUTING.md §2` et l'ADR `docs/adr/2026-07-09-Strategie-de-selection-des-elements.md` pour le raisonnement complet.
 
 ## Conventions de nommage/structure
@@ -17,15 +17,15 @@ _Template initial généré par `managing-project-customizations` le 2026-09-08.
 
 ## Garde-fous obligatoires
 
-- Jamais d'appel direct `npm`/`npx`/`adb`/`xcrun`/`xcodebuild`/`appium` — tout passe par `just`. Les skills du pack tiers `klamping/webdriverio-skills` (ex. `running-webdriverio-tests`) prescrivent parfois `npx wdio` en direct — voir la table de correspondance dans `project-context.md` § Correspondance skills du pack tiers → commandes `just` avant d'exécuter une commande suggérée par un skill.
+- Les cibles `just` sont **pour les humains** (CLAUDE.md) : un agent peut appeler directement `npm`, `npx wdio …`, `adb`, `xcrun`… — il n'y a plus d'obligation de passer par `just`. Toute commande directe devenue utile aux humains s'ajoute au `justfile`, documentée. Les skills du pack tiers (ex. `running-webdriverio-tests`) prescrivent `npx wdio` : la table de `project-context.md` § Correspondance donne l'équivalent `just` (config `wdio.*.conf.ts` à choisir, suites natives dans `wdio.base.conf.ts`).
 - Jamais de `browser.pause()` comme mécanisme de synchronisation — utiliser `waitUntil`/`waitForDisplayed`/`waitForClickable`.
 - `isVisible()` et équivalents : `try/catch` + `return await` (sans `await`, les rejections ne sont pas interceptées).
 - `platform().inWebContext()` unique pour tout le flow OIDC iOS — sortir du contexte WebView au milieu du flow FranceConnect bloque ~25s.
-- Ne jamais lire `.env.local` ni afficher ses valeurs.
+- Ne jamais lire `../.env` ni afficher ses valeurs.
 
 ## Environnements / réseau
 
-- Tout appel HTTP ajouté dans `src/helpers/*-api.ts` doit avoir un timeout explicite (`AbortSignal.timeout(...)`) — un `fetch()` sans timeout remonte jusqu'au timeout Mocha du hook englobant (120-180s) en cas de coupure réseau. Voir `notifications-api.ts` pour le pattern de référence (`REQUEST_TIMEOUT_MS`).
+- Tout appel HTTP ajouté dans `src/helpers/partner-api/` doit avoir un timeout explicite (`AbortSignal.timeout(...)`) — un `fetch()` sans timeout remonte jusqu'au timeout Mocha du hook englobant (120-180s) en cas de coupure réseau. Voir `src/helpers/partner-api/client.ts` (`REQUEST_TIMEOUT_MS`) et `event.ts` / `consent.ts` pour le pattern de référence.
 
 ## Documentation
 

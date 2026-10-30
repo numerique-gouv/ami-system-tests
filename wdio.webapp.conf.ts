@@ -1,34 +1,31 @@
-import fs from 'fs'
 import path from 'path'
 import type { Options } from '@wdio/types'
-import logger from '@wdio/logger'
-import { baseConfig } from './wdio.base.conf'
-import { resolveEnvironment } from './src/helpers/environment'
-import { resolveSpecs } from './test-suites'
+import fs from 'fs'
+import { baseConfig, traceRootDir, traceServices } from './wdio.base.conf'
+import { resolveEnvironment } from './src/helpers/common/environment'
 import { captureAppWindow } from './src/platform/browser.adapter'
-import { registerReplHelpers } from './src/helpers/repl'
-import { handleAccessKeyCookie } from './src/helpers/access-code'
-import { setBackendUrl } from './src/helpers/notifications-api'
-
-const log = logger('config')
+import { handleAccessKeyCookie } from './src/helpers/webapp/access-code'
+import { setBackendUrl } from './src/helpers/partner-api'
 
 const { webappUrl, apiUrl } = resolveEnvironment()
-
-// Chrome for Testing épinglé (fichier .chrome-version, mis à jour via `just update-chrome`) :
-// WDIO télécharge ce Chrome ET le chromedriver apparié, indépendamment du Chrome installé sur la
-// machine — évite de retélécharger/casser à chaque auto-mise à jour de Chrome (patch parfois non
-// publié côté chromedriver).
-const chromeVersion = fs.readFileSync(path.resolve(__dirname, '.chrome-version'), 'utf8').trim()
 
 // Pas de picker natif en webapp (cf. resolveEnvironment) pour déclencher setBackendUrl()
 // comme EnvironmentPickerPage.reviewEnvironmentPicker() le fait côté mobile — on le fixe
 // donc ici une fois pour toute la session, dès le chargement de la config.
 setBackendUrl(apiUrl)
 
-// WEBAPP_HEADLESS=false (just test-webapp / test-webapp-suite) ouvre un Chrome dédié visible,
+// WEBAPP_HEADLESS=false (just test-webapp) ouvre un Chrome dédié visible,
 // lancé par WDIO/Chromedriver — pratique pour observer le run en local. Par défaut (CI via
-// just test-webci / test-webci-suite), headless.
+// just test-webci), headless.
 const headless = process.env.WEBAPP_HEADLESS !== 'false'
+
+const chromeProfileDir = path.resolve(__dirname, '.cache/chrome-profiles', path.basename(traceRootDir('webapp')))
+
+function removeChromeProfile(): void {
+  if (chromeProfileDir.includes(`${path.sep}chrome-profiles${path.sep}`)) fs.rmSync(chromeProfileDir, { recursive: true, force: true })
+}
+
+let specFailed = false // un worker = une spec : la variable ne vit que pour elle
 
 // Dimensions du viewport émulé (Pixel 7, cf. mobileEmulation ci-dessous) — réutilisées pour
 // dimensionner la fenêtre réelle en headless (cf. before()).
@@ -37,7 +34,9 @@ const deviceMetrics = { width: 412, height: 915 }
 export const config: Options.Testrunner = {
   ...baseConfig,
 
-  specs: resolveSpecs(path.resolve(__dirname, 'src/tests/webapp/**/*.test.ts')),
+  rootDir: traceRootDir('webapp'),
+
+  specs: [path.resolve(__dirname, 'src/tests/webapp/**/*.test.ts')],
 
   baseUrl: webappUrl,
 
@@ -47,10 +46,19 @@ export const config: Options.Testrunner = {
   capabilities: [
     {
       browserName: 'chrome',
-      browserVersion: chromeVersion,
       webSocketUrl: true,
+      // `eager` : les commandes (clic, navigation) reviennent dès `DOMContentLoaded`, sans attendre l'événement `load` des ressources tierces
+      // lentes des pages externes (service-public.gouv.fr/contact bloquait les commandes ~1 min). Les helpers qui lisent l'état du document
+      // (`followAndDescribe`) ne dépendent pas de `load`.
+      pageLoadStrategy: 'eager',
       'goog:chromeOptions': {
-        args: headless ? ['--headless=new'] : [],
+        args: [
+          ...(headless ? ['--headless=new'] : []),
+          // Profil Chrome propre à ce run (jamais partagé entre deux runs simultanés), conservé d'une spec à l'autre : la session
+          // ouverte par une spec est reprise par les suivantes (cookies), sans se réauthentifier. Supprimé en début et fin de série
+          // (il contient les cookies de session).
+          `--user-data-dir=${chromeProfileDir}`,
+        ],
         // Désactive la bulle native "Enregistrer le mot de passe ?" de Chrome après la
         // connexion FranceConnect — sans lien avec la boîte de dialogue passkey (cf.
         // addVirtualAuthenticator() dans before() ci-dessous pour celle-ci), gardé par
@@ -59,13 +67,11 @@ export const config: Options.Testrunner = {
           credentials_enable_service: false,
           'profile.password_manager_enabled': false,
         },
-        // detach:true — le process Chrome ne dépend plus du cycle de vie de la session
-        // Chromedriver : il survit à la fin de session normale ET à une interruption
-        // (Ctrl+C saute tous les hooks JS, y compris after() ci-dessous). Seulement en
-        // mode visible : en headless (CI), inutile de garder un process fantôme.
-        detach: !headless,
+        // Pas de detach : Chrome se ferme avec la session (fin de chaque spec) et libère le profil ci-dessus, que la spec
+        // suivante rouvre. Avec detach:true, Chrome resterait ouvert et verrouillerait ce profil (non vérifié en mode visible).
+        detach: false,
         // La SPA est conçue pour un rendu WebView mobile — émulation d'un viewport de
-        // référence (dimensions Pixel 7, cf. src/driver/capabilities.ts:ANDROID_DEVICE_NAME)
+        // référence (dimensions Pixel 7, cf. la valeur `mobileEmulation` ci-dessous)
         // plutôt qu'un rendu desktop, pour rester cohérent avec les locators partagés.
         mobileEmulation: {
           deviceMetrics: { ...deviceMetrics, pixelRatio: 2.625 },
@@ -78,12 +84,14 @@ export const config: Options.Testrunner = {
   ],
 
   // Pas de service Appium — session Chrome pilotée directement par WebdriverIO/Chromedriver.
-  services: [],
+  // En mode visible, le service devtools (mode trace) fait clignoter la fenêtre : il prend une capture d'écran avant chaque action
+  // (clic, navigation…) et à chaque assertion, sans option pour l'éviter ; sous émulation mobile, chaque capture Chromedriver
+  // applique puis annule un changement de métriques (effet « zoom »). Traces donc actives en headless (CI), coupées en visible,
+  // sauf WEBAPP_TRACE=1 pour les réactiver.
+  services: headless || process.env.WEBAPP_TRACE === '1' ? [...traceServices] : [],
   before: async (): Promise<void> => {
-    // Compose avec le before() partagé (registerReplHelpers, cf. wdio.base.conf.ts) plutôt que
-    // de le dupliquer ou de le remplacer — la navigation initiale + capture du handle sont
-    // spécifiques à la webapp (pas de notion d'onglet côté Appium/mobile), donc gérées ici.
-    registerReplHelpers()
+    // La navigation initiale et la capture du window handle sont spécifiques à la webapp (pas de notion
+    // d'onglet côté Appium/mobile) : gérées ici.
     // Authenticator virtuel WebDriver (spec WebAuthn niveau 2) : sans lui, tout appel
     // navigator.credentials.create()/.get() — qu'il vienne d'un clic explicite sur "Ajouter
     // une clé d'accès" ou d'une offre automatique de Chrome après une connexion par mot de
@@ -116,15 +124,18 @@ export const config: Options.Testrunner = {
     await captureAppWindow()
   },
 
-  // `result` : 0 si tout est passé, non nul sinon (cf. doc WDIO du hook `after`).
-  // detach:true (capabilities ci-dessus) empêche déjà toute fermeture forcée du process Chrome
-  // — y compris sur Ctrl+C, qui saute ce hook. Ici on ferme explicitement la fenêtre en plus,
-  // mais seulement si tout est vert : sinon, laissé ouvert pour inspection post-mortem (bug
-  // applicatif, ou débogueur en pause — cf. ENSURE_APP_WINDOW_TIMEOUT_MS dans
-  // src/platform/browser.adapter.ts).
-  after: async (result): Promise<void> => {
-    if (!headless && result === 0) {
-      await browser.closeWindow().catch(err => log.warn('closeWindow a échoué (fenêtre déjà fermée ?)', err))
-    }
+  // authentification.smoke.test.ts, nonreg/connexion-silencieuse.usage.test.ts et nonreg/zones-onboarding.usage.test.ts supposent une session vierge (la webapp démarre sur l'écran de connexion) : le
+  // profil Chrome conservé, qui porte la session ouverte par les specs précédentes, est supprimé avant le démarrage du navigateur.
+  beforeSession: (_config, _capabilities, specs): void => {
+    if (specs.some(spec => spec.endsWith('authentification.smoke.test.ts') || spec.endsWith('connexion-silencieuse.usage.test.ts') || spec.endsWith('zones-onboarding.usage.test.ts'))) removeChromeProfile()
   },
+
+  // Une spec en échec laisse sa session (cookies, stockage de la SPA) dans le profil conservé : la suivante repart d'un profil neuf plutôt que
+  // d'un état peut-être sali par l'échec (onglets et fenêtres de dialogue, eux, meurent avec le Chrome de la session).
+  after: (result: number): void => { specFailed = result !== 0 },
+  afterSession: (): void => { if (specFailed) removeChromeProfile() },
+
+  // Début et fin de série : le profil Chrome de ce run est supprimé (début : état propre, fin : il contient les cookies de session).
+  onPrepare: (): void => removeChromeProfile(),
+  onComplete: [baseConfig.onComplete as () => void, (): void => removeChromeProfile()],
 } as Options.Testrunner
