@@ -69,7 +69,7 @@ export const config: Options.Testrunner = {
   // Le conteneur de données (session, permissions) est conservé ; la session suivante relance l'app (autoLaunch).
   afterSession: (): void => iosTerminateApp(APP_ID),
 
-  // Scénarios séquentiels : au premier échec, Mocha ne lance plus les `it` suivants (cascade de 4 x 180 s mesurée le 2026-10-28)
+  // Scénarios séquentiels : au premier échec, Mocha ne lance plus les `it` suivants (cascade de timeouts)
   // mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
   mochaOpts: {...baseConfig.mochaOpts, bail: true},
 

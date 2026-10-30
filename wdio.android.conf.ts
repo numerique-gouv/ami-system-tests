@@ -53,13 +53,12 @@ export const config: Options.Testrunner = {
   },
 
   // Un test échoué (renderer de la WebView perdu, app bloquée) ne doit pas contaminer la spec suivante, qui ouvre une session sur
-  // l'app restée en l'état (`noReset: true`) : mesuré le 2026-10-28, `notifications` et `profil` échouaient en `before all` (aucune
-  // WebView) après un `demarches` en échec. L'app est donc arrêtée après CHAQUE spec (données et session conservées) : la session
+  // l'app restée en l'état (`noReset: true`). L'app est donc arrêtée après CHAQUE spec (données et session conservées) : la session
   // suivante la relance (autoLaunch du driver), toujours connectée.
   afterSession: (): void => androidForceStop([ANDROID_APP_PACKAGE]),
 
   // Scénarios séquentiels (chaque `it` part de l'état laissé par le précédent) : au premier échec, Mocha ne lance plus les `it` suivants
-  // (qui échoueraient en cascade, 180 s chacun mesurés sur iOS) mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
+  // (qui échoueraient en cascade, un timeout chacun) mais exécute quand même les hooks `after`/`afterEach` de nettoyage.
   mochaOpts: {...baseConfig.mochaOpts, bail: true},
 
   // Fin de série : l'app, restée ouverte entre les specs, est fermée (l'appareil reste allumé).
