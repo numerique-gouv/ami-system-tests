@@ -1,9 +1,6 @@
 import {fcDemoSpLocators} from '../locators/franceconnect/franceconnect-demo-sp.locators'
 import {traced} from '../../helpers/reporting/traced'
 import {clickDisplayed, firstDisplayed, isShown} from '../../helpers/spa/spa'
-import FranceConnectEidasPage from './franceconnect-eidas.page'
-import FranceConnectCredentialsPage from './franceconnect-credentials.page'
-import type {TestUser} from '../../helpers/common/test-users'
 
 /** Fournisseur de service de démonstration FranceConnect (carte « Déconnexion FC » du catalogue de staging). */
 class FranceConnectDemoSpPage {
@@ -18,11 +15,6 @@ class FranceConnectDemoSpPage {
         await clickDisplayed(fcDemoSpLocators.loginButton)
     }
 
-    /** FranceConnect propose-t-il le choix du compte (donc aucune session FC ouverte) ? */
-    async isAccountChooserShown(timeout = 10000): Promise<boolean> {
-        return await FranceConnectEidasPage.waitForEidasTile(timeout)
-    }
-
     /** FranceConnect propose-t-il directement le consentement (donc une session FC est ouverte) ? */
     async isConsentShown(timeout = 10000): Promise<boolean> {
         return await isShown(fcDemoSpLocators.consentButton, timeout)
@@ -34,11 +26,8 @@ class FranceConnectDemoSpPage {
         await this.assertCallbackDisplayed()
     }
 
-    /** Se connecte depuis le choix du compte (eIDAS faible puis identifiants) jusqu'à la page de retour du démonstrateur. */
-    async signInFromAccountChooser(user: TestUser): Promise<void> {
-        await FranceConnectEidasPage.selectEidasFaible()
-        await FranceConnectCredentialsPage.fillCredentials(user)
-        // Le consentement est affiché après les identifiants ; s'il ne l'est pas, la page de retour doit déjà l'être.
+    /** Après les identifiants : le consentement est affiché ; s'il ne l'est pas, la page de retour doit déjà l'être. */
+    async consentIfAskedAndWaitCallback(): Promise<void> {
         if (await this.isConsentShown(10000)) await clickDisplayed(fcDemoSpLocators.consentButton)
         await this.assertCallbackDisplayed()
     }

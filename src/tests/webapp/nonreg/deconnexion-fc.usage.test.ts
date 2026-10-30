@@ -2,6 +2,8 @@ import logger from '@wdio/logger'
 import ServicesPage from '../../../pages/services.page'
 import HomePage from '../../../pages/home.page'
 import FranceConnectDemoSpPage from '../../../pages/franceconnect/franceconnect-demo-sp.page'
+import FranceConnectEidasPage from '../../../pages/franceconnect/franceconnect-eidas.page'
+import FranceConnectCredentialsPage from '../../../pages/franceconnect/franceconnect-credentials.page'
 import {getAppToStartingState} from '../../../pages/authenticate.process'
 import {environmentKind} from '../../../helpers/common/environment'
 import {getTestUser} from '../../../helpers/common/test-users'
@@ -45,10 +47,12 @@ describe('Non-régression — déconnexion FranceConnect (staging)', function ()
 
     step('4. Une nouvelle connexion repasse par le choix du compte : la session FranceConnect a été retirée')
     await FranceConnectDemoSpPage.connect()
-    expect(await FranceConnectDemoSpPage.isAccountChooserShown()).toBe(true)
+    expect(await FranceConnectEidasPage.waitForEidasTile()).toBe(true)
 
     step('5. Restauration : rouvrir la session FranceConnect, puis revenir sur AMI (session AMI intacte)')
-    await FranceConnectDemoSpPage.signInFromAccountChooser(getTestUser())
+    await FranceConnectEidasPage.selectEidasFaible()
+    await FranceConnectCredentialsPage.fillCredentials(getTestUser())
+    await FranceConnectDemoSpPage.consentIfAskedAndWaitCallback()
     await getAppToStartingState()
     expect(await HomePage.isHomeDisplayed(10000)).toBe(true)
   })
