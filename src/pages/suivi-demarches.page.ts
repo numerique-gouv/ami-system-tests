@@ -90,9 +90,8 @@ class SuiviDemarchesPage {
     if (await isShown(suiviDemarchesLocators.archivedHelpAccordionCollapsed, 1000)) {
       await clickDisplayed(suiviDemarchesLocators.archivedHelpAccordion)
     }
-    await waitForButtons(['AMI', 'Je veux suivre mes démarches'])
-    const ignored = ['Retour à la page précédente', 'Je veux suivre mes démarches']
-    return (await visibleButtonTexts()).filter(t => !ignored.includes(t) && !t.startsWith('Information'))
+    await waitForButtons(suiviDemarchesLocators.archivedExpectedButtons)
+    return (await visibleButtonTexts()).filter(t => !suiviDemarchesLocators.archivedIgnoredTexts.includes(t) && !t.startsWith(suiviDemarchesLocators.archivedInfoPrefix))
   }
 
   /** Le h1 « Mes démarches » : le h2 du même nom existe aussi sur l'Accueil, qu'un `waitForHeading` validerait à tort. */

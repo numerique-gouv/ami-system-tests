@@ -19,6 +19,12 @@ interface SuiviDemarchesLocators {
   archivedHelpAccordionCollapsed: string
   /** Affiché tant qu'aucun consentement n'est actif. */
   followButton: string
+  /** Boutons attendus sur la page des archivées, avant de lire ses partenaires. */
+  archivedExpectedButtons: string[]
+  /** Boutons de la page des archivées qui ne sont pas des partenaires. */
+  archivedIgnoredTexts: string[]
+  /** Préfixe des boutons d'information, eux aussi ignorés. */
+  archivedInfoPrefix: string
 }
 
 export const suiviDemarchesLocators: SuiviDemarchesLocators = {
@@ -28,6 +34,9 @@ export const suiviDemarchesLocators: SuiviDemarchesLocators = {
   archivedTitle:             'Démarches archivées',
   demarcheTile:              (title: string): string => roleSelector('button', title),
   followButton:              roleSelector('button', 'Je veux suivre mes démarches'),
+  archivedExpectedButtons:   ['AMI', 'Je veux suivre mes démarches'],
+  archivedIgnoredTexts:      ['Retour à la page précédente', 'Je veux suivre mes démarches'],
+  archivedInfoPrefix:        'Information',
   cardContent:               '.fr-tile__content',
   cardTitle:                 '.fr-tile__title',
   cardBadge:                 '.fr-badge',

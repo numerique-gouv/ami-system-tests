@@ -15,14 +15,13 @@ function maskIdToken(url: string | null): string | null {
 }
 
 class DemarcheDetailPage {
-  /** « référence dossier » n'existe que sur le détail : le titre est aussi dans la liste du Suivi, affichée un instant après le clic. */
   async assertDisplayed(title: string): Promise<void> {
-    await waitForPageText('référence dossier')
+    await waitForPageText(demarcheDetailLocators.referenceLabel)
     await waitForPageText(title)
   }
 
   async assertReference(reference: string): Promise<void> {
-    await waitForPageText(`référence dossier : ${reference}`)
+    await waitForPageText(`${demarcheDetailLocators.referenceLabel} : ${reference}`)
   }
 
   /** Le bouton « Accéder à ma démarche » n'existe que si une notification reçue de la démarche porte un `content_link`. */

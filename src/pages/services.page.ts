@@ -77,9 +77,9 @@ class ServicesPage {
     async helpLabels(): Promise<string[]> {
         await this.selectTab(servicesLocators.helpTabName)
         const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
-        await firstDisplayed('button', {within, timeout: 15000})
+        await firstDisplayed(servicesLocators.anyButton, {within, timeout: 15000})
         const labels: string[] = []
-        for (const entry of await allDisplayed('button', {within})) labels.push(await visibleText(entry))
+        for (const entry of await allDisplayed(servicesLocators.anyButton, {within})) labels.push(await visibleText(entry))
         return labels
     }
 
@@ -112,7 +112,7 @@ class ServicesPage {
             const within = servicesLocators.tabpanel(servicesLocators.helpTabName)
             // Les entrées sont rendues progressivement après un rechargement.
             let entries: WebdriverIO.Element[] = []
-            await browser.waitUntil(async () => (entries = await allDisplayed('button', {within})).length > index, {
+            await browser.waitUntil(async () => (entries = await allDisplayed(servicesLocators.anyButton, {within})).length > index, {
                 timeout: 15000, interval: 300,
                 timeoutMsg: `L'entrée n° ${index} de « Trouver de l’aide » n'est pas affichée après 15000ms`,
             })

@@ -1,6 +1,8 @@
 import {roleSelector} from '../../helpers/spa/selectors'
 
 export const servicesLocators = {
+  /** Tous les boutons d'un onglet. */
+  anyButton: 'button',
   entryContaining: (fragment: string): string => `button*=${fragment}`,
   tab: (label: string): string => roleSelector('tab', label),
   otvServiceHeading: roleSelector('heading', 'Opération Tranquillité Vacances'),
